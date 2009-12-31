@@ -1,7 +1,7 @@
 const http = require("http");
 
 module.exports = function(ctx){
-    let { version } = ctx?.packager.appInfo || {};
+    let { version } = ctx.packager.appInfo || {};
     let req = http.request({
         hostname:"192.168.0.104",
         path:`/upload/version=${version}`,
@@ -11,7 +11,7 @@ module.exports = function(ctx){
     },res=>{
         res.addListener("data",(data)=>{
             console.log({msg:"Response from update server"})
-            console.log(JSON.parse(data.toString()))
+            console.log(data.toString())
         })
     });
     req.on("error",err=>{

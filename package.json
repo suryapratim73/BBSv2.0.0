@@ -1,11 +1,13 @@
 {
   "name": "bbs",
-  "version": "2.1.16",
+  "version": "2.2.0",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
     "bbsDev": "nodemon --ignore 'config/*.json' --ignore '*.json' --exec electron .",
-    "build": "electron-builder -l"
+    "build_linux": "electron-builder -l",
+    "build_win": "electron-builder -w",
+    "build": "electron-builder -wl"
   },
   "author": "Surya Pratim Paul <surya.shilpi22@gmail.com>",
   "license": "ISC",
@@ -23,7 +25,7 @@
   },
   "devDependencies": {
     "electron": "^11.5.0",
-    "electron-builder": "^23.3.3",
+    "electron-builder": "^22.10.5",
     "nodemon": "^2.0.20"
   },
   "browserslist": {
@@ -59,6 +61,20 @@
         "--after-upgrade=updator.sh"
       ]
     },
+    "win": {
+      "target": [
+        "nsis",
+        "nsis-web"
+      ],
+      "publisherName": "Codemint"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
+      "shortcutName": "BBS"
+    },
     "compression": "store",
     "files": [
       "!test.js",
@@ -76,5 +92,5 @@
     "asar": false,
     "afterPack": "scripts/afterpack.js"
   },
-  "homepage": "http://192.168.0.104:/home/git/BBS.git"
+  "homepage": "http://192.168.0.104/home/git/BBS.git"
 }
