@@ -1,0 +1,36 @@
+{
+  "name": "bbsv2.0.0",
+  "version": "2.0.0",
+  "description": "Business management application",
+  "main": "main.js",
+  "scripts": {
+    "reactDev": "BROWSER=none react-scripts start",
+    "reactBuild": "react-scripts build",
+    "bbsDev": "nodemon --exec electron .",
+    "dev":"nf start"
+  },
+  "author": "Surya",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "react-scripts": "^4.0.2"
+  },
+  "devDependencies": {
+    "electron": "^11.2.3",
+    "foreman": "^3.0.1",
+    "nodemon": "^2.0.7"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
