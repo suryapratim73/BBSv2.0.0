@@ -11,7 +11,9 @@ const tryConnection = () => client.connect({port: 5000}, () => {
         if(!startedElectron) {
             console.log('starting electron');
             const exec = require('child_process').exec;
-            exec('npm run bbsDev').stdout.on("data",console.log).on("error",console.error)
+            let bbsDevScript = exec('npm run bbsDev')
+            bbsDevScript.stdout.on("data",console.log);
+            bbsDevScript.stderr.on("data",console.error)
             startedElectron = true;
         }
     }

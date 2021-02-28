@@ -7,14 +7,17 @@
     "reactDev": "BROWSER=none react-scripts start",
     "reactBuild": "react-scripts build",
     "bbsDev": "nodemon --exec electron .",
-    "dev":"nf start"
+    "dev": "nf start"
   },
   "author": "Surya",
   "license": "ISC",
   "dependencies": {
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
-    "react-scripts": "^4.0.2"
+    "react-scripts": "^2.0.5",
+    "sequelize": "^6.5.0",
+    "sqlite3": "^5.0.2",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "electron": "^11.2.3",

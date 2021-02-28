@@ -1,20 +1,28 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain } = require('electron')
 
 function createWindow () {
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+  const mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth:800,
+    minHeight:600,
     webPreferences: {
       nodeIntegration: true
-    }
-  })
+    },
+    show:false,
+    contextIsolation:true
+  });
 
-  win.loadURL('http://localhost:5000');
-  console.log("Window created")
-  
+    let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow))
+
+    Menu.setApplicationMenu(menu);
+    // mainWindow.loadFile(__dirname+'/build/index.html');
+    mainWindow.loadURL('http://localhost:5000');
+    mainWindow.once("ready-to-show",mainWindow.show)
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(createWindow);
+
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

@@ -1,0 +1,61 @@
+@import "./purchaseTemplate.css";
+@import "./addItem.css";
+
+body{
+    padding: 1rem 0.5rem;
+}
+nav{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+nav h1{
+    font-size: 2rem;
+}
+nav input{
+    background: gray;
+    color: white;
+    border-radius: 5px;
+    padding: 0.1rem;
+    font-size: 1rem;
+}
+input:focus{
+    outline-color: white;
+    outline-style: groove;
+    outline-width: 0.1rem;
+}
+nav button{
+    background-color: #5050ff;
+    padding: 0.1rem;
+    font-size: 1rem;
+    border-radius: 5px;
+}
+main{
+    margin-top: 1rem;
+    height: 100%;
+    overflow: auto;
+}
+main>div{
+    display: flex;
+    justify-content: flex-end;
+}
+main>div>button{
+    background: inherit;
+    padding: 0.1rem;
+    margin: 0.3rem 0;
+}
+main table{
+    width: 100%;
+    border-collapse: collapse;
+}
+main th, main td{
+    border:1px solid white;
+}
+main th{
+    background-color: #5050ff;
+    padding: 0.5rem 0.3rem;
+}
+main td{
+    padding: 0.3rem 0.1rem;
+    text-align: center;
+}

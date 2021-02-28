@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
+import "../css/App.css";
+import Lander from "./Lander"
+
 
 export default function App(){
     return (
-        <h1>Hello from App.jsx</h1>
+        <Lander />
     )
 }

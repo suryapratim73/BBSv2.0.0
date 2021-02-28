@@ -1,0 +1,35 @@
+@import "./purchaseTemplate.css";
+
+body{
+    display: flex;
+    flex-direction: column;
+}
+body>div{
+    width: 100%;
+}
+input{
+    color:black;
+}
+.template{
+    display: flex;
+    margin: 0.5rem;
+}
+.row0{
+    align-items: center;
+    display: flex;
+}
+.row1{
+    padding: 0.3rem;
+}
+body>div:nth-child(2){
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 2.5rem;
+}
+body>div:nth-child(2)>button{
+    background-color: green;
+    padding: 0.3rem 0.5rem;
+    border-radius: 5px;
+    font-size: 1rem;
+    margin-right: 0.1rem;
+}

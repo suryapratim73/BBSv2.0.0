@@ -1,0 +1,97 @@
+*{
+    margin:0;
+    padding: 0;
+    box-sizing: border-box;
+    color:white;
+}
+body{
+    display: grid;
+    grid-template: repeat(12,1fr)/repeat(12,1fr);
+    background: rgb(15 15 15 / 0.71);
+    width: 100vw;
+    height: 100vh;
+}
+#header{
+    grid-column: span 12;
+    grid-row: span 2;
+}
+#header h1,#header p{
+    margin: 1rem;
+}
+#header span{
+    color: orange;
+    margin-right: 0.5rem;
+}
+#body{
+    grid-column: span 12;
+    grid-row: 3/12;
+    padding: 1rem;
+}
+#body input,#body button{
+    color:orangered;
+}
+#body>div{
+    display: flex;
+    margin: 1rem;
+}
+.row0{
+    flex: 1;
+}
+.row1{
+    flex: 5;
+    display: flex;
+    align-items: center;
+}
+.row1 input{
+    width: 90%;
+    padding: 0.15rem;
+    border-radius: 5px;
+    border: none;
+    font-size: 1.2rem;
+}
+#body>div>button{
+    font-size: 1.2rem;
+    padding: 0 0.3rem;
+}
+.row1 button{
+    font-size: 1.2rem;
+    align-self: stretch;
+    padding: 0 0.25rem;
+}
+#body table{
+    width: 100%;
+}
+#body th{
+    background: orange;
+    color: black;
+    padding: 0.3rem 0.5rem;
+}
+#body td{
+    color: orange;
+    text-align: center;
+    border: 1px solid;
+}
+#command{
+    grid-column: span 12;
+    grid-row: span 1;
+}
+#command div{
+    width: fit-content;
+    margin: 0 1rem 0 auto;
+}
+#command button{
+    padding: 0.5rem;
+    font-size: 1rem;
+    color: black;
+}
+#cancel-btn{
+    color: black;
+}
+#proceed-btn{
+    background-color: rgb(50 50 255);
+    color: white;
+}
+#back-btn{
+    background-color: gray;
+    color:white;
+}
