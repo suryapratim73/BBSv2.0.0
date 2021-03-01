@@ -1,6 +1,7 @@
 const {BrowserWindow, dialog} = require("electron");
 const { ipcMain } = require("electron/main");
 const { Op, DataTypes } = require("sequelize");
+const { createModal } = require("./createModal");
 const {sequelize,supplier,stock,purchase} = require("./model/dbConfig");
 sequelize.sync();
 let purchaseWindows = [];
@@ -240,7 +241,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
 })
 
 ipcMain.on("create-add-item-modal",e=>{
-    let addItemModal = new BrowserWindow({
+    let windowOptions = {
         width: 400,
         height: 450,
         resizable:false,
@@ -251,9 +252,9 @@ ipcMain.on("create-add-item-modal",e=>{
         parent:BrowserWindow.getFocusedWindow(),
         contextIsolation:true,
         movable:false
-    });
-    addItemModal.removeMenu();
-    addItemModal.loadFile("./template/html/addItem.html")
+    };
+    let pathToHTML = "./template/html/addItem.html";
+    createModal(windowOptions,pathToHTML);
 });
 
 ipcMain.on("add-item",async (e,data)=>{
@@ -265,7 +266,7 @@ ipcMain.on("add-item",async (e,data)=>{
 
 exports.showPurchase = mainWindow =>{
     return ()=>{
-        let purchaseDisplay = new BrowserWindow({
+        let windowOptions = {
             width: 800,
             height: 600,
             resizable:false,
@@ -276,9 +277,8 @@ exports.showPurchase = mainWindow =>{
             show:false,
             parent:mainWindow,
             contextIsolation:true
-        })
-        purchaseDisplay.on("ready-to-show",purchaseDisplay.show);
-        purchaseDisplay.loadFile("./template/html/purchaseDisplay.html");
-        purchaseDisplay.removeMenu();
+        }   
+        let pathToHTML = "./template/html/purchaseDisplay.html";
+        createModal(windowOptions,pathToHTML)
     }
 }

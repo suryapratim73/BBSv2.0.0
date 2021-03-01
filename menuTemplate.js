@@ -1,8 +1,5 @@
-const log = text=>{
-    console.log("\x1b[33m%s\x1b[0m",text)
-}
 const {addPurchase,showPurchase} = require("./handlePurchase");
-
+const {updateStock,displayStock} = require("./handleStock");
 
 module.exports = mainWindow=>{
     return [
@@ -23,6 +20,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check Purchases",
+                    accelerator: "F2",
                     click: showPurchase(mainWindow)
                 }
             ]
@@ -31,10 +29,14 @@ module.exports = mainWindow=>{
             label:"Stock",
             submenu:[
                 {
-                    label:"Update Stock",
+                    label: "Update Stock",
+                    accelerator: "F3",
+                    click: updateStock(mainWindow)
                 },
                 {
-                    label:"View Stock"
+                    label: "View Stock",
+                    accelerator: "Shift+F3",
+                    click: displayStock(mainWindow)
                 }
             ]
         },

@@ -1,0 +1,46 @@
+@import "./purchaseTemplate.css";
+body{
+    grid-gap: 1rem;
+    padding: 1rem;
+}
+nav{
+    grid-column: span 12;
+}
+nav h1{
+    font-size: 2rem;
+}
+nav p{
+    margin: 0.5rem 0;
+}
+main{
+    grid-column: span 12;
+    grid-row: 2/13;
+}
+main form{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+main form div{
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem;
+    align-items: center;
+}
+main form div:last-child{
+    justify-content: flex-end;
+    margin-top: auto;
+}
+main input{
+    padding: 0.1rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    color: black;
+}
+main button{
+    background-color: #206120;
+    padding: 0.1rem 0.3rem;
+    border-radius: 5px;
+    font-size: 1rem;
+}
