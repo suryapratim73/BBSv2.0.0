@@ -111,7 +111,15 @@ module.exports = {
     sequelize,
     stock: sequelize.define("stock",stockSchema,{
         freezeTableName:false,
-        timestamps:false
+        timestamps:false,
+        setterMethods:{
+            updateStock({quantity,price,location}){
+                this.setDataValue("quantity",Number(this.getDataValue("quantity"))+Number(quantity));
+                this.setDataValue("buyPrice",Number(this.getDataValue("buyPrice"))+Number(price));
+                this.setDataValue("standardSellPrice",1.1*Number(this.getDataValue("buyPrice")));
+                this.setDataValue("location",location);
+            }
+        }
     }),
     purchase: sequelize.define("purchase",purchaseSchema,{
         freezeTableName: false,

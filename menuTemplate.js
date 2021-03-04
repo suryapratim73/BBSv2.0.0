@@ -1,5 +1,7 @@
+const { BrowserWindow } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
 const {updateStock,displayStock} = require("./handleStock");
+const {getSuplier,getLedger,addPaymentForSupplier} = require("./supplierHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -22,6 +24,10 @@ module.exports = mainWindow=>{
                     label: "Check Purchases",
                     accelerator: "F2",
                     click: showPurchase(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label: "Help"
                 }
             ]
         },
@@ -37,11 +43,37 @@ module.exports = mainWindow=>{
                     label: "View Stock",
                     accelerator: "Shift+F3",
                     click: displayStock(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label: "Help"
                 }
             ]
         },
         {
-            label:"Supplier"
+            label:"Supplier",
+            submenu: [
+                {
+                    label: "Get Details",
+                    accelerator:"F4",
+                    click: getSuplier(mainWindow)
+                },
+                {
+                    label: "Check Ledger",
+                    accelerator: "Shift+F4",
+                    click: getLedger(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label: "Add Payment",
+                    accelerator: "F5",
+                    click: addPaymentForSupplier(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label:"Help"
+                }
+            ]
         },
         {
             label:"Customer"
@@ -68,9 +100,8 @@ module.exports = mainWindow=>{
                 },
                 {
                     label:"Refresh",
-                    accelerator:"F5",
                     click:()=>{
-                        mainWindow.webContents.reload()
+                        // mainWindow.webContents.reload()
                     }
                 }
             ]
