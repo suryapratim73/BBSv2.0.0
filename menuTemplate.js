@@ -69,6 +69,10 @@ module.exports = mainWindow=>{
                     accelerator: "F5",
                     click: addPaymentForSupplier(mainWindow)
                 },
+                {
+                    label: "Check Payments",
+                    accelerator: "Shift+F5"
+                },
                 {type:"separator"},
                 {
                     label:"Help"
@@ -108,3 +112,5 @@ module.exports = mainWindow=>{
         }
     ]
 }
+
+//Work in progress on Supplier Menu. 09/03/2021

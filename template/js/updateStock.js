@@ -1,4 +1,5 @@
-require("../js/common.js")(document);
+const {toggleDevTool,validateInput} = require("../js/common.js");
+toggleDevTool(document);
 const {ipcRenderer} = require("electron");
 let firstDiv = document.querySelector("main form div");
 document.querySelector("form").addEventListener("submit",e=>{

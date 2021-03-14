@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inward Ledger</title>
+    <link rel="stylesheet" href="../css/getSupplierLedger.css">
+    <script src="../js/getSupplierLedger.js" defer></script>
+</head>
+<body>
+    <h1>Supplier Ledger</h1>
+    <form>
+        <div>
+            <div>
+                <label for="search-text">
+                    Search by <span>name</span> or <span>GST</span>
+                </label>
+            </div>
+            <div>
+                <input type="text" autofocus list="supplier-names" name="supplier-names" id="search-text"/>
+                <datalist id="supplier-names"></datalist>
+            </div>
+            <div><button type="submit">Get detail</button></div>
+        </div>
+    </form>
+</body>
+</html>

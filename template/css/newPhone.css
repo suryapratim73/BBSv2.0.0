@@ -1,0 +1,9 @@
+@import "../css/purchaseTemplate.css";
+@import "../css/getSupplier.css";
+form div{
+    width: 100%;
+    display: block;
+}
+form div + div{
+    margin-top: 1rem;
+}

@@ -2,9 +2,9 @@ const {BrowserWindow, dialog} = require("electron");
 const { ipcMain } = require("electron/main");
 const { Op, DataTypes } = require("sequelize");
 const { createModal } = require("./createModal");
-const {sequelize,supplier,stock,purchase} = require("./model/dbConfig");
-sequelize.sync();
+const {sequelize,supplier,stock,purchase, outPayments} = require("./model/dbConfig");
 let purchaseWindows = [];
+sequelize.sync({force:false});
 
 exports.addPurchase = mainWindow=>{
     return ()=>{
@@ -42,7 +42,7 @@ ipcMain.on("close",()=>{
 ipcMain.handle("save-supplier",async (e,{billerName,billerAddress,billerPhones,billerGST,billerComment})=>{
     // console.log({billerID,billerName,billerGST,billerPhones,billerAddress,billerComment});
     try{
-        let savedSupplier = await supplier.findOrCreate({
+        let savedSupplier = await (await supplier.sync()).findOrCreate({
             where:{
                 [Op.or]:[
                     {gst:billerGST},
@@ -57,6 +57,7 @@ ipcMain.handle("save-supplier",async (e,{billerName,billerAddress,billerPhones,b
                 comment:billerComment
             }
         })
+        // console.log(savedSupplier[0].dataValues)
         return savedSupplier[0].dataValues;
     }
     catch(error) {
@@ -84,10 +85,12 @@ const supplierLedgerSchema = {
         type:DataTypes.BOOLEAN
     },
     payments:{
-        type:DataTypes.INTEGER
+        type:DataTypes.INTEGER,
+        defaultValue:0
     },
     netDue:{
-        type:DataTypes.INTEGER
+        type:DataTypes.INTEGER,
+        defaultValue:0
     },
     itemList:{
         type:DataTypes.TEXT,
@@ -136,15 +139,17 @@ function closeAndDisplay(msg){
     dialog.showMessageBox(parentWindow,msg)
 }
 
-function updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemList){
-    let payment;
-    if(paymentStatus)
-            payment = billAmt;
+function updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemList,payment){
+    if(paymentStatus){
+        payment = payment.length>0?payment:billAmt;
+        if(+payment<+billAmt)
+            netDue += +billAmt - +payment;
+    }
     else {
         payment = 0;
         netDue += billAmt;
     }
-    ledger.create({
+    return ledger.create({
         date:billDate,
         billAmt,
         billNo,
@@ -152,10 +157,10 @@ function updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemLi
         payments:payment,
         netDue,
         itemList
-    }).catch(console.warn)
+    })
 }
 
-ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDate,itemList,paymentStatus,billAmt})=>{
+ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDate,itemList,paymentStatus,billAmt,payment})=>{
     let supplierLedger = `${id}Ledger`;
     let itemListTable = `${id}_${billNo}_${billDate}`;
     if(!id){
@@ -175,61 +180,78 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         timestamps:false
     }).sync()
     if(tables.find(table=>table.name===supplierLedger))
-        (await ledger.findAll({where:{paymentStatus:false},attributes:["billAmt"]})).forEach(entry=>{
-            netDue += +entry.dataValues.billAmt
-        });
-    updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemListTable);
+        netDue = (await ledger.findOne({
+            attributes:["netDue"],
+            order:[["entryNo","DESC"]]
+        })).dataValues.netDue;
     let billItemTable = (await sequelize.define(itemListTable,billItemSchema,{
         freezeTableName:true,
         timestamps:false
     }).sync());
-    Promise.all([...itemList.map(item=>{
-        return billItemTable.create({
-            name:item.Particular,
-            type: item.Type,
-            hsn:item['HSN No.'],
-            quantity:item.Quantity,
-            unit:item.Unit,
-            rate:Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
-            tax: `${Number(item.CGST)+Number(item.SGST)+Number(item.IGST)}%`
-        })
-    }),
-    ...itemList.map(async item=>{
-        let selectedStock = await stock.findOne({
-            where:{
+    Promise.all([
+        updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemListTable,payment),
+        ...itemList.map(item=>{
+            return billItemTable.create({
                 name:item.Particular,
-                type:item.Type
-            }
-        });
-        if(selectedStock)
-            return stock.update({
-                quantity: selectedStock.dataValues.quantity + Number(item.Quantity),
-                buyPrice: Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
-                standardSellPrice:1.1*Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100)
-            },{
+                type: item.Type,
+                hsn:item['HSN No.'],
+                quantity:item.Quantity,
+                unit:item.Unit,
+                rate:Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
+                tax: `${Number(item.CGST)+Number(item.SGST)+Number(item.IGST)}%`
+            })
+        }),
+        ...itemList.map(async item=>{
+            let _stock = await stock.sync();
+            let selectedStock = await _stock.findOne({
                 where:{
                     name:item.Particular,
                     type:item.Type
                 }
+            });
+            if(selectedStock)
+                return _stock.update({
+                    quantity: selectedStock.dataValues.quantity + Number(item.Quantity),
+                    buyPrice: Number(item.Rate),
+                    standardSellPrice:1.1*Number(item.Rate)
+                },{
+                    where:{
+                        name:item.Particular,
+                        type:item.Type
+                    }
+                })
+            else 
+                return _stock.create({
+                    name: item.Particular,
+                    type: item.Type,
+                    hsn: item["HSN No"],
+                    unit: item.unit,
+                    quantity: item.Quantity,
+                    buyPrice: Number(item.Rate),
+                    standardSellPrice:1.1*Number(item.Rate)
+                })
+        }),
+        (await purchase.sync()).create({
+            supplierId:id,
+            supplierName,
+            billNo,
+            billDate,
+            billAmt,
+            billItemTable:itemListTable
+        })
+    ]).then(async ()=>{
+        if(paymentStatus){
+            payment = payment.length>0?payment:billAmt;
+            return (await outPayments.sync()).create({
+                supplierId:id,
+                payment,
+                date:billDate
             })
-        else 
-            return stock.create({
-                name: item.Particular,
-                type: item.Type,
-                quantity: item.Quantity,
-                buyPrice: Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
-                standardSellPrice:1.1*Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100)
-            })
-    }),
-    (await purchase.sync()).create({
-        supplierId:id,
-        supplierName,
-        billNo,
-        billDate,
-        billAmt,
-        billItemTable:itemListTable
+        } else 
+            return;
     })
-    ]).then(()=>{
+    .catch(console.warn)
+    .finally(()=>{
         let msg = {
             type: "info",
             title: "Bill saved",
@@ -237,7 +259,6 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         }
         closeAndDisplay(msg)
     })
-    .catch(console.warn)
 })
 
 ipcMain.on("create-add-item-modal",e=>{
@@ -282,3 +303,11 @@ exports.showPurchase = mainWindow =>{
         createModal(windowOptions,pathToHTML)
     }
 }
+
+ipcMain.handle("get-item-names",e=>{
+    return stock.findAll({attributes:["name","itemNo"]})
+})
+
+ipcMain.handle("get-stock-detail",async (e,itemNo)=>{
+    return (await stock.findOne({where:{itemNo}})).dataValues;
+})

@@ -14,15 +14,17 @@
     <h1>Supplier Detail Dialog</h1>
     <form>
         <div>
-            <label for="">Search by name</label>
-            <input type="text" />
+            <div>
+                <label for="search-text">
+                    Search by <span>name</span> or <span>GST</span>
+                </label>
+            </div>
+            <div>
+                <input type="text" autofocus list="supplier-names" name="supplier-names" id="search-text"/>
+                <datalist id="supplier-names"></datalist>
+            </div>
+            <div><button type="submit">Get detail</button></div>
         </div>
-        <p>OR</p>
-        <div>
-            <label for="">Search by GST</label>
-            <input type="text" />
-        </div>
-        <div><button type="submit"></button></div>
     </form>
 </body>
 

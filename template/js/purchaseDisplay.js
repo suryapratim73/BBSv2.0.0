@@ -2,7 +2,8 @@ const {purchase} = require("../../model/dbConfig");
 
 let tbody = document.querySelector("tbody");
 let billItemTables = [],purchases=[];
-require("../js/common")(document);
+const {toggleDevTool,validateInput} = require("../js/common.js");
+toggleDevTool(document);
 
 function constructTable(rows){
     rows.forEach(row=>{

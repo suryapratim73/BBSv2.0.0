@@ -46,12 +46,20 @@ const stockSchema = {
         type:DataTypes.TEXT,
         allowNull:false
     },
+    hsn:{
+        type:DataTypes.NUMBER,
+        defaultValue:7318
+    },
     type:{
         type:DataTypes.TEXT
     },
     quantity:{
         type:DataTypes.INTEGER,
         defaultValue:0
+    },
+    unit:{
+        type:DataTypes.TEXT,
+        defaultValue:"Kg"
     },
     buyPrice:{
         type:DataTypes.INTEGER,
@@ -103,6 +111,46 @@ const purchaseSchema = {
     }
 }
 
+const outPaymentSchema = {
+    entryNo:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    supplierId:{
+        type: DataTypes.UUID,
+        allowNull:false
+    },
+    payment:{
+        type: DataTypes.INTEGER,
+        defaultValue:0
+    },
+    date:{
+        type: DataTypes.DATE,
+        allowNull:false
+    }
+}
+
+// const inPaymentSchema = {
+//     entryNo:{
+//         type: DataTypes.INTEGER,
+//         autoIncrement: true,
+//         primaryKey: true
+//     },
+//     supplierId:{
+//         type: DataTypes.UUID,
+//         allowNull:false
+//     },
+//     payment:{
+//         type: DataTypes.INTEGER,
+//         defaultValue:0
+//     },
+//     date:{
+//         type: DataTypes.DATE,
+//         defaultValue:Sequelize.fn("now")
+//     }
+// }
+
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
         freezeTableName:false,
@@ -124,5 +172,9 @@ module.exports = {
     purchase: sequelize.define("purchase",purchaseSchema,{
         freezeTableName: false,
         timestamps: false
+    }),
+    outPayments: sequelize.define("outPayments",outPaymentSchema,{
+        freezeTableName:true,
+        timestamps:false
     })
 }

@@ -1,16 +1,73 @@
 const {ipcRenderer} = require("electron");
-require("../js/common.js")(document)
+const {toggleDevTool,validateInput,init} = require("../js/common.js");
+
+
 const header = document.getElementById("header");
 const body = document.getElementById("body");
 const command = document.getElementById("command");
+let billerPhones = [], billDetail={}, suppliers = [], selectedSupplier,itemList = [];
 
-let billerPhones = [], supplier={},billDetail={};
+
+toggleDevTool(document);
 
 function pushPhoneNumber(){
     let phoneNoField = document.getElementById("billerPhone");
     billerPhones.push(phoneNoField.value);
     phoneNoField.value = "";
     phoneNoField.focus();    
+}
+
+function assignFieldValuesStep1(name,address,phones,gst,comment,setName){
+    if(setName)
+        document.getElementById("billerName").value = name;
+    document.getElementById("billerAddress").value = address;
+    if(!setName)
+        document.getElementById("billerPhone").value = JSON.parse(phones)[0];
+    else
+        document.getElementById("billerPhone").value = phones[0];
+    document.getElementById("billerGST").value = gst;
+    document.getElementById("billerComment").value = comment;
+}
+
+function assignFieldValuesStep2(){
+    let dateField = document.getElementById("billerDate");
+    dateField.value = (new Date()).toISOString().split("T")[0];
+    if(!billDetail.billNo)
+        document.getElementById("billerNo").focus()
+    else
+        document.getElementById("billerNo").value = billDetail.billNo;
+    if(billDetail.paymentStatus!==undefined){
+        let paymentStatusField = document.getElementById("payment-status");
+        let partialPaymentDiv = document.getElementById("partial-payment-div");
+        if(billDetail.paymentStatus===true){
+            paymentStatusField.value = "Yes";
+            partialPaymentDiv.style.visibility = "visible";
+            partialPaymentDiv.querySelector("input").value = billDetail.payment;
+        }
+        else
+            paymentStatusField.value = "No";
+    }
+}
+
+function assignFieldValuesStep3(){
+    if(itemList.length>0)
+        itemList.forEach(data=>{
+            fillTable(data);
+        })
+}
+
+async function supplierSelection(e){
+    let name = e.target.value;
+    selectedSupplier = suppliers.find(suppObj=>suppObj.name===name)
+    if(selectedSupplier.name===name){
+        let {dataValues:{address,gst,phones,comment}} =await ipcRenderer.invoke("get-more-info-supplier",selectedSupplier.id);
+        assignFieldValuesStep1(undefined,address,phones,gst,comment,false);
+        selectedSupplier.address = address;
+        selectedSupplier.phones = JSON.parse(phones);
+        selectedSupplier.gst = gst;
+        selectedSupplier.comment = comment;
+        document.getElementById("proceed-btn").focus()
+    }
 }
 
 function step1P(){
@@ -25,7 +82,10 @@ function step1BodyHTML(){
     return `
     <div>
         <div class="row0"><span>Name</span></div>
-        <div class="row1"><input type="text" autofocus id="billerName" /></div>
+        <div class="row1">
+            <input type="text" list="existing-suppliers" onchange="supplierSelection(event)" autofocus id="billerName" />
+            <datalist id="existing-suppliers"></datalist>
+        </div>
     </div>
     <div>
         <div class="row0"><span>Address</span></div>
@@ -58,11 +118,25 @@ function step1CommandHTML(){
         `
 }
 
+function paymentInput(e){
+    if(!["yes","no","y","ye","n"].includes(e.target.value.toLowerCase()))
+        e.target.value = "";
+    if(["yes","no"].includes(e.target.value.toLowerCase()))
+        e.target.value = e.target.value.toLowerCase()==="yes"?"Yes":"No";
+    if(e.target.value.toLowerCase()==="no" && document.getElementById("partial-payment-div")){
+        document.getElementById("partial-payment-div").style.visibility = "hidden";
+        document.getElementById("partial-payment").value = 0;
+    }
+    if(e.target.value.toLowerCase()==="yes" && document.getElementById("partial-payment-div")){
+        document.getElementById("partial-payment-div").style.visibility = "visible";
+    }
+}
+
 function step2BodyHTML(){
     return `
             <div>
                 <div class="row0"><span>Bill Date</span></div>
-                <div class="row1"><input type="date" autofocus id="billerDate" /></div>
+                <div class="row1"><input type="date" id="billerDate" /></div>
             </div>
             <div>
                 <div class="row0"><span>Bill Number</span></div>
@@ -70,11 +144,19 @@ function step2BodyHTML(){
             </div>
             <div>
                 <div class="row0"><span>Payment Status</span></div>
-                <div class="row1"><input type="text" list="yes-no-choice" id="payment-status" /></div>
+                <div class="row1"><input type="text" oninput="paymentInput(event)" onkeypress="validateInput(event)" list="yes-no-choice" id="payment-status" /></div>
                 <datalist id="yes-no-choice">
-                    <option value="Yes"></option>
-                    <option value="No"></option>
+                    <option value="Yes">Yes</option>
+                    <option value="No" selected>No</option>
                 </datalist>
+            </div>
+            <div id="partial-payment-div" style="visibility:hidden">
+                <div class="row0">
+                    <p>Add partial payment if any</p>
+                </div>
+                <div class="row1">
+                    <input id="partial-payment" type="text" onkeypress="validateInput(event)" />
+                </div>
             </div>
         `;
 }
@@ -86,6 +168,20 @@ function addBackBTN(e,pageNo){
     button.dataset.step = pageNo;
     button.addEventListener("click",loadAddItem)
     e.target.before(button);
+}
+
+function reInit(){
+    let datalist = document.getElementById("existing-suppliers");
+    suppliers.forEach(({id,name})=>{
+        let option = document.createElement("option");
+        option.textContent = id;
+        option.value = name;
+        datalist.appendChild(option);
+    })
+    if(selectedSupplier){
+        const {name,address,phones,gst,comment} = selectedSupplier;
+        assignFieldValuesStep1(name,address,phones,gst,comment,true)
+    }
 }
 
 async function loadAddItem(e){
@@ -111,11 +207,14 @@ async function loadAddItem(e){
         p.innerHTML = step2P()
         e.target.dataset.step = "2";
         body.innerHTML = step2BodyHTML();
+        assignFieldValuesStep2();
         addBackBTN(e,1)
     }
     else if(e.target.dataset.step==="1" && e.target.id==="back-btn"){
         p.innerHTML = step1P();
         body.innerHTML = step1BodyHTML();
+        if(suppliers.length>0)
+            reInit();
         command.innerHTML = step1CommandHTML();
     }
     else if(e.target.dataset.step==="2" && e.target.id==="proceed-btn"){
@@ -124,6 +223,7 @@ async function loadAddItem(e){
         billDetail.billDate = document.getElementById("billerDate").value;
         billDetail.paymentStatus = document.getElementById("payment-status").value==="Yes"?true:false;
         billDetail.billNo = document.getElementById("billerNo").value;
+        billDetail.payment = document.getElementById("partial-payment")?.value ?? 0;
         p.innerHTML = "<span>Step 3: </span>Add purchased items."
         e.target.dataset.step = "3";
         body.innerHTML = `
@@ -150,11 +250,13 @@ async function loadAddItem(e){
                                 <button onclick="ipcRenderer.send('create-add-item-modal')">+</button>
                             </div>
                         `;
+        assignFieldValuesStep3();
         e.target.previousSibling.dataset.step = "2";
     }
     else if(e.target.dataset.step==="2" && e.target.id==="back-btn"){
         p.innerHTML = step2P()
-        body.innerHTML = step2BodyHTML;
+        body.innerHTML = step2BodyHTML();
+        assignFieldValuesStep2();
         e.target.dataset.step = "1";
         e.target.nextSibling.dataset.step = "2";
     }
@@ -181,7 +283,7 @@ async function loadAddItem(e){
     }
 }
 
-ipcRenderer.on("add-item",(e,data)=>{
+function fillTable(data){
     let theadTr = body.querySelector("thead>tr");
     let columnLength = theadTr.children.length;
     let tbody = body.querySelector("tbody")
@@ -204,6 +306,11 @@ ipcRenderer.on("add-item",(e,data)=>{
         tr.appendChild(td);
     }
     tbody.appendChild(tr);
+}
+
+ipcRenderer.on("add-item",(e,data)=>{
+    itemList.push(data);
+    fillTable(data);
     billDetail.itemList = billDetail?.itemList?[...billDetail.itemList,data]:[data];
 })
 
@@ -211,5 +318,10 @@ function closeWindow(){
     ipcRenderer.send("close")
 }
 
-body.innerHTML = step1BodyHTML()
+body.innerHTML = step1BodyHTML();
 command.innerHTML = step1CommandHTML();
+
+(async ()=>{
+    let datalist = document.getElementById("existing-suppliers");
+    suppliers = await init(datalist);
+})()

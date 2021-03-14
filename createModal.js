@@ -18,4 +18,5 @@ exports.createModal = (windowOptions,pathToHTML)=>{
     modal.removeMenu();
     modal.on("ready-to-show",modal.show);
     modal.loadFile(pathToHTML);
+    return modal;
 }

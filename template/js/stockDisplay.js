@@ -1,5 +1,7 @@
 const { ipcRenderer } = require("electron");
-require("../js/common.js")(document);
+const {toggleDevTool,validateInput} = require("../js/common.js");
+const {toggleDevTool,validateInput} = require("../js/common.js");
+toggleDevTool(document);
 
 let tbody = document.querySelector("tbody");
 (async ()=>{
