@@ -1,8 +1,10 @@
 const {BrowserWindow, dialog} = require("electron");
 const { ipcMain } = require("electron/main");
-const { Op, DataTypes } = require("sequelize");
+const { Op } = require("sequelize");
 const { createModal } = require("./createModal");
 const {sequelize,supplier,stock,purchase, outPayments} = require("./model/dbConfig");
+const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
+
 let purchaseWindows = [];
 sequelize.sync({force:false});
 
@@ -65,71 +67,6 @@ ipcMain.handle("save-supplier",async (e,{billerName,billerAddress,billerPhones,b
         return null;
     }
 });
-
-const supplierLedgerSchema = {
-    entryNo:{
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
-    },
-    date:{
-        type:DataTypes.DATE
-    },
-    billNo:{
-        type: DataTypes.INTEGER
-    },
-    billAmt:{
-        type:DataTypes.INTEGER
-    },
-    paymentStatus:{
-        type:DataTypes.BOOLEAN
-    },
-    payments:{
-        type:DataTypes.INTEGER,
-        defaultValue:0
-    },
-    netDue:{
-        type:DataTypes.INTEGER,
-        defaultValue:0
-    },
-    itemList:{
-        type:DataTypes.TEXT,
-        allowNull:false
-    }
-}
-
-const billItemSchema = {
-    itemNo:{
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
-    },
-    name:{
-        type:DataTypes.TEXT,
-        allowNull:false
-    },
-    type:{
-        type:DataTypes.TEXT
-    },
-    hsn:{
-        type:DataTypes.INTEGER,
-        defaultValue:7318
-    },
-    quantity:{
-        type: DataTypes.INTEGER
-    },
-    unit:{
-        type: DataTypes.TEXT,
-        defaultValue:"Kg"
-    },
-    rate:{
-        type:DataTypes.INTEGER,
-        allowNull:false
-    },
-    tax:{
-        type: DataTypes.TEXT
-    }
-}
 
 function closeAndDisplay(msg){
     let parentWindow = BrowserWindow.getFocusedWindow().getParentWindow();

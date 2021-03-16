@@ -1,6 +1,7 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { createModal } = require("./createModal");
-const { supplier } = require("./model/dbConfig");
+const { supplier, sequelize } = require("./model/dbConfig");
+const {supplierLedgerSchema} = require("./model/dynamicSchemas");
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -118,4 +119,44 @@ ipcMain.on("update-supplier-db",(e,{name,gst,address,phones,comment,id})=>{
         message: "Selected supplier information has been updated."
     }
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+});
+
+ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
+    let supplierLedger = `${id}Ledger`;
+    supplierLedger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
+        freezeTableName: true,
+        timestamps: false
+    }).sync();
+    let last5Entries = (await supplierLedger.findAll({
+        limit:5,
+        order:[["entryNo","DESC"]]
+    })).map(({dataValues})=>{return {...dataValues}});
+    let total = (await supplierLedger.findAll({
+        attributes:[
+            [sequelize.fn("sum",sequelize.col("billAmt")),"total"]
+        ]
+    }))[0].dataValues.total;
+    return {last5Entries,total};
+});
+
+ipcMain.on("Load full ledger",async (e,{name,id})=>{
+    let windowOptions = {
+        width: 800,
+        height: 600,
+        resizable:false,
+        webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+        },
+        parent:BrowserWindow.getFocusedWindow(),
+        show:false,
+        contextIsolation:true
+    }   
+    let pathToHTML = "./template/html/fullLegder.html";
+    let ledgerWindow = createModal(windowOptions,pathToHTML);
+    let supplierLedger = `${id}Ledger`;
+    let fullLedger = (await sequelize.model(supplierLedger).findAll()).map(({dataValues})=>dataValues)
+    ledgerWindow.on("ready-to-show",function(){
+        this.webContents.send("supplier-ledger-detail",{name,id,fullLedger})
+    })
 })

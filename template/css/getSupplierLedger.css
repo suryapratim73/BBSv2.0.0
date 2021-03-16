@@ -1,2 +1,52 @@
 @import "../css/purchaseTemplate.css";
 @import "../css/getSupplier.css";
+.paid{
+    background-color: green;
+    /* color:white; */
+}
+.unpaid{
+    background-color: red;
+    /* color: ; */
+}
+.partial-payment{
+    background-color: rgb(130 130 0);
+}
+#contact-div{
+    grid-row: 2/-1;
+}
+#contact-div section,#contact-div div{
+    width: 100%;
+}
+#contact-div section{
+    margin-bottom: 1rem;
+}
+#contact-div div{
+
+}
+section p{
+    font-size: 1.2rem;
+    font-weight: bolder;
+    font-family: sans-serif;
+    letter-spacing: 0.07rem;
+}
+section span{
+    color:yellow;
+}
+#contact-div table{
+    width: 100%;
+    border-collapse: collapse;
+}
+#contact-div th,#contact-div td{
+    border: 1px solid;
+}
+#contact-div th{
+    padding: 1rem;
+    background-color: blue;
+}
+#contact-div td{
+    text-align: center;
+    padding: 0.5rem 0;
+}
+#contact-div button{
+
+}
