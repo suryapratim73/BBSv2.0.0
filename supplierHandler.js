@@ -171,5 +171,5 @@ ipcMain.handle("load-purchase-itemList",async (e,itemListTable)=>{
 });
 
 ipcMain.handle("get-supplier-name",async (e,id)=>{
-    return (await supplier.findOne({where:{id},attributes:["name","gst"]})).dataValues;
+    return (await supplier.findOne({where:{id}})).dataValues;
 })

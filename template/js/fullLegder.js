@@ -4,7 +4,7 @@ const {toggleDevTool} = require("../js/common");
 toggleDevTool(document);
 
 let tbody = document.querySelector("tbody");
-let ths = document.querySelectorAll("th");
+let ths = document.querySelectorAll("#contact-div th");
 let cover = document.querySelector(".cover");
 let modal = document.querySelector(".modal");
 let modalThs = document.querySelectorAll(".modal th");
@@ -78,13 +78,13 @@ tbody.addEventListener("click",async e=>{
         let {totalWithoutTax,totalTax, totalWithTax} = getBillTotals(itemList);
         let [id,billNo,date] = itemTable.split("_");
         date = (new Date(date)).toDateString();
-        let { name:supplierName, gst }= await ipcRenderer.invoke("get-supplier-name",id);
+        let { name:supplierName, gst, address, phones }= await ipcRenderer.invoke("get-supplier-name",id);
         [...modalHeader.children].forEach(div=>div.remove());//cleaning modal header
         [...modalTbody.children].forEach(tr=>tr.remove());//cleaning modal tbody rows
         [...modalFooter.children].forEach(div=>div.remove());//cleaning modal footer
         modalHeader.innerHTML = `
                         <div class="row0">
-                            <p data-id:"${id}">
+                            <p>
                                 Name:
                                 <span>${supplierName}</span>
                             </p>
@@ -135,6 +135,28 @@ tbody.addEventListener("click",async e=>{
         `;
         cover.classList.remove("hide");
         modal.classList.remove("hide");
+        let firstP = modalHeader.querySelector("p:first-child");
+        firstP.addEventListener("mouseover",async function(){
+            let div = this.parentNode;
+            let contactDiv = document.createElement("div");
+            contactDiv.id = "contact-popup"
+            contactDiv.innerHTML = `
+                        <div id="contact-wrapper">
+                            <div>
+                                <p>Address</p>
+                                <p>Phone</p>
+                            </div>
+                            <div>
+                                <p>${address}</p>
+                                ${(JSON.parse(phones)).map(phone=>`<p>${phone}</p>`)}
+                            </div>
+                        </div>
+            `
+            div.appendChild(contactDiv);
+        })
+        firstP.addEventListener("mouseout",function(){
+            this.parentNode.querySelector("#contact-popup").remove();
+        })
     }
 });
 

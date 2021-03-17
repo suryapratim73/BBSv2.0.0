@@ -1,6 +1,9 @@
 @import "../css/purchaseTemplate.css";
 @import "../css/getSupplier.css";
 @import "../css/getSupplierLedger.css";
+*{
+    user-select: none;
+}
 #contact-div{
     overflow: auto;
 }
@@ -35,7 +38,9 @@
     color: black;
 }
 .modal span{
-
+    color: blue;
+    font-weight: 600;
+    margin: 0.3rem;
 }
 .modal header{
     grid-column: 1/-1;
@@ -43,6 +48,7 @@
     display: flex;
     justify-content: space-between;
     border: 1px solid black;
+    padding: 0.5rem;
 }
 .modal main{
     grid-column: 1/-1;
@@ -61,11 +67,15 @@
     border: 1px solid;
     border-top-width: 0;
 }
-.modal th{
-
+.modal th:first-child,.modal td:first-child{
+    border-left-width: 0;
+}
+.modal th:last-child,.modal td:last-child{
+    border-right-width: 0;
 }
 .modal td{
-
+    color: blue;
+    border-color: black;
 }
 .modal footer{
     grid-column: 1/-1;
@@ -73,13 +83,48 @@
     display: flex;
     border: 1px solid black;
     border-top-width: 0;
+    padding: 0.5rem;
 }
 .hide{
     display: none;
 }
 .row0{
-    flex:1;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: flex-start;
+    display: flex;
+    position: relative;
 }
 .row1{
-    flex:1;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: flex-end;
+}
+#contact-popup{
+    position: absolute;
+    top: 1.5rem;
+    left: 5rem;
+    background: wheat;
+    padding: 1rem;
+    border-radius: 5px;
+    box-shadow: 1px 1px 1px 1px #80808082;
+    width: fit-content;
+}
+#contact-wrapper{
+    display: flex;
+}
+#contact-wrapper div:first-child{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+#contact-wrapper div:last-child{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    margin-left: 1rem;
+}
+#contact-wrapper p{
+    margin: 0.5rem 0;
 }
