@@ -1,7 +1,7 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { createModal } = require("./createModal");
 const { supplier, sequelize } = require("./model/dbConfig");
-const {supplierLedgerSchema} = require("./model/dynamicSchemas");
+const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -159,4 +159,17 @@ ipcMain.on("Load full ledger",async (e,{name,id})=>{
     ledgerWindow.on("ready-to-show",function(){
         this.webContents.send("supplier-ledger-detail",{name,id,fullLedger})
     })
+});
+
+ipcMain.handle("load-purchase-itemList",async (e,itemListTable)=>{
+    itemListTable = sequelize.define(itemListTable,billItemSchema,{
+        freezeTableName:true,
+        timestamps:false
+    });
+    let itemList = (await itemListTable.findAll()).map(({dataValues})=>dataValues);
+    return itemList
+});
+
+ipcMain.handle("get-supplier-name",async (e,id)=>{
+    return (await supplier.findOne({where:{id},attributes:["name","gst"]})).dataValues;
 })

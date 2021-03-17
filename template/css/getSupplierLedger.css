@@ -20,9 +20,6 @@
 #contact-div section{
     margin-bottom: 1rem;
 }
-#contact-div div{
-
-}
 section p{
     font-size: 1.2rem;
     font-weight: bolder;
@@ -46,7 +43,4 @@ section span{
 #contact-div td{
     text-align: center;
     padding: 0.5rem 0;
-}
-#contact-div button{
-
 }
