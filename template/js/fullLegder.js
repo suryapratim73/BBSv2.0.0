@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool} = require("../js/common");
+const {toggleDevTool,getAmtToWord} = require("../js/common");
 
 toggleDevTool(document);
 
@@ -11,6 +11,9 @@ let modalThs = document.querySelectorAll(".modal th");
 let modalTbody = document.querySelector(".modal tbody");
 let modalHeader = document.querySelector(".modal header");
 let modalFooter = document.querySelector(".modal footer");
+let filter = document.querySelector("#filter");
+let filterBtn = document.querySelector("header button");
+let selection = "*";
 
 function closeModal(){
     modal.classList.add("hide");
@@ -19,8 +22,30 @@ function closeModal(){
 
 cover.addEventListener("click",closeModal);
 
+filterBtn.addEventListener("click",()=>filter.classList.toggle("hide"));
+
+filter.addEventListener("click",function(e){
+    if(e.target===this) return;
+    [...this.children].forEach(a=>a.classList.remove("selection"));
+    selection = e.target.dataset.time!=="*"?Number(e.target.dataset.time):"*";
+    e.target.classList.add("selection");
+    this.classList.add("hide");
+    applyFilter();
+})
+
+function applyFilter(){
+    [...tbody.children].forEach(tr=>tr.classList.remove("hide")); 
+    if(selection!=="*")
+        [...tbody.children].forEach(tr=>{
+            let billDate = new Date(tr.children[1].textContent);
+            let currentDate = new Date();
+            if(Math.ceil((currentDate-billDate)/(1000*60*60*24))>selection*30)
+                tr.classList.add("hide")
+        });
+}//Need more testing
+
 ipcRenderer.on("supplier-ledger-detail",async (e,{fullLedger,id,name})=>{
-    if(tbody.children.length===0)
+    if(tbody.children.length===0){
         fullLedger.forEach(entry=>{
             let {paymentStatus,itemList} = entry;
             let tr = document.createElement("tr");
@@ -39,7 +64,9 @@ ipcRenderer.on("supplier-ledger-detail",async (e,{fullLedger,id,name})=>{
                 tr.appendChild(td)
             })
             tbody.appendChild(tr)
-        })
+        });
+        applyFilter();
+    }
 });
 
 tbody.addEventListener("mouseover",e=>{
@@ -69,7 +96,7 @@ function getBillTotals(itemList){
     })
     totalWithTax = totalWithoutTax + totalTax;
     return {totalWithoutTax,totalTax,totalWithTax}
-}
+}// Rate per item is inclusive of tax conversion!! May need a change! 
 
 tbody.addEventListener("click",async e=>{
     if(e.target.parentNode.nodeName==="TR"){
@@ -115,7 +142,7 @@ tbody.addEventListener("click",async e=>{
         });
         modalFooter.innerHTML = `
                         <div class="row0">
-                            <p>${getAmtToWord()}</p>
+                            <p>${getAmtToWord(totalWithTax)}</p>
                             <p>Total in words</p>
                         </div>
                         <div class="row1">
@@ -158,8 +185,4 @@ tbody.addEventListener("click",async e=>{
             this.parentNode.querySelector("#contact-popup").remove();
         })
     }
-});
-
-function getAmtToWord(){
-    return "Some number in words."
-}
+});//done-17/3/21
