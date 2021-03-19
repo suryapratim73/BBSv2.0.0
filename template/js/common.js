@@ -14,7 +14,11 @@ exports.validateInput = function(e){
     if(e.target.id==="payment-status" && e.target.value.length>2)
         e.preventDefault();
     if(!/\d/.test(e.key)){
-        if(e.target.id==="partial-payment" || e.target.dataset.type==="Number")
+        if(
+            e.target.id==="partial-payment" || 
+            e.target.dataset.type==="Number" ||
+            e.target.id==="amount"
+            )//conditions..
             e.preventDefault();
     }
 }
@@ -138,4 +142,4 @@ exports.getAmtToWord = function (amt){
     let word = lakh + " " + thousand + " " + hundred + " and " + ten + " " + one + " only.";
     word = word.substr(1,1).toUpperCase() + word.substring(2,word.length);
     return word;
-}
+}//need more testing.

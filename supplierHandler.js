@@ -43,7 +43,20 @@ exports.getLedger = mainWindow =>{
 
 exports.addPaymentForSupplier = mainWindow=>{
     return ()=>{
-        console.log("Add Payments")
+        let windowOptions = {
+            width: 800,
+            height: 600,
+            resizable:false,
+            webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+            },
+            show:false,
+            parent:mainWindow,
+            contextIsolation:true
+        }   
+        let pathToHTML = "./template/html/outPayments.html";
+        createModal(windowOptions,pathToHTML);
     }
 }
 
@@ -172,4 +185,4 @@ ipcMain.handle("load-purchase-itemList",async (e,itemListTable)=>{
 
 ipcMain.handle("get-supplier-name",async (e,id)=>{
     return (await supplier.findOne({where:{id}})).dataValues;
-})
+});

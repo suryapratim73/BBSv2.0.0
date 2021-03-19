@@ -1,0 +1,45 @@
+@import "../css/getSupplier.css";
+@import "../css/fullLegder.css";
+main{
+    grid-column: 1/-1;
+    grid-row: 2/-1;
+    display: flex;
+    flex-direction: column;
+}
+#type-selection-div{
+
+}
+#main-content-div{
+    display: flex;
+    flex: 2;
+}
+main section:first-child{
+    flex: 2;
+    border: 1px solid black;
+    border-radius: 15px;
+    margin: 0.5rem 1rem 0 0;
+    height: fit-content;
+    padding: 0.5rem;
+}
+main section:last-child{
+    background-color: white;
+    border-radius: 15px;
+    color: black;
+}
+main form{
+    align-items: flex-start;
+}
+main label{
+    font-size: 1.2rem;
+}
+main form div{
+    width: 100%;
+    align-items: flex-start;
+    margin: 0.5rem 0;
+}
+main button{
+    font-size: 1.2rem;
+}
+main p{
+
+}
