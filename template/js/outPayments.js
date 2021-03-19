@@ -23,13 +23,12 @@ async function modeSwitcher(e){
         supplierNames = await init(supplierNamesDatalist);
 }
 
-supplierNameInput.addEventListener("change",async function(e){
-    if(!supplierNames.includes(this.value)){
-        this.value = "";
-        alert("Please select a supplier name from the list");
-        return;
+supplierNameInput.addEventListener("change",async function(){
+    let supplier = supplierNames.find(({name})=>name===this.value);
+    if(supplier){
+        console.loh(await ipcRenderer.invoke("get-unpaid-bills",supplier))
     } else {
-        let supplier = supplierNames.find(this.value);
-        
+        this.value = "";
+        alert("Please select one from the list of supplier names.");
     }
 })
