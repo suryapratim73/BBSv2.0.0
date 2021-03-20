@@ -1,4 +1,5 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
+const { Op, Sequelize } = require("sequelize");
 const { createModal } = require("./createModal");
 const { supplier, sequelize } = require("./model/dbConfig");
 const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
@@ -134,12 +135,17 @@ ipcMain.on("update-supplier-db",(e,{name,gst,address,phones,comment,id})=>{
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
 });
 
-ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
+async function getLedgerModel(id){
     let supplierLedger = `${id}Ledger`;
     supplierLedger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
         freezeTableName: true,
         timestamps: false
     }).sync();
+    return supplierLedger
+}
+
+ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
+    let supplierLedger = await getLedgerModel(id)
     let last5Entries = (await supplierLedger.findAll({
         limit:5,
         order:[["entryNo","DESC"]]
@@ -186,3 +192,14 @@ ipcMain.handle("load-purchase-itemList",async (e,itemListTable)=>{
 ipcMain.handle("get-supplier-name",async (e,id)=>{
     return (await supplier.findOne({where:{id}})).dataValues;
 });
+
+ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
+    let supplierLedger = await getLedgerModel(id);
+    return (await supplierLedger.findAll({
+        where:{
+            billAmt:{
+                [Op.ne]:Sequelize.col("payments")
+            }
+        }
+    })).map(({dataValues:{date,billNo,billAmt}})=>({date,billNo,billAmt}))
+})
