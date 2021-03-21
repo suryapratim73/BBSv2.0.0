@@ -6,22 +6,25 @@ const {sequelize,supplier,stock,purchase, outPayments} = require("./model/dbConf
 const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
 let purchaseWindows = [];
-sequelize.sync({force:false});
+sequelize.sync({
+    force:false,
+    alter:true
+}).then(()=>console.log("sequelize sync done")).catch(console.warn);
 
 exports.addPurchase = mainWindow=>{
     return ()=>{
         let purchaseWindow = new BrowserWindow({
             width: 800,
             height: 600,
-            resizable:false,
+            resizable: false,
             webPreferences: {
-            nodeIntegration: true,
-            devTools:true
+                nodeIntegration: true,
+                devTools: true
             },
-            show:false,
-            parent:mainWindow,
+            show: false,
+            parent: mainWindow,
             // modal:true,
-            contextIsolation:true
+            contextIsolation: true
         });
         purchaseWindow.on("ready-to-show",purchaseWindow.show);
         purchaseWindows.push(purchaseWindow);
@@ -180,7 +183,8 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         if(paymentStatus){
             payment = payment.length>0?payment:billAmt;
             return (await outPayments.sync()).create({
-                supplierId:id,
+                beneficiaryId:id,
+                type:"bill",
                 payment,
                 date:billDate
             })

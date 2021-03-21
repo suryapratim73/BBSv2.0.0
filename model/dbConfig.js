@@ -117,9 +117,12 @@ const outPaymentSchema = {
         autoIncrement: true,
         primaryKey: true
     },
-    supplierId:{
+    beneficiaryId:{
         type: DataTypes.UUID,
-        allowNull:false
+    },
+    type:{
+        type: DataTypes.TEXT,
+        defaultValue:"general"
     },
     payment:{
         type: DataTypes.INTEGER,

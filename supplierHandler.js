@@ -201,5 +201,11 @@ ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
                 [Op.ne]:Sequelize.col("payments")
             }
         }
-    })).map(({dataValues:{date,billNo,billAmt}})=>({date,billNo,billAmt}))
+    })).map(({dataValues:{date,billNo,billAmt,payments}})=>({date,billNo,billAmt,payments}));
+});
+
+ipcMain.on("add-out-payment",(e,updateObj)=>{
+    console.log(updateObj)
+    // Create setter method for outPayment table
+    // Add an entry to the respective ledger
 })
