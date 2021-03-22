@@ -1,7 +1,7 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { Op, Sequelize } = require("sequelize");
 const { createModal } = require("./createModal");
-const { supplier, sequelize } = require("./model/dbConfig");
+const { supplier, sequelize, outPayments } = require("./model/dbConfig");
 const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
 exports.getSuplier = mainWindow =>{
@@ -201,11 +201,46 @@ ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
                 [Op.ne]:Sequelize.col("payments")
             }
         }
-    })).map(({dataValues:{date,billNo,billAmt,payments}})=>({date,billNo,billAmt,payments}));
+    })).map(({dataValues:{date,billNo,billAmt,payments,entryNo}})=>({date,billNo,billAmt,payments,entryNo}));
 });
 
-ipcMain.on("add-out-payment",(e,updateObj)=>{
-    console.log(updateObj)
-    // Create setter method for outPayment table
-    // Add an entry to the respective ledger
+ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo})=>{
+    let supplierLedger = await getLedgerModel(id);
+    let {netDue,entryNo:lastEntryNo} = (await supplierLedger.findOne({
+        attributes:["netDue","entryNo"],
+        order:[["entryNo","DESC"]]
+    })).dataValues;
+    Promise.all([
+        outPayments.create({
+            beneficiaryId:id,
+            type,
+            payment,
+            date:new Date()
+        }),
+        supplierLedger.update({
+            paymentStatus:true,
+            payments:billAmt
+        },{
+            where:{
+                entryNo
+            }
+        }),
+        supplierLedger.update({
+            netDue:netDue-payment
+        },{
+            where:{
+                entryNo:lastEntryNo
+            }
+        })
+    ])
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Payment added and ledger updated",
+            message: "Payment added and ledger updated."
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        BrowserWindow.getFocusedWindow().close();
+    })
+    .catch(console.warn);
 })

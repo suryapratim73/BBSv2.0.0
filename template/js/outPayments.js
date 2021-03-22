@@ -66,11 +66,14 @@ function formSubmitHandler(e){
     e.preventDefault();
     if(this.id==="bill"){
         let {id} = supplierNames.find(({name})=>name===this.name.value);
+        let selectedBill = unPaidBills.find(({billNo})=>billNo==this.billNo.value);
         let updateObj = {
             id,
             billNo:this.billNo.value,
-            payment:this.amount.value,
-            billAmt:unPaidBills.find(({billNo})=>billNo==this.billNo.value).billAmt
+            payment:+(this.amount.value),
+            billAmt:selectedBill.billAmt,
+            type:"bill",
+            entryNo:selectedBill.entryNo
         }
         ipcRenderer.send("add-out-payment",updateObj);
     }

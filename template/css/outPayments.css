@@ -6,9 +6,6 @@ main{
     display: flex;
     flex-direction: column;
 }
-#type-selection-div{
-
-}
 #main-content-div{
     display: flex;
     flex: 2;
@@ -42,9 +39,6 @@ main form div{
 main button{
     font-size: 1.2rem;
 }
-main p{
-
-}
 #main-content-div h2{
     font-size: 1.3rem;
     color: blue;
@@ -63,7 +57,4 @@ main p{
     padding: 0.3rem 0.5rem;
     background-color: green;
     color: white;
-}
-#main-content-div td{
-
 }

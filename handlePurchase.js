@@ -6,10 +6,10 @@ const {sequelize,supplier,stock,purchase, outPayments} = require("./model/dbConf
 const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
 let purchaseWindows = [];
-sequelize.sync({
-    force:false,
-    alter:true
-}).then(()=>console.log("sequelize sync done")).catch(console.warn);
+// sequelize.sync({
+//     force:true,
+//     alter:true
+// }).then(()=>console.log("sequelize sync done")).catch(console.warn);
 
 exports.addPurchase = mainWindow=>{
     return ()=>{
@@ -79,15 +79,15 @@ function closeAndDisplay(msg){
     dialog.showMessageBox(parentWindow,msg)
 }
 
-function updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemList,payment){
+function updateLedger(ledger,paymentStatus,netDue=0,billAmt,billDate,billNo,itemList,payment){
     if(paymentStatus){
         payment = payment.length>0?payment:billAmt;
         if(+payment<+billAmt)
-            netDue += +billAmt - +payment;
+            netDue = Number(billAmt) - Number(payment);
     }
     else {
         payment = 0;
-        netDue += billAmt;
+        netDue = billAmt;
     }
     return ledger.create({
         date:billDate,
@@ -113,23 +113,16 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         closeAndDisplay(msg);
         return;
     }
-    let netDue = 0;
-    let tables = await sequelize.showAllSchemas();
     let ledger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
         freezeTableName:true,
         timestamps:false
-    }).sync()
-    if(tables.find(table=>table.name===supplierLedger))
-        netDue = (await ledger.findOne({
-            attributes:["netDue"],
-            order:[["entryNo","DESC"]]
-        })).dataValues.netDue;
+    }).sync();
     let billItemTable = (await sequelize.define(itemListTable,billItemSchema,{
         freezeTableName:true,
         timestamps:false
     }).sync());
     Promise.all([
-        updateLedger(ledger,paymentStatus,netDue,billAmt,billDate,billNo,itemListTable,payment),
+        updateLedger(ledger,paymentStatus,0,billAmt,billDate,billNo,itemListTable,payment),
         ...itemList.map(item=>{
             return billItemTable.create({
                 name:item.Particular,
@@ -159,7 +152,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                         name:item.Particular,
                         type:item.Type
                     }
-                })
+                });
             else 
                 return _stock.create({
                     name: item.Particular,
@@ -169,7 +162,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                     quantity: item.Quantity,
                     buyPrice: Number(item.Rate),
                     standardSellPrice:1.1*Number(item.Rate)
-                })
+                });
         }),
         (await purchase.sync()).create({
             supplierId:id,

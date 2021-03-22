@@ -178,6 +178,11 @@ module.exports = {
     }),
     outPayments: sequelize.define("outPayments",outPaymentSchema,{
         freezeTableName:true,
-        timestamps:false
+        timestamps:false,
+        setterMethods:{
+            addOutPayment(updateObj){
+                console.log(updateObj,"From setter method")
+            }
+        }
     })
 }

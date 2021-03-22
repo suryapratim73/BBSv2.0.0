@@ -27,8 +27,7 @@ exports.supplierLedgerSchema = {
         defaultValue:0
     },
     itemList:{
-        type:DataTypes.TEXT,
-        allowNull:false
+        type:DataTypes.TEXT
     }
 }
 
