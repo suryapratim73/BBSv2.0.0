@@ -1,9 +1,4 @@
-*{
-    margin:0;
-    padding: 0;
-    box-sizing: border-box;
-    color:white;
-}
+@import "../css/common.css";
 body{
     display: grid;
     grid-template: repeat(12,1fr)/repeat(12,1fr);

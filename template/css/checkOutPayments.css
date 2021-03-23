@@ -1,0 +1,29 @@
+@import "../css/purchaseTemplate.css";
+@import "../css/fullLegder.css";
+@import "../css/common.css";
+body{
+    padding: 1rem;
+}
+header{
+    grid-column: 1/span 12;
+    grid-row: 1/2;
+}
+main{
+    grid-column: 1/span 12;
+    grid-row: 2/-1;
+}
+main table{
+    width: 100%;
+    border-collapse: collapse;
+}
+main th,main td{
+    text-align: center;
+    border: 1px solid;
+}
+main th{
+    padding: 0.5rem 1rem;
+    background-color: blue;
+}
+main td{
+    padding: 0.3rem 0;
+}

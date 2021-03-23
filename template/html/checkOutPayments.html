@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outward payments</title>
+    <link rel="stylesheet" href="../css/checkOutPayments.css">
+    <script src="../js/checkOutPayments.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>Outward Payments</h1>
+        <button>Filter</button>
+        <div id="filter" class="hide">
+            <a data-time="1">1 month</a>
+            <a data-time="3">3 months</a>
+            <a data-time="6">6 months</a>
+            <a data-time="12.17">1 year</a>
+            <a data-time="*" class="selection">all</a>
+        </div>
+    </header>
+    <main>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sl No.</th>
+                    <th>Beneficiary Name</th>
+                    <th>Type of payment</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </main>
+</body>
+</html>

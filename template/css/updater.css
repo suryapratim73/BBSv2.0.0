@@ -1,5 +1,6 @@
 @import "../css/purchaseTemplate.css";
 @import "../css/getSupplier.css";
+@import "../css/common.css";
 #root{
     grid-row: 1/-1;
     grid-column: 1/-1;

@@ -145,3 +145,23 @@ exports.getAmtToWord = function (amt){
     word = word.substr(1,1).toUpperCase() + word.substring(2,word.length);
     return word;
 }//need more testing.
+
+exports.applyFilter = function (tbody,selection="*"){
+    [...tbody.children].forEach(tr=>tr.classList.remove("hide")); 
+    if(selection!=="*")
+        [...tbody.children].forEach(tr=>{
+            let billDate = new Date(tr.children[1].textContent);
+            let currentDate = new Date();
+            if(Math.ceil((currentDate-billDate)/(1000*60*60*24))>selection)
+                tr.classList.add("hide")
+        });
+};
+
+exports.filterSelector = function(e){
+    if(e.target===this) return;
+    [...this.children].forEach(a=>a.classList.remove("selection"));
+    selection = e.target.dataset.time!=="*"?Number(e.target.dataset.time):"*";
+    e.target.classList.add("selection");
+    this.classList.add("hide");
+    applyFilter(tbody,selection);
+}

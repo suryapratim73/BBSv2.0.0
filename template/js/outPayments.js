@@ -73,7 +73,9 @@ function formSubmitHandler(e){
             payment:+(this.amount.value),
             billAmt:selectedBill.billAmt,
             type:"bill",
-            entryNo:selectedBill.entryNo
+            entryNo:selectedBill.entryNo,
+            netDue:selectedBill.netDue,
+            oldPayment:selectedBill.payments
         }
         ipcRenderer.send("add-out-payment",updateObj);
     }

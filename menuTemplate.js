@@ -1,7 +1,8 @@
 const { BrowserWindow } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
 const {updateStock,displayStock} = require("./handleStock");
-const {getSuplier,getLedger,addPaymentForSupplier} = require("./supplierHandler");
+const {getSuplier,getLedger,addPaymentForSupplier,checkOutPayments} = require("./supplierHandler");
+const {saleWindow, showSales} = require("./saleHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -10,7 +11,19 @@ module.exports = mainWindow=>{
         //     role:"appMenu"
         // },
         {
-            label:"Sale"
+            label:"Sale",
+            submenu:[
+                {
+                    label:"Add Sale",
+                    accelerator:"Return",
+                    click:saleWindow()
+                },
+                {
+                    label:"Show Sales",
+                    accelerator:"F2",
+                    click:showSales(mainWindow)
+                }
+            ]
         },
         {
             label:"Purchase",
@@ -22,7 +35,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check Purchases",
-                    accelerator: "F2",
+                    accelerator: "Shift+F2",
                     click: showPurchase(mainWindow)
                 },
                 {type:"separator"},
@@ -71,7 +84,8 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check Payments",
-                    accelerator: "Shift+F5"
+                    accelerator: "Shift+F5",
+                    click: checkOutPayments(mainWindow)
                 },
                 {type:"separator"},
                 {

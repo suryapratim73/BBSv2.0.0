@@ -11,7 +11,7 @@ let suppliers = [];
     suppliers = await init(datalist)
 })();
 
-function loadLedgerSummary({last5Entries,total},{name,id}){
+function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
     let page2root = document.createElement("div");
     page2root.id = "contact-div";
     page2root.innerHTML = `
@@ -20,7 +20,7 @@ function loadLedgerSummary({last5Entries,total},{name,id}){
                             <p>Name: <span>${name}</span></p>
                         </div>
                         <div>
-                            <p>Net Due: <span>${last5Entries[0].netDue}</span></p>
+                            <p>Net Due: <span>${total-totalPayment}</span></p>
                         </div>
                         <div>
                             <p>Net Purchase: <span>${total}</span></p>

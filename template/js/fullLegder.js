@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,getAmtToWord} = require("../js/common");
+const {toggleDevTool,getAmtToWord,applyFilter, filterSelector} = require("../js/common");
 
 toggleDevTool(document);
 
@@ -24,25 +24,7 @@ cover.addEventListener("click",closeModal);
 
 filterBtn.addEventListener("click",()=>filter.classList.toggle("hide"));
 
-filter.addEventListener("click",function(e){
-    if(e.target===this) return;
-    [...this.children].forEach(a=>a.classList.remove("selection"));
-    selection = e.target.dataset.time!=="*"?Number(e.target.dataset.time):"*";
-    e.target.classList.add("selection");
-    this.classList.add("hide");
-    applyFilter();
-})
-
-function applyFilter(){
-    [...tbody.children].forEach(tr=>tr.classList.remove("hide")); 
-    if(selection!=="*")
-        [...tbody.children].forEach(tr=>{
-            let billDate = new Date(tr.children[1].textContent);
-            let currentDate = new Date();
-            if(Math.ceil((currentDate-billDate)/(1000*60*60*24))>selection*30)
-                tr.classList.add("hide")
-        });
-}//Need more testing
+filter.addEventListener("click",filterSelector)
 
 ipcRenderer.on("supplier-ledger-detail",async (e,{fullLedger,id,name})=>{
     if(tbody.children.length===0){
@@ -65,7 +47,7 @@ ipcRenderer.on("supplier-ledger-detail",async (e,{fullLedger,id,name})=>{
             })
             tbody.appendChild(tr)
         });
-        applyFilter();
+        applyFilter(tbody,selection);
     }
 });
 

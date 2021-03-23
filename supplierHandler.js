@@ -61,6 +61,25 @@ exports.addPaymentForSupplier = mainWindow=>{
     }
 }
 
+exports.checkOutPayments = mainWindow=>{
+    return ()=>{
+        let windowOptions = {
+            width: 800,
+            height: 600,
+            resizable:false,
+            webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+            },
+            show:false,
+            parent:mainWindow,
+            contextIsolation:true
+        }   
+        let pathToHTML = "./template/html/checkOutPayments.html";
+        createModal(windowOptions,pathToHTML);
+    }
+}
+
 ipcMain.handle("get-supplier-names",e=>{
     return supplier.findAll({
         attributes:["name","id"]
@@ -150,12 +169,13 @@ ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
         limit:5,
         order:[["entryNo","DESC"]]
     })).map(({dataValues})=>{return {...dataValues}});
-    let total = (await supplierLedger.findAll({
+    let {total,totalPayment} = (await supplierLedger.findAll({
         attributes:[
-            [sequelize.fn("sum",sequelize.col("billAmt")),"total"]
+            [sequelize.fn("sum",sequelize.col("billAmt")),"total"],
+            [sequelize.fn("sum",sequelize.col("payments")),"totalPayment"]
         ]
-    }))[0].dataValues.total;
-    return {last5Entries,total};
+    }))[0].dataValues;
+    return {last5Entries,total,totalPayment};
 });
 
 ipcMain.on("Load full ledger",async (e,{name,id})=>{
@@ -201,15 +221,11 @@ ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
                 [Op.ne]:Sequelize.col("payments")
             }
         }
-    })).map(({dataValues:{date,billNo,billAmt,payments,entryNo}})=>({date,billNo,billAmt,payments,entryNo}));
+    })).map(({dataValues:{date,billNo,billAmt,payments,entryNo,netDue}})=>({date,billNo,billAmt,payments,entryNo,netDue}));
 });
 
-ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo})=>{
+ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo,netDue,oldPayment})=>{
     let supplierLedger = await getLedgerModel(id);
-    let {netDue,entryNo:lastEntryNo} = (await supplierLedger.findOne({
-        attributes:["netDue","entryNo"],
-        order:[["entryNo","DESC"]]
-    })).dataValues;
     Promise.all([
         outPayments.create({
             beneficiaryId:id,
@@ -219,17 +235,11 @@ ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo})=
         }),
         supplierLedger.update({
             paymentStatus:true,
-            payments:billAmt
+            payments:oldPayment + payment,
+            netDue: billAmt - oldPayment - payment
         },{
             where:{
                 entryNo
-            }
-        }),
-        supplierLedger.update({
-            netDue:netDue-payment
-        },{
-            where:{
-                entryNo:lastEntryNo
             }
         })
     ])
@@ -243,4 +253,8 @@ ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo})=
         BrowserWindow.getFocusedWindow().close();
     })
     .catch(console.warn);
-})
+});
+
+ipcMain.on("get-out-payments",async e=>{
+    e.sender.send("show-out-payments",(await outPayments.findAll()).map(({dataValues})=>dataValues));
+});
