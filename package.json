@@ -6,7 +6,7 @@
   "scripts": {
     "reactDev": "BROWSER=none react-scripts start",
     "reactBuild": "react-scripts build",
-    "bbsDev": "nodemon --exec electron .",
+    "bbsDev": "nodemon --ignore 'config/*.json' --exec electron .",
     "dev": "nf start"
   },
   "author": "Surya",

@@ -165,3 +165,7 @@ exports.filterSelector = function(e){
     this.classList.add("hide");
     applyFilter(tbody,selection);
 }
+
+exports.roundOffTo2DecimalPlace = function(num){
+    return Math.round(num*100)/100
+}

@@ -52,5 +52,5 @@ ipcMain.handle("get-stock-names",()=>{
 })
 
 ipcMain.handle("get-stocks",()=>{
-    return stock.findAll({attributes:["name","type","quantity","buyPrice","standardSellPrice"]})
+    return stock.findAll({attributes:["name","type","quantity","buyPrice","standardSellPrice","tax","hsn","unit"]})
 })

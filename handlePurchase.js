@@ -7,7 +7,7 @@ const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
 let purchaseWindows = [];
 // sequelize.sync({
-//     force:true,
+//     force:false,
 //     alter:true
 // }).then(()=>console.log("sequelize sync done")).catch(console.warn);
 
@@ -146,7 +146,8 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                 return _stock.update({
                     quantity: selectedStock.dataValues.quantity + Number(item.Quantity),
                     buyPrice: Number(item.Rate),
-                    standardSellPrice:1.1*Number(item.Rate)
+                    standardSellPrice:1.1*Number(item.Rate),
+                    tax: `${Number(item.CGST)+Number(item.SGST)+Number(item.IGST)}%`
                 },{
                     where:{
                         name:item.Particular,
@@ -161,7 +162,8 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                     unit: item.unit,
                     quantity: item.Quantity,
                     buyPrice: Number(item.Rate),
-                    standardSellPrice:1.1*Number(item.Rate)
+                    standardSellPrice:1.1*Number(item.Rate),
+                    tax: Number(item.CGST)+Number(item.SGST)+Number(item.IGST)
                 });
         }),
         (await purchase.sync()).create({

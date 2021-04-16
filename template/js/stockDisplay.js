@@ -12,6 +12,7 @@ let tbody = document.querySelector("tbody");
         td.innerText = count++;
         tr.appendChild(td)
         Object.keys(dataValues).forEach(key=>{
+            if(["tax","hsn","unit"].includes(key)) return;
             let td = document.createElement("td");
             if(typeof dataValues[key]==="string")
                 td.innerText = dataValues[key];

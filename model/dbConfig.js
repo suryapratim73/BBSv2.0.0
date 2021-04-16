@@ -36,6 +36,29 @@ const supplier = {
     }
 }
 
+const customerSchema = {
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
+    },
+    name:{
+        type:DataTypes.TEXT
+    },
+    address:{
+        type:DataTypes.TEXT
+    },
+    phones:{
+        type:DataTypes.TEXT
+    },
+    gst:{
+        type:DataTypes.TEXT
+    },
+    comment:{
+        type:DataTypes.TEXT
+    }
+}
+
 const stockSchema = {
     itemNo:{
         type: DataTypes.INTEGER,
@@ -72,6 +95,9 @@ const stockSchema = {
     lastSellPrice:{
         type: DataTypes.INTEGER,
         defaultValue:0
+    },
+    tax:{
+        type: DataTypes.INTEGER
     },
     location:{
         type:DataTypes.TEXT,
@@ -156,6 +182,10 @@ const outPaymentSchema = {
 
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
+        freezeTableName:false,
+        timestamps:false
+    }),
+    customer: sequelize.define("customers",customerSchema,{
         freezeTableName:false,
         timestamps:false
     }),
