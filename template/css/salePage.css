@@ -20,12 +20,12 @@ main>div{
     display: flex;
     margin: 0.5rem;
 }
-main>div p{
+/* main>div p{
 
 }
 main>div div{
 
-}
+} */
 footer{
     grid-column: 1/-1;
     grid-row: -2/-1;
@@ -155,4 +155,66 @@ section>div{
 }
 .row1 button{
     color:orange;
+}
+.radio-btn-div{
+    display: flex;
+    width: 20%;
+}
+.radio-btn-div>div{
+    display: flex;
+    width: 50%;
+}
+#delivery-detail-div{
+    flex-direction: column;
+}
+#delivery-detail-div select,#payment-mode select{
+    color: black;
+    font-size: 1.2rem;
+    border-radius: 5px;
+    margin-left: 0.3rem;
+    background: white;
+}
+#delivery-detail-div option,#payment-mode option{
+    color: black;
+}
+#transporter-detail-div>div{
+    display: flex;
+    margin-top: 1rem;
+}
+.step-4{
+    flex-direction: row;
+}
+#payment-div{
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px dashed;
+    padding-right: 2rem;
+}
+.payment-detail>div{
+    margin: 1rem 0;
+}
+.payment-detail input{
+    font-size: 1rem;
+    border-radius: 5px;
+    padding: 0.2rem;
+}
+#summary-div{
+    flex-direction: column;
+    flex: 1;
+    background: white;
+    border: 2px solid black;
+    border-radius: 15px;
+    padding: 1rem;
+    height: fit-content;
+    align-self: center;
+}
+#summary-div>div{
+    display: flex;
+    justify-content: space-between;
+}
+#summary-div p{
+    color: black;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
 }

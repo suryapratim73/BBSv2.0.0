@@ -1,0 +1,11 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "bbsv2.0.0-proj",
+            "database": "${workspaceFolder:BBSv2.0.0}/db/usha.db"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}

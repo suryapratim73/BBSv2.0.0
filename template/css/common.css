@@ -13,3 +13,7 @@
 .red{
     color:red;
 }
+.highlight{
+    font-size: 1.75rem !important;
+    color: orangered !important;
+}

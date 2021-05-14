@@ -14,15 +14,16 @@ exports.toggleDevTool = function(document){
 
 exports.validateInput = function(e){
     if(e.target.id==="payment-status" && e.target.value.length>2)
-        e.preventDefault();
+        return e.preventDefault();
     if(!/\d/.test(e.key)){
         if(
             e.target.id==="partial-payment" || 
             e.target.dataset.type==="Number" ||
             e.target.id==="amount"
             )//conditions..
-            e.preventDefault();
+            return e.preventDefault();
     }
+    return 1;
 }
 class Supplier{
     constructor(name,id){

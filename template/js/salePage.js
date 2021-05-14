@@ -4,16 +4,21 @@ const {toggleDevTool,validateInput,roundOffTo2DecimalPlace} =  require("../js/co
 
 toggleDevTool(document);
 
-let nameDatalist = document.createElement("datalist");
-let itemList = [],customer={},currentStep=1, selectedItem = {}, slNo=1, orderItems = [], billMeta = {},_itemList = [];
-let oldQtyValues = [];
+let nameDatalist = document.createElement("datalist"),
+    itemList = [],
+    customer = {},
+    currentStep = 1, 
+    selectedItem = {}, 
+    slNo=1, 
+    orderItems = [], 
+    billMeta = {},
+    payment = [];
 
 nameDatalist.id="stock-names";
 
 async function init(){
     if(itemList.length===0){
         itemList = (await ipcRenderer.invoke("get-stocks")).map(({dataValues})=>dataValues);
-        oldQtyValues = itemList.map(({quantity})=>quantity);
         itemList.forEach(({name})=>{
             let option = document.createElement("option");
             option.value = name;
@@ -34,7 +39,9 @@ function addPhone(e){
     customer.phones = Array.from(new Set(customer.phones));
 }
 
+// Proceed or Back contrtoller.....
 async function proceedOrFinishHandler(e){
+    document.querySelector("main").removeEventListener("focus",mainFocusHandler,true);
     if(currentStep===1 && e.target.dataset.type==="proceed"){
         let inputFeilds = document.querySelectorAll(".row1>input");
         if(Array.from(inputFeilds).some(input=>input.value==="") && !Array.from(inputFeilds).some(input=>input.value==="cash")) return alert("Cannot proceed with empty fields!");
@@ -44,15 +51,54 @@ async function proceedOrFinishHandler(e){
             else
                 customer.phones = customer.phones?[...customer.phones,+input.value]:[+input.value];
         });
+        billMeta.billStatus=([...document.getElementsByName("bill-status")].filter(input=>input.checked===true))[0].dataset.name
         customer.phones = Array.from(new Set(customer.phones));
-        billMeta.billNo = await ipcRenderer.invoke("get-sale-bill-number");
+        billMeta.delivery = { type: "hand" };
+        billMeta.billNo = !billMeta.billNo?await ipcRenderer.invoke("get-sale-bill-number"):billMeta.billNo;
     }
-    if(currentStep===3 && ["proceed","back"].includes(e.target.dataset.type) && Object.keys(selectedItem).length>0){
-        orderItems.push(selectedItem);
-        selectedItem = {};
+    if(currentStep===2 && e.target.dataset.type==="proceed"){
+        if(billMeta.delivery.type!=="hand")
+            [...document.querySelectorAll("input")].forEach(input=>{
+                if(input.dataset.name.startsWith("transp"))
+                    billMeta.delivery[input.dataset.name] = input.value;
+            });
+        else
+            billMeta.delivery = { type: "hand" };
+        // console.log(billMeta)
     }
-    // if(currentStep===3 && e.target.dataset.type==="proceed")
+    if(currentStep===3 && ["proceed","back"].includes(e.target.dataset.type)){
+        console.log("Setting orders")
+        orderItems = [];
+        [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
+            let name = bodyRow.querySelector("div:nth-child(2)>input").value ?? "",
+                qty = +bodyRow.querySelector("div:nth-child(4)>input").value ?? 0,
+                unit = bodyRow.querySelector("div:nth-child(5)>input").value ?? "Kg",
+                rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value) ?? 0,
+                amt = qty * rate,
+                cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 ?? 0,
+                sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 ?? 0,
+                igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0,
+                netAmt = roundOffTo2DecimalPlace(qty * rate * (1 + cgst + sgst + igst)) ?? 0;
+            orderItems.push({ 
+                name,
+                qty,
+                unit,
+                rate,
+                amt,
+                cgst:cgst*100,
+                sgst:sgst*100,
+                igst:igst*100,
+                netAmt
+            });
+        })
+    }
+    // console.clear();
+    // if(currentStep===3 && e.target.dataset.type==="proceed"){
     //     console.log({customer,billMeta,orderItems});
+    // }
+    if(currentStep===4 && e.target.dataset.type!="back"){
+        console.log("Save and Exit mode")
+    }
     if(e.target.dataset.type==="proceed")
         currentStep++;
     else if(e.target.dataset.type==="back")
@@ -95,6 +141,13 @@ function getTotal(nodeList){
     },0);
 }
 
+function calculateR_O(){
+    if((Math.ceil(billMeta.netAmt) - billMeta.netAmt)<0.5)
+        return Math.ceil(billMeta.netAmt) - billMeta.netAmt;
+    else
+        return -1*(billMeta.netAmt - Math.floor(billMeta.netAmt));
+}
+
 function getBillSummary(){
     let billSummDiv = document.createElement("div");
     billSummDiv.id = "bill-summary";
@@ -108,17 +161,29 @@ function getBillSummary(){
     `;
     billMeta.netAmt = roundOffTo2DecimalPlace(totalNetAmt);
     billMeta.netTax = roundOffTo2DecimalPlace(totalNetAmt - totalAmt);
+    billMeta.r_o = roundOffTo2DecimalPlace(calculateR_O());
     return billSummDiv;
 }
 
-function getItemDiv({name,buyPrice,quantity:availQty,standardSellPrice,tax}){
+function getAvailQty(){
+    let quantity = 0;
+    [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
+        let itemName = bodyRow.querySelector("div:nth-child(2)>input").value;
+        if(itemName===selectedItem.name){
+            quantity += Number(bodyRow.querySelector("div:nth-child(4)>input").value);
+        }
+    });
+    return selectedItem.quantity - quantity
+}
+
+function getItemDiv({name="",buyPrice=0,standardSellPrice=0,tax=9}){
     let itemDiv = document.createElement("div");
     itemDiv.id = "item-summary";
     itemDiv.innerHTML = `
                     <div class="row0">
                         <div><p>Item Name:</p><p class="bold">${name}</p></div>
                         <div><p>Last Buy Price:</p><p class="bold">${buyPrice}</p></div>
-                        <div><p>Available Qty:</p><p data-name="availQty" class="bold">${availQty}</p></div>
+                        <div><p>Available Qty:</p><p data-name="availQty" class="bold">${getAvailQty()}</p></div>
                         <div><p>Input Tax:</p><p class="bold">${tax}</p></div>
                     </div>
                     <div class="row1">
@@ -131,6 +196,7 @@ function getItemDiv({name,buyPrice,quantity:availQty,standardSellPrice,tax}){
 }
 
 function displaySection(){
+    if(!selectedItem || Object.keys(selectedItem).length===0) return;
     let section = document.querySelector("section");
     [...section.children].forEach(node=>node.remove());
     section.appendChild(getItemDiv(selectedItem));
@@ -161,29 +227,13 @@ function calculateAmounts(e){
     let quantity = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
     let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
     bodyRow.querySelector("div:nth-child(7)>p").textContent = quantity * rate;
-    let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 || 0;
-    let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 || 0;
-    let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 || 0;
-    selectedItem = {
-        ...selectedItem,
-        qty:quantity,
-        rate,
-        cgst:cgst*100,
-        sgst:sgst*100,
-        igst:igst*100,
-        amt:quantity * rate,
-        netAmt:roundOffTo2DecimalPlace(quantity * rate * (1 + cgst + sgst + igst))
-    }
+    let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 ?? 0;
+    let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 ?? 0;
+    let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0;
     cgst *= quantity * rate;
     sgst *= quantity * rate;
     igst *= quantity * rate;
     bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst);
-    if(e.target.dataset.name==="quantity");{
-        let index = itemList.findIndex(({name})=>name===selectedItem.name);
-        itemList[index].quantity = oldQtyValues[index];
-        itemList[index].quantity -= quantity;
-        selectedItem.quantity = itemList[index].quantity;
-    }
     displaySection();
 }
 
@@ -197,11 +247,6 @@ function addRow(e){
     clonedBodyRow.querySelector("div:nth-child(1)>p").textContent = ++slNo;
     clonedBodyRow.querySelector("div:nth-child(2)>input").focus();
     e.target.scrollIntoView();
-    if(Object.keys(selectedItem).length>0){
-        orderItems.push(selectedItem);
-        selectedItem = {};
-    }
-    itemList.forEach(({quantity},index)=>oldQtyValues[index]=quantity);
 }
 
 function getBodyRow(){
@@ -223,10 +268,73 @@ function getBodyRow(){
     `;
 }
 
+function showDeliveryDetail(e){
+    let transporterDiv = document.getElementById("transporter-detail-div");
+    billMeta.delivery = {type : e.target.value};
+    if(e.target.value==="hand")
+        return transporterDiv.classList.add("hide");
+    transporterDiv.classList.remove("hide");
+}
+
+function updateBillValue(e){
+    if(e.target.dataset.name!=="payment") return;
+    //Update summary and billMeta
+    let paymentModeDiv = e.target.parentNode.parentNode;
+    let payObj = {
+        payment:Number(e.target.value)
+    };
+    if(paymentModeDiv.id==="cash-payment")
+        payObj.type = "cash";
+    else if(paymentModeDiv.id==="check-payment"){
+        payObj.type = "check";
+        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.branch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
+        payObj.a_c_No = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
+        payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
+    }
+    else{
+        payObj.type = "online";
+        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.ref = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
+    }
+    let netPayment = 0, updateFlag = false;
+    if(payment.length>0)
+        for(let i=0;i<payment.length;i++)
+            if(payment[i].type===payObj.type){
+                payment[i] = payObj;
+                updateFlag = true;
+                break;
+            }
+    if(!updateFlag)
+        payment.push(payObj);
+    payment.forEach(_payObj=>{
+        netPayment += _payObj.payment;
+    });
+    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
+    if(Math.sign(billMeta.netAmt + billMeta.r_o - netPayment)<0){
+        document.querySelector("[data-name='dueAmt']").textContent = 0;
+        document.querySelector("[data-name='return']").textContent = netPayment - (billMeta.netAmt + billMeta.r_o);
+    }
+    else{
+        document.querySelector("[data-name='dueAmt']").textContent = billMeta.netAmt + billMeta.r_o - netPayment;
+        document.querySelector("[data-name='return']").textContent = 0;
+    }
+}
+
+function showPaymentMode(e){
+    [...document.getElementsByClassName("payment-detail")].forEach(div=>{
+        if(div.id===e.target.value+"-payment")
+            div.classList.remove("hide");
+        else
+            div.classList.add("hide");
+    })
+}
+
 function mainForm(){
     slNo = 1;
     if(currentStep===1)
-        return `<div>
+        return `
+                <div>
                     <p class="row0">Name: </p>
                     <div class="row1">
                         <input type="text" data-name="name" list="customer-names"/>
@@ -250,7 +358,23 @@ function mainForm(){
                     <div class="row1">
                         <input type="text" data-name="gst" id="customer-gst" />
                     </div>
-                </div>`;
+                </div>
+                <div>
+                    <p class="row0">Bill Status</p>
+                    <div class="row1">
+                        <div class="radio-btn-div">
+                            <div>
+                                <label for="bill-status-open">Open: </label>
+                                <input type="radio" data-name="open"  name="bill-status" id="bill-status-open" value="open" />
+                            </div>
+                            <div>
+                                <label for="bill-status-close">Close: </label>
+                                <input type="radio" data-name="close" name="bill-status" id="bill-status-close" value="close" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
     if(currentStep===2)
         return `
                 <div>
@@ -263,6 +387,41 @@ function mainForm(){
                     <p class="row0">Bill Number: </p>
                     <div class="row1">
                         <input type="text" data-name="billNo" />
+                    </div>
+                </div>
+                <div id="delivery-detail-div">
+                    <div>
+                        <label for="delivery-mode">Select delivery method: </label>
+                        <select id="delivery-mode" onchange="showDeliveryDetail(event)">
+                            <option value="hand" selected>By hand</option>
+                            <option value="transport">By Transporter</option>
+                        </select>
+                    </div>
+                    <div class="hide" id="transporter-detail-div">
+                        <div>
+                            <p class="row0">Transporter Name</p>
+                            <div class="row1">
+                                <input type="text" data-name="transporterName" />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="row0">Transporter Address</p>
+                            <div class="row1">
+                                <input type="text" data-name="transporterAddress" />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="row0">Transporter Contact</p>
+                            <div class="row1">
+                                <input type="text" data-name="transporterContact" />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="row0">Transport Cost</p>
+                            <div class="row1">
+                                <input type="text" data-name="transporterCharge" />
+                            </div>
+                        </div>
                     </div>
                 </div>
         `;
@@ -294,7 +453,60 @@ function mainForm(){
         `;
     if(currentStep===4)
         return `
-
+            <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput(event)">
+                <div id="payment-mode">
+                    <label for="payment-mode">Select payment mode:</label>
+                    <select id="payment-mode" onchange="showPaymentMode(event)">
+                        <option value="due" selected>Due</option>
+                        <option value="cash">Cash</option>
+                        <option value="check">Check</option>
+                        <option value="online">NEFT</option>
+                    </select>
+                </div>
+                <div id="cash-payment" class="hide payment-detail">
+                    <div>
+                        <p>Enter amount</p>
+                        <input data-type="Number" data-name="payment" />
+                    </div>
+                </div>
+                <div id="check-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" data-name="bankName"/>
+                    </div>
+                    <div>
+                        <p>Bank Branch</p>
+                        <input type="text" data-name="bankBranch"/>
+                    </div>
+                    <div>
+                        <p>Account No.</p>
+                        <input type="text" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Check No.</p>
+                        <input type="text" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" data-name="payment" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                </div>
+                <div id="online-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" data-name="bankName" />
+                    </div>
+                    <div>
+                        <p>Transaction Ref.</p>
+                        <input type="text" data-name="bankTrnRef" />
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" data-name="payment" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                </div>
+            </div>
+            <div id="summary-div"></div>
         `;//Payment and delivery detail
 }
 
@@ -310,9 +522,10 @@ function reInitCurrentPage(){
     if(currentStep===3 && orderItems.length>0){
         orderItems.forEach(({name,hsn,qty,unit,rate,amt,cgst,sgst,igst,netAmt},index)=>{
             let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
+            selectedItem = itemList.find(item=>item.name===name);
             bodyRowDivs[0].querySelector("p").textContent = index + 1;
             bodyRowDivs[1].querySelector("input").value = name;
-            bodyRowDivs[2].querySelector("p").textContent = hsn;
+            bodyRowDivs[2].querySelector("p").textContent = hsn ?? selectedItem.hsn;
             bodyRowDivs[3].querySelector("input").value = qty;
             bodyRowDivs[4].querySelector("input").value = unit;
             bodyRowDivs[5].querySelector("input").value = rate;
@@ -324,7 +537,6 @@ function reInitCurrentPage(){
             slNo = index + 1;
             if(slNo<orderItems.length)
                 document.querySelector("#add-item>button").click();
-            selectedItem = itemList.find(item=>item.name===name);
         });
         displaySection();
     }
@@ -335,18 +547,63 @@ function reInitCurrentPage(){
                 input.value = customer[input.dataset.name]
             else
                 input.value = customer.phones[customer.phones.length-1]!==0?customer.phones[customer.phones.length-1]:"";
-        })
+        });
+        [...document.getElementsByName("bill-status")].forEach(input=>{
+            input.checked = input.dataset.name===billMeta.billStatus && true;
+        }) 
     }
     if(currentStep===2){
         let inputFeilds = document.querySelectorAll(".row1>input");
+        if(billMeta.delivery){
+            [...document.querySelectorAll("#delivery-mode>option")].forEach(option=>{
+                option.selected = option.value===billMeta.delivery.type && true
+                if(option.selected && option.value==="transport")
+                    document.getElementById("transporter-detail-div").classList.remove("hide");
+                else
+                    document.getElementById("transporter-detail-div").classList.add("hide");
+            })
+        }
         inputFeilds.forEach(input=>{
             if(input.dataset.name==="billDate"){
                 input.value = new Date().toISOString().split("T")[0];
                 billMeta.billDate = new Date().toISOString().split("T")[0];
             }
             else
+            if(input.dataset.name.startsWith("trans"))
+                input.value = billMeta.delivery[input.dataset.name]?billMeta.delivery[input.dataset.name]:"";
+            else
                 input.value = billMeta.billNo;
         })
+    }
+    if(currentStep===4){
+        document.getElementById("summary-div").innerHTML = `
+            <div>
+                <p>Net Bill Amount</p>
+                <p data-name="billAmt" class="highlight">${billMeta.netAmt + billMeta.r_o}</p>
+            </div>
+            <div>
+                <p>Net Payment</p>
+                <p data-name="paymentAmt" class="highlight">0</p>
+            </div>
+            <div>
+                <p>Net Due</p>
+                <p data-name="dueAmt" class="highlight">${billMeta.netAmt + billMeta.r_o}</p>
+            </div>
+            <div>
+                <p>Net Return</p>
+                <p data-name="return" class="highlight">0</p>
+            </div>
+        `;
+        if(billMeta.delivery.type!=="hand"){
+            let billAmtDiv = document.querySelector("#summary-div>div");
+            billAmtDiv.after(((new DOMParser()).parseFromString(`
+                <div>
+                    <p>Delivery/Service Charge</p>
+                    <p data-name="deliveryCharge">${billMeta.delivery.transporterCharge}</p>
+                </div>
+            `,"text/html")).body.querySelector("div"));
+            document.querySelector("#summary-div>div:last-child>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge)
+        }
     }
 }
 
@@ -359,34 +616,33 @@ function buildPage(){
                             ${stepDetail()}
                         </p>
                     </header>
-                    <main onclick="mainClickHandler(event)">
+                    <main onclick="mainClickHandler(event)" onfocus="mainFocusHandler(event)" class="${currentStep===4 && 'step-4'}">
                         ${mainForm()}
                     </main>
                     ${currentStep===3?summaryBlock():""}
                     ${footer()}
     `;
+    document.querySelector("main").addEventListener("focus",mainFocusHandler,true);
     reInitCurrentPage()
 }
 
 function mainClickHandler(e){
     if(e.target.dataset.name==="delete-row" && e.target.parentNode.parentNode.className==='row body'){
-        if(Object.keys(selectedItem).length>0){
-            orderItems.push(selectedItem);
-            selectedItem = {};
-        }
         let bodyRow = e.target.parentNode.parentNode;
-        let indexForDeletion = +bodyRow.querySelector("div:first-child>p").textContent - 1;
-        let itemName = bodyRow.querySelector("div:nth-child(2)>input").value;
-        let itemQty = +bodyRow.querySelector("div:nth-child(4)>input").value;
-        orderItems = orderItems.filter((_,index)=>index!==indexForDeletion);
         let _slNo = 1;
         bodyRow.remove();
         document.querySelectorAll(".row.body").forEach(bodyRow=>{
             bodyRow.querySelector("div:first-child>p").textContent = _slNo++;
         })
         slNo--;
-        let itemIndex = itemList.findIndex(({name})=>name===itemName);
-        itemList[itemIndex].quantity += itemQty;
-        oldQtyValues[itemIndex] += itemQty;
+        displaySection();
     }
-}// Need more testing
+}
+
+function mainFocusHandler(e){
+    if(currentStep===3 && e.target.nodeName==="INPUT"){
+        let bodyRow = e.target.parentNode.parentNode;
+        selectedItem = itemList.find(({name})=>name===bodyRow.querySelector("div:nth-child(2)>input").value);
+        displaySection();
+    }
+}
