@@ -67,7 +67,6 @@ async function proceedOrFinishHandler(e){
         // console.log(billMeta)
     }
     if(currentStep===3 && ["proceed","back"].includes(e.target.dataset.type)){
-        console.log("Setting orders")
         orderItems = [];
         [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
             let name = bodyRow.querySelector("div:nth-child(2)>input").value ?? "",
@@ -92,12 +91,8 @@ async function proceedOrFinishHandler(e){
             });
         })
     }
-    // console.clear();
-    // if(currentStep===3 && e.target.dataset.type==="proceed"){
-    //     console.log({customer,billMeta,orderItems});
-    // }
     if(currentStep===4 && e.target.dataset.type!="back"){
-        console.log("Save and Exit mode")
+        return ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems,payment})
     }
     if(e.target.dataset.type==="proceed")
         currentStep++;
@@ -254,13 +249,13 @@ function getBodyRow(){
             <div class="col sm"><p>${slNo}</p></div>
             <div class="col lg"><input type="text" list="stock-names" onchange="itemSelectionHandler(event)" /></div>
             <div class="col md"><p></p></div>
-            <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event)" data-type="Number" onkeypress="validateInput(event)" /></div>
+            <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input type="text" /></div>                            
-            <div class="col md"><input type="text" oninput="calculateAmounts(event)" data-type="Number" onkeypress="validateInput(event)" /></div>                            
+            <div class="col md"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" onkeypress="validateInput(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" onkeypress="validateInput(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" onkeypress="validateInput(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
             <div class="row-control-div">
                 <button data-name="delete-row">x</button>
@@ -280,6 +275,7 @@ function updateBillValue(e){
     if(e.target.dataset.name!=="payment") return;
     //Update summary and billMeta
     let paymentModeDiv = e.target.parentNode.parentNode;
+    let deliveryCharge = billMeta.delivery.type==="hand"?0:Number(billMeta.delivery.transporterCharge);
     let payObj = {
         payment:Number(e.target.value)
     };
@@ -311,12 +307,12 @@ function updateBillValue(e){
         netPayment += _payObj.payment;
     });
     document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
-    if(Math.sign(billMeta.netAmt + billMeta.r_o - netPayment)<0){
+    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment)<=0){
         document.querySelector("[data-name='dueAmt']").textContent = 0;
-        document.querySelector("[data-name='return']").textContent = netPayment - (billMeta.netAmt + billMeta.r_o);
+        document.querySelector("[data-name='return']").textContent = netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge);
     }
     else{
-        document.querySelector("[data-name='dueAmt']").textContent = billMeta.netAmt + billMeta.r_o - netPayment;
+        document.querySelector("[data-name='dueAmt']").textContent = deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment;
         document.querySelector("[data-name='return']").textContent = 0;
     }
 }
@@ -328,6 +324,12 @@ function showPaymentMode(e){
         else
             div.classList.add("hide");
     })
+}
+
+function validateInput2(e){
+    validateInput(e)
+    if(e.defaultPrevented) return;
+    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
 }
 
 function mainForm(){
@@ -397,7 +399,7 @@ function mainForm(){
                             <option value="transport">By Transporter</option>
                         </select>
                     </div>
-                    <div class="hide" id="transporter-detail-div">
+                    <div class="hide" id="transporter-detail-div" onkeypress="validateInput2(event)">
                         <div>
                             <p class="row0">Transporter Name</p>
                             <div class="row1">
@@ -413,13 +415,13 @@ function mainForm(){
                         <div>
                             <p class="row0">Transporter Contact</p>
                             <div class="row1">
-                                <input type="text" data-name="transporterContact" />
+                                <input type="text" data-type="Number" data-name="transporterContact" />
                             </div>
                         </div>
                         <div>
                             <p class="row0">Transport Cost</p>
                             <div class="row1">
-                                <input type="text" data-name="transporterCharge" />
+                                <input type="text" data-subtype="price" data-type="Number" data-name="transporterCharge" />
                             </div>
                         </div>
                     </div>
@@ -453,7 +455,7 @@ function mainForm(){
         `;
     if(currentStep===4)
         return `
-            <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput(event)">
+            <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
                 <div id="payment-mode">
                     <label for="payment-mode">Select payment mode:</label>
                     <select id="payment-mode" onchange="showPaymentMode(event)">
@@ -466,7 +468,7 @@ function mainForm(){
                 <div id="cash-payment" class="hide payment-detail">
                     <div>
                         <p>Enter amount</p>
-                        <input data-type="Number" data-name="payment" />
+                        <input data-type="Number" data-subtype="price" data-name="payment" />
                     </div>
                 </div>
                 <div id="check-payment" class="hide payment-detail">
@@ -480,15 +482,15 @@ function mainForm(){
                     </div>
                     <div>
                         <p>Account No.</p>
-                        <input type="text" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                        <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
                     </div>
                     <div>
                         <p>Check No.</p>
-                        <input type="text" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                        <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
                     </div>
                     <div>
                         <p>Amount paid</p>
-                        <input type="text" data-name="payment" data-type="Number" onkeypress="validateInput(event)"/>
+                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
                     </div>
                 </div>
                 <div id="online-payment" class="hide payment-detail">
@@ -502,7 +504,7 @@ function mainForm(){
                     </div>
                     <div>
                         <p>Amount paid</p>
-                        <input type="text" data-name="payment" data-type="Number" onkeypress="validateInput(event)"/>
+                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
                     </div>
                 </div>
             </div>
@@ -599,10 +601,10 @@ function reInitCurrentPage(){
             billAmtDiv.after(((new DOMParser()).parseFromString(`
                 <div>
                     <p>Delivery/Service Charge</p>
-                    <p data-name="deliveryCharge">${billMeta.delivery.transporterCharge}</p>
+                    <p data-name="deliveryCharge" class="highlight">${billMeta.delivery.transporterCharge}</p>
                 </div>
             `,"text/html")).body.querySelector("div"));
-            document.querySelector("#summary-div>div:last-child>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge)
+            document.querySelector("#summary-div>div:nth-last-child(2)>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge) + billMeta.r_o;
         }
     }
 }
@@ -646,3 +648,5 @@ function mainFocusHandler(e){
         displaySection();
     }
 }
+
+ipcRenderer.on("get-current-step",cancelAction)
