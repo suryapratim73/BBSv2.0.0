@@ -2,7 +2,8 @@ const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { Op, Sequelize } = require("sequelize");
 const { createModal } = require("./createModal");
 const { supplier, sequelize, outPayments } = require("./model/dbConfig");
-const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
+const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
+const { getLedgerModel } = require("./common");
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -154,17 +155,8 @@ ipcMain.on("update-supplier-db",(e,{name,gst,address,phones,comment,id})=>{
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
 });
 
-async function getLedgerModel(id){
-    let supplierLedger = `${id}Ledger`;
-    supplierLedger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }).sync();
-    return supplierLedger
-}
-
 ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
-    let supplierLedger = await getLedgerModel(id)
+    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema)
     let last5Entries = (await supplierLedger.findAll({
         limit:5,
         order:[["entryNo","DESC"]]
@@ -214,7 +206,7 @@ ipcMain.handle("get-supplier-name",async (e,id)=>{
 });
 
 ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
-    let supplierLedger = await getLedgerModel(id);
+    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
     return (await supplierLedger.findAll({
         where:{
             billAmt:{
@@ -225,7 +217,7 @@ ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
 });
 
 ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo,netDue,oldPayment})=>{
-    let supplierLedger = await getLedgerModel(id);
+    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
     Promise.all([
         outPayments.create({
             beneficiaryId:id,

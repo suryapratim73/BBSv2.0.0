@@ -6,6 +6,8 @@ toggleDevTool(document);
 
 let nameDatalist = document.createElement("datalist"),
     itemList = [],
+    customerList = [],
+    customerNameDatalist = document.createElement("datalist"),
     customer = {},
     currentStep = 1, 
     selectedItem = {}, 
@@ -15,6 +17,7 @@ let nameDatalist = document.createElement("datalist"),
     payment = [];
 
 nameDatalist.id="stock-names";
+customerNameDatalist.id="customer-names";
 
 async function init(){
     if(itemList.length===0){
@@ -24,9 +27,16 @@ async function init(){
             option.value = name;
             nameDatalist.appendChild(option);
         });
+        customerList = (await ipcRenderer.invoke("get-customers")).map(({dataValues})=>dataValues);
+        customerList.forEach(({name})=>{
+            let option = document.createElement("option");
+            option.value = name;
+            customerNameDatalist.appendChild(option);
+        });
         buildPage();
     }
     document.body.appendChild(nameDatalist);
+    document.body.appendChild(customerNameDatalist);
 }
 init();
 
@@ -77,7 +87,8 @@ async function proceedOrFinishHandler(e){
                 cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 ?? 0,
                 sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 ?? 0,
                 igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0,
-                netAmt = roundOffTo2DecimalPlace(qty * rate * (1 + cgst + sgst + igst)) ?? 0;
+                netAmt = roundOffTo2DecimalPlace(qty * rate * (1 + cgst + sgst + igst)) ?? 0
+                item = itemList.find((itemObj)=>itemObj.name===name);
             orderItems.push({ 
                 name,
                 qty,
@@ -87,12 +98,14 @@ async function proceedOrFinishHandler(e){
                 cgst:cgst*100,
                 sgst:sgst*100,
                 igst:igst*100,
-                netAmt
+                netAmt,
+                hsn:item.hsn,
+                type:item.type
             });
         })
     }
     if(currentStep===4 && e.target.dataset.type!="back"){
-        return ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems,payment})
+        return ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems})
     }
     if(e.target.dataset.type==="proceed")
         currentStep++;
@@ -203,18 +216,29 @@ function displaySection(){
         document.querySelector("[data-name='availQty']").classList.remove("red");
 }
 
-function itemSelectionHandler(e){
-    selectedItem = itemList.find(({name})=>name===e.target.value);
-    if(!selectedItem) return;
-    let {hsn,standardSellPrice,unit} = selectedItem;
-    let bodyRow = e.target.parentNode.parentNode;
-    let allP = bodyRow.querySelectorAll("p");
-    let allInput = bodyRow.querySelectorAll("input");
-    allP[1].textContent = hsn;
-    allInput[2].value = unit;
-    allInput[3].value = Math.round(standardSellPrice);
-    displaySection();
-    bodyRow.querySelector("div:nth-child(4) input").focus();
+function selectionHandler(e){
+    if(e.target.dataset.name==="stock-name"){
+        selectedItem = itemList.find(({name})=>name===e.target.value);
+        if(!selectedItem) return;
+        let {hsn,standardSellPrice,unit} = selectedItem;
+        let bodyRow = e.target.parentNode.parentNode;
+        let allP = bodyRow.querySelectorAll("p");
+        let allInput = bodyRow.querySelectorAll("input");
+        allP[1].textContent = hsn;
+        allInput[2].value = unit;
+        allInput[3].value = Math.round(standardSellPrice);
+        displaySection();
+        bodyRow.querySelector("div:nth-child(4) input").focus();
+    }
+    if(e.target.dataset.name==="name"){
+        let selectedCustomer = customerList.find(({name})=>name===e.target.value);
+        if(!selectedCustomer) return;
+        let {address,phones,gst} = selectedCustomer;
+        document.querySelector("[data-name='address']").value = address;
+        document.querySelector("[data-name='phones']").value = JSON.parse(phones)[0];
+        document.querySelector("[data-name='gst']").value = gst;
+        document.querySelector("[data-name='close']").checked = true;
+    }
 }
 
 function calculateAmounts(e){
@@ -247,7 +271,7 @@ function addRow(e){
 function getBodyRow(){
     return `
             <div class="col sm"><p>${slNo}</p></div>
-            <div class="col lg"><input type="text" list="stock-names" onchange="itemSelectionHandler(event)" /></div>
+            <div class="col lg"><input type="text" autofocus data-name="stock-name" list="stock-names" onchange="selectionHandler(event)" /></div>
             <div class="col md"><p></p></div>
             <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input type="text" /></div>                            
@@ -309,12 +333,15 @@ function updateBillValue(e){
     document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
     if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment)<=0){
         document.querySelector("[data-name='dueAmt']").textContent = 0;
+        billMeta.netDue = 0;
         document.querySelector("[data-name='return']").textContent = netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge);
     }
     else{
         document.querySelector("[data-name='dueAmt']").textContent = deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment;
+        billMeta.netDue = deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment;
         document.querySelector("[data-name='return']").textContent = 0;
     }
+    billMeta.payment = payment;
 }
 
 function showPaymentMode(e){
@@ -339,7 +366,7 @@ function mainForm(){
                 <div>
                     <p class="row0">Name: </p>
                     <div class="row1">
-                        <input type="text" data-name="name" list="customer-names"/>
+                        <input type="text" autofocus data-name="name" onchange="selectionHandler(event)" list="customer-names"/>
                     </div>
                 </div>
                 <div>

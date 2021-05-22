@@ -160,25 +160,25 @@ const outPaymentSchema = {
     }
 }
 
-// const inPaymentSchema = {
-//     entryNo:{
-//         type: DataTypes.INTEGER,
-//         autoIncrement: true,
-//         primaryKey: true
-//     },
-//     supplierId:{
-//         type: DataTypes.UUID,
-//         allowNull:false
-//     },
-//     payment:{
-//         type: DataTypes.INTEGER,
-//         defaultValue:0
-//     },
-//     date:{
-//         type: DataTypes.DATE,
-//         defaultValue:Sequelize.fn("now")
-//     }
-// }
+const inPaymentSchema = {
+    entryNo:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    supplierId:{
+        type: DataTypes.UUID,
+        allowNull:false
+    },
+    payment:{
+        type: DataTypes.INTEGER,
+        defaultValue:0
+    },
+    date:{
+        type: DataTypes.DATE,
+        defaultValue:Sequelize.fn("now")
+    }
+}
 
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{

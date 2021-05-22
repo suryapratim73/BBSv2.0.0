@@ -2,6 +2,10 @@ const { ipcMain } = require("electron");
 const {createModal} = require("./createModal");
 const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
+const { customer } = require("./model/dbConfig");
+const { Op } = require("sequelize");
+const { getLedgerModel, getBillModel } = require("./common");
+const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 
 let closeFlag = false;
 
@@ -58,9 +62,57 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     BrowserWindow.getFocusedWindow().close();
 });
 
-ipcMain.on("save-exit-sale-bill",(e,{billMeta,customer,orderItems,payment})=>{
-    console.log({billMeta,customer,orderItems,payment});
-    cancelBill();
+ipcMain.on("save-exit-sale-bill",(e,{billMeta,customer:customerObj,orderItems})=>{
+    // console.log({orderItems,billMeta});
+    const { name, address, phones,gst } = customerObj;
+    const { billStatus, delivery, netDue, billNo, billDate, payment } = billMeta;
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();//Work in progress//DB works
+    customer.sync()
+    .then(async model=>{
+        let customerId = (await model.findOrCreate({
+            where:{
+                [Op.or]:[{name},{gst}]
+            },
+            defaults:{
+                name,
+                address,
+                phones:JSON.stringify(phones),
+                gst
+            }
+        }))[0].dataValues.id;
+        let billModel = await getBillModel(customerId,billNo,billDate,billItemSchema);
+        let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
+        Promise.all([
+            ...orderItems.map(({name,qty,unit,rate,amt,cgst,sgst,igst,hsn,type})=>{
+                let tax = igst>0?igst:cgst+sgst;
+                return billModel.create({
+                    name,
+                    type,
+                    hsn,
+                    quantity:qty,
+                    unit,
+                    rate,
+                    tax:tax*amt
+                })
+            }),
+            customerLedger.create({
+                billStatus,
+                date:billDate,
+                billNo,
+                paymentStatus:netDue===0?true:false,
+                payments:JSON.stringify(payment),
+                netDue,
+                itemList:`${customerId}_${billNo}_${billDate}`,
+                delivery:JSON.stringify(delivery),
+            })
+        ])
+        .then(()=>console.log("Added to DB!!"))
+        .catch(console.log);
+    })
+    .catch(console.log)
 });
+
+ipcMain.handle("get-customers",async ()=>{
+    return (await customer.sync()).findAll();
+})

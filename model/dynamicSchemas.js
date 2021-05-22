@@ -31,6 +31,44 @@ exports.supplierLedgerSchema = {
     }
 }
 
+exports.customerLedgerSchema = {
+    entryNo:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    billStatus:{
+        type:DataTypes.BOOLEAN
+    },
+    date:{
+        type:DataTypes.DATE
+    },
+    billNo:{
+        type:DataTypes.INTEGER
+    },
+    billAmt:{
+        type:DataTypes.INTEGER
+    },
+    paymentStatus:{
+        type:DataTypes.BOOLEAN
+    },
+    payments:{
+        type:DataTypes.TEXT,
+        defaultValue:"cash"
+    },
+    netDue:{
+        type:DataTypes.INTEGER,
+        defaultValue:0
+    },
+    itemList:{
+        type:DataTypes.TEXT
+    },
+    delivery:{
+        type:DataTypes.TEXT,
+        defaultValue:"hand"
+    }
+}
+
 exports.billItemSchema = {
     itemNo:{
         type: DataTypes.INTEGER,
