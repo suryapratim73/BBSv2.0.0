@@ -59,6 +59,26 @@ const customerSchema = {
     }
 }
 
+const transporterSchema = {
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
+    },
+    name:{
+        type:DataTypes.TEXT
+    },
+    address:{
+        type:DataTypes.TEXT
+    },
+    phone:{
+        type:DataTypes.TEXT
+    },
+    charge:{
+        type:DataTypes.TEXT
+    }
+}
+
 const stockSchema = {
     itemNo:{
         type: DataTypes.INTEGER,
@@ -199,6 +219,9 @@ module.exports = {
                 this.setDataValue("buyPrice",Number(this.getDataValue("buyPrice"))+Number(price));
                 this.setDataValue("standardSellPrice",1.1*Number(this.getDataValue("buyPrice")));
                 this.setDataValue("location",location);
+            },
+            reduceStock(quantity){
+                this.setDataValue("quantity",Number(this.getDataValue("quantity"))-Number(quantity));
             }
         }
     }),
@@ -214,5 +237,9 @@ module.exports = {
                 console.log(updateObj,"From setter method")
             }
         }
+    }),
+    transporters: sequelize.define("transporters",transporterSchema,{
+        freezeTableName:true,
+        timestamps:false
     })
 }

@@ -13,9 +13,10 @@
   "license": "ISC",
   "dependencies": {
     "dotenv": "^8.2.0",
+    "pdfkit": "^0.12.1",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
-    "react-scripts": "^2.0.5",
+    "react-scripts": "^4.0.3",
     "sequelize": "^6.5.0",
     "sqlite3": "^5.0.2",
     "uuid": "^8.3.2"

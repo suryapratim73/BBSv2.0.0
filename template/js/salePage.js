@@ -14,7 +14,9 @@ let nameDatalist = document.createElement("datalist"),
     slNo=1, 
     orderItems = [], 
     billMeta = {},
-    payment = [];
+    payment = [],
+    transporterDatalist = document.createElement("datalist"),
+    transporters = [];
 
 nameDatalist.id="stock-names";
 customerNameDatalist.id="customer-names";
@@ -122,7 +124,7 @@ function cancelAction(){
 function footer(){
     let proceedBtn = `<button data-type="proceed" onclick="proceedOrFinishHandler(event)">Proceed</button>`;
     let backBtn = `<button data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>`;
-    let printBtn = `<button data-type="print">Print</button>`;
+    let printBtn = `<button data-type="print" onclick="showPrintDialog()">Print</button>`;
     let finishBtn = `<button data-type="save" onclick="proceedOrFinishHandler(event)">Save & Exit</button>`;
     return `<footer>
                 <div>
@@ -239,6 +241,14 @@ function selectionHandler(e){
         document.querySelector("[data-name='gst']").value = gst;
         document.querySelector("[data-name='close']").checked = true;
     }
+    if(e.target.dataset.name==="transporterName"){
+        let selectedTransporter = transporters.find(({name})=>name===e.target.value);
+        if(!selectedTransporter) return;
+        let {address,phone,charge} = selectedTransporter;
+        document.querySelector("[data-name='transporterAddress']").value = address;
+        document.querySelector("[data-name='transporterContact']").value = phone;
+        document.querySelector("[data-name='transporterCharge']").value = charge;
+    }
 }
 
 function calculateAmounts(e){
@@ -271,7 +281,7 @@ function addRow(e){
 function getBodyRow(){
     return `
             <div class="col sm"><p>${slNo}</p></div>
-            <div class="col lg"><input type="text" autofocus data-name="stock-name" list="stock-names" onchange="selectionHandler(event)" /></div>
+            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onchange="selectionHandler(event)" /></div>
             <div class="col md"><p></p></div>
             <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input type="text" /></div>                            
@@ -287,12 +297,22 @@ function getBodyRow(){
     `;
 }
 
-function showDeliveryDetail(e){
+async function showDeliveryDetail(e){
     let transporterDiv = document.getElementById("transporter-detail-div");
     billMeta.delivery = {type : e.target.value};
     if(e.target.value==="hand")
         return transporterDiv.classList.add("hide");
     transporterDiv.classList.remove("hide");
+    if(transporters.length===0){
+        transporters = (await ipcRenderer.invoke("get-transporter")).map(({dataValues})=>dataValues);
+        transporters.forEach(({name})=>{
+            let option = document.createElement("option");
+            option.value = name;
+            transporterDatalist.appendChild(option);
+        });
+        transporterDatalist.id = "transporter-names";
+        document.body.appendChild(transporterDatalist);
+    }
 }
 
 function updateBillValue(e){
@@ -430,7 +450,7 @@ function mainForm(){
                         <div>
                             <p class="row0">Transporter Name</p>
                             <div class="row1">
-                                <input type="text" data-name="transporterName" />
+                                <input type="text" onchange="selectionHandler(event)" list="transporter-names" data-name="transporterName" />
                             </div>
                         </div>
                         <div>
@@ -676,4 +696,8 @@ function mainFocusHandler(e){
     }
 }
 
-ipcRenderer.on("get-current-step",cancelAction)
+ipcRenderer.on("get-current-step",cancelAction);
+
+function showPrintDialog(){
+    ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
+}

@@ -2,10 +2,13 @@ const { ipcMain } = require("electron");
 const {createModal} = require("./createModal");
 const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
-const { customer } = require("./model/dbConfig");
+const { customer, stock, transporters } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const { getLedgerModel, getBillModel } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
+const {scriptFile} = require("./config/saleConfig.json");
+const {billPDF} = require(`./scripts/${scriptFile}`);
+
 
 let closeFlag = false;
 
@@ -62,12 +65,31 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     BrowserWindow.getFocusedWindow().close();
 });
 
-ipcMain.on("save-exit-sale-bill",(e,{billMeta,customer:customerObj,orderItems})=>{
-    // console.log({orderItems,billMeta});
+function save_exist(e,{billMeta,customer:customerObj,orderItems}){
+    closeFlag = true;
+    BrowserWindow.getFocusedWindow().close();
+    return cancelBill();
+    //remove the above block afterwards.
     const { name, address, phones,gst } = customerObj;
     const { billStatus, delivery, netDue, billNo, billDate, payment } = billMeta;
     closeFlag = true;
+    const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
     BrowserWindow.getFocusedWindow().close();//Work in progress//DB works
+    if(type!=="hand")
+        transporters.sync()
+        .then(model=>
+            model.findOrCreate({
+                where:{name:transporterName},
+                defaults:{
+                    name:transporterName,
+                    address:transporterAddress,
+                    phone:transporterContact,
+                    charge:transporterCharge
+                }
+            })
+            .then(()=>console.log("Transporter db updated!!"))
+            .catch(console.log)
+        )
     customer.sync()
     .then(async model=>{
         let customerId = (await model.findOrCreate({
@@ -105,14 +127,30 @@ ipcMain.on("save-exit-sale-bill",(e,{billMeta,customer:customerObj,orderItems})=
                 netDue,
                 itemList:`${customerId}_${billNo}_${billDate}`,
                 delivery:JSON.stringify(delivery),
-            })
+            }),
+            ...orderItems.map(async ({name,qty})=>{
+                let item = await stock.findOne({where:{name}});
+                item.reduceStock=qty;
+                return item.save();
+            })//updating stock
         ])
         .then(()=>console.log("Added to DB!!"))
         .catch(console.log);
     })
     .catch(console.log)
-});
+}
+
+ipcMain.on("save-exit-sale-bill",save_exist);
 
 ipcMain.handle("get-customers",async ()=>{
     return (await customer.sync()).findAll();
-})
+});
+
+ipcMain.on("salepage-print-doc",(e,billObj)=>{
+    save_exist(e,billObj);
+    billPDF(billObj)
+});
+
+ipcMain.handle("get-transporter",async ()=>{
+    return (await transporters.sync()).findAll();
+});
