@@ -1,4 +1,4 @@
-const { ipcMain } = require("electron");
+const { ipcMain, dialog } = require("electron");
 const {createModal} = require("./createModal");
 const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
@@ -8,9 +8,22 @@ const { getLedgerModel, getBillModel } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const {scriptFile} = require("./config/saleConfig.json");
 const {billPDF} = require(`./scripts/${scriptFile}`);
+const { exec } = require("child_process");
+const { stdout } = require("process");
 
 
 let closeFlag = false;
+let windowOptions = {
+    width: 1020,
+    height: 600,
+    resizable:false,
+    webPreferences: {
+        nodeIntegration: true,
+        devTools:true
+    },
+    show:false,
+    contextIsolation:true
+}
 
 function cancelBill(){
     let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
@@ -21,17 +34,6 @@ function cancelBill(){
 
 exports.saleWindow = ()=>{
     return ()=>{
-        let windowOptions = {
-            width: 1020,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            contextIsolation:true
-        }   
         let pathToHTML = "./template/html/salePage.html";
         let saleWindow = createModal(windowOptions,pathToHTML);
         saleWindow.on("close",(e)=>{
@@ -71,7 +73,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     return cancelBill();
     //remove the above block afterwards.
     const { name, address, phones,gst } = customerObj;
-    const { billStatus, delivery, netDue, billNo, billDate, payment } = billMeta;
+    const { billStatus, delivery, netDue, billNo, billDate, payment="due" } = billMeta;
     closeFlag = true;
     const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
     BrowserWindow.getFocusedWindow().close();//Work in progress//DB works
@@ -146,11 +148,62 @@ ipcMain.handle("get-customers",async ()=>{
     return (await customer.sync()).findAll();
 });
 
+function printOnLinuxOrMac(path2pdf,billObj){
+    const { print:{ name,copies=1 } } = billObj
+    let cmd = `lp ${path2pdf} -o fit-to-page`;
+    exec(cmd,(err,stdout)=>{
+        if(err) throw err;
+        let msg = {
+            type: "info",
+            title: "Document on print",
+            message: stdout
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+    });
+}
+
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
     save_exist(e,billObj);
-    billPDF(billObj)
+    let path2pdf = billPDF(billObj);
+    switch(process.platform){
+        case "linux":
+            return printOnLinuxOrMac(path2pdf,billObj);
+        case "win32":
+            return exec(
+                'ptp ' + path2pdf, {
+                    windowsHide: true
+                }, (e) => {
+                    if (e) {
+                        throw e;
+                    }
+                });
+        case "darwin":
+            return printOnLinuxOrMac(path2pdf,billObj);
+        default:
+            dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
+    }
 });
 
 ipcMain.handle("get-transporter",async ()=>{
     return (await transporters.sync()).findAll();
 });
+
+function checkPrintersOnLinuxOrMac(os){
+    return new Promise((resolve,reject)=>{
+        exec("lpstat -p",(err,stdout)=>{
+            if(err) reject(err);
+            resolve({stdout,os});
+        });
+    });
+}
+
+ipcMain.handle("get-printers",()=>{
+    switch(process.platform){
+        case "linux":
+            return checkPrintersOnLinuxOrMac("linux");
+        case "darwin":
+            return checkPrintersOnLinuxOrMac("mac");
+        default:
+            return Promise.reject({err:"OS unsupported"});
+    }
+})

@@ -20,12 +20,6 @@ main>div{
     display: flex;
     margin: 0.5rem;
 }
-/* main>div p{
-
-}
-main>div div{
-
-} */
 footer{
     grid-column: 1/-1;
     grid-row: -2/-1;
@@ -217,4 +211,31 @@ section>div{
     color: black;
     font-size: 1.2rem;
     margin-bottom: 0.5rem;
+}
+.modal{
+    background: #312f2f;
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    left: 25%;
+    height: 50%;
+    top: 25%;
+}
+.modal div{
+    margin: 1rem 0.5rem;
+}
+.modal input{
+    width: 1rem;
+    color: white;
+    height: 1rem;
+}
+.modal button{
+    background: rgb(50, 50, 255);
+    padding: 1rem 0.5rem;
+    font-size: 1rem;
+    border-radius: 5px;
+}
+.modal button[type="button"]{
+    background: none;
+    color: red;
 }

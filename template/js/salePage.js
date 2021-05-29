@@ -16,7 +16,9 @@ let nameDatalist = document.createElement("datalist"),
     billMeta = {},
     payment = [],
     transporterDatalist = document.createElement("datalist"),
-    transporters = [];
+    transporters = [],
+    printers = [],
+    printerDatalist = document.createElement("datalist");
 
 nameDatalist.id="stock-names";
 customerNameDatalist.id="customer-names";
@@ -567,7 +569,7 @@ function summaryBlock(){
     `
 }
 
-function reInitCurrentPage(){
+async function reInitCurrentPage(){
     if(currentStep===3 && orderItems.length>0){
         orderItems.forEach(({name,hsn,qty,unit,rate,amt,cgst,sgst,igst,netAmt},index)=>{
             let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
@@ -653,6 +655,30 @@ function reInitCurrentPage(){
             `,"text/html")).body.querySelector("div"));
             document.querySelector("#summary-div>div:nth-last-child(2)>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge) + billMeta.r_o;
         }
+        const {stdout,os} = await ipcRenderer.invoke("get-printers");
+        if(["linux","mac"].includes(os)){
+            printers = stdout.split("\n")
+                                    .map(text=>{
+                                        if(text!=="")
+                                            return text.split(".")[0]
+                                    })
+                                    .map(text=>{
+                                        if(!text) return;
+                                        let obj = {};
+                                        let matches = [...text.match(/(?=\b )\W[\w-]+(?<! )/g)]
+                                        obj.printerName = matches[0];
+                                        obj.status = matches[2];
+                                        return obj;
+                                    })
+                                    .filter(obj=>obj!==undefined)
+            console.log(printers);
+        }
+        // printers.forEach(name=>{
+        //     let option = document.createElement("option");
+        //     option.value = name;
+        //     printerDatalist.appendChild(option);
+        // });
+        // document.body.appendChild(printerDatalist);
     }
 }
 
@@ -698,6 +724,53 @@ function mainFocusHandler(e){
 
 ipcRenderer.on("get-current-step",cancelAction);
 
+function closeModal(){
+    document.querySelector(".cover").remove();
+    document.querySelector(".modal").remove();
+}
+
 function showPrintDialog(){
+    if(payment.length===0)
+        payment.push({type:"due"})
+    let cover = document.createElement("div");
+    cover.classList.add("cover");
+    let modal = document.createElement("div");
+    modal.classList.add("modal");
+    document.body.appendChild(cover);
+    document.body.appendChild(modal);
+    modal.innerHTML = `
+            <h1>Select label of copies for print</h1>
+            <form onsubmit="printcmd(event)">
+                <div>
+                    <input type="checkbox" checked id="buyer-copy" value="Original Buyer's Copy"/>
+                    <label for="buyer-copy"> Original Buyer's Copy</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="transport-copy" value="Transporter's Copy"/>
+                    <label for="transport-copy"> Transporter's Copy</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="book-copy" value="Book Copy"/>
+                    <label for="book-copy"> Book Copy</label>
+                </div>
+                <div>
+                    <button type="submit">Continue to Print</button>
+                    <button type="button" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+    `;
+
+}
+function printcmd(e){
+    e.preventDefault();
+    let captions = [];
+    [...e.srcElement].forEach(elem=>{
+        if(elem.nodeName==="INPUT" && elem.checked)
+            captions.push(elem.value);
+    });
+    if(captions.length===0)
+        return alert("Check at least 1 box.")
+    billMeta.captions = captions;
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
+
 }

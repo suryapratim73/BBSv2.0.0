@@ -1,6 +1,6 @@
 const {BrowserWindow} = require("electron");
 
-exports.createModal = (windowOptions,pathToHTML)=>{
+exports.createModal = (windowOptions,pathToHTML,show=true,loadFile=true)=>{
     windowOptions = windowOptions ?? {
         width: 400,
             height: 450,
@@ -16,7 +16,13 @@ exports.createModal = (windowOptions,pathToHTML)=>{
     // console.log(windowOptions)
     let modal = new BrowserWindow(windowOptions);
     modal.removeMenu();
-    modal.on("ready-to-show",modal.show);
-    modal.loadFile(pathToHTML);
+    if(show)
+      modal.on("ready-to-show",modal.show);
+    if(loadFile)
+      modal.loadFile(pathToHTML);
+    else{
+      modal.loadURL("file://"+pathToHTML);
+      console.log("file://"+pathToHTML)
+    }
     return modal;
 }

@@ -1,5 +1,4 @@
 const net = require("net");
-const { stderr } = require("process");
 
 process.env.ELECTRON_START_URL = `http://localhost:5000`;
 
