@@ -218,11 +218,17 @@ section>div{
     flex-direction: column;
     width: 50%;
     left: 25%;
-    height: 50%;
-    top: 25%;
+    height: 70%;
+    top: 15%;
+}
+.modal form{
+    height: 100%;
 }
 .modal div{
     margin: 1rem 0.5rem;
+}
+.modal div:last-child{
+    margin-top: 3rem;
 }
 .modal input{
     width: 1rem;
@@ -238,4 +244,18 @@ section>div{
 .modal button[type="button"]{
     background: none;
     color: red;
+}
+#printer-list{
+    width: fit-content;
+    padding: 0.75rem;
+    border-radius: 3px;
+    font-size: 1rem;
+    color: black;
+}
+#no-of-copies{
+    color: black;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border-radius: 3px;
+    width: 4rem;
 }

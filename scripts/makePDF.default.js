@@ -24,7 +24,7 @@ exports.billPDF = function(billObj){
     const {doc,pdfPath} = initPDF(billObj);
     let j,lastJ=0,lastI=0;
     console.log(billMeta)
-    const {captions} = billMeta;
+    const {printObj:{captions}} = billMeta;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;

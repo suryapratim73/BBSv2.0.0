@@ -18,10 +18,12 @@ let nameDatalist = document.createElement("datalist"),
     transporterDatalist = document.createElement("datalist"),
     transporters = [],
     printers = [],
-    printerDatalist = document.createElement("datalist");
+    printerDatalist = document.createElement("datalist"),
+    selectedPrinter;
 
-nameDatalist.id="stock-names";
-customerNameDatalist.id="customer-names";
+nameDatalist.id = "stock-names";
+customerNameDatalist.id = "customer-names";
+printerDatalist.id = "printer-names";
 
 async function init(){
     if(itemList.length===0){
@@ -666,19 +668,21 @@ async function reInitCurrentPage(){
                                         if(!text) return;
                                         let obj = {};
                                         let matches = [...text.match(/(?=\b )\W[\w-]+(?<! )/g)]
-                                        obj.printerName = matches[0];
+                                        obj.printerName = matches[0].trim();
                                         obj.status = matches[2];
                                         return obj;
                                     })
                                     .filter(obj=>obj!==undefined)
-            console.log(printers);
         }
-        // printers.forEach(name=>{
-        //     let option = document.createElement("option");
-        //     option.value = name;
-        //     printerDatalist.appendChild(option);
-        // });
-        // document.body.appendChild(printerDatalist);
+        printers.forEach(({printerName,status},i)=>{
+            let option = document.createElement("option");
+            if(i===0)
+                selectedPrinter = printerName;
+            option.value = printerName;
+            option.textContent = status;
+            printerDatalist.appendChild(option);
+        });
+        document.body.appendChild(printerDatalist);
     }
 }
 
@@ -729,6 +733,10 @@ function closeModal(){
     document.querySelector(".modal").remove();
 }
 
+function resetInput(event){
+    event.target.value = ""
+}
+
 function showPrintDialog(){
     if(payment.length===0)
         payment.push({type:"due"})
@@ -739,8 +747,16 @@ function showPrintDialog(){
     document.body.appendChild(cover);
     document.body.appendChild(modal);
     modal.innerHTML = `
-            <h1>Select label of copies for print</h1>
+            <h1>Print options</h1>
             <form onsubmit="printcmd(event)">
+                <div>
+                    <label for="printer-list">Select Printer</label>
+                    <input id="printer-list" onclick="resetInput(event)" list="printer-names" value="${selectedPrinter}" />
+                </div>
+                <div>
+                    <label for="no-of-copies">Number of copies</label>
+                    <input id="no-of-copies" type="number" value="1" />
+                </div>
                 <div>
                     <input type="checkbox" checked id="buyer-copy" value="Original Buyer's Copy"/>
                     <label for="buyer-copy"> Original Buyer's Copy</label>
@@ -761,16 +777,27 @@ function showPrintDialog(){
     `;
 
 }
+
 function printcmd(e){
+    let printObj = {};
     e.preventDefault();
     let captions = [];
     [...e.srcElement].forEach(elem=>{
-        if(elem.nodeName==="INPUT" && elem.checked)
-            captions.push(elem.value);
+        if(elem.nodeName==="INPUT"){
+            if(elem.type==="checkbox" && !elem.checked) return;
+            if(elem.checked)
+                captions.push(elem.value);
+            else
+            if(elem.id==="printer-list")
+                printObj.printer = elem.value;
+            else
+                printObj.copies = elem.value;
+        }
     });
     if(captions.length===0)
-        return alert("Check at least 1 box.")
-    billMeta.captions = captions;
+        return alert("Check at least 1 box.");
+    printObj.captions = captions;
+    billMeta.printObj = printObj;
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
 
 }

@@ -149,39 +149,44 @@ ipcMain.handle("get-customers",async ()=>{
 });
 
 function printOnLinuxOrMac(path2pdf,billObj){
-    const { print:{ name,copies=1 } } = billObj
-    let cmd = `lp ${path2pdf} -o fit-to-page`;
-    exec(cmd,(err,stdout)=>{
-        if(err) throw err;
-        let msg = {
-            type: "info",
-            title: "Document on print",
-            message: stdout
-        }
-        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-    });
+    const { billMeta:{printObj:{ printer,copies=1 }} } = billObj;
+    let cmd = `lp -d ${printer} -n ${copies} -o fit-to-page ${path2pdf} `;
+    if(fs.existsSync(path2pdf))
+        exec(cmd,(err,stdout)=>{
+            if(err) throw err;
+            let msg = {
+                type: "info",
+                title: "Document on print",
+                message: stdout
+            }
+            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        });
 }
 
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
     save_exist(e,billObj);
     let path2pdf = billPDF(billObj);
-    switch(process.platform){
-        case "linux":
-            return printOnLinuxOrMac(path2pdf,billObj);
-        case "win32":
-            return exec(
-                'ptp ' + path2pdf, {
-                    windowsHide: true
-                }, (e) => {
-                    if (e) {
-                        throw e;
-                    }
-                });
-        case "darwin":
-            return printOnLinuxOrMac(path2pdf,billObj);
-        default:
-            dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
-    }
+    let {billMeta:{billStatus}} = billObj;
+    if(billStatus!=="open")
+        switch(process.platform){
+            case "linux":
+                return printOnLinuxOrMac(path2pdf,billObj);
+            case "win32":
+                return exec(
+                    'ptp ' + path2pdf, {
+                        windowsHide: true
+                    }, (e) => {
+                        if (e) {
+                            throw e;
+                        }
+                    });
+            case "darwin":
+                return printOnLinuxOrMac(path2pdf,billObj);
+            default:
+                dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
+        }
+    else
+        dialog.showErrorBox("Print blocked","Bill status is currently 'open', set the bill status to 'close' and try again.")
 });
 
 ipcMain.handle("get-transporter",async ()=>{
