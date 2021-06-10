@@ -53,8 +53,8 @@ exports.customerLedgerSchema = {
         type:DataTypes.BOOLEAN
     },
     payments:{
-        type:DataTypes.TEXT,
-        defaultValue:"cash"
+        type:DataTypes.JSON,
+        defaultValue:[{type:"cash"}]
     },
     netDue:{
         type:DataTypes.INTEGER,
@@ -64,8 +64,14 @@ exports.customerLedgerSchema = {
         type:DataTypes.TEXT
     },
     delivery:{
-        type:DataTypes.TEXT,
+        type:DataTypes.JSON,
         defaultValue:"hand"
+    },
+    returnOrder:{
+        type:DataTypes.JSON
+    },
+    retAmt:{
+        type:DataTypes.INTEGER
     }
 }
 

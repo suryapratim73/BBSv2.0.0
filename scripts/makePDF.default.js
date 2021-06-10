@@ -22,12 +22,13 @@ function initPDF({customer:{name},billMeta:{billDate,billNo}}){
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj
     const {doc,pdfPath} = initPDF(billObj);
-    let j,lastJ=0,lastI=0;
-    console.log(billMeta)
-    const {printObj:{captions}} = billMeta;
+    let j,lastJ=0,lastI=0,k,lastK=0;
+    console.log(billObj)
+    const {printObj:{captions},returnOrder} = billMeta;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;
+        k=lastK;
         if(i>lastI){
             lastI = i;
             doc.addPage();
@@ -42,7 +43,6 @@ exports.billPDF = function(billObj){
         createHeader(doc,billMeta,customer);
         createFooter(doc,billMeta);
         let initialY = 265;
-        loop2:
         for(;j<orderItems.length;j++){
             createBody(doc,orderItems[j],initialY,j+1)
             if(doc.widthOfString(orderItems[j].name)>185)
@@ -54,6 +54,27 @@ exports.billPDF = function(billObj){
                 i--;
                 lastJ = j;
                 continue loop1;
+            }
+        }
+        if(returnOrder.length>0){
+            initialY+=20;
+            doc
+            .font("Times-BoldItalic")
+            .text("Return Orders",10,initialY)
+            .font(titleFontFamily);
+            initialY+=20;
+            for(;k<returnOrder.length;k++){
+                createBody(doc,orderItems[k],initialY,k+1)
+                if(doc.widthOfString(returnOrder[k].name)>185)
+                    initialY+=40;
+                else
+                    initialY+=20;
+                if(initialY>615){
+                    doc.addPage();
+                    i--;
+                    lastK = k;
+                    continue loop1;
+                }
             }
         }
     }

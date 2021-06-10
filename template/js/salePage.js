@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput,roundOffTo2DecimalPlace} =  require("../js/common");
+const {toggleDevTool,validateInput,roundOffTo2DecimalPlace,getAmtToWord} =  require("../js/common");
 
 
 toggleDevTool(document);
@@ -95,6 +95,7 @@ async function proceedOrFinishHandler(e){
                 igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0,
                 netAmt = roundOffTo2DecimalPlace(qty * rate * (1 + cgst + sgst + igst)) ?? 0
                 item = itemList.find((itemObj)=>itemObj.name===name);
+            if(name==="") return;
             orderItems.push({ 
                 name,
                 qty,
@@ -110,9 +111,8 @@ async function proceedOrFinishHandler(e){
             });
         })
     }
-    if(currentStep===4 && e.target.dataset.type!="back"){
+    if(currentStep===4 && e.target.dataset.type!="back")
         return ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems})
-    }
     if(e.target.dataset.type==="proceed")
         currentStep++;
     else if(e.target.dataset.type==="back")
@@ -130,7 +130,9 @@ function footer(){
     let backBtn = `<button data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>`;
     let printBtn = `<button data-type="print" onclick="showPrintDialog()">Print</button>`;
     let finishBtn = `<button data-type="save" onclick="proceedOrFinishHandler(event)">Save & Exit</button>`;
+    let returnBtn = `<button data-type="return" id="return-btn" onclick="returnHandler(event)">Return Register</button>`;
     return `<footer>
+                ${currentStep===4?returnBtn:""}
                 <div>
                     <button onclick="cancelAction()">Cancel</button>
                     ${currentStep>1?backBtn:""}
@@ -156,10 +158,18 @@ function getTotal(nodeList){
 }
 
 function calculateR_O(){
-    if((Math.ceil(billMeta.netAmt) - billMeta.netAmt)<0.5)
-        return Math.ceil(billMeta.netAmt) - billMeta.netAmt;
-    else
-        return -1*(billMeta.netAmt - Math.floor(billMeta.netAmt));
+    let retAmt = 0;
+    if(Object.keys(billMeta).includes("retAmt"))
+        retAmt = billMeta.retAmt;
+    let total = billMeta.netAmt - retAmt;
+    if((Math.ceil(total) - total)<0.5){
+        let r_o = Math.ceil(total) - total;
+        return Math.round(r_o*100)/100;
+    }
+    else{
+        let r_o = -1*(total - Math.floor(total));
+        return Math.round(r_o*100)/100;
+    }
 }
 
 function getBillSummary(){
@@ -222,7 +232,7 @@ function displaySection(){
         document.querySelector("[data-name='availQty']").classList.remove("red");
 }
 
-function selectionHandler(e){
+function selectionHandler(e,hideDisplaySection){
     if(e.target.dataset.name==="stock-name"){
         selectedItem = itemList.find(({name})=>name===e.target.value);
         if(!selectedItem) return;
@@ -233,7 +243,7 @@ function selectionHandler(e){
         allP[1].textContent = hsn;
         allInput[2].value = unit;
         allInput[3].value = Math.round(standardSellPrice);
-        displaySection();
+        hideDisplaySection===false && displaySection();
         bodyRow.querySelector("div:nth-child(4) input").focus();
     }
     if(e.target.dataset.name==="name"){
@@ -255,7 +265,7 @@ function selectionHandler(e){
     }
 }
 
-function calculateAmounts(e){
+function calculateAmounts(e,updateRetForm){
     let bodyRow = e.target.parentNode.parentNode;
     let quantity = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
     let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
@@ -267,13 +277,16 @@ function calculateAmounts(e){
     sgst *= quantity * rate;
     igst *= quantity * rate;
     bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst);
-    displaySection();
+    if(!updateRetForm)
+        displaySection();
+    if(updateRetForm)
+        updateReturnForm(roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst))
 }
 
-function addRow(e){
+function addRow(e,returnClassName=""){
     let clonedBodyRow = document.createElement("div");
     clonedBodyRow.className = `row body`;
-    clonedBodyRow.innerHTML = getBodyRow();
+    clonedBodyRow.innerHTML = getBodyRow(returnClassName);
     e.target.parentNode.before(clonedBodyRow);
     clonedBodyRow.querySelectorAll("div p").forEach(p=>p.textContent="");
     clonedBodyRow.querySelectorAll("div input").forEach(input=>input.value="");
@@ -282,21 +295,21 @@ function addRow(e){
     e.target.scrollIntoView();
 }
 
-function getBodyRow(){
+function getBodyRow(returnClassName=""){
     return `
             <div class="col sm"><p>${slNo}</p></div>
-            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onchange="selectionHandler(event)" /></div>
+            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onchange="selectionHandler(event,${returnClassName===''?false:true})" /></div>
             <div class="col md"><p></p></div>
-            <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input type="text" /></div>                            
-            <div class="col md"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event)" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
-            <div class="row-control-div">
-                <button data-name="delete-row">x</button>
+            <div class="row-control-div ${returnClassName}">
+                <button tabindex="-1" data-name="delete-row">x</button>
             </div>
     `;
 }
@@ -319,11 +332,46 @@ async function showDeliveryDetail(e){
     }
 }
 
+function reassignSummaryDivFeilds(netPayment=0){
+    if(netPayment===0 && Object.keys(billMeta).includes("payment"))
+        billMeta.payment.forEach((payObj)=>{
+            netPayment += payObj.payment;
+            document.querySelector('[data-name="payment"]').value = payObj.payment;
+            if(payObj.type==="cash")
+                document.querySelector("#cash-payment input").value = payObj.payment;
+            else if(payObj.type==="check"){
+                paymentModeDiv.querySelector("[data-name='bankName']").value = payObj.bnk;
+                paymentModeDiv.querySelector("[data-name='bankBranch']").value = payObj.branch;
+                paymentModeDiv.querySelector("[data-name='bankACNo']").value = payObj.a_c_No;
+                paymentModeDiv.querySelector("[data-name='chkNo']").value = payObj.chkNo;
+            }
+            else if(payObj.type==="online"){
+                paymentModeDiv.querySelector("[data-name='bankName']").value = payObj.bnk;
+                paymentModeDiv.querySelector("[data-name='bankTrnRef']").value = payObj.ref;
+            }
+        });
+    let retAmt = 0;
+    if(Object.keys(billMeta).includes("retAmt"))
+        retAmt = billMeta.retAmt;
+    let deliveryCharge = billMeta.delivery.type==="hand"?0:Number(billMeta.delivery.transporterCharge);
+    document.querySelector("[data-name='billAmt']").textContent = billMeta.netAmt;
+    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
+    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt)<=0){
+        document.querySelector("[data-name='dueAmt']").textContent = 0;
+        billMeta.netDue = 0;
+        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(retAmt + netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge));
+    }
+    else{
+        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt);
+        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt);
+        document.querySelector("[data-name='return']").textContent = 0;
+    }
+}
+
 function updateBillValue(e){
     if(e.target.dataset.name!=="payment") return;
     //Update summary and billMeta
     let paymentModeDiv = e.target.parentNode.parentNode;
-    let deliveryCharge = billMeta.delivery.type==="hand"?0:Number(billMeta.delivery.transporterCharge);
     let payObj = {
         payment:Number(e.target.value)
     };
@@ -354,17 +402,7 @@ function updateBillValue(e){
     payment.forEach(_payObj=>{
         netPayment += _payObj.payment;
     });
-    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
-    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment)<=0){
-        document.querySelector("[data-name='dueAmt']").textContent = 0;
-        billMeta.netDue = 0;
-        document.querySelector("[data-name='return']").textContent = netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge);
-    }
-    else{
-        document.querySelector("[data-name='dueAmt']").textContent = deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment;
-        billMeta.netDue = deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment;
-        document.querySelector("[data-name='return']").textContent = 0;
-    }
+    reassignSummaryDivFeilds(netPayment);
     billMeta.payment = payment;
 }
 
@@ -571,22 +609,30 @@ function summaryBlock(){
     `
 }
 
+function populateTableFeilds(bodyRowDivs,{name,hsn,qty,unit,rate,amt,cgst,sgst,igst,netAmt},index){
+    selectedItem = itemList.find(item=>item.name===name);
+    if(!amt)
+        amt = qty * rate;
+    if(!netAmt)
+        netAmt = igst>0?(1+igst/100)*amt:(1+(sgst+cgst)/100)*amt;
+    bodyRowDivs[0].querySelector("p").textContent = index + 1;
+    bodyRowDivs[1].querySelector("input").value = name;
+    bodyRowDivs[2].querySelector("p").textContent = hsn ?? selectedItem.hsn;
+    bodyRowDivs[3].querySelector("input").value = qty;
+    bodyRowDivs[4].querySelector("input").value = unit;
+    bodyRowDivs[5].querySelector("input").value = rate;
+    bodyRowDivs[6].querySelector("p").textContent = amt;
+    bodyRowDivs[7].querySelector("input").value = cgst;
+    bodyRowDivs[8].querySelector("input").value = sgst;
+    bodyRowDivs[9].querySelector("input").value = igst;
+    bodyRowDivs[10].querySelector("p").textContent = netAmt;
+}
+
 async function reInitCurrentPage(){
     if(currentStep===3 && orderItems.length>0){
-        orderItems.forEach(({name,hsn,qty,unit,rate,amt,cgst,sgst,igst,netAmt},index)=>{
+        orderItems.forEach((item,index)=>{
             let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
-            selectedItem = itemList.find(item=>item.name===name);
-            bodyRowDivs[0].querySelector("p").textContent = index + 1;
-            bodyRowDivs[1].querySelector("input").value = name;
-            bodyRowDivs[2].querySelector("p").textContent = hsn ?? selectedItem.hsn;
-            bodyRowDivs[3].querySelector("input").value = qty;
-            bodyRowDivs[4].querySelector("input").value = unit;
-            bodyRowDivs[5].querySelector("input").value = rate;
-            bodyRowDivs[6].querySelector("p").textContent = amt;
-            bodyRowDivs[7].querySelector("input").value = cgst;
-            bodyRowDivs[8].querySelector("input").value = sgst;
-            bodyRowDivs[9].querySelector("input").value = igst;
-            bodyRowDivs[10].querySelector("p").textContent = netAmt;
+            populateTableFeilds(bodyRowDivs,item,index)
             slNo = index + 1;
             if(slNo<orderItems.length)
                 document.querySelector("#add-item>button").click();
@@ -657,6 +703,8 @@ async function reInitCurrentPage(){
             `,"text/html")).body.querySelector("div"));
             document.querySelector("#summary-div>div:nth-last-child(2)>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge) + billMeta.r_o;
         }
+        if(Object.keys(billMeta).includes("payment"))
+            reassignSummaryDivFeilds();
         const {stdout,os} = await ipcRenderer.invoke("get-printers");
         if(["linux","mac"].includes(os)){
             printers = stdout.split("\n")
@@ -770,8 +818,8 @@ function showPrintDialog(){
                     <label for="book-copy"> Book Copy</label>
                 </div>
                 <div>
-                    <button type="submit">Continue to Print</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
+                    <button type="submit" data-name="print-btn">Continue to Print</button>
+                    <button type="button" data-name="print-cancel-btn" onclick="closeModal()">Cancel</button>
                 </div>
             </form>
     `;
@@ -799,5 +847,140 @@ function printcmd(e){
     printObj.captions = captions;
     billMeta.printObj = printObj;
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
-
 }
+
+function returnHandler(e){
+    let body = document.body;
+    let modal = document.createElement("div");
+    modal.classList.add("modal");
+    modal.id = "return-modal";
+    let cover = document.createElement("div");
+    cover.classList.add("cover");
+    modal.innerHTML = `
+                <div id="head-section">
+                    <div id="current-bill-metadata">
+                        <div>
+                            <p class="col-1">Current Bill No:</p>
+                            <p class="col-2">${billMeta.billNo}</p>
+                        </div>
+                        <div>
+                            <p class="col-1">Current Bill Amount:</p>
+                            <p class="col-2">${billMeta.netAmt}</p>
+                        </div>
+                        <div>
+                            <p class="col-1">Amount in word:</p>
+                            <p class="col-2">${getAmtToWord(billMeta.netAmt + billMeta.r_o)}</p>
+                        </div>
+                    </div>
+                    <div id="return-bill-metadata">
+                        <div>
+                            <p class="col-1">Return Policy:</p>
+                            <p class="col-2">all</p>
+                        </div>
+                        <div>
+                            <label class="col-1">Return Bill Date:</label>
+                            <input class="col-2" tabindex="2" type="date" data-name="returnBillDate" />
+                        </div>
+                        <div>
+                            <label class="col-1">Return Bill No:</label>
+                            <input class="col-2" type="text" tabindex="2" data-name="returnBillNo" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                        </div>
+                    </div>
+                </div>
+                <div id="body-section" class="table">
+                    <div class="row head">
+                        <div class="col sm"><p>Sl No.</p></div>
+                        <div class="col lg"><p>Particular</p></div>
+                        <div class="col md"><p>HSN No</p></div>
+                        <div class="col md"><p>Quantity</p></div>
+                        <div class="col md"><p>Unit</p></div>
+                        <div class="col md"><p>Rate</p></div>
+                        <div class="col md"><p>Amount</p></div>
+                        <div class="col sm"><p>CGST</p></div>
+                        <div class="col sm"><p>SGST</p></div>
+                        <div class="col sm"><p>IGST</p></div>
+                        <div class="col md"><p>Total</p></div>
+                    </div>
+                    <div id="tbody">
+                        <div class="row body">
+                            ${getBodyRow("return-add-btn")}
+                        </div>
+                        <div class="row row-control-div" id="add-item">
+                            <button onclick="addRow(event,'return-add-btn')">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="footer-section">
+                    <div id="updated-bill-amt">
+                        <p class="col-1">Updated Bill amount:</p>
+                        <p class="col-2">${billMeta.netAmt}</p>
+                    </div>                
+                    <div>
+                        <button tabindex="2" onclick="recomputeBill()">Update</button>
+                        <button tabindex="2" onclick="closeModal()">Cancel</button>
+                    </div>                
+                </div>
+    `;
+    body.appendChild(cover);
+    body.appendChild(modal);
+    document.querySelector('[data-name="returnBillNo"]').focus();
+    [...document.querySelectorAll(".body.row input")].forEach(input=>input.setAttribute("tabindex","2"));
+    if(Object.keys(billMeta).includes("returnOrder"))
+        reInitReturnModal()
+}   
+
+function updateReturnForm(retAmt){
+    let updatedBillAmt = document.querySelector("#updated-bill-amt>p:last-child");
+    billMeta.retAmt = retAmt;
+    updatedBillAmt.textContent = roundOffTo2DecimalPlace(billMeta.netAmt - retAmt);
+}
+
+function recomputeBill(){
+    billMeta.returnOrder = [];
+    [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
+        let name = bodyRow.querySelector("div:nth-child(2)>input").value;
+        if(!name) return;
+        let qty = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
+        let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
+        let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value);
+        let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value);
+        let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value);
+        const { hsn,unit } = itemList.find(item=>item.name===name);
+        billMeta.returnOrder.push({name,qty,rate,cgst,sgst,igst,hsn,unit});       
+    });
+    billMeta.r_o = calculateR_O();
+    closeModal();
+    reassignSummaryDivFeilds();
+}
+
+function reInitReturnModal(){
+    billMeta.returnOrder.forEach((item,index)=>{
+        if(!item) return;
+        let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
+        populateTableFeilds(bodyRowDivs,item,index)
+        if(index+1<orderItems.length)
+            document.querySelector("#add-item>button").click();  
+    })
+}
+
+document.addEventListener("keydown",e=>{
+    if(e.ctrlKey && e.key==="Enter" && currentStep<4)
+        document.querySelector("[data-type='proceed']").click();
+    else
+    if(e.ctrlKey && e.key==="Enter" && currentStep===4)
+        document.querySelector('[data-type="save"]').click();
+    if(e.ctrlKey && e.key==="ArrowLeft")
+        document.querySelector('[data-type="back"]').click();
+    if(e.shiftKey && e.key==="ArrowDown")
+        document.querySelector("#add-item>button").click();
+    if(e.shiftKey && e.key==="Delete")
+        [...document.querySelectorAll('.row.body')].pop().querySelector('[data-name="delete-row"]').click();
+    if(e.ctrlKey && e.key==="p" && currentStep===4)
+        document.querySelector('[data-type="print"]').click();
+    if(currentStep===4 && e.ctrlKey && e.key==="r")
+        document.querySelector('[data-type="return"]').click();
+    if(currentStep===4 && e.key==="Enter" && document.querySelector('[data-name="print-btn"]'))
+        document.querySelector('[data-name="print-btn"]').click();
+    if(currentStep===4 && e.key==="End" && document.querySelector('[data-name="print-cancel-btn"]'))
+        document.querySelector('[data-name="print-cancel-btn"]').click();
+});

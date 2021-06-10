@@ -70,13 +70,12 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
 function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
-    return cancelBill();
-    //remove the above block afterwards.
+    if(!Object.keys(billMeta).includes("printObj"))
+        billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones,gst } = customerObj;
-    const { billStatus, delivery, netDue, billNo, billDate, payment="due" } = billMeta;
+    const { billStatus, delivery, netDue, billNo, billDate, payment="due",returnOrder=[],retAmt=0 } = billMeta;
     closeFlag = true;
     const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
-    BrowserWindow.getFocusedWindow().close();//Work in progress//DB works
     if(type!=="hand")
         transporters.sync()
         .then(model=>
@@ -125,10 +124,12 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 date:billDate,
                 billNo,
                 paymentStatus:netDue===0?true:false,
-                payments:JSON.stringify(payment),
+                payments:payment,
                 netDue,
                 itemList:`${customerId}_${billNo}_${billDate}`,
-                delivery:JSON.stringify(delivery),
+                delivery,
+                returnOrder,
+                retAmt
             }),
             ...orderItems.map(async ({name,qty})=>{
                 let item = await stock.findOne({where:{name}});
@@ -140,6 +141,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         .catch(console.log);
     })
     .catch(console.log)
+    return billPDF({billMeta,customer:customerObj,orderItems});
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
@@ -164,8 +166,7 @@ function printOnLinuxOrMac(path2pdf,billObj){
 }
 
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
-    save_exist(e,billObj);
-    let path2pdf = billPDF(billObj);
+    let path2pdf = save_exist(e,billObj);
     let {billMeta:{billStatus}} = billObj;
     if(billStatus!=="open")
         switch(process.platform){
