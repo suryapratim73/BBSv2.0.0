@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Dialog Box</title>
+    <link rel="stylesheet" href="../css/printDialog.css">
+    <script src="../js/printDialog.js" defer></script>
+</head>
+<body class="modal">
+    <h1>Print options</h1>
+    <form onsubmit="printcmd(event)">
+        <div>
+            <div>
+                <label for="printer-list">Select Printer</label>
+                <input id="printer-list" name="printer-list" onclick="resetInput(event)" list="printer-names" />
+            </div>
+            <div>
+                <fieldset>
+                    <legend>Document label</legend>
+                    <div>
+                        <input type="checkbox" checked id="buyer-copy" value="Original Buyer's Copy"/>
+                        <label for="buyer-copy"> Original Buyer's Copy</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="transport-copy" value="Transporter's Copy"/>
+                        <label for="transport-copy"> Transporter's Copy</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="book-copy" value="Book Copy"/>
+                        <label for="book-copy"> Book Copy</label>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Additional options</legend>
+                    <div>
+                        <label for="no-of-copies">Number of copies</label>
+                        <input id="no-of-copies" name="no-of-copies" type="number" value="1" />
+                    </div>
+                    <div>
+                        <label for="paper-size">Paper size</label>
+                        <select name="paper-size" id="paper-size">
+                            <option selected value="A4">A4</option>
+                            <option value="A5">A5</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="print-orientation">Print orientation</label>
+                        <select name="print-orientation" id="print-orientation">
+                            <option selected value="3">Portrait</option>
+                            <option value="4">Landscape</option>
+                        </select>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+        <div>
+            <button type="submit" data-name="print-btn">Continue to Print</button>
+            <button type="button" data-name="print-cancel-btn">Cancel</button>
+        </div>
+    </form>
+    <datalist id="printer-names"></datalist>
+</body>
+</html>

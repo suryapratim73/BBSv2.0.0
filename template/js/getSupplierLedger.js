@@ -5,7 +5,7 @@ toggleDevTool(document);
 
 let form = document.querySelector("form");
 let datalist = document.querySelector("datalist");
-let suppliers = [];
+let suppliers = [], selectedSupplier = {};
 
 (async ()=>{
     suppliers = await init(datalist)
@@ -42,13 +42,14 @@ function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
                         </table>
                     </section>
                     <div>
+                        <button onclick="printModal()">Print ledger</button>
                         <button>Load full ledger</button>
                         <button>Back</button>
                     </div>
     `;
     let tbody = page2root.querySelector("tbody");
-    page2root.querySelector("button:nth-child(1)").addEventListener("click",()=>ipcRenderer.send("Load full ledger",{name,id}));
-    page2root.querySelector("button:nth-child(2)").addEventListener("click",()=>location.reload());
+    page2root.querySelector("button:nth-child(2)").addEventListener("click",()=>ipcRenderer.send("Load full ledger",{name,id}));
+    page2root.querySelector("button:nth-child(3)").addEventListener("click",()=>location.reload());
     last5Entries.forEach(entry=>{
         let tr = document.createElement("tr");
         let paymentStatus = entry.paymentStatus;
@@ -74,10 +75,48 @@ function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
 
 form.addEventListener("submit",async e=>{
     e.preventDefault();
-    let selectedSupplier = suppliers.find(suppObj=>suppObj.name===e.target[0].value);
+    selectedSupplier = suppliers.find(suppObj=>suppObj.name===e.target[0].value);
     if(selectedSupplier){
         let ledgerObj= await ipcRenderer.invoke("get-supplier-ledger",selectedSupplier);
         loadLedgerSummary(ledgerObj,selectedSupplier);
     } else 
         alert("Please select a supplier.");
-})
+});
+
+function printModal(){
+    let modal = document.createElement("div");    
+    modal.classList.add("modal");
+    let cover = document.createElement("div");    
+    cover.classList.add("cover");
+    modal.innerHTML = `
+            <form onsubmit="handlePrint(event)">
+                <div>
+                    <label for="ledger-period">Please select the period of ledger.</label>
+                    <select id="ledger-period" name="ledger-period">
+                        <option value="0">1 month</option>
+                        <option value="2">3 month</option>
+                        <option value="5">6 month</option>
+                        <option value="11">1 year</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit">Print</button>
+                    <button type="button" data-name="cancel">Cancel</button>
+                </div>
+            </form>
+    `
+    document.body.appendChild(cover);
+    document.body.appendChild(modal);
+    document.querySelector('[data-name="cancel"]').addEventListener("click",function closeModal(){
+        document.body.removeChild(cover);        
+        document.body.removeChild(modal);
+        this.removeEventListener("click",closeModal);        
+    })
+}
+
+function handlePrint(e){
+    e.preventDefault();
+    let period = Number(e.target["ledger-period"].value);
+    ipcRenderer.send("get-supplier-ledger-for-print",{selectedSupplier,period})
+    document.querySelector('[data-name="cancel"]').click();
+}

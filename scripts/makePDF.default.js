@@ -1,12 +1,13 @@
 const PDFDocument = require('pdfkit');
 const fs = require("fs")
-const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.json")
+const { lib, margin, emblem, titleFontFamily, titileFontSize } = require("../config/saleConfig.json")
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
+const { createLedgerHead, createLedgerBody, fillLedgerEntry } = require('../lib/buildPage.default');
 
 
-function initPDF({customer:{name},billMeta:{billDate,billNo}}){
+function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
     const doc = new PDFDocument({
        margin
     });
@@ -21,7 +22,7 @@ function initPDF({customer:{name},billMeta:{billDate,billNo}}){
 
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj
-    const {doc,pdfPath} = initPDF(billObj);
+    const {doc,pdfPath} = initBillPDF(billObj);
     let j,lastJ=0,lastI=0,k,lastK=0;
     console.log(billObj)
     const {printObj:{captions},returnOrder} = billMeta;
@@ -56,7 +57,7 @@ exports.billPDF = function(billObj){
                 continue loop1;
             }
         }
-        if(returnOrder.length>0){
+        if(returnOrder?.length>0){
             initialY+=20;
             doc
             .font("Times-BoldItalic")
@@ -80,4 +81,32 @@ exports.billPDF = function(billObj){
     }
     doc.save().end();
     return pdfPath;
- }
+}
+
+exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate){
+    const doc = new PDFDocument({margin});
+    let path2pdf = app.getPath("temp"),initY;
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"ledger")));
+    doc.fontSize(12)
+    .font(titleFontFamily);
+    let {_x,_y} = createLedgerHead(doc,{name,address,phones,gst,startDate})
+    initY=_y;
+    let {factor} = createLedgerBody(doc,_x,_y);
+    _y+=32;
+    let { height,margins:{bottom} } = doc.page;
+    for(let index = 0;index<entryArr.length;index++){
+        fillLedgerEntry(doc,index,entryArr[index],_y,factor)
+        _y+=20;
+        if(_y>=height-2*bottom){
+            doc.addPage();
+            _y = initY;
+            _y = createLedgerHead(doc,{name,address,phones,gst,startDate})._y;
+            createLedgerBody(doc,_x,_y);
+            _y+=32;
+        }
+    }
+    //End PDF date,billNo,billAmt,payments,netDue
+    doc.stroke()
+    .save().end();
+    return path.join(path2pdf,"ledger");
+}

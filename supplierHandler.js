@@ -4,6 +4,8 @@ const { createModal } = require("./createModal");
 const { supplier, sequelize, outPayments } = require("./model/dbConfig");
 const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const { getLedgerModel } = require("./common");
+const { ledgerPDF } = require("./scripts/makePDF.default");
+const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -250,3 +252,30 @@ ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type,entryNo,ne
 ipcMain.on("get-out-payments",async e=>{
     e.sender.send("show-out-payments",(await outPayments.findAll()).map(({dataValues})=>dataValues));
 });
+
+ipcMain.on("get-supplier-ledger-for-print",async (e,{selectedSupplier:{id},period})=>{
+    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
+    let startDate = new Date();
+    startDate.setDate(1);
+    startDate.setMonth(startDate.getMonth() - period);
+    let entryArr = (await supplierLedger.findAll({
+        where:{
+            date:{
+                [Op.between]:[startDate.toDateString(),new Date().toDateString()]
+            }
+        }
+    })).map(({dataValues})=>({...dataValues}));
+    let supplierObj = (await supplier.findOne({where:{id}})).dataValues;
+    let path2pdf = ledgerPDF(entryArr,supplierObj,startDate);
+    ipcMain.emit("show-print-modal",path2pdf)
+    ipcMain.on("printObj",(e)=>{
+        const {printer,copies,paperSize,printOrientation} = e[0];
+        if(process.platform==="linux" || process.platform==="darwin")
+            printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
+        else
+        if(process.platform==="win32")
+            printOnWindows(path2pdf)
+        else
+            dialog.showErrorBox("Unsupported OS","The print function is not yet supported for your OS.")
+    })
+})

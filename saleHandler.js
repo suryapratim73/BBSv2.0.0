@@ -8,11 +8,10 @@ const { getLedgerModel, getBillModel } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const {scriptFile} = require("./config/saleConfig.json");
 const {billPDF} = require(`./scripts/${scriptFile}`);
-const { exec } = require("child_process");
-const { stdout } = require("process");
+const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
 
 
-let closeFlag = false;
+let closeFlag = false,saleWindow;
 let windowOptions = {
     width: 1020,
     height: 600,
@@ -35,7 +34,7 @@ function cancelBill(){
 exports.saleWindow = ()=>{
     return ()=>{
         let pathToHTML = "./template/html/salePage.html";
-        let saleWindow = createModal(windowOptions,pathToHTML);
+        saleWindow = createModal(windowOptions,pathToHTML);
         saleWindow.on("close",(e)=>{
             if(!closeFlag){
                 e.preventDefault();
@@ -69,7 +68,7 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
 
 function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     closeFlag = true;
-    BrowserWindow.getFocusedWindow().close();
+    saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones,gst } = customerObj;
@@ -150,39 +149,17 @@ ipcMain.handle("get-customers",async ()=>{
     return (await customer.sync()).findAll();
 });
 
-function printOnLinuxOrMac(path2pdf,billObj){
-    const { billMeta:{printObj:{ printer,copies=1 }} } = billObj;
-    let cmd = `lp -d ${printer} -n ${copies} -o fit-to-page ${path2pdf} `;
-    if(fs.existsSync(path2pdf))
-        exec(cmd,(err,stdout)=>{
-            if(err) throw err;
-            let msg = {
-                type: "info",
-                title: "Document on print",
-                message: stdout
-            }
-            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        });
-}
-
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
     let path2pdf = save_exist(e,billObj);
-    let {billMeta:{billStatus}} = billObj;
+    let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
     if(billStatus!=="open")
         switch(process.platform){
             case "linux":
-                return printOnLinuxOrMac(path2pdf,billObj);
+                return printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
             case "win32":
-                return exec(
-                    'ptp ' + path2pdf, {
-                        windowsHide: true
-                    }, (e) => {
-                        if (e) {
-                            throw e;
-                        }
-                    });
+                return printOnWindows(path2pdf);
             case "darwin":
-                return printOnLinuxOrMac(path2pdf,billObj);
+                return printOnLinuxOrMac(path2pdf,printer,copies);
             default:
                 dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
         }
@@ -193,23 +170,3 @@ ipcMain.on("salepage-print-doc",(e,billObj)=>{
 ipcMain.handle("get-transporter",async ()=>{
     return (await transporters.sync()).findAll();
 });
-
-function checkPrintersOnLinuxOrMac(os){
-    return new Promise((resolve,reject)=>{
-        exec("lpstat -p",(err,stdout)=>{
-            if(err) reject(err);
-            resolve({stdout,os});
-        });
-    });
-}
-
-ipcMain.handle("get-printers",()=>{
-    switch(process.platform){
-        case "linux":
-            return checkPrintersOnLinuxOrMac("linux");
-        case "darwin":
-            return checkPrintersOnLinuxOrMac("mac");
-        default:
-            return Promise.reject({err:"OS unsupported"});
-    }
-})

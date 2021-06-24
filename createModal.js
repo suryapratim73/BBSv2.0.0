@@ -20,9 +20,7 @@ exports.createModal = (windowOptions,pathToHTML,show=true,loadFile=true)=>{
       modal.on("ready-to-show",modal.show);
     if(loadFile)
       modal.loadFile(pathToHTML);
-    else{
+    else
       modal.loadURL("file://"+pathToHTML);
-      console.log("file://"+pathToHTML)
-    }
     return modal;
 }

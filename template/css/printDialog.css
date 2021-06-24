@@ -1,0 +1,49 @@
+@import "../css/salePage.css";
+.modal{
+    position: static;
+    width: 100%;
+    height: 100vh;
+    padding: 0.5rem;
+}
+.modal form{
+    justify-content: space-between;
+    display: flex;
+    flex-direction: column;
+}
+.modal h1{
+    font-size: 1.5rem;
+}
+.modal form div:last-child{
+    margin-top: 0;
+}
+.modal form>div:last-child{
+    display: flex;
+    justify-content: flex-end;
+}
+.modal label{
+    color: white;
+}
+.modal form>div:first-child>div{
+    margin:1.5rem 0;
+}
+.modal form>div:first-child>div:last-child{
+    display: flex;
+    justify-content: space-between;
+}
+.modal fieldset:first-child div,.modal fieldset:last-child div{
+    margin: 1.5rem 0.25rem;
+}
+.modal legend{
+    font-size: 0.9rem;
+}
+.modal select,.modal select option{
+    color: black;
+}
+.modal fieldset{
+    flex:1;
+    margin: 0 0.5rem 0 0;
+}
+.modal fieldset:last-child div{
+    display: flex;
+    justify-content: space-between;
+}

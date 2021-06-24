@@ -16,14 +16,10 @@ let nameDatalist = document.createElement("datalist"),
     billMeta = {},
     payment = [],
     transporterDatalist = document.createElement("datalist"),
-    transporters = [],
-    printers = [],
-    printerDatalist = document.createElement("datalist"),
-    selectedPrinter;
+    transporters = [];
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
-printerDatalist.id = "printer-names";
 
 async function init(){
     if(itemList.length===0){
@@ -705,32 +701,6 @@ async function reInitCurrentPage(){
         }
         if(Object.keys(billMeta).includes("payment"))
             reassignSummaryDivFeilds();
-        const {stdout,os} = await ipcRenderer.invoke("get-printers");
-        if(["linux","mac"].includes(os)){
-            printers = stdout.split("\n")
-                                    .map(text=>{
-                                        if(text!=="")
-                                            return text.split(".")[0]
-                                    })
-                                    .map(text=>{
-                                        if(!text) return;
-                                        let obj = {};
-                                        let matches = [...text.match(/(?=\b )\W[\w-]+(?<! )/g)]
-                                        obj.printerName = matches[0].trim();
-                                        obj.status = matches[2];
-                                        return obj;
-                                    })
-                                    .filter(obj=>obj!==undefined)
-        }
-        printers.forEach(({printerName,status},i)=>{
-            let option = document.createElement("option");
-            if(i===0)
-                selectedPrinter = printerName;
-            option.value = printerName;
-            option.textContent = status;
-            printerDatalist.appendChild(option);
-        });
-        document.body.appendChild(printerDatalist);
     }
 }
 
@@ -781,73 +751,16 @@ function closeModal(){
     document.querySelector(".modal").remove();
 }
 
-function resetInput(event){
-    event.target.value = ""
-}
-
 function showPrintDialog(){
     if(payment.length===0)
         payment.push({type:"due"})
-    let cover = document.createElement("div");
-    cover.classList.add("cover");
-    let modal = document.createElement("div");
-    modal.classList.add("modal");
-    document.body.appendChild(cover);
-    document.body.appendChild(modal);
-    modal.innerHTML = `
-            <h1>Print options</h1>
-            <form onsubmit="printcmd(event)">
-                <div>
-                    <label for="printer-list">Select Printer</label>
-                    <input id="printer-list" onclick="resetInput(event)" list="printer-names" value="${selectedPrinter}" />
-                </div>
-                <div>
-                    <label for="no-of-copies">Number of copies</label>
-                    <input id="no-of-copies" type="number" value="1" />
-                </div>
-                <div>
-                    <input type="checkbox" checked id="buyer-copy" value="Original Buyer's Copy"/>
-                    <label for="buyer-copy"> Original Buyer's Copy</label>
-                </div>
-                <div>
-                    <input type="checkbox" id="transport-copy" value="Transporter's Copy"/>
-                    <label for="transport-copy"> Transporter's Copy</label>
-                </div>
-                <div>
-                    <input type="checkbox" id="book-copy" value="Book Copy"/>
-                    <label for="book-copy"> Book Copy</label>
-                </div>
-                <div>
-                    <button type="submit" data-name="print-btn">Continue to Print</button>
-                    <button type="button" data-name="print-cancel-btn" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
-    `;
-
+    ipcRenderer.send("show-print-modal");
 }
 
-function printcmd(e){
-    let printObj = {};
-    e.preventDefault();
-    let captions = [];
-    [...e.srcElement].forEach(elem=>{
-        if(elem.nodeName==="INPUT"){
-            if(elem.type==="checkbox" && !elem.checked) return;
-            if(elem.checked)
-                captions.push(elem.value);
-            else
-            if(elem.id==="printer-list")
-                printObj.printer = elem.value;
-            else
-                printObj.copies = elem.value;
-        }
-    });
-    if(captions.length===0)
-        return alert("Check at least 1 box.");
-    printObj.captions = captions;
+ipcRenderer.on("printObj",(e,printObj)=>{
     billMeta.printObj = printObj;
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
-}
+})
 
 function returnHandler(e){
     let body = document.body;
