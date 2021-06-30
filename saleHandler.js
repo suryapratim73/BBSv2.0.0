@@ -2,7 +2,7 @@ const { ipcMain, dialog } = require("electron");
 const {createModal} = require("./createModal");
 const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
-const { customer, stock, transporters } = require("./model/dbConfig");
+const { customer, stock, transporters, inPayments } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const { getLedgerModel, getBillModel } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
@@ -75,6 +75,9 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     const { billStatus, delivery, netDue, billNo, billDate, payment="due",returnOrder=[],retAmt=0 } = billMeta;
     closeFlag = true;
     const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
+    let netPayment = billMeta.payment.map(({payment})=>payment).reduce((acc,val)=>(acc+val));
+    if(netPayment > billMeta.netAmt + transporterCharge)
+        netPayment = billMeta.netAmt + transporterCharge;
     if(type!=="hand")
         transporters.sync()
         .then(model=>
@@ -136,7 +139,16 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 return item.save();
             })//updating stock
         ])
-        .then(()=>console.log("Added to DB!!"))
+        .then(async ()=>{
+            if(netPayment>0)
+                return (await inPayments.sync())
+                .create({
+                    customerId,
+                    payment:netPayment,
+                    date:billDate
+                });
+            console.log("Added to DB!!");
+        })
         .catch(console.log);
     })
     .catch(console.log)

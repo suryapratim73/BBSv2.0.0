@@ -1,0 +1,60 @@
+@import "../css/common.css";
+body{
+    display: flex;
+    height: 100vh;
+    user-select: none;
+}
+#chart-div{
+    background: goldenrod;
+    flex: 1;
+}
+#right-div{
+    flex: 4;
+    display: flex;
+    flex-direction: column;
+}
+#searchbar{
+    flex: 1;
+    background: midnightblue;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+#searchbar form{
+    width: fit-content;
+}
+#searchbar [data-name="searchText"]{
+    color: black;
+    font-size: 1rem;
+    padding: 0.5rem;
+    border-radius: 5px;
+    border: 3px solid cornflowerblue;
+    width: 15rem;
+}
+#searchbar button{
+    font-size: 1rem;
+    color: blue;
+    padding: 0.5rem;
+    box-shadow: inset 0px 0px 6px 0px cornflowerblue;
+    border: 1px solid cornflowerblue;
+    border-radius: 3px;
+}
+#customer-list{
+    flex: 5;
+}
+#customer-list div{
+    margin: 0.5rem;
+    padding: 0.5rem;
+    box-shadow: 2px 2px 15px 0px grey;
+    border-radius: 3px;
+}
+#customer-list div h1,#customer-list div p{
+    color: black;
+}
+#customer-list div h1{
+    font-size: 2.5rem;
+}
+#customer-list div p{
+    margin: 0 1rem;
+}

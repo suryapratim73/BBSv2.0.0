@@ -22,7 +22,7 @@ exports.supplierLedgerSchema = {
         type:DataTypes.INTEGER,
         defaultValue:0
     },
-    netDue:{
+    balance:{
         type:DataTypes.INTEGER,
         defaultValue:0
     },

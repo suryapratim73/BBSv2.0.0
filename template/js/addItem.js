@@ -58,8 +58,9 @@ let labelsObj = [
         let selectedStock = itemList.find(({name})=>name===this.value);
         if(selectedStock){
             selectedStock = await ipcRenderer.invoke("get-stock-detail",selectedStock.itemNo);
-            templateDivContainer.querySelectorAll(".addItem-input").forEach((input,index)=>{
+            templateDivContainer.querySelectorAll(".addItem-input").forEach(input=>{
                 let matchedLabel = labelsObj.find(obj=>obj.code===input.id);
+                if(matchedLabel?.code==="quantity") return;
                 if(matchedLabel && Object.keys(selectedStock).includes(matchedLabel.code))
                     input.value = selectedStock[matchedLabel.code];
                 if(matchedLabel?.fieldName==="Rate")

@@ -186,7 +186,7 @@ const inPaymentSchema = {
         autoIncrement: true,
         primaryKey: true
     },
-    supplierId:{
+    customerId:{
         type: DataTypes.UUID,
         allowNull:false
     },
@@ -195,8 +195,7 @@ const inPaymentSchema = {
         defaultValue:0
     },
     date:{
-        type: DataTypes.DATE,
-        defaultValue:Sequelize.fn("now")
+        type: DataTypes.DATE
     }
 }
 
@@ -237,6 +236,10 @@ module.exports = {
                 console.log(updateObj,"From setter method")
             }
         }
+    }),
+    inPayments: sequelize.define("inPayments",inPaymentSchema,{
+        freezeTableName:true,
+        timestamps:false
     }),
     transporters: sequelize.define("transporters",transporterSchema,{
         freezeTableName:true,

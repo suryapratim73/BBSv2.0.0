@@ -35,14 +35,6 @@ ipcRenderer.on("supplier-ledger-detail",async (e,{fullLedger,id,name})=>{
             ths.forEach(th=>{
                 let td = document.createElement("td");
                 td.textContent = th.dataset.name!=="date"? entry[th.dataset.name]: entry[th.dataset.name].toDateString();
-                if(th.dataset.name==="billAmt"){
-                    if(entry.payments!==entry.billAmt && paymentStatus)
-                        td.classList.add("partial-payment");
-                    else if(entry.payments===entry.billAmt && paymentStatus){
-                        td.classList.add("paid");
-                    } else
-                        td.classList.add("unpaid");
-                }
                 tr.appendChild(td)
             })
             tbody.appendChild(tr)

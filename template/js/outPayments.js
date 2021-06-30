@@ -33,7 +33,24 @@ supplierNameInput.addEventListener("change",async function(){
     let supplier = supplierNames.find(({name})=>name===this.value);
     if(supplier){
         unPaidBills = await ipcRenderer.invoke("get-unpaid-bills",supplier);
-        unPaidBills.forEach(({date,billNo,billAmt})=>{
+        let billNos = Array.from(new Set(unPaidBills.map(({billNo})=>billNo)));
+        billNos.forEach(billNo=>{
+            let netPayment = unPaidBills.filter(billObj=>billObj.billNo===billNo)
+                                .map(({payments})=>payments)
+                                .reduce((acc,currentVal)=>(acc+currentVal));
+            let count = 0;
+            unPaidBills = unPaidBills.filter(billObj=>{
+                if(billObj.billNo===billNo){
+                    count++;
+                    billObj.payments = netPayment;
+                    if(count<2)
+                        return billObj;
+                } else 
+                    return billObj
+            })
+        })
+        unPaidBills = unPaidBills.filter(({billAmt,payments})=>billAmt-payments!==0);
+        unPaidBills.forEach(({date,billNo,billAmt,payments})=>{
             let option = document.createElement("option");
             option.textContent = billAmt;
             option.value = billAmt;
@@ -46,10 +63,10 @@ supplierNameInput.addEventListener("change",async function(){
             tr.innerHTML = `
                         <td>${date.toISOString().split("T")[0]}</td>
                         <td>${billNo}</td>
-                        <td>${billAmt}</td>
+                        <td>${billAmt - payments}</td>
             `;
             unpaidBillsTBody.appendChild(tr);
-        })
+        });
     } else {
         this.value = "";
         alert("Please select one from the list of supplier names.");
@@ -67,15 +84,16 @@ function formSubmitHandler(e){
     if(this.id==="bill"){
         let {id} = supplierNames.find(({name})=>name===this.name.value);
         let selectedBill = unPaidBills.find(({billNo})=>billNo==this.billNo.value);
+        let balance = selectedBill.billAmt - selectedBill.payments - +(this.amount.value);
+        if(balance<0) return alert("Payment cannot be greater than the bill amount.")
         let updateObj = {
             id,
             billNo:this.billNo.value,
             payment:+(this.amount.value),
             billAmt:selectedBill.billAmt,
             type:"bill",
-            entryNo:selectedBill.entryNo,
-            netDue:selectedBill.netDue,
-            oldPayment:selectedBill.payments
+            paymentStatus:balance===0?true:false,
+            itemList:selectedBill.itemList
         }
         ipcRenderer.send("add-out-payment",updateObj);
     }

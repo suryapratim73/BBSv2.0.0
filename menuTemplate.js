@@ -3,6 +3,7 @@ const {addPurchase,showPurchase} = require("./handlePurchase");
 const {updateStock,displayStock} = require("./handleStock");
 const {getSuplier,getLedger,addPaymentForSupplier,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
+const { customerPortal } = require("./customerHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -94,7 +95,8 @@ module.exports = mainWindow=>{
             ]
         },
         {
-            label:"Customer"
+            label:"Customer Portal",
+            click: customerPortal(mainWindow)
         },
         {
             label:"Analytics"

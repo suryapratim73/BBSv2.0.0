@@ -11,7 +11,7 @@ let suppliers = [], selectedSupplier = {};
     suppliers = await init(datalist)
 })();
 
-function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
+function loadLedgerSummary(balance,last5Entries,netPayment,{name,id}){
     let page2root = document.createElement("div");
     page2root.id = "contact-div";
     page2root.innerHTML = `
@@ -20,10 +20,10 @@ function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
                             <p>Name: <span>${name}</span></p>
                         </div>
                         <div>
-                            <p>Net Due: <span>${total-totalPayment}</span></p>
+                            <p>Net Due: <span>${balance}</span></p>
                         </div>
                         <div>
-                            <p>Net Purchase: <span>${total}</span></p>
+                            <p>Net Purchase: <span>${netPayment + balance}</span></p>
                         </div>
                     </section>
                     <section>
@@ -35,7 +35,7 @@ function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
                                     <th>Bill No</th>
                                     <th>Bill Amount</th>
                                     <th>Payments</th>
-                                    <th>Net Due</th>
+                                    <th>Balance</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -57,14 +57,6 @@ function loadLedgerSummary({last5Entries,total,totalPayment},{name,id}){
             if(!["paymentStatus","itemList","entryNo"].includes(col)){
                 let td = document.createElement("td");
                 td.textContent = col!=="date"?entry[col]:entry[col].toDateString();
-                if(col==="billAmt"){
-                    if(entry.payments!==entry.billAmt && paymentStatus)
-                        td.classList.add("partial-payment");
-                    else if(entry.payments===entry.billAmt && paymentStatus){
-                        td.classList.add("paid");
-                    } else
-                        td.classList.add("unpaid");
-                }
                 tr.appendChild(td);
             }
         })
@@ -77,8 +69,8 @@ form.addEventListener("submit",async e=>{
     e.preventDefault();
     selectedSupplier = suppliers.find(suppObj=>suppObj.name===e.target[0].value);
     if(selectedSupplier){
-        let ledgerObj= await ipcRenderer.invoke("get-supplier-ledger",selectedSupplier);
-        loadLedgerSummary(ledgerObj,selectedSupplier);
+        let { balance,lastFiveEntries,netPayment } = await ipcRenderer.invoke("get-supplier-ledger",selectedSupplier);
+        loadLedgerSummary(balance,lastFiveEntries,netPayment,selectedSupplier);
     } else 
         alert("Please select a supplier.");
 });

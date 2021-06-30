@@ -79,28 +79,7 @@ function closeAndDisplay(msg){
     dialog.showMessageBox(parentWindow,msg)
 }
 
-function updateLedger(ledger,paymentStatus,netDue=0,billAmt,billDate,billNo,itemList,payment){
-    if(paymentStatus){
-        payment = payment.length>0?payment:billAmt;
-        if(+payment<+billAmt)
-            netDue = Number(billAmt) - Number(payment);
-    }
-    else {
-        payment = 0;
-        netDue = billAmt;
-    }
-    return ledger.create({
-        date:billDate,
-        billAmt,
-        billNo,
-        paymentStatus,
-        payments:payment,
-        netDue,
-        itemList
-    })
-}
-
-ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDate,itemList,paymentStatus,billAmt,payment})=>{
+ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDate,itemList,paymentStatus,billAmt,payment=0})=>{    
     let supplierLedger = `${id}Ledger`;
     let itemListTable = `${id}_${billNo}_${billDate}`;
     if(!id){
@@ -115,14 +94,28 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
     }
     let ledger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
         freezeTableName:true,
-        timestamps:false
+        timestamps:false,
     }).sync();
+    let lastBalance = (await (ledger.findOne({
+        attributes:["balance"],
+        order:[
+            ["entryNo","DESC"]
+        ]
+    })))?.dataValues.balance ?? 0;
     let billItemTable = (await sequelize.define(itemListTable,billItemSchema,{
         freezeTableName:true,
         timestamps:false
     }).sync());
     Promise.all([
-        updateLedger(ledger,paymentStatus,0,billAmt,billDate,billNo,itemListTable,payment),
+        ledger.create({
+            date:billDate,
+            billAmt,
+            billNo,
+            paymentStatus,
+            payments:payment, 
+            itemList:itemListTable,
+            balance:lastBalance + billAmt - payment
+        }),
         ...itemList.map(item=>{
             return billItemTable.create({
                 name:item.Particular,
@@ -174,19 +167,17 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
             billAmt,
             billItemTable:itemListTable
         })
-    ]).then(async ()=>{
-        if(paymentStatus){
-            payment = payment.length>0?payment:billAmt;
+    ])
+    .then(async ()=>{
+        if(payment>0)
             return (await outPayments.sync()).create({
                 beneficiaryId:id,
                 type:"bill",
                 payment,
                 date:billDate
             })
-        } else 
-            return;
     })
-    .catch(console.warn)
+    .catch(console.log)
     .finally(()=>{
         let msg = {
             type: "info",

@@ -221,7 +221,6 @@ async function loadAddItem(e){
         billDetail.supplierId = supplier.id;
         billDetail.supplierName = supplier.name;
         billDetail.billDate = document.getElementById("billerDate").value;
-        billDetail.paymentStatus = document.getElementById("payment-status").value==="Yes"?true:false;
         billDetail.billNo = document.getElementById("billerNo").value;
         billDetail.payment = document.getElementById("partial-payment")?.value ?? 0;
         p.innerHTML = "<span>Step 3: </span>Add purchased items."
@@ -278,7 +277,7 @@ async function loadAddItem(e){
         document.getElementById("back-btn").setAttribute("disabled","disabled");
     }
     else if(e.target.dataset.step==="4" && e.target.id==="proceed-btn"){
-        console.log(billDetail)
+        billDetail.paymentStatus = billDetail.payment===billDetail.billAmt?true:false;
         ipcRenderer.send("save-defer-bill",billDetail)
     }
 }
