@@ -2,7 +2,7 @@ const { ipcMain, dialog } = require("electron");
 const {createModal} = require("./createModal");
 const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
-const { customer, stock, transporters, inPayments } = require("./model/dbConfig");
+const { customer, stock, transporters, inPayments, sale } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const { getLedgerModel, getBillModel } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
@@ -72,12 +72,12 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones,gst } = customerObj;
-    const { billStatus, delivery, netDue, billNo, billDate, payment="due",returnOrder=[],retAmt=0 } = billMeta;
+    const { billStatus, delivery, netDue, billNo, billDate, returnOrder=[], retAmt=0, netTax } = billMeta;
     closeFlag = true;
     const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
-    let netPayment = billMeta.payment.map(({payment})=>payment).reduce((acc,val)=>(acc+val));
-    if(netPayment > billMeta.netAmt + transporterCharge)
-        netPayment = billMeta.netAmt + transporterCharge;
+    let netPayment = billMeta.payment?.map(({payment})=>payment).reduce((acc,val)=>(acc+val)) ?? 0;
+    if(netPayment >= billMeta.netAmt + transporterCharge)
+        netPayment = Math.round(billMeta.netAmt);
     if(type!=="hand")
         transporters.sync()
         .then(model=>
@@ -108,6 +108,12 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         }))[0].dataValues.id;
         let billModel = await getBillModel(customerId,billNo,billDate,billItemSchema);
         let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
+        let lastBalance = (await ((await customerLedger.sync()).findOne({
+            attributes:["balance"],
+            order:[
+                ["entryNo","DESC"]
+            ]
+        })))?.dataValues.balance ?? 0;
         Promise.all([
             ...orderItems.map(({name,qty,unit,rate,amt,cgst,sgst,igst,hsn,type})=>{
                 let tax = igst>0?igst:cgst+sgst;
@@ -126,18 +132,34 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 date:billDate,
                 billNo,
                 paymentStatus:netDue===0?true:false,
-                payments:payment,
+                payments:netPayment,
                 netDue,
                 itemList:`${customerId}_${billNo}_${billDate}`,
                 delivery,
                 returnOrder,
-                retAmt
+                retAmt,
+                tax:netTax,
+                billAmt:billMeta.netAmt,
+                balance: Math.round(lastBalance + billMeta.netAmt - netPayment - retAmt)
             }),
             ...orderItems.map(async ({name,qty})=>{
                 let item = await stock.findOne({where:{name}});
                 item.reduceStock=qty;
                 return item.save();
-            })//updating stock
+            }),//updating stock
+            (await sale.sync()).create({
+                customerId,
+                name,
+                billStatus,
+                billNo,
+                billDate,
+                billAmt:Math.round(billMeta.netAmt),
+                retAmt,
+                tax:netTax,
+                payment:netPayment,
+                paymentStatus:netDue===0?true:false,
+                billItemTable:`${customerId}_${billNo}_${billDate}`
+            })
         ])
         .then(async ()=>{
             if(netPayment>0)

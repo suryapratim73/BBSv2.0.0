@@ -170,3 +170,35 @@ exports.filterSelector = function(e){
 exports.roundOffTo2DecimalPlace = function(num){
     return Math.round(num*100)/100
 }
+
+exports.printModal = function printModal(customId=""){
+    let modal = document.createElement("div");    
+    modal.classList.add("modal");
+    let cover = document.createElement("div");    
+    cover.classList.add("cover");
+    modal.id = customId;
+    modal.innerHTML = `
+            <form onsubmit="handlePrint(event)">
+                <div>
+                    <label for="ledger-period">Please select the period of ledger.</label>
+                    <select id="ledger-period" name="ledger-period">
+                        <option value="0">1 month</option>
+                        <option value="2">3 month</option>
+                        <option value="5">6 month</option>
+                        <option value="11">1 year</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit">Print</button>
+                    <button type="button" data-name="cancel">Cancel</button>
+                </div>
+            </form>
+    `;
+    document.body.appendChild(cover);
+    document.body.appendChild(modal);
+    document.querySelector('[data-name="cancel"]').addEventListener("click",function closeModal(){
+        document.body.removeChild(cover);        
+        document.body.removeChild(modal);
+        this.removeEventListener("click",closeModal);        
+    })
+}

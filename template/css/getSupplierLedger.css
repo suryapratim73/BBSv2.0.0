@@ -1,16 +1,5 @@
 @import "../css/purchaseTemplate.css";
 @import "../css/getSupplier.css";
-.paid{
-    background-color: green;
-    /* color:white; */
-}
-.unpaid{
-    background-color: red;
-    /* color: ; */
-}
-.partial-payment{
-    background-color: rgb(130 130 0);
-}
 #contact-div{
     grid-row: 2/-1;
 }
@@ -50,9 +39,6 @@ section span{
     top: 30%;
     left: 30%;
     display: flex;
-}
-.modal form{
-
 }
 .modal label{
     color: black;

@@ -106,15 +106,24 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         freezeTableName:true,
         timestamps:false
     }).sync());
+    let _tax = itemList.map(({CGST,SGST,IGST,Rate,Quantity})=>{
+        let tax;
+        if(Number(IGST)>0)
+            tax = Number(IGST);
+        else
+            tax = Number(CGST) + Number(SGST);
+        return (tax * Number(Rate) * Number(Quantity))/100;
+    }).reduce((acc,val)=>val+acc);
     Promise.all([
         ledger.create({
             date:billDate,
             billAmt,
+            tax:_tax,
             billNo,
             paymentStatus,
             payments:payment, 
             itemList:itemListTable,
-            balance:lastBalance + billAmt - payment
+            balance:lastBalance + billAmt + _tax - payment
         }),
         ...itemList.map(item=>{
             return billItemTable.create({
@@ -124,7 +133,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                 quantity:item.Quantity,
                 unit:item.Unit,
                 rate:Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
-                tax: `${Number(item.CGST)+Number(item.SGST)+Number(item.IGST)}%`
+                tax: Number(item.IGST)===0?`${Number(item.CGST)+Number(item.SGST)}%`:`${item.IGST}%`
             })
         }),
         ...itemList.map(async item=>{
@@ -140,7 +149,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                     quantity: selectedStock.dataValues.quantity + Number(item.Quantity),
                     buyPrice: Number(item.Rate),
                     standardSellPrice:1.1*Number(item.Rate),
-                    tax: `${Number(item.CGST)+Number(item.SGST)+Number(item.IGST)}%`
+                    tax: Number(item.IGST)===0?`${Number(item.CGST)+Number(item.SGST)}%`:`${item.IGST}%`
                 },{
                     where:{
                         name:item.Particular,
@@ -165,6 +174,9 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
             billNo,
             billDate,
             billAmt,
+            tax:_tax,
+            paymentStatus,
+            payment, 
             billItemTable:itemListTable
         })
     ])

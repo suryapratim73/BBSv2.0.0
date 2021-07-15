@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput,init} = require("../js/common.js");
+const {toggleDevTool,validateInput,init,printModal} = require("../js/common.js");
 toggleDevTool(document);
 
 
@@ -52,9 +52,9 @@ function loadLedgerSummary(balance,last5Entries,netPayment,{name,id}){
     page2root.querySelector("button:nth-child(3)").addEventListener("click",()=>location.reload());
     last5Entries.forEach(entry=>{
         let tr = document.createElement("tr");
-        let paymentStatus = entry.paymentStatus;
+        // let paymentStatus = entry.paymentStatus;
         Object.keys(entry).forEach(col=>{
-            if(!["paymentStatus","itemList","entryNo"].includes(col)){
+            if(!["paymentStatus","itemList","entryNo","tax"].includes(col)){
                 let td = document.createElement("td");
                 td.textContent = col!=="date"?entry[col]:entry[col].toDateString();
                 tr.appendChild(td);
@@ -75,40 +75,9 @@ form.addEventListener("submit",async e=>{
         alert("Please select a supplier.");
 });
 
-function printModal(){
-    let modal = document.createElement("div");    
-    modal.classList.add("modal");
-    let cover = document.createElement("div");    
-    cover.classList.add("cover");
-    modal.innerHTML = `
-            <form onsubmit="handlePrint(event)">
-                <div>
-                    <label for="ledger-period">Please select the period of ledger.</label>
-                    <select id="ledger-period" name="ledger-period">
-                        <option value="0">1 month</option>
-                        <option value="2">3 month</option>
-                        <option value="5">6 month</option>
-                        <option value="11">1 year</option>
-                    </select>
-                </div>
-                <div>
-                    <button type="submit">Print</button>
-                    <button type="button" data-name="cancel">Cancel</button>
-                </div>
-            </form>
-    `
-    document.body.appendChild(cover);
-    document.body.appendChild(modal);
-    document.querySelector('[data-name="cancel"]').addEventListener("click",function closeModal(){
-        document.body.removeChild(cover);        
-        document.body.removeChild(modal);
-        this.removeEventListener("click",closeModal);        
-    })
-}
-
 function handlePrint(e){
     e.preventDefault();
     let period = Number(e.target["ledger-period"].value);
-    ipcRenderer.send("get-supplier-ledger-for-print",{selectedSupplier,period})
+    ipcRenderer.send("print-ledger",selectedSupplier.id,period,1)
     document.querySelector('[data-name="cancel"]').click();
 }

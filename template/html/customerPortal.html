@@ -6,99 +6,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Portal</title>
     <link rel="stylesheet" href="../css/customerPortal.css">
-    <script src="../js/customerPortal.js"></script>
+    <script src="../js/customerPortal.js" defer></script>
 </head>
 <body>
     <div id="chart-div">
-        <h1>Chart section</h1>
+        <div id="canvas-container">
+            <canvas width="200" height="200" ></canvas>
+        </div>
+        <p>Sale distribution pie chart</p>
+        <p>* Click on color to bring customer into view</p>
     </div>
     <div id="right-div">
         <div id="searchbar">
-            <form onsubmit="searchHandler(event)">
-                <div>
-                    <input type="text" data-name="searchText" placeholder="Search customer by any">
-                    <button type="submit">Search</button>
+            <div id="form">
+                <div class="hide">
+                    <button data-cmd="bills" type="button">Show Bills</button>
+                    <button data-cmd="print-ledger" type="button">Print Ledger</button>
                 </div>
-            </form>
+                <div>
+                    <input type="text" name="searchText" placeholder="Search customer by any">
+                </div>
+            </div>
         </div>
-        <div id="customer-list">
-            <div class="hide" data-letter="a">
-                <h1>A</h1>
-            </div>
-            <div class="hide" data-letter="b">
-                <h1>B</h1>
-            </div>
-            <div class="hide" data-letter="c">
-                <h1>C</h1>
-            </div>
-            <div class="hide" data-letter="d">
-                <h1>D</h1>
-            </div>
-            <div class="hide" data-letter="e">
-                <h1>E</h1>
-            </div>
-            <div class="hide" data-letter="f">
-                <h1>F</h1>
-            </div>
-            <div class="hide" data-letter="g">
-                <h1>G</h1>
-            </div>
-            <div class="hide" data-letter="h">
-                <h1>H</h1>
-            </div>
-            <div class="hide" data-letter="i">
-                <h1>I</h1>
-            </div>
-            <div class="hide" data-letter="j">
-                <h1>J</h1>
-            </div>
-            <div class="hide" data-letter="k">
-                <h1>K</h1>
-            </div>
-            <div class="hide" data-letter="l">
-                <h1>L</h1>
-            </div>
-            <div class="hide" data-letter="m">
-                <h1>M</h1>
-            </div>
-            <div class="hide" data-letter="n">
-                <h1>N</h1>
-            </div>
-            <div class="hide" data-letter="o">
-                <h1>O</h1>
-            </div>
-            <div class="hide" data-letter="p">
-                <h1>P</h1>
-            </div>
-            <div class="hide" data-letter="q">
-                <h1>Q</h1>
-            </div>
-            <div class="hide" data-letter="r">
-                <h1>R</h1>
-            </div>
-            <div class="hide" data-letter="s">
-                <h1>S</h1>
-            </div>
-            <div class="hide" data-letter="t">
-                <h1>T</h1>
-            </div>
-            <div class="hide" data-letter="u">
-                <h1>U</h1>
-            </div>
-            <div class="hide" data-letter="v">
-                <h1>V</h1>
-            </div>
-            <div class="hide" data-letter="w">
-                <h1>W</h1>
-            </div>
-            <div class="hide" data-letter="x">
-                <h1>X</h1>
-            </div>
-            <div class="hide" data-letter="y">
-                <h1>Y</h1>
-            </div>
-            <div class="hide" data-letter="z">
-                <h1>Z</h1>
+        <div id="main-section">
+            <div id="customer-list">
+                <div class="hide" data-letter="a">
+                    <h1>A</h1>
+                </div>
+                <div class="hide" data-letter="b">
+                    <h1>B</h1>
+                </div>
+                <div class="hide" data-letter="c">
+                    <h1>C</h1>
+                </div>
+                <div class="hide" data-letter="d">
+                    <h1>D</h1>
+                </div>
+                <div class="hide" data-letter="e">
+                    <h1>E</h1>
+                </div>
+                <div class="hide" data-letter="f">
+                    <h1>F</h1>
+                </div>
+                <div class="hide" data-letter="g">
+                    <h1>G</h1>
+                </div>
+                <div class="hide" data-letter="h">
+                    <h1>H</h1>
+                </div>
+                <div class="hide" data-letter="i">
+                    <h1>I</h1>
+                </div>
+                <div class="hide" data-letter="j">
+                    <h1>J</h1>
+                </div>
+                <div class="hide" data-letter="k">
+                    <h1>K</h1>
+                </div>
+                <div class="hide" data-letter="l">
+                    <h1>L</h1>
+                </div>
+                <div class="hide" data-letter="m">
+                    <h1>M</h1>
+                </div>
+                <div class="hide" data-letter="n">
+                    <h1>N</h1>
+                </div>
+                <div class="hide" data-letter="o">
+                    <h1>O</h1>
+                </div>
+                <div class="hide" data-letter="p">
+                    <h1>P</h1>
+                </div>
+                <div class="hide" data-letter="q">
+                    <h1>Q</h1>
+                </div>
+                <div class="hide" data-letter="r">
+                    <h1>R</h1>
+                </div>
+                <div class="hide" data-letter="s">
+                    <h1>S</h1>
+                </div>
+                <div class="hide" data-letter="t">
+                    <h1>T</h1>
+                </div>
+                <div class="hide" data-letter="u">
+                    <h1>U</h1>
+                </div>
+                <div class="hide" data-letter="v">
+                    <h1>V</h1>
+                </div>
+                <div class="hide" data-letter="w">
+                    <h1>W</h1>
+                </div>
+                <div class="hide" data-letter="x">
+                    <h1>X</h1>
+                </div>
+                <div class="hide" data-letter="y">
+                    <h1>Y</h1>
+                </div>
+                <div class="hide" data-letter="z">
+                    <h1>Z</h1>
+                </div>
             </div>
         </div>
     </div>

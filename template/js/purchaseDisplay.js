@@ -8,12 +8,16 @@ toggleDevTool(document);
 function constructTable(rows){
     rows.forEach(row=>{
         let tr = document.createElement("tr");
-        // console.log({entryNo,supplierId,supplierName,billNo,billDate,billAmt,billItemTable});
         Object.keys(row.dataValues).forEach(key=>{
-            if(key!=="billItemTable" && key!=="supplierId"){
+            if(!["billItemTable","supplierId","tax","payment","paymentStatus"].includes(key)){
                 let td = document.createElement("td");
-                if(key!=="billDate")
+                if(key!=="billDate" && key!=="billAmt")
+                td.textContent = row.dataValues[key];
+                else
+                if(key==="billAmt"){
                     td.textContent = row.dataValues[key];
+                    td.classList.add(row.paymentStatus?"paid":"unpaid")
+                }
                 else
                     td.textContent = row.dataValues[key].toLocaleDateString();
                 tr.appendChild(td);

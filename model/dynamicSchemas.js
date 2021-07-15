@@ -15,6 +15,9 @@ exports.supplierLedgerSchema = {
     billAmt:{
         type:DataTypes.INTEGER
     },
+    tax:{
+        type:DataTypes.INTEGER
+    },
     paymentStatus:{
         type:DataTypes.BOOLEAN
     },
@@ -49,12 +52,14 @@ exports.customerLedgerSchema = {
     billAmt:{
         type:DataTypes.INTEGER
     },
+    tax:{
+        type:DataTypes.INTEGER
+    },
     paymentStatus:{
         type:DataTypes.BOOLEAN
     },
     payments:{
-        type:DataTypes.JSON,
-        defaultValue:[{type:"cash"}]
+        type:DataTypes.INTEGER,
     },
     netDue:{
         type:DataTypes.INTEGER,
@@ -72,6 +77,10 @@ exports.customerLedgerSchema = {
     },
     retAmt:{
         type:DataTypes.INTEGER
+    },
+    balance:{
+        type:DataTypes.INTEGER,
+        defaultValue:0
     }
 }
 

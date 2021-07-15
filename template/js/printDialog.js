@@ -4,7 +4,7 @@ const { toggleDevTool } = require("../js/common");
 
 let printers = [],
     printerDatalist = document.getElementById("printer-names"),
-    selectedPrinter;
+    selectedPrinter,pdfPath;
 
 toggleDevTool(document);
 
@@ -61,13 +61,14 @@ function printcmd(e){
     if(captions.length===0)
         return alert("Check at least 1 box.");
     printObj.captions = captions;
-    ipcRenderer.send("forward-printObj",printObj);
+    ipcRenderer.send("forward-printObj",printObj,pdfPath);
 }
 
 document.querySelector('[data-name="print-cancel-btn"]').addEventListener("click",()=>{
     ipcRenderer.send("close");
 });
 
-ipcRenderer.on("hide-label",()=>{
+ipcRenderer.on("hide-label",(e,path2pdf)=>{
+    pdfPath = path2pdf;
     document.querySelector("fieldset:first-child").classList.add("hide");
 })

@@ -151,6 +151,65 @@ const purchaseSchema = {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    tax:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    payment:{
+        type:DataTypes.INTEGER
+    },
+    paymentStatus:{
+        type:DataTypes.BOOLEAN
+    },
+    billItemTable:{
+        type:DataTypes.TEXT,
+        allowNull: false
+    }
+}
+
+const saleSchema = {
+    entryNo:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    billStatus:{
+        type:DataTypes.BOOLEAN
+    },
+    customerId: {
+        type: DataTypes.UUID,
+        allowNull:false
+    },
+    name:{
+        type: DataTypes.TEXT,
+        allowNull: false
+    },
+    billNo:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    billDate:{
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    billAmt:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    retAmt:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    tax:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    payment:{
+        type:DataTypes.INTEGER
+    },
+    paymentStatus:{
+        type:DataTypes.BOOLEAN
+    },
     billItemTable:{
         type:DataTypes.TEXT,
         allowNull: false
@@ -225,6 +284,10 @@ module.exports = {
         }
     }),
     purchase: sequelize.define("purchase",purchaseSchema,{
+        freezeTableName: false,
+        timestamps: false
+    }),
+    sale: sequelize.define("sale",saleSchema,{
         freezeTableName: false,
         timestamps: false
     }),

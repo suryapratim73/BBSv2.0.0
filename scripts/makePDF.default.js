@@ -24,7 +24,6 @@ exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj
     const {doc,pdfPath} = initBillPDF(billObj);
     let j,lastJ=0,lastI=0,k,lastK=0;
-    console.log(billObj)
     const {printObj:{captions},returnOrder} = billMeta;
     loop1:
     for(let i=0;i<captions.length;i++){

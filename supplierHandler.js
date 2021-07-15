@@ -1,11 +1,10 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
-const { Op, Sequelize } = require("sequelize");
+const { Op } = require("sequelize");
 const { createModal } = require("./createModal");
-const { supplier, sequelize, outPayments } = require("./model/dbConfig");
+const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
-const { getLedgerModel } = require("./common");
+const { getLedgerModel, getStartDate } = require("./common");
 const { ledgerPDF } = require("./scripts/makePDF.default");
-const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -216,8 +215,14 @@ ipcMain.handle("get-supplier-name",async (e,id)=>{
 });
 
 ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
-    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
-    return (await supplierLedger.findAll()).map(({dataValues:{date,billNo,billAmt,payments,itemList}})=>({date,billNo,billAmt,payments,itemList}));
+    return (await (await purchase.sync()).findAll({
+        where:{
+            [Op.and]:[
+                {paymentStatus:false},
+                {supplierId:id}
+            ]
+        }
+    })).map(({dataValues})=>dataValues);
 });
 
 ipcMain.on("add-out-payment",
@@ -229,6 +234,17 @@ async (e,{id,billNo,billAmt,payment,type,paymentStatus,itemList})=>{
             ["entryNo","DESC"]
         ]
     })))?.dataValues.balance ?? 0;
+    let oldPayment = (await (await purchase.sync()).findOne({
+        where:{
+            [Op.and]:[
+                {supplierId:id},
+                {billNo}
+            ]
+        },
+        attributes:["payment"]
+    })).dataValues.payment;
+    let netPayment = Math.round(oldPayment + payment);
+    let netDue = Math.round(billAmt - netPayment);
     Promise.all([
         outPayments.create({
             beneficiaryId:id,
@@ -238,12 +254,19 @@ async (e,{id,billNo,billAmt,payment,type,paymentStatus,itemList})=>{
         }),
         supplierLedger.create({
             date:new Date(),
-            billAmt,
-            billNo,
-            paymentStatus,
             payments:payment, 
-            itemList,
             balance:lastBalance - payment
+        }),
+        purchase.update({
+            payment:netPayment,
+            paymentStatus:netDue===0?true:false
+        },{
+            where:{
+                [Op.and]:[
+                    {supplierId:id},
+                    {billNo}
+                ]
+            }
         })
     ])
     .then(()=>{
@@ -261,30 +284,3 @@ async (e,{id,billNo,billAmt,payment,type,paymentStatus,itemList})=>{
 ipcMain.on("get-out-payments",async e=>{
     e.sender.send("show-out-payments",(await outPayments.findAll()).map(({dataValues})=>dataValues));
 });
-
-ipcMain.on("get-supplier-ledger-for-print",async (e,{selectedSupplier:{id},period})=>{
-    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
-    let startDate = new Date();
-    startDate.setDate(1);
-    startDate.setMonth(startDate.getMonth() - period);
-    let entryArr = (await supplierLedger.findAll({
-        where:{
-            date:{
-                [Op.between]:[startDate.toDateString(),new Date().toDateString()]
-            }
-        }
-    })).map(({dataValues})=>({...dataValues}));
-    let supplierObj = (await supplier.findOne({where:{id}})).dataValues;
-    let path2pdf = ledgerPDF(entryArr,supplierObj,startDate);
-    ipcMain.emit("show-print-modal",path2pdf)
-    ipcMain.on("printObj",(e)=>{
-        const {printer,copies,paperSize,printOrientation} = e[0];
-        if(process.platform==="linux" || process.platform==="darwin")
-            printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
-        else
-        if(process.platform==="win32")
-            printOnWindows(path2pdf)
-        else
-            dialog.showErrorBox("Unsupported OS","The print function is not yet supported for your OS.")
-    })
-})

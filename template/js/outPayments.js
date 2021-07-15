@@ -33,24 +33,7 @@ supplierNameInput.addEventListener("change",async function(){
     let supplier = supplierNames.find(({name})=>name===this.value);
     if(supplier){
         unPaidBills = await ipcRenderer.invoke("get-unpaid-bills",supplier);
-        let billNos = Array.from(new Set(unPaidBills.map(({billNo})=>billNo)));
-        billNos.forEach(billNo=>{
-            let netPayment = unPaidBills.filter(billObj=>billObj.billNo===billNo)
-                                .map(({payments})=>payments)
-                                .reduce((acc,currentVal)=>(acc+currentVal));
-            let count = 0;
-            unPaidBills = unPaidBills.filter(billObj=>{
-                if(billObj.billNo===billNo){
-                    count++;
-                    billObj.payments = netPayment;
-                    if(count<2)
-                        return billObj;
-                } else 
-                    return billObj
-            })
-        })
-        unPaidBills = unPaidBills.filter(({billAmt,payments})=>billAmt-payments!==0);
-        unPaidBills.forEach(({date,billNo,billAmt,payments})=>{
+        unPaidBills.forEach(({billDate,billNo,billAmt,payment})=>{
             let option = document.createElement("option");
             option.textContent = billAmt;
             option.value = billAmt;
@@ -61,9 +44,9 @@ supplierNameInput.addEventListener("change",async function(){
             billNoDatalist.appendChild(option);
             let tr = document.createElement("tr");
             tr.innerHTML = `
-                        <td>${date.toISOString().split("T")[0]}</td>
+                        <td>${billDate.toLocaleDateString("en-GB")}</td>
                         <td>${billNo}</td>
-                        <td>${billAmt - payments}</td>
+                        <td>${billAmt - payment}</td>
             `;
             unpaidBillsTBody.appendChild(tr);
         });
@@ -74,8 +57,8 @@ supplierNameInput.addEventListener("change",async function(){
 });
 
 billNoInput.addEventListener("change",function(){
-    let {billAmt,payments} = unPaidBills.find(({billNo})=>billNo==this.value);
-    amountInput.value = billAmt-payments;
+    let {billAmt,payment} = unPaidBills.find(({billNo})=>billNo==this.value);
+    amountInput.value = billAmt-payment;
     this.parentNode.parentNode.querySelector("button[type='submit']").focus();
 });
 
