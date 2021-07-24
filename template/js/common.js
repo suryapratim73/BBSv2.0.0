@@ -15,6 +15,8 @@ exports.toggleDevTool = function(document){
 exports.validateInput = function(e){
     if(e.target.id==="payment-status" && e.target.value.length>2)
         return e.preventDefault();
+    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) 
+        return e.preventDefault();
     if(!/[\d+ ]/.test(e.key)){
         if(
             e.target.id==="partial-payment" || 

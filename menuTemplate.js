@@ -1,6 +1,6 @@
 const { BrowserWindow } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
-const {updateStock,displayStock} = require("./handleStock");
+const {updateStock,displayStock,handleReturn} = require("./handleStock");
 const {getSuplier,getLedger,addPaymentForSupplier,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
@@ -23,6 +23,11 @@ module.exports = mainWindow=>{
                     label:"Show Sales",
                     accelerator:"F2",
                     click:showSales(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label:"Add Goods Return",
+                    click:handleReturn(mainWindow)
                 }
             ]
         },

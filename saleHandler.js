@@ -72,7 +72,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones,gst } = customerObj;
-    const { billStatus, delivery, netDue, billNo, billDate, returnOrder=[], retAmt=0, netTax } = billMeta;
+    const { billStatus, delivery, netDue, billNo, billDate, netTax } = billMeta;
     closeFlag = true;
     const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
     let netPayment = billMeta.payment?.map(({payment})=>payment).reduce((acc,val)=>(acc+val)) ?? 0;
@@ -136,11 +136,9 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 netDue,
                 itemList:`${customerId}_${billNo}_${billDate}`,
                 delivery,
-                returnOrder,
-                retAmt,
                 tax:netTax,
                 billAmt:billMeta.netAmt,
-                balance: Math.round(lastBalance + billMeta.netAmt - netPayment - retAmt)
+                balance: Math.round(lastBalance + billMeta.netAmt - netPayment)
             }),
             ...orderItems.map(async ({name,qty})=>{
                 let item = await stock.findOne({where:{name}});
@@ -154,7 +152,6 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 billNo,
                 billDate,
                 billAmt:Math.round(billMeta.netAmt),
-                retAmt,
                 tax:netTax,
                 payment:netPayment,
                 paymentStatus:netDue===0?true:false,
@@ -170,6 +167,12 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                     date:billDate
                 });
             console.log("Added to DB!!");
+            let msg = {
+                type: "info",
+                title: "Bill saved",
+                message: "Bill added to your sale and stocks and/or ledger updated."
+            };
+            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         })
         .catch(console.log);
     })

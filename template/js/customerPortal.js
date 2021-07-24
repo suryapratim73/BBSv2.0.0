@@ -118,8 +118,9 @@ ipcRenderer.on("customer-list",(e,{customerObj:_customerList})=>{
     selectedDiv.appendChild(div);
     selectedDiv.classList.remove("hide");
     total += netPurchase;
-    renderCircle();
 });
+
+ipcRenderer.on("customer-list-sent",renderCircle);
 
 async function loadLedgerTable(_name){
     currentPage = 1;
@@ -194,25 +195,6 @@ async function loadLedgerTable(_name){
         row.dataset.retAmt = retAmt;
         ledgerDiv.appendChild(row);
     });
-    // ledgerDiv.addEventListener("mouseenter",e=>{
-    //     if(e.target.className!=="row body") return;
-    //     let bodyRow = e.target;
-    //     let billNo = bodyRow.children[1].textContent;
-    //     let div = document.createElement("div");
-    //     div.innerHTML = billNo!=="null"?`
-    //         <button data-cmd="open">Open Bill</button>
-    //         <button data-cmd="print">Print</button>
-    //         <button data-cmd='pay'>Add Payment</button>
-    //     `:"";
-    //     div.id = "util-div";
-    //     div.addEventListener("click",utilCMD);
-    //     bodyRow.appendChild(div);
-    // },true);
-    // ledgerDiv.addEventListener("mouseleave",e=>{
-    //     if(e.target.className!=="row body") return;
-    //     document.getElementById("util-div").removeEventListener("click",utilCMD);
-    //     document.getElementById("util-div").remove();
-    // },true);
     this.after(ledgerDiv);
     sideDiv.appendChild(customerDiv);
 }

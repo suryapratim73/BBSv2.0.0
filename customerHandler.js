@@ -1,8 +1,8 @@
 const { ipcMain, shell, app, dialog } = require("electron");
-const { getLedgerModel, print, getStartDate } = require("./common");
+const { getLedgerModel, print, getBillModel } = require("./common");
 const { createModal } = require("./createModal");
 const { customer, sale, inPayments, sequelize } = require("./model/dbConfig");
-const { customerLedgerSchema } = require("./model/dynamicSchemas");
+const { customerLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
 
@@ -27,8 +27,8 @@ exports.customerPortal = mainWindow =>{
 }
 
 ipcMain.on("get-customer",async e=>{
-    let customerObj = (await (await customer.sync()).findAll()).map(({dataValues})=>dataValues);
-    await customerObj.forEach(async customerObj=>{
+    let _customerObj = (await (await customer.sync()).findAll()).map(({dataValues})=>dataValues);
+    _customerObj.forEach(async (customerObj,index)=>{
         let customerLedger = await getLedgerModel(customerObj.id,customerLedgerSchema);
         let {balance} = (await customerLedger.findOne({
             attributes:["balance"],
@@ -42,7 +42,9 @@ ipcMain.on("get-customer",async e=>{
             ]
         })).dataValues.netPurchase;
         customerObj.balance = balance;
-        e.sender.send("customer-list",{customerObj})
+        e.sender.send("customer-list",{customerObj});
+        if(index===_customerObj.length-1)
+            e.sender.send("customer-list-sent");
     });
 });
 
@@ -122,4 +124,30 @@ ipcMain.handle("show-customer-bills",async (e,id)=>{
         },
         order:[["entryNo","DESC"]]
     })).map(({dataValues})=>dataValues)
+});
+
+ipcMain.on("get-customer-names",async e=>{
+    let customerNames = (await customer.findAll({
+        attributes:["name","id"]
+    })).map(({dataValues})=>dataValues);
+    e.sender.send("customer-names",customerNames);
+});
+
+ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    let billNumbers = (await customerLedger.findAll({
+        where:{
+            date:{
+                [Op.between]:[startDate,endDate]
+            }
+        },
+        attributes:["billNo","date"]
+    })).map(({dataValues:{billNo,date}})=>({billNo,date})).filter(({billNo,date})=>billNo!==null && date!==null);
+    e.sender.send("get-bill-numbers-response",billNumbers)
+});
+
+ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
+    billDate = (new Date(billDate)).toISOString().split("T")[0];
+    let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
+    e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
 });

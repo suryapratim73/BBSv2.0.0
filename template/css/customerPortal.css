@@ -60,10 +60,8 @@ body{
     height: 90%;
 }
 .head{
-    position: sticky;
     top: 2.3rem;
     background: white;
-    z-index: 1;
 }
 #customer-list>div{
     margin: 0.5rem;

@@ -1,0 +1,209 @@
+const { ipcRenderer } = require("electron");
+const {toggleDevTool,validateInput} = require("../js/common");
+const {noReturn} = require("../../config/policy.json");
+const doc = require("pdfkit");
+
+
+toggleDevTool(document);
+
+let customerObjs = [],
+    selectedCustomer,
+    dateFeild = document.querySelector("#date"),
+    langSet = [
+        {value:1,word:"one" },
+        {value:2,word:"two" },
+        {value:3,word:"three" },
+        {value:4,word:"four" },
+        {value:5,word:"five" },
+        {value:6,word:"six" },
+        {value:7,word:"seven" },
+        {value:8,word:"eight" },
+        {value:9,word:"nine" },
+        {value:10,word:"ten" },
+        {value:11,word:"eleven" },
+        {value:12,word:"twelve" }
+    ];
+
+ipcRenderer.send("get-customer-names");
+
+ipcRenderer.on("customer-names",(e,customerNames)=>{
+    let dl = document.createElement("datalist");
+    dl.id = "customer-name";
+    customerNames.forEach(({name,id})=>{
+        let option = document.createElement("option");
+        option.value = name;
+        option.dataset.custId = id;
+        dl.appendChild(option);
+        customerObjs.push({name,id});
+    });
+    document.body.appendChild(dl);
+    document.getElementById("name").focus();
+})
+
+function searchHandler(e){
+    let text = e.target.value;
+    let startDate,endDate;
+    if(e.target.name==="name"){
+        selectedCustomer = !selectedCustomer?customerObjs.find(({name})=>text===name):selectedCustomer;
+        if(!selectedCustomer) return;
+        e.target.setAttribute("disabled","disabled")
+        dateFeild.removeAttribute("disabled");
+        dateFeild.focus();
+    }// Set selected customer
+    else
+    if(e.target.name==="date"){
+        let textMatch = text.match(/(\d+.+\d)|(\d+.months?|\d+.weeks?|\d+.days?)/g)?.[0] ?? null;
+        if(!textMatch){
+            let replaceWord = [];
+            text.split(/\b/g).forEach(_word=>{
+                let match = langSet.find(({word})=>word===_word);
+                if(match)
+                    replaceWord.push({word:_word,replaceValue:match.value})
+            });//Text to value conversion
+            replaceWord.forEach(({word,replaceValue})=>{
+                text = text.replace(word,replaceValue);
+            });
+            textMatch = text.match(/(\d+.+\d)|(\d+.months?|\d+.weeks?|\d+.days?)/g)?.[0] ?? null;            
+            if(!textMatch)
+                return document.getElementById("billNo").setAttribute("disabled","disabled");
+            else
+                text = textMatch;
+        }
+        else
+            text = textMatch;
+        if(/\//g.test(text)){
+            let textArr = text.match(/[tobewnad\- ]+/gi) ? text.split(/[tobewnad\- ]+/gi):text;
+            if(textArr?.length===2){
+                [startDate,endDate] = textArr;
+                const [stDay,stMnth,stYear=(new Date()).getFullYear()] = startDate.split("/");
+                const [endDay,endMnth,endYear=(new Date()).getFullYear()] = endDate.split("/");
+                startDate = new Date(stYear,+stMnth-1,stDay);
+                endDate = new Date(endYear,+endMnth-1,endDay);
+            }
+            else{
+                const [stDay=null,stMnth=null,stYear=(new Date()).getFullYear()] = textArr.split("/") ?? [];
+                startDate = new Date(stYear,+stMnth-1,stDay);
+                endDate = new Date();
+            }
+        }// dd/mm/yyyy pattern filter
+        else{
+            if(/months?/.test(text) && /\d+/.test(text)){
+                let noMonths = Number(text.match(/\d+/)[0]);
+                endDate = new Date();
+                startDate = new Date(Date.now() - noMonths*30*24*60*60*1000);
+                startDate.setDate(1);
+            }
+            else
+            if(/weeks?/.test(text) && /\d+/.test(text)){
+                let noDays = Number(text.match(/\d+/)[0])*7;
+                endDate = new Date();
+                startDate = new Date(Date.now() - noDays*24*60*60*1000);
+            }
+            else
+            if(/days?/.test(text) && /\d+/.test(text)){
+                let noDays = Number(text.match(/\d+/)[0]);
+                endDate = new Date();
+                startDate = new Date(Date.now() - noDays*24*60*60*1000);
+            }
+        }// 'X' month/week pattern filter
+        let diff = Math.ceil((Math.abs(endDate - startDate))/(1000*60*60*24));
+        if(!startDate || !endDate || startDate>endDate || !diff) return document.getElementById("billNo").setAttribute("disabled","disabled");
+        if(diff>noReturn){
+            document.getElementById("billNo").setAttribute("disabled","disabled");
+            return alert("Return not possible");
+        }
+        // console.log({diff,startDate,endDate});
+        ipcRenderer.send("get-bill-numbers",selectedCustomer.id,startDate,endDate)
+    }// set and find bill numbers in specified date range
+}
+
+function assignBillDate(e){
+    let {value} = e.target;
+    let {billDate} = e.target.list.querySelector(`[value="${value}"]`).dataset;
+    e.target.dataset.billDate = billDate;
+}
+
+ipcRenderer.on("get-bill-numbers-response",(e,billNumbers)=>{
+    document.getElementById("billNo-list")?.remove();
+    let dl = document.createElement("datalist");
+    dl.id = "billNo-list";
+    billNumbers.forEach(({billNo,date})=>{
+        let option = document.createElement("option");
+        option.value = billNo;
+        option.dataset.billDate = date;
+        dl.appendChild(option);
+    })
+    document.body.appendChild(dl);
+    let billNoFeild = document.querySelector("#billNo");
+    billNoFeild.removeAttribute("disabled");
+    billNoFeild.focus();
+});
+
+function assignQtyRate(e){
+    let {value} = e.target;
+    let {quantity,rate} = e.target.list.querySelector(`[value='${value}']`).dataset;
+    let input = e.target;
+    input.dataset.quantity = quantity;
+    input.dataset.rate = rate;
+    input.parentNode.parentNode.querySelector("div:nth-child(3)>input").removeAttribute("disabled");
+    input.parentNode.parentNode.querySelector("div:nth-child(3)>input").focus();
+    input.parentNode.parentNode.querySelector("div:nth-child(4)>input").value = rate;
+}
+
+function checkQty2(e){
+    let qty = e.target.value;
+    let {quantity,rate} = e.target.parentNode.parentNode.querySelector("div:nth-child(2)>input")?.dataset;
+    if(!quantity || !rate) return;
+    if(+qty>+quantity){
+        e.target.value = "";
+        return alert("Return quantity cannot be greater than bought quantity!!")
+    }
+    else
+        e.target.parentNode.parentNode.querySelector("p:last-child").textContent = +qty * +rate;
+}
+
+function getBodyRow(slNo=1){
+    let div = document.createElement("div");
+    div.className = "row body";
+    div.innerHTML = `
+        <p class="col col1">${slNo}</p>
+        <div class="col col2"><input type="text" list="item-list" onchange="assignQtyRate(event)" /></div>
+        <div class="col col3"><input type="text" data-type="Number" disabled data-subtype="price" onkeypress="validateInput(event)" oninput="checkQty2(event)" /></div>
+        <div class="col col4"><input type="text" disabled /></div>
+        <p class="col col5"></p>
+    `;
+    return div;
+}
+
+function handle_proceed(e){
+    e.preventDefault();
+    let billNo = e.target.billNo.value,
+        {billDate} = e.target.billNo.dataset;
+    if(!billNo) return alert("Please select a bill number");
+    let customerBillDiv = document.getElementById("customer-bill-div");
+    let page_2 = document.getElementById("page-2");
+    customerBillDiv.classList.add("animation-common");
+    customerBillDiv.classList.add("vanish");
+    setTimeout(()=>{
+        customerBillDiv.classList.add("hide")
+        page_2.classList.remove("hide");
+        page_2.classList.add("move-up");
+        ipcRenderer.send("get-bill-items",selectedCustomer.id,billNo,billDate)
+    },201);
+}
+
+ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
+    let itemTable = document.getElementById("item-table");
+    itemTable.appendChild(getBodyRow());
+    document.getElementById("item-list")?.remove();
+    let dl = document.createElement("datalist");
+    dl.id = "item-list";
+    billItems.forEach(({name,quantity,rate})=>{
+        let option = document.createElement("option");
+        option.value = name;
+        option.dataset.quantity = quantity;
+        option.dataset.rate = rate;
+        dl.appendChild(option);
+    })
+    document.body.appendChild(dl);
+})

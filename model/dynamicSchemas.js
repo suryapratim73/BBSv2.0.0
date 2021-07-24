@@ -72,12 +72,6 @@ exports.customerLedgerSchema = {
         type:DataTypes.JSON,
         defaultValue:"hand"
     },
-    returnOrder:{
-        type:DataTypes.JSON
-    },
-    retAmt:{
-        type:DataTypes.INTEGER
-    },
     balance:{
         type:DataTypes.INTEGER,
         defaultValue:0

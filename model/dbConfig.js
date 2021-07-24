@@ -196,10 +196,6 @@ const saleSchema = {
         type: DataTypes.INTEGER,
         allowNull: false
     },
-    retAmt:{
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
     tax:{
         type: DataTypes.INTEGER,
         allowNull: false

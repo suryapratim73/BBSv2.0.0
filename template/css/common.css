@@ -54,6 +54,10 @@
 .row{
     display: flex;
 }
+.head{
+    position: sticky;
+    z-index: 1;
+}
 .body{
     position: relative;
 }
@@ -109,4 +113,58 @@
 }
 .selected>button{
     color: blue !important;
+}
+.animation-common{
+    animation-timing-function: linear;
+    animation-duration: 200ms;
+    animation-fill-mode: forwards;
+}
+.move-left{
+    animation-name: leftmotion;
+}
+@keyframes leftmotion{
+    from{
+        transform: translateX(0);
+    }
+    to{
+        transform: translateX(-100%);
+    }
+}
+.move-right{
+    animation-name: rightmotion;
+}
+@keyframes rightmotion{
+    from{
+        transform: translateX(0);
+    }
+    to{
+        transform: translateX(100%);
+    }
+}
+.move-up{
+    animation-duration: 300ms;
+    animation-name: movingup;
+}
+@keyframes movingup{
+    from{
+        transform: translateY(100%);
+        opacity: 0.5;
+    }
+    to{
+        transform: translateY(0%);
+        opacity: 1;
+    }
+}
+.vanish{
+    animation-name: goFade;
+}
+@keyframes goFade{
+    from{
+        transform: scale(100%);
+        opacity:1;
+    }
+    to{
+        transform: scale(0%);
+        opacity: 0;
+    }
 }

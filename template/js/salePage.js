@@ -126,9 +126,7 @@ function footer(){
     let backBtn = `<button data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>`;
     let printBtn = `<button data-type="print" onclick="showPrintDialog()">Print</button>`;
     let finishBtn = `<button data-type="save" onclick="proceedOrFinishHandler(event)">Save & Exit</button>`;
-    let returnBtn = `<button data-type="return" id="return-btn" onclick="returnHandler(event)">Return Register</button>`;
     return `<footer>
-                ${currentStep===4?returnBtn:""}
                 <div>
                     <button onclick="cancelAction()">Cancel</button>
                     ${currentStep>1?backBtn:""}
@@ -154,10 +152,7 @@ function getTotal(nodeList){
 }
 
 function calculateR_O(){
-    let retAmt = 0;
-    if(Object.keys(billMeta).includes("retAmt"))
-        retAmt = billMeta.retAmt;
-    let total = billMeta.netAmt - retAmt;
+    let total = billMeta.netAmt;
     if((Math.ceil(total) - total)<0.5){
         let r_o = Math.ceil(total) - total;
         return Math.round(r_o*100)/100;
@@ -273,10 +268,10 @@ function calculateAmounts(e,updateRetForm){
     sgst *= quantity * rate;
     igst *= quantity * rate;
     bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst);
-    if(!updateRetForm)
-        displaySection();
-    if(updateRetForm)
-        updateReturnForm(roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst))
+    // if(!updateRetForm)
+    displaySection();
+    // if(updateRetForm)
+    //     updateReturnForm(roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst))
 }
 
 function addRow(e,returnClassName=""){
@@ -346,20 +341,17 @@ function reassignSummaryDivFeilds(netPayment=0){
                 paymentModeDiv.querySelector("[data-name='bankTrnRef']").value = payObj.ref;
             }
         });
-    let retAmt = 0;
-    if(Object.keys(billMeta).includes("retAmt"))
-        retAmt = billMeta.retAmt;
     let deliveryCharge = billMeta.delivery.type==="hand"?0:Number(billMeta.delivery.transporterCharge);
     document.querySelector("[data-name='billAmt']").textContent = billMeta.netAmt;
     document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
-    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt)<=0){
+    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment)<=0){
         document.querySelector("[data-name='dueAmt']").textContent = 0;
         billMeta.netDue = 0;
-        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(retAmt + netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge));
+        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge));
     }
     else{
-        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt);
-        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment - retAmt);
+        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment);
+        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment);
         document.querySelector("[data-name='return']").textContent = 0;
     }
 }
@@ -746,10 +738,10 @@ function mainFocusHandler(e){
 
 ipcRenderer.on("get-current-step",cancelAction);
 
-function closeModal(){
-    document.querySelector(".cover").remove();
-    document.querySelector(".modal").remove();
-}
+// function closeModal(){
+//     document.querySelector(".cover").remove();
+//     document.querySelector(".modal").remove();
+// }
 
 function showPrintDialog(){
     if(payment.length===0)
@@ -762,119 +754,119 @@ ipcRenderer.on("printObj",(e,printObj)=>{
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
 })
 
-function returnHandler(e){
-    let body = document.body;
-    let modal = document.createElement("div");
-    modal.classList.add("modal");
-    modal.id = "return-modal";
-    let cover = document.createElement("div");
-    cover.classList.add("cover");
-    modal.innerHTML = `
-                <div id="head-section">
-                    <div id="current-bill-metadata">
-                        <div>
-                            <p class="col-1">Current Bill No:</p>
-                            <p class="col-2">${billMeta.billNo}</p>
-                        </div>
-                        <div>
-                            <p class="col-1">Current Bill Amount:</p>
-                            <p class="col-2">${billMeta.netAmt}</p>
-                        </div>
-                        <div>
-                            <p class="col-1">Amount in word:</p>
-                            <p class="col-2">${getAmtToWord(billMeta.netAmt + billMeta.r_o)}</p>
-                        </div>
-                    </div>
-                    <div id="return-bill-metadata">
-                        <div>
-                            <p class="col-1">Return Policy:</p>
-                            <p class="col-2">all</p>
-                        </div>
-                        <div>
-                            <label class="col-1">Return Bill Date:</label>
-                            <input class="col-2" tabindex="2" type="date" data-name="returnBillDate" />
-                        </div>
-                        <div>
-                            <label class="col-1">Return Bill No:</label>
-                            <input class="col-2" type="text" tabindex="2" data-name="returnBillNo" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                        </div>
-                    </div>
-                </div>
-                <div id="body-section" class="table">
-                    <div class="row head">
-                        <div class="col sm"><p>Sl No.</p></div>
-                        <div class="col lg"><p>Particular</p></div>
-                        <div class="col md"><p>HSN No</p></div>
-                        <div class="col md"><p>Quantity</p></div>
-                        <div class="col md"><p>Unit</p></div>
-                        <div class="col md"><p>Rate</p></div>
-                        <div class="col md"><p>Amount</p></div>
-                        <div class="col sm"><p>CGST</p></div>
-                        <div class="col sm"><p>SGST</p></div>
-                        <div class="col sm"><p>IGST</p></div>
-                        <div class="col md"><p>Total</p></div>
-                    </div>
-                    <div id="tbody">
-                        <div class="row body">
-                            ${getBodyRow("return-add-btn")}
-                        </div>
-                        <div class="row row-control-div" id="add-item">
-                            <button onclick="addRow(event,'return-add-btn')">+</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="footer-section">
-                    <div id="updated-bill-amt">
-                        <p class="col-1">Updated Bill amount:</p>
-                        <p class="col-2">${billMeta.netAmt}</p>
-                    </div>                
-                    <div>
-                        <button tabindex="2" onclick="recomputeBill()">Update</button>
-                        <button tabindex="2" onclick="closeModal()">Cancel</button>
-                    </div>                
-                </div>
-    `;
-    body.appendChild(cover);
-    body.appendChild(modal);
-    document.querySelector('[data-name="returnBillNo"]').focus();
-    [...document.querySelectorAll(".body.row input")].forEach(input=>input.setAttribute("tabindex","2"));
-    if(Object.keys(billMeta).includes("returnOrder"))
-        reInitReturnModal()
-}   
+// function returnHandler(e){
+//     let body = document.body;
+//     let modal = document.createElement("div");
+//     modal.classList.add("modal");
+//     modal.id = "return-modal";
+//     let cover = document.createElement("div");
+//     cover.classList.add("cover");
+//     modal.innerHTML = `
+//                 <div id="head-section">
+//                     <div id="current-bill-metadata">
+//                         <div>
+//                             <p class="col-1">Current Bill No:</p>
+//                             <p class="col-2">${billMeta.billNo}</p>
+//                         </div>
+//                         <div>
+//                             <p class="col-1">Current Bill Amount:</p>
+//                             <p class="col-2">${billMeta.netAmt}</p>
+//                         </div>
+//                         <div>
+//                             <p class="col-1">Amount in word:</p>
+//                             <p class="col-2">${getAmtToWord(billMeta.netAmt + billMeta.r_o)}</p>
+//                         </div>
+//                     </div>
+//                     <div id="return-bill-metadata">
+//                         <div>
+//                             <p class="col-1">Return Policy:</p>
+//                             <p class="col-2">all</p>
+//                         </div>
+//                         <div>
+//                             <label class="col-1">Return Bill Date:</label>
+//                             <input class="col-2" tabindex="2" type="date" data-name="returnBillDate" />
+//                         </div>
+//                         <div>
+//                             <label class="col-1">Return Bill No:</label>
+//                             <input class="col-2" type="text" tabindex="2" data-name="returnBillNo" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+//                         </div>
+//                     </div>
+//                 </div>
+//                 <div id="body-section" class="table">
+//                     <div class="row head">
+//                         <div class="col sm"><p>Sl No.</p></div>
+//                         <div class="col lg"><p>Particular</p></div>
+//                         <div class="col md"><p>HSN No</p></div>
+//                         <div class="col md"><p>Quantity</p></div>
+//                         <div class="col md"><p>Unit</p></div>
+//                         <div class="col md"><p>Rate</p></div>
+//                         <div class="col md"><p>Amount</p></div>
+//                         <div class="col sm"><p>CGST</p></div>
+//                         <div class="col sm"><p>SGST</p></div>
+//                         <div class="col sm"><p>IGST</p></div>
+//                         <div class="col md"><p>Total</p></div>
+//                     </div>
+//                     <div id="tbody">
+//                         <div class="row body">
+//                             ${getBodyRow("return-add-btn")}
+//                         </div>
+//                         <div class="row row-control-div" id="add-item">
+//                             <button onclick="addRow(event,'return-add-btn')">+</button>
+//                         </div>
+//                     </div>
+//                 </div>
+//                 <div id="footer-section">
+//                     <div id="updated-bill-amt">
+//                         <p class="col-1">Updated Bill amount:</p>
+//                         <p class="col-2">${billMeta.netAmt}</p>
+//                     </div>                
+//                     <div>
+//                         <button tabindex="2" onclick="recomputeBill()">Update</button>
+//                         <button tabindex="2" onclick="closeModal()">Cancel</button>
+//                     </div>                
+//                 </div>
+//     `;
+//     body.appendChild(cover);
+//     body.appendChild(modal);
+//     document.querySelector('[data-name="returnBillNo"]').focus();
+//     [...document.querySelectorAll(".body.row input")].forEach(input=>input.setAttribute("tabindex","2"));
+//     if(Object.keys(billMeta).includes("returnOrder"))
+//         reInitReturnModal()
+// }   
 
-function updateReturnForm(retAmt){
-    let updatedBillAmt = document.querySelector("#updated-bill-amt>p:last-child");
-    billMeta.retAmt = retAmt;
-    updatedBillAmt.textContent = roundOffTo2DecimalPlace(billMeta.netAmt - retAmt);
-}
+// function updateReturnForm(retAmt){
+//     let updatedBillAmt = document.querySelector("#updated-bill-amt>p:last-child");
+//     billMeta.retAmt = retAmt;
+//     updatedBillAmt.textContent = roundOffTo2DecimalPlace(billMeta.netAmt - retAmt);
+// }
 
-function recomputeBill(){
-    billMeta.returnOrder = [];
-    [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
-        let name = bodyRow.querySelector("div:nth-child(2)>input").value;
-        if(!name) return;
-        let qty = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
-        let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
-        let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value);
-        let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value);
-        let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value);
-        const { hsn,unit } = itemList.find(item=>item.name===name);
-        billMeta.returnOrder.push({name,qty,rate,cgst,sgst,igst,hsn,unit});       
-    });
-    billMeta.r_o = calculateR_O();
-    closeModal();
-    reassignSummaryDivFeilds();
-}
+// function recomputeBill(){
+//     billMeta.returnOrder = [];
+//     [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
+//         let name = bodyRow.querySelector("div:nth-child(2)>input").value;
+//         if(!name) return;
+//         let qty = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
+//         let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
+//         let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value);
+//         let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value);
+//         let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value);
+//         const { hsn,unit } = itemList.find(item=>item.name===name);
+//         billMeta.returnOrder.push({name,qty,rate,cgst,sgst,igst,hsn,unit});       
+//     });
+//     billMeta.r_o = calculateR_O();
+//     closeModal();
+//     reassignSummaryDivFeilds();
+// }
 
-function reInitReturnModal(){
-    billMeta.returnOrder.forEach((item,index)=>{
-        if(!item) return;
-        let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
-        populateTableFeilds(bodyRowDivs,item,index)
-        if(index+1<orderItems.length)
-            document.querySelector("#add-item>button").click();  
-    })
-}
+// function reInitReturnModal(){
+//     billMeta.returnOrder.forEach((item,index)=>{
+//         if(!item) return;
+//         let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
+//         populateTableFeilds(bodyRowDivs,item,index)
+//         if(index+1<orderItems.length)
+//             document.querySelector("#add-item>button").click();  
+//     })
+// }
 
 document.addEventListener("keydown",e=>{
     if(e.ctrlKey && e.key==="Enter" && currentStep<4)

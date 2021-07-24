@@ -27,6 +27,25 @@ exports.displayStock = mainWindow =>{
     }
 }
 
+exports.handleReturn = mainWindow =>{
+    return ()=>{
+        let windowOptions = {
+            width: 600,
+            height: 600,
+            resizable:false,
+            webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+            },
+            show:false,
+            parent:mainWindow,
+            contextIsolation:true
+        }   
+        let pathToHTML = "./template/html/goodsReturn.html";
+        createModal(null,pathToHTML)
+    }
+}
+
 ipcMain.on("update-stock",async (e,{name,quantity,price,location})=>{
     try{
         let selectedStock = await stock.findOne({
