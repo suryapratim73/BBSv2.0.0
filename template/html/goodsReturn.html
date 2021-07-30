@@ -17,7 +17,11 @@
                 <input type="text" list="customer-name" name="name" id="name" />
             </div>
             <div>
-                <label for="name">Enter purchase date/period</label>
+                <label for="ret-date">Enter return date</label>
+                <input type="date" name="ret-date" id="ret-date" />
+            </div>
+            <div>
+                <label for="date">Enter purchase date/period</label>
                 <input type="text" disabled name="date" id="date" />
             </div>
             <div>
@@ -38,8 +42,8 @@
             </div>
         </div>  
         <div>
-            <button>Add item</button>
-            <button>Confirm Return</button>
+            <button data-cmd="add-item">Add item</button>
+            <button data-cmd="confirm-return">Confirm Return</button>
         </div>  
     </div>
 </body>

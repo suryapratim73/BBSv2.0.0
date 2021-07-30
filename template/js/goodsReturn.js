@@ -1,7 +1,6 @@
 const { ipcRenderer } = require("electron");
 const {toggleDevTool,validateInput} = require("../js/common");
 const {noReturn} = require("../../config/policy.json");
-const doc = require("pdfkit");
 
 
 toggleDevTool(document);
@@ -22,7 +21,53 @@ let customerObjs = [],
         {value:10,word:"ten" },
         {value:11,word:"eleven" },
         {value:12,word:"twelve" }
-    ];
+    ],
+    page_2 = document.getElementById("page-2"),
+    itemTable = document.getElementById("item-table"),
+    returnObj = {};
+
+returnObj.itemList = [];
+
+let retDateInput = document.getElementById("ret-date");
+retDateInput.valueAsDate = new Date();
+retDateInput.addEventListener("change",function(){
+    returnObj.retDate = this.value;
+});
+
+returnObj.retDate = new Date();
+
+page_2.addEventListener("click",function(e){
+    if(e.target.dataset.cmd==="delete-row"){
+        let targetRow = e.target.parentNode.previousSibling;
+        let targetInput = targetRow.querySelector("div>input"); 
+        let name = targetInput.value;
+        targetInput.list.querySelector(`[value='${name}']`).removeAttribute("disabled");
+        returnObj.itemList = returnObj.itemList.filter(itemObj=>itemObj.name!==name);
+        targetRow.remove();
+        [...document.querySelectorAll(".col1")].forEach((p,index)=>{
+            if(index>0)
+                p.textContent = index;
+        });
+        return document.getElementById("option-div")?.remove();
+    }
+    document.getElementById("option-div")?.remove();
+    if(e.target.dataset.cmd==="add-item" && document.getElementById("item-list").children.length>[...document.querySelectorAll(".itemName")].length){
+        [...document.querySelectorAll(".itemName")].forEach(input=>{
+            let name = input.value;
+            input.list.querySelector(`[value='${name}']`).setAttribute("disabled","disabled");
+        });
+        let slNo = +([...document.querySelectorAll(".col1")].pop())?.textContent + 1 ?? 1;
+        itemTable.appendChild(getBodyRow(slNo));
+        ([...document.querySelectorAll(".itemName")].pop()).focus();
+    }
+    else
+    if(e.target.dataset.cmd==="add-item" && document.getElementById("item-list").children.length===[...document.querySelectorAll(".itemName")].length)
+        return alert("Return item count cannot be greater than the purchased item count.");
+    if(e.target.dataset.cmd==="confirm-return")
+        ipcRenderer.send("return-obj",returnObj);
+    if(e.target.parentNode.parentNode.className==="row body")
+        e.target.parentNode.parentNode.after(showOptionsDiv());
+})
 
 ipcRenderer.send("get-customer-names");
 
@@ -141,25 +186,49 @@ ipcRenderer.on("get-bill-numbers-response",(e,billNumbers)=>{
 
 function assignQtyRate(e){
     let {value} = e.target;
-    let {quantity,rate} = e.target.list.querySelector(`[value='${value}']`).dataset;
     let input = e.target;
+    if(value.length===0){
+        let itemNames = [...document.querySelectorAll(".itemName")].map(input=>input.value);
+        returnObj.itemList = returnObj.itemList.filter(itemObj=>{
+            if(itemNames.includes(itemObj.name)){
+                return true;}
+            else{
+                input.list.querySelector(`[value='${itemObj.name}']`).removeAttribute("disabled");
+                input.parentNode.parentNode.querySelector("div:nth-child(4)>input").value = "";
+                input.parentNode.parentNode.querySelector("div:nth-child(3)>input").value = "";
+                e.target.parentNode.parentNode.querySelector("p:last-child").textContent = 0;
+                return false;
+            }
+        });
+    }
+    let {quantity,rate} = input.list.querySelector(`[value='${value}']`)?.dataset ?? [null,null];
+    if(!quantity || !rate) return;
     input.dataset.quantity = quantity;
     input.dataset.rate = rate;
+    input.dataset.name = value;
     input.parentNode.parentNode.querySelector("div:nth-child(3)>input").removeAttribute("disabled");
     input.parentNode.parentNode.querySelector("div:nth-child(3)>input").focus();
     input.parentNode.parentNode.querySelector("div:nth-child(4)>input").value = rate;
+    returnObj.itemList.push({name:value,max_quantity:+quantity,rate:+rate});
 }
 
 function checkQty2(e){
     let qty = e.target.value;
-    let {quantity,rate} = e.target.parentNode.parentNode.querySelector("div:nth-child(2)>input")?.dataset;
+    let {quantity,rate,name} = e.target.parentNode.parentNode.querySelector("div:nth-child(2)>input")?.dataset;
     if(!quantity || !rate) return;
     if(+qty>+quantity){
         e.target.value = "";
         return alert("Return quantity cannot be greater than bought quantity!!")
     }
-    else
+    else{
         e.target.parentNode.parentNode.querySelector("p:last-child").textContent = +qty * +rate;
+        returnObj.itemList = returnObj.itemList.map((itemObj)=>{
+            const {name:_name} = itemObj;
+            if(_name===name)
+                itemObj.qty = +qty;
+            return itemObj;
+        });
+    }
 }
 
 function getBodyRow(slNo=1){
@@ -167,7 +236,7 @@ function getBodyRow(slNo=1){
     div.className = "row body";
     div.innerHTML = `
         <p class="col col1">${slNo}</p>
-        <div class="col col2"><input type="text" list="item-list" onchange="assignQtyRate(event)" /></div>
+        <div class="col col2"><input class="itemName" type="text" list="item-list" onchange="assignQtyRate(event)" /></div>
         <div class="col col3"><input type="text" data-type="Number" disabled data-subtype="price" onkeypress="validateInput(event)" oninput="checkQty2(event)" /></div>
         <div class="col col4"><input type="text" disabled /></div>
         <p class="col col5"></p>
@@ -179,9 +248,12 @@ function handle_proceed(e){
     e.preventDefault();
     let billNo = e.target.billNo.value,
         {billDate} = e.target.billNo.dataset;
+    returnObj.billMeta = {};
     if(!billNo) return alert("Please select a bill number");
+    returnObj.billMeta.billNo = billNo;
+    returnObj.customerId = selectedCustomer.id;
+    returnObj.billMeta.billDate = billDate;
     let customerBillDiv = document.getElementById("customer-bill-div");
-    let page_2 = document.getElementById("page-2");
     customerBillDiv.classList.add("animation-common");
     customerBillDiv.classList.add("vanish");
     setTimeout(()=>{
@@ -192,9 +264,17 @@ function handle_proceed(e){
     },201);
 }
 
+function showOptionsDiv(){
+    let div = document.createElement("div");
+    div.id = "option-div";
+    div.innerHTML = `<button data-cmd="delete-row">Delete row</button>`
+    return div;
+}
+
 ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
-    let itemTable = document.getElementById("item-table");
-    itemTable.appendChild(getBodyRow());
+    let bodyRow = getBodyRow()
+    itemTable.appendChild(bodyRow);
+    ([...document.querySelectorAll(".itemName")].pop()).focus();
     document.getElementById("item-list")?.remove();
     let dl = document.createElement("datalist");
     dl.id = "item-list";
@@ -206,4 +286,4 @@ ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
         dl.appendChild(option);
     })
     document.body.appendChild(dl);
-})
+});

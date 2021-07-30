@@ -119,9 +119,9 @@ const stockSchema = {
     tax:{
         type: DataTypes.INTEGER
     },
-    location:{
-        type:DataTypes.TEXT,
-        defaultValue: "any"
+    pInfo:{
+        type: DataTypes.JSON,
+        defaultValue:{}
     }
 }
 
@@ -254,6 +254,34 @@ const inPaymentSchema = {
     }
 }
 
+const returnRegister = {
+    id:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    itemList:{
+        type: DataTypes.JSON,
+        allowNull: false
+    },
+    billMeta:{
+        type: DataTypes.JSON,
+        allowNull: false
+    },
+    retAmt:{
+        type: DataTypes.NUMBER,
+        allowNull: false
+    },
+    retDate:{
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    customerId:{
+        type: DataTypes.UUID,
+        allowNull: false
+    }
+}
+
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
         freezeTableName:false,
@@ -301,6 +329,10 @@ module.exports = {
         timestamps:false
     }),
     transporters: sequelize.define("transporters",transporterSchema,{
+        freezeTableName:true,
+        timestamps:false
+    }),
+    returnRegister: sequelize.define("returnRegister",returnRegister,{
         freezeTableName:true,
         timestamps:false
     })

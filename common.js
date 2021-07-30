@@ -9,10 +9,10 @@ const { Op } = require("sequelize");
 
 async function getLedgerModel(id,ledgerSchema){
     let supplierLedger = `${id}Ledger`;
-    supplierLedger = await sequelize.define(supplierLedger,ledgerSchema,{
+    supplierLedger = await (sequelize.define(supplierLedger,ledgerSchema,{
         freezeTableName: true,
         timestamps: false
-    }).sync();
+    }).sync());
     return supplierLedger
 }
 

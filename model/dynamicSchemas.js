@@ -75,6 +75,10 @@ exports.customerLedgerSchema = {
     balance:{
         type:DataTypes.INTEGER,
         defaultValue:0
+    },
+    returnable:{
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }
 

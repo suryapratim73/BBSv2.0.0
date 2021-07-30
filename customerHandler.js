@@ -1,7 +1,7 @@
-const { ipcMain, shell, app, dialog } = require("electron");
+const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { getLedgerModel, print, getBillModel } = require("./common");
 const { createModal } = require("./createModal");
-const { customer, sale, inPayments, sequelize } = require("./model/dbConfig");
+const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
@@ -137,6 +137,7 @@ ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billNumbers = (await customerLedger.findAll({
         where:{
+            returnable:true,
             date:{
                 [Op.between]:[startDate,endDate]
             }
@@ -150,4 +151,51 @@ ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
     billDate = (new Date(billDate)).toISOString().split("T")[0];
     let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
+});
+
+ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,customerId})=>{
+    let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
+    let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
+    Promise.all([
+        (await returnRegister.sync()).create({
+            itemList,
+            billMeta,
+            retAmt,
+            retDate: new Date(retDate),
+            customerId
+        }),
+        (await outPayments.sync()).create({
+            beneficiaryId: customerId,
+            type: "return",
+            payment: retAmt,
+            date: new Date(retDate)
+        }),
+        ...itemList.map(async ({name,qty})=>{
+            let item = await (await stock.sync()).findOne({
+                where:{
+                    name
+                }
+            });
+            item.reduceStock = -1 * qty;
+            return item.save();
+        }),
+        customerLedger.update({
+            returnable:false
+        },{
+            where:{
+                billNo:billMeta.billNo
+            }
+        })
+    ])
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Stocks updated",
+            message: "Returned items registered successfully and the selected bill is now unreturnable."
+        };
+        let focussedWindow = BrowserWindow.getFocusedWindow()
+        dialog.showMessageBox(focussedWindow,msg)
+            .then(()=>focussedWindow.close());
+    })
+    .catch(err=>dialog.showErrorBox("Error",err));
 });
