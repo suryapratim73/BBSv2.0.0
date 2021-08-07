@@ -9,7 +9,42 @@
     <script src="../js/goodsReturn.js" defer></script>
 </head>
 <body>
-    <div id="customer-bill-div">
+    <div id="toggle" onclick="handleToggle(event)">
+        <p data-section="customer">
+            <span class="highlight-2">Customer</span>
+        </p>
+        <div class="slide">
+            <div class="knob">
+                <div class="dot"></div>
+            </div>
+        </div>
+        <p data-section="supplier">
+            <span>Supplier</span>
+        </p>
+    </div>
+    <div id="supplier-bill-div" class="hide ret-bill-div">
+        <h1>Add Supplier and Bill Detail</h1>
+        <form onsubmit="handle_proceed(event)" oninput="searchHandler(event)">
+            <div>
+                <label for="supp-name">Enter supplier name</label>
+                <input type="text" list="supplier-name" name="name" id="supp-name" />
+            </div>
+            <div>
+                <label for="supp-ret-date">Enter return date</label>
+                <input type="date" name="ret-date" class="ret-date" id="supp-ret-date" />
+            </div>
+            <div>
+                <label for="supp-date">Enter purchase date/period</label>
+                <input type="text" disabled name="date" id="supp-date" />
+            </div>
+            <div>
+                <label for="supp-billNo">Enter bill number</label>
+                <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="supp-billNo" />
+            </div>
+            <div><button type="submit">Get Bill Items</button></div>
+        </form>
+    </div>
+    <div id="customer-bill-div" class="ret-bill-div">
         <h1>Add Customer and Bill Detail</h1>
         <form onsubmit="handle_proceed(event)" oninput="searchHandler(event)">
             <div>
@@ -18,10 +53,10 @@
             </div>
             <div>
                 <label for="ret-date">Enter return date</label>
-                <input type="date" name="ret-date" id="ret-date" />
+                <input type="date" name="ret-date" class="ret-date" id="ret-date" />
             </div>
             <div>
-                <label for="date">Enter purchase date/period</label>
+                <label for="date">Enter sale date/period</label>
                 <input type="text" disabled name="date" id="date" />
             </div>
             <div>

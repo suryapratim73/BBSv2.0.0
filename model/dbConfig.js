@@ -241,9 +241,13 @@ const inPaymentSchema = {
         autoIncrement: true,
         primaryKey: true
     },
-    customerId:{
+    id:{
         type: DataTypes.UUID,
         allowNull:false
+    },
+    type:{
+        type: DataTypes.TEXT,
+        defaultValue:"sale"
     },
     payment:{
         type: DataTypes.INTEGER,
@@ -255,7 +259,7 @@ const inPaymentSchema = {
 }
 
 const returnRegister = {
-    id:{
+    entryNo:{
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
@@ -276,7 +280,7 @@ const returnRegister = {
         type: DataTypes.DATE,
         allowNull: false
     },
-    customerId:{
+    id:{
         type: DataTypes.UUID,
         allowNull: false
     }
@@ -337,3 +341,8 @@ module.exports = {
         timestamps:false
     })
 }
+
+// sequelize.sync({
+//     force:false,
+//     alter:true
+// }).then(()=>console.log("sequelize sync done")).catch(console.warn);

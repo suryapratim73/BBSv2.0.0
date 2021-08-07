@@ -8,39 +8,28 @@ exports.updateStock = mainWindow =>{
     }
 }
 
+
 exports.displayStock = mainWindow =>{
+    let windowOptions = {
+        width: 800,
+        height: 600,
+        resizable:false,
+        webPreferences: {
+        nodeIntegration: true,
+        devTools:true
+        },
+        show:false,
+        parent:mainWindow,
+        contextIsolation:true
+    };
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
         let pathToHTML = "./template/html/stockDisplay.html";
         createModal(windowOptions,pathToHTML)
     }
 }
 
-exports.handleReturn = mainWindow =>{
-    return ()=>{
-        let windowOptions = {
-            width: 600,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
+exports.handleReturn = ()=>{
+    return ()=>{ 
         let pathToHTML = "./template/html/goodsReturn.html";
         createModal(null,pathToHTML)
     }
@@ -64,7 +53,7 @@ ipcMain.on("update-stock",async (e,{name,quantity,price,location})=>{
     catch(err){
         console.log(err)
     }
-});
+});// This need a relook
 
 ipcMain.handle("get-stock-names",()=>{
     return stock.findAll({attributes:["name"]})

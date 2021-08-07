@@ -1,20 +1,18 @@
 const {BrowserWindow, dialog} = require("electron");
 const { ipcMain } = require("electron/main");
 const { Op } = require("sequelize");
+const { getLedgerModel, getBillModel } = require("./common");
 const { createModal } = require("./createModal");
-const {sequelize,supplier,stock,purchase, outPayments} = require("./model/dbConfig");
+const {supplier,stock,purchase, outPayments} = require("./model/dbConfig");
 const {supplierLedgerSchema,billItemSchema} = require("./model/dynamicSchemas");
 
+
 let purchaseWindows = [];
-// sequelize.sync({
-//     force:false,
-//     alter:true
-// }).then(()=>console.log("sequelize sync done")).catch(console.warn);
 
 exports.addPurchase = mainWindow=>{
     return ()=>{
         let purchaseWindow = new BrowserWindow({
-            width: 800,
+            width: 1020,
             height: 600,
             resizable: false,
             webPreferences: {
@@ -36,13 +34,13 @@ exports.addPurchase = mainWindow=>{
 ipcMain.on("openDevTool",(e)=>{
     console.log("Opening DevTool")
     e.sender.toggleDevTools();
-})
+});
 
 ipcMain.on("close",()=>{
     if(purchaseWindows.length>0)
         purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
     BrowserWindow.getFocusedWindow().close();
-})
+});
 
 ipcMain.handle("save-supplier",async (e,{billerName,billerAddress,billerPhones,billerGST,billerComment})=>{
     // console.log({billerID,billerName,billerGST,billerPhones,billerAddress,billerComment});
@@ -80,7 +78,6 @@ function closeAndDisplay(msg){
 }
 
 ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDate,itemList,paymentStatus,billAmt,payment=0})=>{    
-    let supplierLedger = `${id}Ledger`;
     let itemListTable = `${id}_${billNo}_${billDate}`;
     if(!id){
         let msg = {
@@ -92,20 +89,14 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         closeAndDisplay(msg);
         return;
     }
-    let ledger = await sequelize.define(supplierLedger,supplierLedgerSchema,{
-        freezeTableName:true,
-        timestamps:false,
-    }).sync();
+    let ledger = await getLedgerModel(id,supplierLedgerSchema);
     let lastBalance = (await (ledger.findOne({
         attributes:["balance"],
         order:[
             ["entryNo","DESC"]
         ]
     })))?.dataValues.balance ?? 0;
-    let billItemTable = (await sequelize.define(itemListTable,billItemSchema,{
-        freezeTableName:true,
-        timestamps:false
-    }).sync());
+    let billItemTable = await getBillModel(id,billNo,billDate,billItemSchema);
     let _tax = itemList.map(({CGST,SGST,IGST,Rate,Quantity})=>{
         let tax;
         if(Number(IGST)>0)
@@ -132,18 +123,18 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                 hsn:item['HSN No.'],
                 quantity:item.Quantity,
                 unit:item.Unit,
-                rate:Number(item.Rate)*((100+Number(item.CGST)+Number(item.SGST)+Number(item.IGST))/100),
+                rate:Number(item.Rate),
                 tax: Number(item.IGST)===0?`${Number(item.CGST)+Number(item.SGST)}%`:`${item.IGST}%`
             })
         }),
         ...itemList.map(async item=>{
             let _stock = await stock.sync();
-            let selectedStock = await _stock.findOne({
+            let selectedStock = item.Type!="charge"? await _stock.findOne({
                 where:{
                     name:item.Particular,
                     type:item.Type
                 }
-            });
+            }):null;
             if(selectedStock)
                 return _stock.update({
                     quantity: selectedStock.dataValues.quantity + Number(item.Quantity),
@@ -156,17 +147,21 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
                         type:item.Type
                     }
                 });
-            else 
-                return _stock.create({
-                    name: item.Particular,
-                    type: item.Type,
-                    hsn: item["HSN No"],
-                    unit: item.unit,
-                    quantity: item.Quantity,
-                    buyPrice: Number(item.Rate),
-                    standardSellPrice:1.1*Number(item.Rate),
-                    tax: Number(item.CGST)+Number(item.SGST)+Number(item.IGST)
-                });
+            else{
+                if(item.Type!=="charge")
+                    return _stock.create({
+                        name: item.Particular,
+                        type: item.Type,
+                        hsn: item["HSN No"],
+                        unit: item.unit,
+                        quantity: item.Quantity,
+                        buyPrice: Number(item.Rate),
+                        standardSellPrice:1.1*Number(item.Rate),
+                        tax: Number(item.CGST)+Number(item.SGST)+Number(item.IGST)
+                    });
+                else
+                    Promise.resolve();
+            }
         }),
         (await purchase.sync()).create({
             supplierId:id,
@@ -198,7 +193,7 @@ ipcMain.on("save-defer-bill",async (e,{supplierId:id,supplierName,billNo,billDat
         }
         closeAndDisplay(msg)
     })
-})
+});
 
 ipcMain.on("create-add-item-modal",e=>{
     let windowOptions = {
@@ -245,8 +240,8 @@ exports.showPurchase = mainWindow =>{
 
 ipcMain.handle("get-item-names",e=>{
     return stock.findAll({attributes:["name","itemNo"]})
-})
+});
 
 ipcMain.handle("get-stock-detail",async (e,itemNo)=>{
     return (await stock.findOne({where:{itemNo}})).dataValues;
-})
+});

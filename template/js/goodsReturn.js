@@ -6,8 +6,11 @@ const {noReturn} = require("../../config/policy.json");
 toggleDevTool(document);
 
 let customerObjs = [],
+    supplierObjs = [],
     selectedCustomer,
+    selectedSupplier,
     dateFeild = document.querySelector("#date"),
+    suppDateFeild = document.querySelector("#supp-date"),
     langSet = [
         {value:1,word:"one" },
         {value:2,word:"two" },
@@ -24,17 +27,77 @@ let customerObjs = [],
     ],
     page_2 = document.getElementById("page-2"),
     itemTable = document.getElementById("item-table"),
-    returnObj = {};
+    returnObj = {},
+    toggle = document.getElementById("toggle"),
+    mode = 1;
 
 returnObj.itemList = [];
 
-let retDateInput = document.getElementById("ret-date");
-retDateInput.valueAsDate = new Date();
-retDateInput.addEventListener("change",function(){
-    returnObj.retDate = this.value;
-});
+async function initForm(mode){
+    document.querySelectorAll(".ret-date").forEach(input=>input.valueAsDate = new Date());
+    if(mode===1){
+        returnObj.mode = 1;
+        if(!document.getElementById("customer-name"))
+            ipcRenderer.send("get-customer-names");
+        document.getElementById("name").focus();
+    }
+    else{
+        returnObj.mode = 2;
+        if(!document.getElementById("supplier-name")){
+            let suppliers = await ipcRenderer.invoke("get-supplier-names");
+            let dl = document.createElement("datalist");
+            dl.id = "supplier-name";
+            suppliers.forEach(({dataValues:{name,id}})=>{
+                createOptions(name,id,dl);
+                supplierObjs.push({name,id});
+            });
+            document.body.appendChild(dl);
+        }
+        document.getElementById("supp-name").focus();
+    }
+}
+initForm(mode);
+
+function createOptions(name,id,dl){
+    let option = document.createElement("option");
+    option.value = name;
+    option.dataset.custId = id;
+    dl.appendChild(option);
+}
+
+document.querySelectorAll(".ret-date").forEach(input=>{
+    input.addEventListener("change",function(){
+        returnObj.retDate = this.value;
+    });
+})
 
 returnObj.retDate = new Date();
+
+function handleToggle(e){
+    if(["dot","knob","slide","knob right-1rem"].includes(e.target.className)){
+        let knob = document.querySelector(".knob");
+        if(knob.classList.contains("right-1rem")){
+            document.querySelector("[data-section='customer']>span").classList.add("highlight-2");
+            document.querySelector("[data-section='supplier']>span").classList.remove("highlight-2");
+            knob.classList.remove("right-1rem");
+            document.getElementById("supplier-bill-div").classList.add("hide");
+            document.getElementById("customer-bill-div").classList.remove("hide");
+            mode = 1;
+            initForm(mode);
+        }
+        else{
+            document.querySelector("[data-section='customer']>span").classList.remove("highlight-2");
+            document.querySelector("[data-section='supplier']>span").classList.add("highlight-2");
+            knob.classList.add("right-1rem");
+            document.getElementById("supplier-bill-div").classList.remove("hide");
+            document.getElementById("customer-bill-div").classList.add("hide");
+            mode = 2;
+            initForm(mode);
+        }
+    }
+    else
+        console.log(e.target)
+}
 
 page_2.addEventListener("click",function(e){
     if(e.target.dataset.cmd==="delete-row"){
@@ -64,37 +127,39 @@ page_2.addEventListener("click",function(e){
     if(e.target.dataset.cmd==="add-item" && document.getElementById("item-list").children.length===[...document.querySelectorAll(".itemName")].length)
         return alert("Return item count cannot be greater than the purchased item count.");
     if(e.target.dataset.cmd==="confirm-return")
-        ipcRenderer.send("return-obj",returnObj);
+        ipcRenderer.send(`${mode===2?"supp-":""}return-obj`,returnObj);
     if(e.target.parentNode.parentNode.className==="row body")
         e.target.parentNode.parentNode.after(showOptionsDiv());
-})
-
-ipcRenderer.send("get-customer-names");
+});
 
 ipcRenderer.on("customer-names",(e,customerNames)=>{
     let dl = document.createElement("datalist");
     dl.id = "customer-name";
     customerNames.forEach(({name,id})=>{
-        let option = document.createElement("option");
-        option.value = name;
-        option.dataset.custId = id;
-        dl.appendChild(option);
+        createOptions(name,id,dl);
         customerObjs.push({name,id});
     });
     document.body.appendChild(dl);
-    document.getElementById("name").focus();
-})
+});
 
 function searchHandler(e){
     let text = e.target.value;
     let startDate,endDate;
-    if(e.target.name==="name"){
-        selectedCustomer = !selectedCustomer?customerObjs.find(({name})=>text===name):selectedCustomer;
+    if(e.target.name==="name" && mode===1){
+        selectedCustomer = customerObjs.find(({name})=>text===name);
         if(!selectedCustomer) return;
         e.target.setAttribute("disabled","disabled")
         dateFeild.removeAttribute("disabled");
         dateFeild.focus();
     }// Set selected customer
+    else
+    if(e.target.name==="name" && mode===2){
+        selectedSupplier = supplierObjs.find(({name})=>text===name);
+        if(!selectedSupplier) return;
+        e.target.setAttribute("disabled","disabled")
+        suppDateFeild.removeAttribute("disabled");
+        suppDateFeild.focus();
+    }
     else
     if(e.target.name==="date"){
         let textMatch = text.match(/(\d+.+\d)|(\d+.months?|\d+.weeks?|\d+.days?)/g)?.[0] ?? null;
@@ -154,11 +219,15 @@ function searchHandler(e){
         let diff = Math.ceil((Math.abs(endDate - startDate))/(1000*60*60*24));
         if(!startDate || !endDate || startDate>endDate || !diff) return document.getElementById("billNo").setAttribute("disabled","disabled");
         if(diff>noReturn){
-            document.getElementById("billNo").setAttribute("disabled","disabled");
+            if(mode===1)
+                document.getElementById("billNo").setAttribute("disabled","disabled");
             return alert("Return not possible");
         }
         // console.log({diff,startDate,endDate});
-        ipcRenderer.send("get-bill-numbers",selectedCustomer.id,startDate,endDate)
+        if(mode===1)
+            ipcRenderer.send("get-bill-numbers",selectedCustomer.id,startDate,endDate);
+        else
+            ipcRenderer.send("get-supp-bill-numbers",selectedSupplier.id,startDate,endDate);
     }// set and find bill numbers in specified date range
 }
 
@@ -179,7 +248,7 @@ ipcRenderer.on("get-bill-numbers-response",(e,billNumbers)=>{
         dl.appendChild(option);
     })
     document.body.appendChild(dl);
-    let billNoFeild = document.querySelector("#billNo");
+    let billNoFeild = document.querySelector(`#${mode===2?"supp-":""}billNo`);
     billNoFeild.removeAttribute("disabled");
     billNoFeild.focus();
 });
@@ -221,7 +290,7 @@ function checkQty2(e){
         return alert("Return quantity cannot be greater than bought quantity!!")
     }
     else{
-        e.target.parentNode.parentNode.querySelector("p:last-child").textContent = +qty * +rate;
+        e.target.parentNode.parentNode.querySelector("p:last-child").textContent = Math.round(+qty * +rate);
         returnObj.itemList = returnObj.itemList.map((itemObj)=>{
             const {name:_name} = itemObj;
             if(_name===name)
@@ -250,17 +319,19 @@ function handle_proceed(e){
         {billDate} = e.target.billNo.dataset;
     returnObj.billMeta = {};
     if(!billNo) return alert("Please select a bill number");
+    toggle.classList.add("hide");
     returnObj.billMeta.billNo = billNo;
-    returnObj.customerId = selectedCustomer.id;
+    returnObj.id = mode===1?selectedCustomer.id:selectedSupplier.id;
     returnObj.billMeta.billDate = billDate;
-    let customerBillDiv = document.getElementById("customer-bill-div");
-    customerBillDiv.classList.add("animation-common");
-    customerBillDiv.classList.add("vanish");
+    let billDiv = mode===1?document.getElementById("customer-bill-div"):document.getElementById("supplier-bill-div");
+    billDiv.classList.add("animation-common");
+    billDiv.classList.add("vanish");
+    let id = mode===1?selectedCustomer.id:selectedSupplier.id;
     setTimeout(()=>{
-        customerBillDiv.classList.add("hide")
+        billDiv.classList.add("hide")
         page_2.classList.remove("hide");
         page_2.classList.add("move-up");
-        ipcRenderer.send("get-bill-items",selectedCustomer.id,billNo,billDate)
+        ipcRenderer.send("get-bill-items",id,billNo,billDate)
     },201);
 }
 
@@ -286,4 +357,13 @@ ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
         dl.appendChild(option);
     })
     document.body.appendChild(dl);
+});
+
+document.addEventListener("keydown",(e)=>{
+    if(e.ctrlKey && e.key==="+")
+        document.querySelector('[data-cmd="add-item"]').click();
+    if(e.ctrlKey && e.key==="-")
+        document.getElementById("option-div").click();
+    if(e.ctrlKey && e.key==="Enter")
+        document.querySelector('[data-cmd="confirm-return"]').click();
 });

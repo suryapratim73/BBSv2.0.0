@@ -63,10 +63,10 @@ function getBillTotals(itemList){
     let totalWithoutTax = 0,totalTax = 0, totalWithTax;
     itemList.forEach(item=>{
         let itemTax = (100+Number(item.tax.split("%")[0]))/100;
-        let pricePerUnit = Math.round(item.rate/itemTax);
+        let pricePerUnit = Math.round(item.rate);
         let {quantity} = item;
         totalWithoutTax += (quantity*pricePerUnit);
-        totalTax += Math.round((itemTax-1)*pricePerUnit*quantity);//070880
+        totalTax += Math.round((itemTax-1)*pricePerUnit*quantity);
     })
     totalWithTax = totalWithoutTax + totalTax;
     return {totalWithoutTax,totalTax,totalWithTax}

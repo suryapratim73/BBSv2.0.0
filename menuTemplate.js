@@ -23,11 +23,6 @@ module.exports = mainWindow=>{
                     label:"Show Sales",
                     accelerator:"F2",
                     click:showSales(mainWindow)
-                },
-                {type:"separator"},
-                {
-                    label:"Add Goods Return",
-                    click:handleReturn(mainWindow)
                 }
             ]
         },
@@ -62,6 +57,11 @@ module.exports = mainWindow=>{
                     label: "View Stock",
                     accelerator: "Shift+F3",
                     click: displayStock(mainWindow)
+                },
+                {type:"separator"},
+                {
+                    label:"Stock Return Registor",
+                    click:handleReturn()
                 },
                 {type:"separator"},
                 {
@@ -104,7 +104,7 @@ module.exports = mainWindow=>{
             click: customerPortal(mainWindow)
         },
         {
-            label:"Analytics"
+            label:"Tools and Analytics"
         },
         {
             label:"Docs"

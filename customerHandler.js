@@ -2,7 +2,7 @@ const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { getLedgerModel, print, getBillModel } = require("./common");
 const { createModal } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock } = require("./model/dbConfig");
-const { customerLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
+const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
 
@@ -106,7 +106,7 @@ ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt,retAmt)=>{
             balance:Math.round(lastBalance - payment)
         }),
         (await inPayments.sync()).create({
-            customerId:id,
+            id,
             payment,
             date:new Date()
         })
@@ -153,7 +153,7 @@ ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
 });
 
-ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,customerId})=>{
+ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id:customerId})=>{
     let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
     let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
     Promise.all([
@@ -162,7 +162,7 @@ ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,customerId})=>{
             billMeta,
             retAmt,
             retDate: new Date(retDate),
-            customerId
+            id:customerId
         }),
         (await outPayments.sync()).create({
             beneficiaryId: customerId,
@@ -192,6 +192,59 @@ ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,customerId})=>{
             type: "info",
             title: "Stocks updated",
             message: "Returned items registered successfully and the selected bill is now unreturnable."
+        };
+        let focussedWindow = BrowserWindow.getFocusedWindow()
+        dialog.showMessageBox(focussedWindow,msg)
+            .then(()=>focussedWindow.close());
+    })
+    .catch(err=>dialog.showErrorBox("Error",err));
+});
+
+ipcMain.on("get-supp-bill-numbers",async (e,suppId,startDate,endDate)=>{
+    let supplierLedger = await getLedgerModel(suppId,supplierLedgerSchema);
+    let billNumbers = (await supplierLedger.findAll({
+        where:{
+            date:{
+                [Op.between]:[startDate,endDate]
+            }
+        },
+        attributes:["billNo","date"]
+    })).map(({dataValues:{billNo,date}})=>({billNo,date})).filter(({billNo,date})=>billNo!==null && date!==null);
+    e.sender.send("get-bill-numbers-response",billNumbers);
+});
+
+ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
+    let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
+    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
+    Promise.all([
+        (await returnRegister.sync()).create({
+            itemList,
+            billMeta,
+            retAmt,
+            retDate: new Date(retDate),
+            id
+        }),
+        (await inPayments.sync()).create({
+            id,
+            type: "return",
+            payment: retAmt,
+            date: new Date(retDate)
+        }),
+        ...itemList.map(async ({name,qty})=>{
+            let item = await (await stock.sync()).findOne({
+                where:{
+                    name
+                }
+            });
+            item.reduceStock = qty;
+            return item.save();
+        })
+    ])
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Stocks updated",
+            message: "Returned items registered successfully."
         };
         let focussedWindow = BrowserWindow.getFocusedWindow()
         dialog.showMessageBox(focussedWindow,msg)

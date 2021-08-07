@@ -323,4 +323,13 @@ command.innerHTML = step1CommandHTML();
 (async ()=>{
     let datalist = document.getElementById("existing-suppliers");
     suppliers = await init(datalist);
-})()
+})();
+
+document.addEventListener("keydown",e=>{
+    if(e.ctrlKey && e.key==="Enter")
+        document.getElementById("proceed-btn").click();
+    if(e.ctrlKey && e.key==="ArrowLeft")
+        document.getElementById("back-btn")?.click();
+    if(e.ctrlKey && e.key==="+")
+        document.querySelector("#body > div > button")?.click();
+});

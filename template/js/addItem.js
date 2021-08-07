@@ -53,6 +53,7 @@ let labelsObj = [
     let dataList = document.createElement("datalist");
     dataList.id = "item-names";
     let input = templateDiv.querySelector("input");
+    input.focus();
     input.setAttribute("list","item-names");
     input.addEventListener("change",async function(){
         let selectedStock = itemList.find(({name})=>name===this.value);
@@ -74,7 +75,7 @@ let labelsObj = [
         dataList.appendChild(option);
     }));
     templateDiv.appendChild(dataList)
-})()
+})();
 
 labelsObj.forEach(label=>{
     let clonedTemplateDiv = templateDiv.cloneNode(true);
@@ -95,4 +96,9 @@ document.body.querySelector("button").addEventListener("click",()=>{
         itemParticular[p.textContent] = inputValue;
     })
     ipcRenderer.send("add-item",itemParticular);
+});
+
+document.addEventListener("keydown",e=>{
+    if(e.key==="Enter")
+        document.querySelector("body > div:nth-child(2) > button").click();
 })

@@ -46,8 +46,13 @@ exports.saleWindow = ()=>{
 }
 
 exports.showSales = mainWindow=>{
+    let _windowOptions = {...windowOptions};
+    _windowOptions.parent = mainWindow;
+    _windowOptions.width = 800;
+    _windowOptions.height = 600;
     return ()=>{
-        console.log("Show Sales");
+        let pathToHTML = "./template/html/showSale.html";
+        saleWindow = createModal(_windowOptions,pathToHTML);
     }
 }
 
@@ -162,7 +167,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             if(netPayment>0)
                 return (await inPayments.sync())
                 .create({
-                    customerId,
+                    id:customerId,
                     payment:netPayment,
                     date:billDate
                 });
@@ -206,4 +211,8 @@ ipcMain.on("salepage-print-doc",(e,billObj)=>{
 
 ipcMain.handle("get-transporter",async ()=>{
     return (await transporters.sync()).findAll();
+});
+
+ipcMain.on("get-sales",async e=>{
+    e.sender.send("get-sales-response",(await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues));
 });

@@ -1,0 +1,114 @@
+@import "../css/common.css";
+body{
+    background-color: black;
+    height: 100vh;
+}
+header{
+    height: 10%;
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    background: slateblue;
+}
+header input{
+    height: fit-content;
+    width: 15rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+    color: black;
+    font-size: 1rem;
+}
+header button{
+    height: fit-content;
+    color: slateblue;
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.5rem;
+}
+#filter-options{
+    position: absolute;
+    bottom: calc(-200% - 1.75rem - 10px);
+    right: 0;
+    z-index: 2;
+    background: gray;
+    padding: 0.75rem 0;
+    border-radius: 5px;
+}
+#filter-options>div{
+    padding: 0.25rem 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+}
+#filter-options>div:hover{
+    border-color: darkgray;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 10%, black 100%);
+}
+.dot{
+    box-shadow: 1px 1px black, -1px -1px, inset 1px 1px black, inset -0.5px -0.5px white;
+    margin-left: 10px;
+}
+.deselect{
+    background: red;
+}
+.select{
+    background: lightgreen;
+}
+main{
+    height: 90%;
+    display: flex;
+    overflow-y: auto;
+}
+.table{
+    flex: 2;
+    border: 5px solid slateblue;
+    border-radius: 15px;
+    padding: 0.5rem;
+    background: darkslategray;
+}
+.head{
+    background: slateblue;
+    border-bottom: none !important;
+}
+.head>p{
+    text-shadow: 1px 1px black;
+}
+.body{
+
+}
+.body>p{
+    border-right: 1px solid;
+}
+.col5{
+    border-right: none !important;
+}
+.row{
+    padding: 0.25rem;
+    border-bottom: 1px dashed slateblue;
+    border-radius: 0 0 3px 3px;
+}
+#emphasis-tables{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}   
+#emphasis-tables>.table{
+    flex: 1;
+    overflow-y: auto;
+}
+.table-header{
+    font-size: 1.2rem;
+    text-shadow: 1px 1px black;
+    border-bottom: 2px solid black;
+    padding-bottom: 0.25rem;
+}
+.body.row:hover{
+    background: yellowgreen;
+}
+.body.row:hover p{
+    color: yellow;
+    text-shadow: 1px 1px black;
+}
