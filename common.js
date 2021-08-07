@@ -7,6 +7,24 @@ const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSc
 const { Op } = require("sequelize");
 
 
+class BillNoGenerator{
+    constructor(initBillNo){
+        if(initBillNo)
+            this.billNo = initBillNo;
+        else
+            this.billNo = 0;
+    }
+    getNextBillNo(){
+        this.billNo++;
+        return this.billNo;
+    }
+    reduceBillNo(){
+        this.billNo--;
+    }   
+}
+
+let billNoGenInstance;
+
 async function getLedgerModel(id,ledgerSchema){
     let supplierLedger = `${id}Ledger`;
     supplierLedger = await (sequelize.define(supplierLedger,ledgerSchema,{
@@ -64,3 +82,18 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
     let path2pdf = ledgerPDF(entryArr,peopleObj,startDate);
     ipcMain.emit("show-print-modal",path2pdf);
 });
+
+exports.billNoCounter = function(count){
+    if(count)
+        billNoGenInstance = new BillNoGenerator(count);
+    else
+        return billNoGenInstance.getNextBillNo();
+}
+
+exports.reduceBillNo = function(){
+    billNoGenInstance.reduceBillNo();
+};
+
+exports.getLastBillNo = function(){
+    return billNoGenInstance.billNo;
+}

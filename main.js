@@ -1,4 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { billNoCounter, getLastBillNo } = require("./common");
+const fs = require("fs");
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
@@ -25,13 +27,26 @@ app.whenReady().then(createWindow);
 
 
 app.on('window-all-closed', () => {
+  let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
+  let saleConfig=rawData!==""?JSON.parse(rawData):{};
+  saleConfig.billNo = getLastBillNo();
+  fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
   if (process.platform !== 'darwin') {
-    app.quit()
+    app.quit();
   }
-})
+});
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
-})
+  if (BrowserWindow.getAllWindows().length === 0) 
+    createWindow();
+});
+
+app.on("ready",async (e,launchInfo)=>{
+  //Initialize BBS
+  fs.readFile(__dirname+"/config/saleConfig.json",(err,data)=>{
+    if(err)
+      return console.error(err);
+    const {billNo} = JSON.parse(data);
+    billNoCounter(billNo);
+  });
+});

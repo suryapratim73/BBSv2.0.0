@@ -4,7 +4,7 @@ const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, transporters, inPayments, sale } = require("./model/dbConfig");
 const { Op } = require("sequelize");
-const { getLedgerModel, getBillModel } = require("./common");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const {scriptFile} = require("./config/saleConfig.json");
 const {billPDF} = require(`./scripts/${scriptFile}`);
@@ -22,13 +22,6 @@ let windowOptions = {
     },
     show:false,
     contextIsolation:true
-}
-
-function cancelBill(){
-    let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
-    let saleConfig=rawData!==""?JSON.parse(rawData):{};
-    saleConfig.billNo--;
-    fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
 }
 
 exports.saleWindow = ()=>{
@@ -57,16 +50,12 @@ exports.showSales = mainWindow=>{
 }
 
 ipcMain.handle("get-sale-bill-number",()=>{
-    let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
-    let saleConfig=rawData!==""?JSON.parse(rawData):{};
-    saleConfig.billNo = saleConfig.billNo?saleConfig.billNo+1:1;
-    fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
-    return saleConfig.billNo;
+    return billNoCounter();
 });
 
 ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     if(currentStep>1)
-        cancelBill();
+        reduceBillNo();
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
 });
