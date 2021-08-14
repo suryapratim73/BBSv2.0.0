@@ -224,3 +224,25 @@
     padding: 0.15rem;
     border-radius: 5px;
 }
+.spinner-div{
+    width: 180px;
+    height: 180px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.fade{
+    animation: fade 300ms linear forwards;
+}
+@keyframes fade {
+    from{
+        opacity: 1;
+    }
+    to{
+        opacity: 0;
+    }
+}

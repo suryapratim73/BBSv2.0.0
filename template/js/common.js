@@ -3,6 +3,7 @@ require("dotenv").config();
 const {
     APP_ENV
 } = process.env;
+
 exports.toggleDevTool = function(document){
     document.addEventListener("keyup",e=>{
         if(e.code==="F1" && APP_ENV==="DEV")
@@ -203,4 +204,96 @@ exports.printModal = function printModal(customId=""){
         document.body.removeChild(modal);
         this.removeEventListener("click",closeModal);        
     })
+}
+
+exports.drawBarGraph = function drawBarGraph(optionObj){
+    let offsetBottom = 20;
+    let { canvas,
+        ctx,
+        i=0,
+        ht=150,
+        width=20,
+        offsetLeft=10,
+        offsetTop=5,
+        direction=-1,
+        text,
+        style = {fillStyle:"blue"} } = optionObj;
+    if(!canvas){
+        canvas = document.createElement("canvas");
+        canvas.width = 250;
+        canvas.height = 125;
+    }
+    if(!ctx)
+        ctx = canvas.getContext("2d");
+    ctx.fillStyle = style.fillStyle;
+    ctx.strokeStyle = style.strokeStyle;
+    let x = (canvas.width/12)*(i+1) - offsetLeft;
+    if(i===0){
+        ctx.moveTo(0,0)
+        ctx.lineTo(0,canvas.height - offsetBottom)
+        ctx.lineTo(canvas.width,canvas.height - offsetBottom);
+        ctx.stroke();
+    }
+    ctx.fillText(text,x,canvas.height - offsetTop,16);
+    ctx.beginPath();
+    ctx.moveTo(x,canvas.height - offsetBottom);
+    if(ht>0 && ht-offsetTop-offsetBottom>0)
+        ht = direction*(ht-offsetTop-offsetBottom);
+    ht = ht>0?-ht:ht;
+    ctx.fillRect(x,canvas.height-offsetBottom,width,ht);
+    ctx.stroke();
+    ctx.fill();
+    return canvas;
+}
+
+class Spinner{
+    constructor(width,height,document){
+        this.width = width;
+        this.height = height;
+        this.document = document;
+        this.modal = document.createElement("div");
+        this.modal.classList.add("spinner-div");
+        this.modal.classList.add("modal");
+        this.canvas = this.document.createElement("canvas");
+        this.canvas.width = 150;
+        this.canvas.height = 150;
+        this.ctx = this.canvas.getContext("2d");
+        this.modal.appendChild(this.canvas);
+        this.cover = document.createElement("div");
+        this.cover.classList.add("cover");
+        this.document.body.appendChild(this.cover);
+        this.document.body.appendChild(this.modal);
+        this.initMultiplier = 0.5;
+    }
+    drawCircle(multiplier){
+        const {width,height} = this.canvas;
+        for(let i=1;i<8;i++){
+            this.ctx.beginPath();
+            this.ctx.fillStyle = `hsla(0,0%,0%,${1-i*0.1})`;
+            let x = (width/2)+40*Math.cos(multiplier+(((Math.PI)/7)*i));
+            let y = (height/2)-40*Math.sin(multiplier+(((Math.PI)/7)*i));
+            this.ctx.arc(x,y,10-i,0,2*Math.PI,false);
+            this.ctx.fill();
+        }
+    }
+    drawSpinner([window]){
+        const {width,height} = this.canvas;
+        this.ctx.clearRect(0,0,width,height);
+        this.initMultiplier -= 0.1;
+        this.drawCircle(this.initMultiplier);
+        window.requestAnimationFrame(this.drawSpinner.bind(this,[window]))
+    }
+    remove(window){
+        this.modal.classList.add("fade");
+        window.setTimeout(()=>{
+            this.modal.remove();
+            this.cover.remove();
+        },400);
+    }
+}
+
+exports.drawSpinner = function(document){
+    let spinner = new Spinner(150,150,document);
+    spinner.drawSpinner([window])
+    return spinner;
 }

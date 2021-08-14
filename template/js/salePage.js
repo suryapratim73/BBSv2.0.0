@@ -406,6 +406,10 @@ function validateInput2(e){
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
 }
 
+function setBillNo(e){
+    billMeta.billDate = (new Date(e.target.value)).toISOString().split("T")[0];
+}
+
 function mainForm(){
     slNo = 1;
     if(currentStep===1)
@@ -456,7 +460,7 @@ function mainForm(){
                 <div>
                     <p class="row0">Date: </p>
                     <div class="row1">
-                        <input type="date" data-name="billDate" />
+                        <input type="date" data-name="billDate" onchange="setBillNo(event)" />
                     </div>
                 </div>
                 <div>

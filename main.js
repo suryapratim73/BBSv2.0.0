@@ -20,20 +20,21 @@ function createWindow () {
     Menu.setApplicationMenu(menu);
     // mainWindow.loadFile(__dirname+'/build/index.html');
     mainWindow.loadURL('http://localhost:5000');
-    mainWindow.once("ready-to-show",mainWindow.show)
+    mainWindow.once("ready-to-show",mainWindow.show);
 }
 
 app.whenReady().then(createWindow);
 
-
-app.on('window-all-closed', () => {
+app.on("quit",()=>{
   let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
   let saleConfig=rawData!==""?JSON.parse(rawData):{};
   saleConfig.billNo = getLastBillNo();
   fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
-  if (process.platform !== 'darwin') {
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin')
     app.quit();
-  }
 });
 
 app.on('activate', () => {

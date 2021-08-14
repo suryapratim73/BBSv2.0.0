@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Summary Page</title>
+    <link rel="stylesheet" href="../css/gstSummaryPage.css">
+    <script src="../js/gstSummaryPage.js" defer></script>
+</head>
+<body>
+    <div class="block" id="gst-summary-div">
+        <div>
+            <h1>Realtime GST Value</h1>
+            <p id="net-gst"></p>
+        </div>
+        <div>
+            <h3>Historic GST for </h3>
+            <canvas id="gst-histogram"></canvas>
+        </div>
+    </div>
+    <div class="block" id="gst-particulars-div">
+        <div id="inward-gst-div">
+            <div>
+                <h3>Inward GST</h3>
+                <p id="inward-gst"></p>
+            </div>
+            <div id="inGST-graph-div">
+                <h3>Historic Inward GST for</h3>
+            </div>
+        </div>
+        <div id="outward-gst-div">
+            <div>
+                <h3>Outward GST</h3>
+                <p id="outward-gst"></p>
+            </div>
+            <div id="outGST-graph-div">
+                <h3>Historic Inward GST for</h3>
+            </div>
+        </div>
+    </div>    
+</body>
+</html>

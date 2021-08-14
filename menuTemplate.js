@@ -4,13 +4,48 @@ const {updateStock,displayStock,handleReturn} = require("./handleStock");
 const {getSuplier,getLedger,addPaymentForSupplier,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
+const { createGSTSummaryWindow } = require("./businessHandler");
 
 module.exports = mainWindow=>{
     return [
-        // {
-        //     label:"BBS",
-        //     role:"appMenu"
-        // },
+        {
+            label:"BBS",
+            submenu: [
+                {
+                    label: "Settings"
+                },
+                {
+                    label: "Backup and Restore"
+                },
+                {
+                    label: "Help",
+                    submenu: [
+                        {
+                            label: "BBS Manual"
+                        },
+                        {
+                            label: "Open BBS Official Website"
+                        }
+                    ]
+                },
+                { type: "separator" },
+                {
+                    label: "About"
+                },
+                {
+                    label: "Check for update"
+                },
+                { type: "separator" },
+                {
+                    label: "Lock"
+                },
+                {
+                    label: "Logout"
+                },
+                { type: "separator" },
+                { role: "quit" }
+            ]
+        },
         {
             label:"Sale",
             submenu:[
@@ -38,10 +73,6 @@ module.exports = mainWindow=>{
                     label: "Check Purchases",
                     accelerator: "Shift+F2",
                     click: showPurchase(mainWindow)
-                },
-                {type:"separator"},
-                {
-                    label: "Help"
                 }
             ]
         },
@@ -49,23 +80,13 @@ module.exports = mainWindow=>{
             label:"Stock",
             submenu:[
                 {
-                    label: "Update Stock",
-                    accelerator: "F3",
-                    click: updateStock(mainWindow)
-                },
-                {
                     label: "View Stock",
                     accelerator: "Shift+F3",
                     click: displayStock(mainWindow)
                 },
-                {type:"separator"},
                 {
                     label:"Stock Return Registor",
                     click:handleReturn()
-                },
-                {type:"separator"},
-                {
-                    label: "Help"
                 }
             ]
         },
@@ -92,10 +113,6 @@ module.exports = mainWindow=>{
                     label: "Check Payments",
                     accelerator: "Shift+F5",
                     click: checkOutPayments(mainWindow)
-                },
-                {type:"separator"},
-                {
-                    label:"Help"
                 }
             ]
         },
@@ -104,13 +121,66 @@ module.exports = mainWindow=>{
             click: customerPortal(mainWindow)
         },
         {
-            label:"Tools and Analytics"
+            label:"Tools and Analytics",
+            submenu: [
+                {
+                    label: "GST Summary",
+                    click: createGSTSummaryWindow(mainWindow)
+                },
+                {
+                    label: "Business Statistics"
+                },
+                {
+                    label: "GST Return JSON"
+                },
+                {type:"separator"},
+                {
+                    label: "Generate Road Challan"
+                },
+                {
+                    label: "Generate Voucher"
+                },
+                {
+                    label: "Generate Payment Receipt"
+                },
+                {type:"separator"},
+                {
+                    label: "BBS Remote"
+                }
+            ]
         },
         {
-            label:"Docs"
-        },
-        {
-            label:"Help"
+            label: "Admin",
+            submenu: [
+                {
+                    label: "Update Stock",
+                    accelerator: "F3",
+                    click: updateStock(mainWindow),
+                    enabled: false
+                },
+                { type: "separator" },
+                {
+                    label: "Register New Employee",
+                    enabled: false
+                },
+                {
+                    label: "Employee Portal",
+                    enabled: false
+                },
+                { type: "separator" },
+                {
+                    label: "Lock/Unlock Admin",
+                    click: function(e){
+                        e.menu.items.forEach(menu=>{
+                            if(menu.enabled===false)
+                                menu.enabled = true;
+                            else
+                                menu.enabled = false;
+                        });
+                        e.enabled = true;
+                    }
+                }
+            ]
         },
         {
             label:"Dev",
