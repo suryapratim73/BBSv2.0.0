@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput, printModal } = require("../js/common");
+const { toggleDevTool,validateInput, printModal, drawSpinner } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -10,6 +10,7 @@ let currentPage = 0,selectedDiv,selectedCustomer;
 let canvas = document.querySelector("#canvas-container>canvas");
 let ctx = canvas.getContext("2d"),total=0;
 let colorCode = [];
+let spinner = drawSpinner(document);
 
 function renderCircle(){
     let {height,width} = canvas,startIndex = 0,netBalance = 0;
@@ -100,27 +101,29 @@ function searchHandler(e){
 
 ipcRenderer.send("get-customer");
 
-ipcRenderer.on("customer-list",(e,{customerObj:_customerList})=>{
-    customerList.push(_customerList);
-    const { name,balance,id,netPurchase } = _customerList;
-    let startLetter = name.charAt(0).toLowerCase();
-    let selectedDiv = document.querySelector(`[data-letter="${startLetter}"]`);
-    selectedDiv.classList.add("occupied");
-    let div = document.createElement("div");
-    let p = document.createElement("p");
-    p.textContent = name;
-    div.appendChild(p);
-    p = document.createElement("p");
-    p.textContent = balance;
-    div.appendChild(p);
-    div.classList.add("customer-div");
-    div.dataset.custId = id;
-    selectedDiv.appendChild(div);
-    selectedDiv.classList.remove("hide");
-    total += netPurchase;
+ipcRenderer.on("customer-list",(e,{customerObj})=>{
+    customerObj.forEach(_customerList=>{
+        customerList.push(_customerList);
+        const { name,balance,id,netPurchase } = _customerList;
+        let startLetter = name.charAt(0).toLowerCase();
+        let selectedDiv = document.querySelector(`[data-letter="${startLetter}"]`);
+        selectedDiv.classList.add("occupied");
+        let div = document.createElement("div");
+        let p = document.createElement("p");
+        p.textContent = name;
+        div.appendChild(p);
+        p = document.createElement("p");
+        p.textContent = balance;
+        div.appendChild(p);
+        div.classList.add("customer-div");
+        div.dataset.custId = id;
+        selectedDiv.appendChild(div);
+        selectedDiv.classList.remove("hide");
+        total += netPurchase;
+    });
+    renderCircle();
+    spinner.remove(window);
 });
-
-ipcRenderer.on("customer-list-sent",renderCircle);
 
 async function loadLedgerTable(_name){
     currentPage = 1;

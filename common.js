@@ -5,6 +5,8 @@ const { ledgerPDF } = require("./scripts/makePDF.default");
 const { customer,supplier } = require("./model/dbConfig");
 const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSchemas");
 const { Op } = require("sequelize");
+const path = require("path");
+const fs = require("fs");
 
 
 class BillNoGenerator{
@@ -23,7 +25,21 @@ class BillNoGenerator{
     }   
 }
 
-let billNoGenInstance;
+class FileHandler{
+    constructor(fPath,rPath){
+        this.fPath = fPath;
+        this.rPath = rPath;
+        if(!fs.existsSync(path.resolve(__dirname,this.fPath,this.rPath)))
+            fs.mkdir(path.resolve(__dirname,this.fPath,this.rPath),(err)=>{
+                if(err)
+                    throw err;
+                console.log("log directory created!")
+            })
+        this.fd = fs.openSync(path.resolve(__dirname,this.fPath),"a+");
+    }
+}
+
+let billNoGenInstance,loggerFH;
 
 async function getLedgerModel(id,ledgerSchema){
     let supplierLedger = `${id}Ledger`;
@@ -92,8 +108,17 @@ exports.billNoCounter = function(count){
 
 exports.reduceBillNo = function(){
     billNoGenInstance.reduceBillNo();
-};
+}
 
 exports.getLastBillNo = function(){
     return billNoGenInstance.billNo;
+}
+
+exports.loggerFH = function(){
+    loggerFH = new FileHandler("./logs/dbLogs.txt","../");
+    return loggerFH;
+}
+
+exports.getLoggerFD = function(){
+    return loggerFH.fd;
 }

@@ -1,4 +1,4 @@
-const {toggleDevTool} = require("../js/common");
+const {toggleDevTool,drawSpinner} = require("../js/common");
 const {ipcRenderer} = require("electron");
 
 
@@ -18,7 +18,8 @@ const cmdMap = [
         text: ["between"],
         value: "between"
     }
-]
+];
+let spinner = drawSpinner(document);
 
 header.addEventListener("click",function(e){
     const filterOptions = this.querySelector("#filter-options"),
@@ -170,4 +171,5 @@ ipcRenderer.on("get-sales-response",(e,sales)=>{
         })
         bodyDiv.dataset.itemTable = billItemTable;
     });
+    spinner.remove(window);
 })

@@ -1,9 +1,37 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
+const fs = require("fs");
+let {getLoggerFD} = require("../common");
+const {exec} = require("child_process");
+
+
+//Example of how to run sudo command using child process but limited buffer.
+// let proc = exec("echo 'bhagawati9971' | sudo -S ls /root",(err,stdout,stderr)=>{
+//     if(err) throw err;
+//     if(stderr) throw stderr;
+//     console.log(stdout)
+// });
 
 const sequelize = new Sequelize({
     dialect:"sqlite",
-    storage:"./db/usha.db"
-})
+    storage:"./db/usha.db",
+    logging:function(...msg){
+        let loggerFD = getLoggerFD?.()
+        if(!getLoggerFD)
+            setTimeout(()=>{
+                getLoggerFD = require("../common").getLoggerFD;
+                loggerFD = getLoggerFD?.();
+                appendToFile(loggerFD,msg[0]);
+            },10)
+        if(loggerFD)
+            appendToFile(loggerFD,msg[0]);
+    }
+});
+
+function appendToFile(fd,data){
+    fs.appendFile(fd,data+"\n",{flag:"a+"},(err)=>{
+        if(err) throw err;
+    });
+}
 
 sequelize.authenticate()
 .then(()=>{

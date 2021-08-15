@@ -28,7 +28,7 @@ exports.customerPortal = mainWindow =>{
 
 ipcMain.on("get-customer",async e=>{
     let _customerObj = (await (await customer.sync()).findAll()).map(({dataValues})=>dataValues);
-    _customerObj.forEach(async (customerObj,index)=>{
+    let customerObj = await _customerObj.reduce(async (acc,customerObj,index)=>{
         let customerLedger = await getLedgerModel(customerObj.id,customerLedgerSchema);
         let {balance} = (await customerLedger.findOne({
             attributes:["balance"],
@@ -42,10 +42,11 @@ ipcMain.on("get-customer",async e=>{
             ]
         })).dataValues.netPurchase;
         customerObj.balance = balance;
-        e.sender.send("customer-list",{customerObj});
-        if(index===_customerObj.length-1)
-            e.sender.send("customer-list-sent");
-    });
+        acc = await acc;
+        acc.push(customerObj)
+        return acc
+    },[]);
+    e.sender.send("customer-list",{customerObj});
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{

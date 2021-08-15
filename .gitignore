@@ -5,3 +5,4 @@ db/
 test.js
 ext/
 todo
+logs/
