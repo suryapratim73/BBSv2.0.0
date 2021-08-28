@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Statistic Page</title>
+    <link rel="stylesheet" href="../css/businessStat.css">
+    <script src="../js/businessStat.js" defer></script>
+</head>
+<body>
+    <div id="weekly-stat-div" class="block">
+        <div>
+            <h1>Today</h1>
+            <div>
+                <h1 class="feild-heading larger">Sale</h1>
+                <p class="day-amt larger">0</p>
+            </div>
+            <div>
+                <h1 class="feild-heading">Purchase</h1>
+                <p class="day-amt">0</p>
+            </div>
+            <div>
+                <h1 class="feild-heading">Cash</h1>
+                <p class="day-amt">0</p>
+            </div>
+            <div>
+                <h1 class="feild-heading">Payment</h1>
+                <p class="day-amt">0</p>
+            </div>
+        </div>
+        <div>
+            <div>
+                <div>
+                    <h3>Last 7 days sale</h3>
+                    <div class="canvas-div">
+                        <canvas id="sale-canvas"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h3>Last 7 days purchase</h3>
+                    <div class="canvas-div">
+                        <canvas id="purchase-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <h3>Last 7 days cash</h3>
+                    <div class="canvas-div">
+                        <canvas id="in-payment-canvas"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h3>Last 7 days payment</h3>
+                    <div class="canvas-div">
+                        <canvas id="out-payment-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="yearly-performance-div" class="block">
+        <h1>Performance Current Year</h1>
+        <div>
+            <div id="debt-credit-stat">
+                <h3>Debt to credit piechart</h3>
+                <div class="canvas-div">
+                    <canvas id="debit-credit-chart"></canvas>
+                </div>
+            </div>
+            <div id="net-sale-purchase-stat">
+                <h3>Net sale to net purchase</h3>
+                <div class="canvas-div">
+                    <canvas id="sale-purchase-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <div class="block"></div> -->
+</body>
+</html>

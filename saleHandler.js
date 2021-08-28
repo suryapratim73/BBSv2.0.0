@@ -154,7 +154,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         ])
         .then(async ()=>{
             if(netPayment>0)
-                return (await inPayments.sync())
+                await (await inPayments.sync())
                 .create({
                     id:customerId,
                     payment:netPayment,

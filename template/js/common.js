@@ -217,7 +217,9 @@ exports.drawBarGraph = function drawBarGraph(optionObj){
         offsetTop=5,
         direction=-1,
         text,
-        style = {fillStyle:"blue"} } = optionObj;
+        period=12,
+        fontSize=16,
+        style = {fillStyle:"blue",strokeStyle:"black"} } = optionObj;
     if(!canvas){
         canvas = document.createElement("canvas");
         canvas.width = 250;
@@ -227,14 +229,15 @@ exports.drawBarGraph = function drawBarGraph(optionObj){
         ctx = canvas.getContext("2d");
     ctx.fillStyle = style.fillStyle;
     ctx.strokeStyle = style.strokeStyle;
-    let x = (canvas.width/12)*(i+1) - offsetLeft;
+    let x = (canvas.width/period)*(i+1) - offsetLeft;
     if(i===0){
+        ctx.beginPath();
         ctx.moveTo(0,0)
         ctx.lineTo(0,canvas.height - offsetBottom)
         ctx.lineTo(canvas.width,canvas.height - offsetBottom);
         ctx.stroke();
     }
-    ctx.fillText(text,x,canvas.height - offsetTop,16);
+    ctx.fillText(text,x,canvas.height - offsetTop,fontSize);
     ctx.beginPath();
     ctx.moveTo(x,canvas.height - offsetBottom);
     if(ht>0 && ht-offsetTop-offsetBottom>0)
@@ -296,4 +299,24 @@ exports.drawSpinner = function(document){
     let spinner = new Spinner(150,150,document);
     spinner.drawSpinner([window])
     return spinner;
+}
+
+exports.renderPieChart = function(canvas,startAngle=0,endAngle,fillStyle,strokeStyle){
+    if(!canvas){
+        canvas = document.createElement("canvas");
+        canvas.width = 150;
+        canvas.height = 150;
+    }
+    ctx = canvas.getContext("2d");
+    let {height,width} = canvas;
+    ctx.beginPath();
+    ctx.fillStyle = !fillStyle ? `hsl(${endAngle*57.29},100%,70%)` : fillStyle;
+    ctx.strokeStyle = !strokeStyle ? `white` : strokeStyle;
+    ctx.lineTo(width/2,height/2);
+    ctx.closePath();
+    ctx.arc(width/2,height/2,width/2-8,startAngle,endAngle,false);
+    ctx.fill();
+    ctx.stroke();
+    ctx.save();
+    return {canvas,fillStyle:ctx.fillStyle};
 }

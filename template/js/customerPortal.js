@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput, printModal, drawSpinner } = require("../js/common");
+const { toggleDevTool,validateInput, printModal, drawSpinner, renderPieChart } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -8,35 +8,10 @@ let customerList = [];
 let page2BTNS = document.querySelector("#form div:nth-child(1)");
 let currentPage = 0,selectedDiv,selectedCustomer;
 let canvas = document.querySelector("#canvas-container>canvas");
-let ctx = canvas.getContext("2d"),total=0;
+let ctx = canvas.getContext("2d");
+let total=0;
 let colorCode = [];
 let spinner = drawSpinner(document);
-
-function renderCircle(){
-    let {height,width} = canvas,startIndex = 0,netBalance = 0;
-    ctx.clearRect(0,0,width,height);
-    colorCode = [];
-    customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
-    customerList.forEach(({netPurchase:balance,id,name})=>{
-        netBalance += balance;
-        let endAngle = 2*Math.PI*netBalance/total;
-        let customerDiv = document.querySelector(`[data-cust-id='${id}']`);
-        ctx.beginPath();
-        ctx.fillStyle = `hsl(${endAngle*57.29},100%,70%)`;
-        ctx.strokeStyle = `white`;
-        ctx.arc(width/2,height/2,width/2-8,startIndex,endAngle,false);
-        ctx.lineTo(width/2,height/2);
-        ctx.closePath();
-        colorCode.push({color:ctx.fillStyle,id,startAngle:startIndex,endAngle});
-        startIndex = endAngle;
-        [...customerDiv.children].forEach(p=>{
-            p.style.color=ctx.fillStyle;
-        });
-        ctx.fill();
-        ctx.stroke();
-    });
-    ctx.save();
-}
 
 function rgbToHex(r, g, b){
     if (r > 255 || g > 255 || b > 255)
@@ -47,7 +22,7 @@ function rgbToHex(r, g, b){
 document.querySelector("#canvas-container").addEventListener("click",function(e){
     if(currentPage>0) return;
     let {x,y} = e;
-    let imgData = ctx.getImageData(x,y,1,1).data;
+    let imgData = e.target.getContext("2d").getImageData(x,y,1,1).data;
     let hex = "#" + ("000000" + rgbToHex(imgData[0], imgData[1], imgData[2])).slice(-6);
     [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
     let {id,startAngle,endAngle} = colorCode.find(({color})=>color===hex)
@@ -121,7 +96,21 @@ ipcRenderer.on("customer-list",(e,{customerObj})=>{
         selectedDiv.classList.remove("hide");
         total += netPurchase;
     });
-    renderCircle();
+    colorCode = [];
+    let netBalance = 0,startAngle = 0;
+    customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
+    customerList.forEach(({netPurchase:balance,id})=>{
+        netBalance += balance;
+        let endAngle = 2*Math.PI*netBalance/total;
+        let customerDiv = document.querySelector(`[data-cust-id='${id}']`);
+        renderPieChart(canvas,startAngle,endAngle);
+        colorCode.push({color:ctx.fillStyle,id,startAngle,endAngle});
+        startAngle = endAngle;
+        [...customerDiv.children].forEach(p=>{
+            p.style.color=ctx.fillStyle;
+        });
+        
+    });
     spinner.remove(window);
 });
 
@@ -417,7 +406,7 @@ document.body.addEventListener("click",(e)=>{
     document.getElementById("filter-option")?.classList.add("hide");
     if(e.target.nodeName!=="CANVAS")
         ctx.restore();
-    renderCircle();
+    renderPieChart();
     [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
 },true);
 

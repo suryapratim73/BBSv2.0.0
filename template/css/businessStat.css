@@ -1,0 +1,68 @@
+@import "../css/common.css";
+body{
+    height: max-content;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+}
+h1,h3{
+    color: black;
+}
+.block>div:first-child>h1{
+    font-size: 3rem;
+    font-weight: 100;
+}
+.block>div:first-child>div{
+    margin-left: 1rem;
+}
+#weekly-stat-div{
+    display: flex;
+    justify-content: space-between;
+}
+#weekly-stat-div>div:first-child{
+    flex: 1;
+}
+#weekly-stat-div>div:last-child{
+    flex: 3;
+    display: flex;
+}
+#weekly-stat-div>div:last-child>div{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+.day-amt{
+    margin-top: 0.5rem;
+    font-size: 1rem;
+}
+.day-amt.larger{
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+.feild-heading.larger{
+    font-size: 2.5rem;
+    margin-top: 0.5rem;
+}
+.feild-heading{
+    font-size: 1rem;
+}
+.canvas-div{
+    width: calc(100% - 1.75em);
+    height: calc(100% - 1.75em);
+}
+.canvas-div canvas{
+    width: 100%;
+    height: 100%;
+}
+#yearly-performance-div{
+    flex-direction: column;
+}
+#yearly-performance-div>h1{
+    text-align: center;
+}
+#yearly-performance-div>div{
+    display: flex;
+    justify-content: space-evenly;
+    margin-top: 0.5rem;
+}

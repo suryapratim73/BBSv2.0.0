@@ -4,7 +4,7 @@ const {updateStock,displayStock,handleReturn} = require("./handleStock");
 const {getSuplier,getLedger,addPaymentForSupplier,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
-const { createGSTSummaryWindow } = require("./businessHandler");
+const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -128,7 +128,8 @@ module.exports = mainWindow=>{
                     click: createGSTSummaryWindow(mainWindow)
                 },
                 {
-                    label: "Business Statistics"
+                    label: "Business Statistics",
+                    click: createBusinessStatPage(mainWindow)
                 },
                 {
                     label: "GST Return JSON"

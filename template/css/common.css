@@ -246,3 +246,20 @@
         opacity: 0;
     }
 }
+.block{
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 1rem;
+    border-radius: 15px;
+    box-shadow: 0px 0px 8px 1px grey;
+}
+.block>div{
+    flex: 1;
+}
+.block h1,.block p,.block h3{
+    color:black;
+}
+.block p{
+    color: orangered;
+}

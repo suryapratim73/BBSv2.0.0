@@ -1,15 +1,15 @@
 const { ipcMain } = require("electron");
 const { createModal } = require("./createModal");
-const { sequelize, sale, purchase } = require("./model/dbConfig");
+const { sequelize, sale, purchase, outPayments, inPayments } = require("./model/dbConfig");
 const { supplierLedgerSchema,customerLedgerSchema } = require("./model/dynamicSchemas");
 const { getLedgerModel } = require("./common");
 const { Op } = require("sequelize");
 const { gstRecurranceTerm,financialYearStartDate } = require("./config/policy.json");
 
 
-exports.createGSTSummaryWindow = mainWindow => {
-    let pathToHTML = "./template/html/gstSummaryPage.html";
-    let windowOptions = {
+
+function getWindowOptions(mainWindow){
+    return {
         width: 800,
         height: 600,
         resizable:false,
@@ -21,8 +21,19 @@ exports.createGSTSummaryWindow = mainWindow => {
         parent:mainWindow,
         contextIsolation:true
     };
+}
+
+exports.createGSTSummaryWindow = mainWindow => {
+    let pathToHTML = "./template/html/gstSummaryPage.html";
     return ()=>{
-        createModal(windowOptions,pathToHTML);
+        createModal(getWindowOptions(mainWindow),pathToHTML);
+    }
+}
+
+exports.createBusinessStatPage = mainWindow => {
+    let pathToHTML = "./template/html/businessStat.html";
+    return ()=>{
+        createModal(getWindowOptions(mainWindow),pathToHTML);
     }
 }
 
@@ -68,4 +79,57 @@ ipcMain.on("get-all-gst-current-month",async e=>{
         startDate.setMonth(endDate.getMonth()+1,1);
     }
     e.sender.send("monthly-gst",monthlyGSTs);
+});
+
+async function getPeriodicSalePurchase(table,where,attributes){
+    
+    return (await (await table.sync()).findAll({
+        where,
+        attributes
+    })).map(({dataValues})=>dataValues);
+}
+
+ipcMain.on("get-total-sale-purchase",async (e,period)=>{
+    let startDate;
+    if(period===7)
+        startDate = new Date(Date.now()-(period+(new Date()).getHours()/24)*24*60*60*1000);
+    else{
+        startDate = new Date();
+        let [dt,mnth] = financialYearStartDate.split("/");
+        if(startDate.getMonth()>+mnth-1)
+            startDate.setMonth(+mnth-1,dt);
+        else
+            startDate.setFullYear(startDate.getFullYear()-1,+mnth-1,+dt);
+    }
+    let where = period===7? {
+        billDate:{
+            [Op.between]:[startDate,new Date()]
+        }
+    } : {
+        billDate:{
+            [Op.between]:[startDate,new Date()]
+        },
+        paymentStatus:false
+    },
+    attributes = period===7 ? ["billDate","billAmt"] : ["billAmt"];
+    try{
+        let sales = await getPeriodicSalePurchase(sale,where,attributes);
+        let purchases = await getPeriodicSalePurchase(purchase,where,attributes);
+        if(period===7){
+            where = {date:{[Op.between]:[startDate,new Date()]}}
+            attributes = ["payment","date"]
+            let outPaymentObjs = await getPeriodicSalePurchase(outPayments,where,attributes);
+            let inPaymentObjs = await getPeriodicSalePurchase(inPayments,where,attributes);
+            e.sender.send("get-total-sale-purchase-response",{sales,purchases,outPaymentObjs,inPaymentObjs,period});
+        }
+        else{
+            where = {billDate:where.billDate};
+            let allSales = await getPeriodicSalePurchase(sale,where,attributes);
+            let allPurchases = await getPeriodicSalePurchase(purchase,where,attributes);
+            e.sender.send("get-yearly-sale-purchase-response",{sales,purchases,allSales,allPurchases})
+        }
+    }
+    catch(err){
+        console.log(err)
+    }
 });
