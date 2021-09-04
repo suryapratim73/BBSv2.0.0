@@ -1,92 +1,164 @@
 @import "../css/common.css";
 body{
-    display: grid;
-    grid-template: repeat(12,1fr)/repeat(12,1fr);
-    background: rgb(15 15 15 / 0.71);
-    width: 100vw;
     height: 100vh;
+    padding: 0;
+    /* overflow: hidden; */
 }
-#header{
-    grid-column: span 12;
-    grid-row: span 2;
-}
-#header h1,#header p{
-    margin: 1rem;
-}
-#header span{
-    color: orange;
-    margin-right: 0.5rem;
-}
-#body{
-    grid-column: span 12;
-    grid-row: 3/12;
+.page{
+    height: 100%;
     padding: 1rem;
 }
-#body input,#body button{
-    color:orangered;
-}
-#body>div{
+form{
+    height: 100%;
     display: flex;
-    margin: 1rem;
+    flex-direction: column;
+    justify-content: space-evenly;
 }
-.row0{
+form h2,h2,p,input,option,select{
+    color: black;
+}
+form span, form label{
+    color: red;
+}
+form>div{
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    box-shadow: 0 0 5px 0px black;
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+form>div:last-child{
+    all: unset;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+form>div>div:first-child{
     flex: 1;
 }
-.row1{
-    flex: 5;
+form>div>div:last-child{
+    flex: 3;
+    justify-content: flex-start;
+}
+form input{
+    width: 100%;
+    color: blue;
+    padding: 0.15rem 0.5rem;
+    font-size: 1rem;
+}
+form button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+}
+form button:first-child{
+    color: red;
+    border-color: unset;
+    box-shadow: 1px 1px 1px 0, -1px -1px 3px 0 grey;
+}
+form button:last-child{
+    color: blue;
+    box-shadow: 1px 1px 1px 0px, -1px -1px 3px 0 grey;
+    border-color: unset;
+}
+form>div>div:last-child>button{
+    border-color: initial;
+    font-size: 1rem;
+    margin: 0.25rem 0;
+}
+#table{
+    height: fit-content;
+}
+.head p{
+    color: blue;
+}
+.col{
+    border-color: black;
+}
+#purchase-page-modal{
     display: flex;
-    align-items: center;
 }
-.row1 input{
-    width: 90%;
-    padding: 0.15rem;
-    border-radius: 5px;
-    border: none;
-    font-size: 1.2rem;
+#purchase-page-modal form{
+    width: 100%;
+    gap: 0.5rem;
 }
-#body>div>button{
-    font-size: 1.2rem;
-    padding: 0 0.3rem;
+#purchase-page-modal form>div:first-child{
+    flex: 10;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    justify-content: flex-start;
 }
-.row1 button{
-    font-size: 1.2rem;
-    align-self: stretch;
-    padding: 0 0.25rem;
+.feild{
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    flex: unset !important;
 }
-#body table{
+.feild button{
+    height: fit-content;
+}
+.feild label,.feild input,.feild select{
+    flex:1;
+}
+.popup2{
+    width: 50%;
+    height: 50%;
+    left: 25%;
+    top: 25%;
+    display: flex;
+    box-shadow: 0 0 5px 0 grey;
+}
+.popup2>form{
     width: 100%;
 }
-#body th{
-    background: orange;
-    color: black;
-    padding: 0.3rem 0.5rem;
+#purchase-page-modal form>div:last-child{
+    flex: 1;
 }
-#body td{
-    color: orange;
-    text-align: center;
-    border: 1px solid;
+.body.row{
+
 }
-#command{
-    grid-column: span 12;
-    grid-row: span 1;
+.row>div + div,.row>div:first-child{
+    border-left: 1px solid black;
 }
-#command div{
-    width: fit-content;
-    margin: 0 1rem 0 auto;
+.row>div:last-child{
+    border-right: 1px solid black;
 }
-#command button{
-    padding: 0.5rem;
-    font-size: 1rem;
-    color: black;
+.col{
+    border:unset;
+    border-bottom: 1px solid black;
+    border-top: 1px solid black;
 }
-#cancel-btn{
-    color: black;
+.body.row input,.body.row p{
+    width: 100%;
+    border: none;
 }
-#proceed-btn{
-    background-color: rgb(50 50 255);
-    color: white;
+.sm{
+    width: 3rem;
+    word-break: keep-all;
 }
-#back-btn{
-    background-color: gray;
-    color:white;
+.lg{
+    width: 10rem;
+}
+.md{
+    width: 4rem;
+}
+.row{
+    margin-bottom: 0.5rem;
+}
+.body-row-options{
+
+}
+.body-row-options>button{
+    padding: 0.15rem 0.25rem;
+}
+.body-row-options>button:first-child{
+    color: red;
+}
+.body-row-options>button:last-child{
+    color: blue;
 }

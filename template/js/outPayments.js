@@ -75,8 +75,8 @@ function formSubmitHandler(e){
             payment:+(this.amount.value),
             billAmt:selectedBill.billAmt,
             type:"bill",
-            paymentStatus:balance===0?true:false,
-            itemList:selectedBill.itemList
+            paymentStatus:balance===0?true:false,//May not be required
+            itemList:selectedBill.itemList//May not be required
         }
         ipcRenderer.send("add-out-payment",updateObj);
     }

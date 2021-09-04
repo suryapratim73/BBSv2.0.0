@@ -80,6 +80,68 @@
 .col5{
     flex:1;
 }
+.sm{
+    width: 4rem;
+    word-break: break-all;
+}
+.md{
+    width: 5rem;
+}
+.lg{
+    width: 10rem;
+}
+#table,.table{
+    height: 100%;
+    flex-direction: column;
+}
+#tbody{
+    height: 100%;
+    overflow: auto;
+}
+.row{
+    display: flex;
+    height: max-content;
+}
+.col{
+    border: 1px solid;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.head div{
+    padding: 0.5rem;
+}
+.head p{
+    font-weight: 600;
+    color: yellow;
+}
+.row-control-div{
+    width: 2rem;
+    height: 2rem;
+}
+.row-control-div button{
+    color: red;
+    background: transparent;
+    outline: none;
+    font-weight: 600;
+    border-radius: 50%;
+    width: 100%;
+    height: 100%;
+    font-size: 1.2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#add-item button{
+    background: white;
+    border-radius: 5px;
+    color: green;
+    font-size: 2rem;
+}
+.row:last-child{
+    margin: 0.5rem 0;
+}
 .card{
     background: white;
     margin: 0.2rem;

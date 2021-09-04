@@ -283,10 +283,16 @@ function addRow(e,returnClassName=""){
     e.target.scrollIntoView();
 }
 
+function openSelectionModal(e){
+    e.preventDefault();
+    const { key,target:orgInput } = e;
+    // Work in progress.
+}
+
 function getBodyRow(returnClassName=""){
     return `
             <div class="col sm"><p>${slNo}</p></div>
-            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onchange="selectionHandler(event,${returnClassName===''?false:true})" /></div>
+            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onkeypress="openSelectionModal(event)" onchange="selectionHandler(event,${returnClassName===''?false:true})" /></div>
             <div class="col md"><p></p></div>
             <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input type="text" /></div>                            

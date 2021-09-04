@@ -4,7 +4,7 @@ const fs = require("fs");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, transporters, inPayments, sale } = require("./model/dbConfig");
 const { Op } = require("sequelize");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo } = require("./common");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const {scriptFile} = require("./config/saleConfig.json");
 const {billPDF} = require(`./scripts/${scriptFile}`);
@@ -167,6 +167,7 @@ function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 message: "Bill added to your sale and stocks and/or ledger updated."
             };
             dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+            appLogger("sale",JSON.stringify({name,billNo,netPayment}))
         })
         .catch(console.log);
     })

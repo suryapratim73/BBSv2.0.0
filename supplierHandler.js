@@ -3,7 +3,7 @@ const { Op } = require("sequelize");
 const { createModal } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
-const { getLedgerModel, getStartDate } = require("./common");
+const { getLedgerModel, getStartDate, appLogger } = require("./common");
 const { ledgerPDF } = require("./scripts/makePDF.default");
 
 exports.getSuplier = mainWindow =>{
@@ -111,16 +111,15 @@ ipcMain.on("get-new-phone-number",()=>{
 });
 
 ipcMain.on("new-number-supplier",(e,phone)=>{
-    console.log(phone);
     let focusedWindow = BrowserWindow.getFocusedWindow();
     let getSupplierWindow = focusedWindow.getParentWindow();
     getSupplierWindow.webContents.send("new-number",phone);
     focusedWindow.close();
-})
+});
 
 ipcMain.on("update-supplier-detail",(e,dataObj)=>{
     dataObj.type = "supplier";
-    console.log(dataObj)
+    // console.log(dataObj)
     let windowOptions = {
         width: 400,
         height: 200,
@@ -139,7 +138,7 @@ ipcMain.on("update-supplier-detail",(e,dataObj)=>{
     modal.on("ready-to-show",()=>{
         modal.webContents.send("update-data-obj",dataObj)
     })
-})
+});
 
 ipcMain.on("update-data-obj-complete",(e,dataObj)=>{
     e.sender.browserWindowOptions.parent.webContents.send("update-supplier-detail-done",dataObj);
@@ -154,6 +153,7 @@ ipcMain.on("update-supplier-db",(e,{name,gst,address,phones,comment,id})=>{
         message: "Selected supplier information has been updated."
     }
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+    appLogger("supplier detail update",JSON.stringify({name,gst,address,phones,comment}))
 });
 
 ipcMain.handle("get-supplier-ledger",async (e,{name,id})=>{
@@ -225,8 +225,7 @@ ipcMain.handle("get-unpaid-bills",async (e,{name,id})=>{
     })).map(({dataValues})=>dataValues);
 });
 
-ipcMain.on("add-out-payment",
-async (e,{id,billNo,billAmt,payment,type,paymentStatus,itemList})=>{
+ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type})=>{
     let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
     let lastBalance = (await (supplierLedger.findOne({
         attributes:["balance"],
@@ -277,6 +276,10 @@ async (e,{id,billNo,billAmt,payment,type,paymentStatus,itemList})=>{
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         BrowserWindow.getFocusedWindow().close();
+        if(type==="bill")
+            appLogger("paid to supplier",JSON.stringify({id,billNo,billAmt,payment,type}))
+        else
+            appLogger("paid out",JSON.stringify({id,billNo,billAmt,payment,type}))
     })
     .catch(console.log);
 });

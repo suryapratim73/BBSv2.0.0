@@ -1,19 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Add Purchase</title>
     <script src="../js/purchaseTemplate.js" defer></script>
-    <link rel="stylesheet" href="../css/purchaseTemplate.css">
+    <link rel="stylesheet" href="../css/purchaseTemplate.css" />
 </head>
+
 <body>
-    <div id="header">
-        <h1>Add Purchase Dialog</h1>
-        <p><span>Step 1:</span> Add supplier detail</p>
+    <div id="page1" class="page hide">
+        <form onsubmit="addSupplier(event)">
+            <h2>Add <span>Supplier</span> details</h2>
+            <div>
+                <div><label for="name">Name:</label></div>
+                <div><input type="text" required autofocus placeholder="compulsory feild" name="name" id="name" list="suppliers-dl"/></div>
+            </div>
+            <div>
+                <div><label for="address">Address:</label></div>
+                <div><input type="text" required placeholder="compulsory feild" name="address" id="address" /></div>
+            </div>
+            <div>
+                <div><label for="phones">Phones:</label></div>
+                <div>
+                    <input type="text" required placeholder="compulsory feild" data-type="Number" name="phones" id="phones" onkeypress="validateInput(event)"/>
+                    <button type="button" tabindex="-1" onclick="addNewNumber(event)">+</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="email">Email:</label></div>
+                <div><input type="text" name="email" placeholder="optional feild with value must be xyz@xyz.xyz format" id="email" pattern="\S+@\S+\.\S+" /></div>
+            </div>
+            <div>
+                <div><label for="gst">GST Number:</label></div>
+                <div><input type="text" placeholder="compulsory feild" required name="gst" id="gst" /></div>
+            </div>
+            <div>
+                <button type="button">Cancel</button>
+                <button type="submit">Proceed</button>
+            </div>
+        </form>
     </div>
-    <div id="body"></div>
-    <div id="command"></div>
+    <div id="page2" class="page">
+        <h2>Add Bill Items</h2>
+        <div id="table">
+            <div class="row head">
+                <div class="col sm"><p>Sl No.</p></div>
+                <div class="col lg"><p>Particular</p></div>
+                <div class="col md"><p>HSN No</p></div>
+                <div class="col md"><p>Quantity</p></div>
+                <div class="col md"><p>Unit</p></div>
+                <div class="col md"><p>Rate</p></div>
+                <div class="col md"><p>Amount</p></div>
+                <div class="col sm"><p>CGST</p></div>
+                <div class="col sm"><p>SGST</p></div>
+                <div class="col sm"><p>IGST</p></div>
+                <div class="col md"><p>Total</p></div>
+            </div>
+            <div id="tbody">
+                <div class="row row-control-div" id="add-item">
+                    <button onclick="addRow(event)">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="page3" class="page hide"></div>
+    <div class="modal hide" id="purchase-page-modal">
+        <form onsubmit="addItem(event)">
+            <div>
+                <div class="feild">
+                    <button type="button" onclick="addFeild(event)">Add More Feilds</button>
+                </div>
+            </div>
+            <div>
+                <button type="button" onclick="closeModal(event)" data-modal="purchase-page-modal">Cancel</button>
+                <button type="submit">Set</button>
+            </div>
+        </form>
+    </div>
+    <div class="popup2 modal hide">
+        <form onsubmit="setFeild(event)">
+            <div class="feild">
+                <label for="label">Feild label</label>
+                <input type="text" name="label" id="label" required list="feild-labels">
+            </div>
+            <div class="feild">
+                <label for="value">Feild value</label>
+                <input type="text" name="value" id="value" required>
+            </div>
+            <div class="feild">
+                <button type="button" onclick="closeModal(event)" data-modal="popup2">Cancel</button>
+                <button type="submit">Set</button>
+            </div>
+        </form>
+    </div>
+    <div class="cover hide"></div>
+    <datalist id="stock-dl"></datalist>
+    <datalist id="feild-labels">
+        <option value="cgst">CGST</option>
+        <option value="sgst">SGST</option>
+        <option value="igst">IGST</option>
+    </datalist>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col sm"><p>1</p></div>
+            <div class="col lg"><input type="text" data-name="stock-name" list="stock-dl" /></div>
+            <div class="col md"><p></p></div>
+            <div class="col md"><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input type="text" /></div>                            
+            <div class="col md"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p></p></div>
+            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p></p></div>
+        </div>
+    </template>
+    <template id="item-options">
+        <div class="body-row-options">
+            <button data-cmd="delete">Delete</button>
+            <button data-cmd="add-info">Add More Details</button>
+        </div>
+    </template>
 </body>
+
 </html>

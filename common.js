@@ -1,6 +1,6 @@
 const { sequelize } = require("./model/dbConfig");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
-const { dialog,ipcMain } = require("electron");
+const { dialog, ipcMain, BrowserWindow } = require("electron");
 const { ledgerPDF } = require("./scripts/makePDF.default");
 const { customer,supplier } = require("./model/dbConfig");
 const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSchemas");
@@ -8,6 +8,27 @@ const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
 
+
+ipcMain.on("openDevTool",(e)=>{
+    console.log("Opening DevTool")
+    e.sender.toggleDevTools();
+});
+
+ipcMain.on("close",()=>{
+    let purchaseWindows = BrowserWindow.getAllWindows();
+    if(purchaseWindows.length>0)
+        purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
+    BrowserWindow.getFocusedWindow().close();
+});
+
+exports.closeAndDisplay = function(msg){
+    let purchaseWindows = BrowserWindow.getAllWindows()
+    let parentWindow = BrowserWindow.getFocusedWindow().getParentWindow();
+    let focusedWindow = BrowserWindow.getFocusedWindow();
+    purchaseWindows = purchaseWindows.filter(window=>window!==focusedWindow);
+    focusedWindow.close();
+    dialog.showMessageBox(parentWindow,msg)
+}
 
 class BillNoGenerator{
     constructor(initBillNo){
@@ -34,12 +55,12 @@ class FileHandler{
                 if(err)
                     throw err;
                 console.log("log directory created!")
-            })
+            });
         this.fd = fs.openSync(path.resolve(__dirname,this.fPath),"a+");
     }
 }
 
-let billNoGenInstance,loggerFH;
+let billNoGenInstance,loggerFH = [];
 
 async function getLedgerModel(id,ledgerSchema){
     let supplierLedger = `${id}Ledger`;
@@ -114,11 +135,23 @@ exports.getLastBillNo = function(){
     return billNoGenInstance.billNo;
 }
 
-exports.loggerFH = function(){
-    loggerFH = new FileHandler("./logs/dbLogs.txt","../");
-    return loggerFH;
+exports.loggerFH = function(fileName){
+    let fh = new FileHandler(`./logs/${fileName}`,"../");
+    loggerFH.push({[fileName]:fh});
+    return fh;
 }
 
-exports.getLoggerFD = function(){
-    return loggerFH.fd;
+exports.getLoggerFD = function(...arg){
+    if(arg.length===0)
+        return loggerFH.map(obj=>Object.values(obj)[0].fd);
+    else
+        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])[arg[0]].fd;
+}
+
+exports.appLogger = function(...lines){
+    let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))["appLogs.txt"].fd;
+    let lineToAppend = lines.reduce((str,line)=>(str+line+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
+    fs.appendFile(appLoggerFD,lineToAppend,err=>{
+        if(err) throw err;
+    })
 }

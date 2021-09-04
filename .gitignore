@@ -6,3 +6,5 @@ test.js
 ext/
 todo
 logs/
+
+*.txt

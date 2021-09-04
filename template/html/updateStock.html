@@ -19,7 +19,7 @@
         <form>
             <div>
                 <label for="stock-name">Item name</label>
-                <input type="text" list="stock-name" />
+                <input type="text" list="stock-name" onchange="setSelectedStock(event)"/>
             </div>
             <div>
                 <label for="update-qty">Update quantity</label>
@@ -33,9 +33,26 @@
                 <label for="update-location">Set new location</label>
                 <input type="text" />
             </div>
+            <div>
+                <button onclick="showModal()" disabled id="more-info" type="button">More Info</button>
+            </div>
             <div><button type="submit">Update</button></div>
         </form>
     </main>
+    <div class="modal hide" id="product-info">
+        <form id="feild-map" onsubmit="saveFeildValues(event)">
+            <div id="feild-container">
+                <div>
+                    <button type="button" onclick="addFeild(event)" id="add-feild">Add feild</button>
+                </div>
+            </div>
+            <div id="btn-container">
+                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+    <div class="cover hide" onclick="closeModal()"></div>
 </body>
 
 </html>

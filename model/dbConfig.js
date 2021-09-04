@@ -15,11 +15,11 @@ const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:"./db/usha.db",
     logging:function(...msg){
-        let loggerFD = getLoggerFD?.()
+        let loggerFD = getLoggerFD?.("dbLogs.txt")
         if(!getLoggerFD)
             setTimeout(()=>{
                 getLoggerFD = require("../common").getLoggerFD;
-                loggerFD = getLoggerFD?.();
+                loggerFD = getLoggerFD?.("dbLogs.txt");
                 appendToFile(loggerFD,msg[0]);
             },10)
         if(loggerFD)
@@ -59,8 +59,9 @@ const supplier = {
     gst:{
         type:DataTypes.TEXT
     },
-    comment:{
-        type:DataTypes.TEXT
+    moreInfo:{
+        type:DataTypes.JSON,
+        defaultValue:{}
     }
 }
 
@@ -82,8 +83,13 @@ const customerSchema = {
     gst:{
         type:DataTypes.TEXT
     },
-    comment:{
-        type:DataTypes.TEXT
+    score:{
+        type:DataTypes.NUMBER,
+        defaultValue: 0
+    },
+    moreInfo:{
+        type:DataTypes.JSON,
+        defaultValue:[]
     }
 }
 
@@ -144,12 +150,28 @@ const stockSchema = {
         type: DataTypes.INTEGER,
         defaultValue:0
     },
+    specialPrice:{
+        type: DataTypes.JSON,
+        defaultValue:[]
+    },
     tax:{
         type: DataTypes.INTEGER
     },
     pInfo:{
         type: DataTypes.JSON,
-        defaultValue:{}
+        defaultValue: {}
+    },
+    pHistory:{
+        type: DataTypes.JSON,
+        defaultValue: []
+    },
+    pScore:{
+        type: DataTypes.NUMBER,
+        defaultValue: 0
+    },
+    saleHistory:{
+        type: DataTypes.JSON,
+        defaultValue: {}
     }
 }
 
@@ -371,6 +393,6 @@ module.exports = {
 }
 
 // sequelize.sync({
-//     force:false,
+//     force:true,
 //     alter:true
 // }).then(()=>console.log("sequelize sync done")).catch(console.warn);

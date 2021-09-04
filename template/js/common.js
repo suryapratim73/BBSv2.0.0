@@ -320,3 +320,7 @@ exports.renderPieChart = function(canvas,startAngle=0,endAngle,fillStyle,strokeS
     ctx.save();
     return {canvas,fillStyle:ctx.fillStyle};
 }
+
+exports.removeAllElem = function(selector){
+    [...document.querySelectorAll(selector)].forEach(node=>node.remove());
+}

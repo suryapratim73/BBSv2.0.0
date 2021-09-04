@@ -7,6 +7,7 @@ toggleDevTool(document);
 let monthObj = ["Jan","Feb","Mar","Apr","May","June","July","Aug","Sep","Oct","Nov","Dec"];
 let weekObj = ["Mon","Tues","Wed","Thurs","Fri","Sat","Sun"];
 let startAngle = 0,endAngle = 0,sum = 0,total = 0;
+let spinner = drawSpinner(document);
 
 ipcRenderer.send("get-total-sale-purchase",7);
 
@@ -109,5 +110,6 @@ ipcRenderer.on("get-yearly-sale-purchase-response",(e,{sales,purchases,allSales,
     let netAmts =  getNetAmtArr({sales,purchases});
     let allNetAmts = getNetAmtArr({allSales,allPurchases});
     initCanvas("#debit-credit-chart",netAmts,["blue","red"])
-    initCanvas("#sale-purchase-chart",allNetAmts,["green","purple"]);    
+    initCanvas("#sale-purchase-chart",allNetAmts,["green","purple"]);
+    spinner.remove(window)    
 })

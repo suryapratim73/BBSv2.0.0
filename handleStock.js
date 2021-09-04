@@ -35,13 +35,16 @@ exports.handleReturn = ()=>{
     }
 }
 
-ipcMain.on("update-stock",async (e,{name,quantity,price,location})=>{
+ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
     try{
+        await stock.update({pInfo:feildMap},{
+            where:{name}
+        })
         let selectedStock = await stock.findOne({
             where:{
                 name
             }
-        })
+        });
         selectedStock.updateStock={quantity,price,location};
         if(await selectedStock.save()){
             BrowserWindow.getFocusedWindow().close();
@@ -57,8 +60,17 @@ ipcMain.on("update-stock",async (e,{name,quantity,price,location})=>{
 
 ipcMain.handle("get-stock-names",()=>{
     return stock.findAll({attributes:["name"]})
-})
+});
 
 ipcMain.handle("get-stocks",()=>{
     return stock.findAll({attributes:["name","type","quantity","buyPrice","standardSellPrice","tax","hsn","unit"]})
-})
+});
+
+ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
+    return (await stock.findOne({
+        where:{
+            name:selectedStock
+        },
+        attributes: ["pInfo"]
+    })).dataValues;
+});

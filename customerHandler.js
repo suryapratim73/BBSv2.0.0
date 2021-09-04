@@ -1,5 +1,5 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
-const { getLedgerModel, print, getBillModel } = require("./common");
+const { getLedgerModel, print, getBillModel, appLogger } = require("./common");
 const { createModal } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
@@ -113,7 +113,8 @@ ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt,retAmt)=>{
         })
     ])
     .then(()=>{
-        e.sender.send("payment-successful",name,Math.round(lastBalance - payment))
+        e.sender.send("payment-successful",name,Math.round(lastBalance - payment));
+        appLogger("received payment",JSON.stringify({name,billNo,payment}));
     })
     .catch(console.log)
 });
@@ -197,6 +198,7 @@ ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id:customerId})=>{
         let focussedWindow = BrowserWindow.getFocusedWindow()
         dialog.showMessageBox(focussedWindow,msg)
             .then(()=>focussedWindow.close());
+        appLogger("received goods return from customer",JSON.stringify({customerId,itemList,retAmt,retDate}));
     })
     .catch(err=>dialog.showErrorBox("Error",err));
 });
@@ -217,6 +219,7 @@ ipcMain.on("get-supp-bill-numbers",async (e,suppId,startDate,endDate)=>{
 ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
     let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
     let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
+    //work with supplierLedger object.
     Promise.all([
         (await returnRegister.sync()).create({
             itemList,
@@ -250,6 +253,7 @@ ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
         let focussedWindow = BrowserWindow.getFocusedWindow()
         dialog.showMessageBox(focussedWindow,msg)
             .then(()=>focussedWindow.close());
+        appLogger("returned goods to supplier",JSON.stringify({customerId,itemList,retAmt,retDate}));
     })
     .catch(err=>dialog.showErrorBox("Error",err));
 });

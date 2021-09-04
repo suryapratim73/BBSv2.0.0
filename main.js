@@ -33,10 +33,12 @@ app.on("quit",()=>{
   let saleConfig=rawData!==""?JSON.parse(rawData):{};
   saleConfig.billNo = getLastBillNo();
   fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
-  let fd = getLoggerFD();
-  fs.close(fd,err=>{
-    if(err) throw err;
-  });
+  let fds = getLoggerFD();
+  fds.forEach(fd=>{
+    fs.close(fd,err=>{
+      if(err) throw err;
+    });
+  })
 });
 
 app.on('window-all-closed', () => {
@@ -82,7 +84,8 @@ app.on("ready",async (e,launchInfo)=>{
     billNoCounter(billNo);
   });
   //Initialize logger file
-  loggerFH();
+  loggerFH("dbLogs.txt");
+  loggerFH("appLogs.txt");
   //Check for required files and directories
   let fileList = [];
   let readInterface = readLine.createInterface({
