@@ -12,12 +12,12 @@ form{
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
+    justify-content: space-between;
 }
 form h2,h2,p,input,option,select{
     color: black;
 }
-form span, form label{
+form span, form label, span{
     color: red;
 }
 form>div{
@@ -49,18 +49,18 @@ form input{
     padding: 0.15rem 0.5rem;
     font-size: 1rem;
 }
-form button{
+form button,.btn-container>button{
     padding: 0.3rem 0.5rem;
     outline: none;
     border-radius: 3px;
     font-weight: 100;
 }
-form button:first-child{
+form button:first-child,.btn-container>button:first-child{
     color: red;
     border-color: unset;
     box-shadow: 1px 1px 1px 0, -1px -1px 3px 0 grey;
 }
-form button:last-child{
+#more-feild-btn,form button:last-child,.btn-container>button:nth-child(2){
     color: blue;
     box-shadow: 1px 1px 1px 0px, -1px -1px 3px 0 grey;
     border-color: unset;
@@ -69,6 +69,22 @@ form>div>div:last-child>button{
     border-color: initial;
     font-size: 1rem;
     margin: 0.25rem 0;
+}
+#page2{
+    display: grid;
+    grid-template: repeat(12,1fr)/repeat(12,1fr);
+}
+#page2>h2{
+    grid-row: 1;
+    grid-column: 1/span 12;
+}
+#page2>#table{
+    grid-row: 2/12;
+    grid-column: 1/span 12;
+}
+#page2>.btn-container{
+    grid-row: 13;
+    grid-column: 1/span 12;
 }
 #table{
     height: fit-content;
@@ -119,9 +135,6 @@ form>div>div:last-child>button{
 #purchase-page-modal form>div:last-child{
     flex: 1;
 }
-.body.row{
-
-}
 .row>div + div,.row>div:first-child{
     border-left: 1px solid black;
 }
@@ -150,9 +163,6 @@ form>div>div:last-child>button{
 .row{
     margin-bottom: 0.5rem;
 }
-.body-row-options{
-
-}
 .body-row-options>button{
     padding: 0.15rem 0.25rem;
 }
@@ -161,4 +171,108 @@ form>div>div:last-child>button{
 }
 .body-row-options>button:last-child{
     color: blue;
+}
+.btn-container{
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.btn-container>button:last-child{
+    color: green;
+    box-shadow: 1px 1px 1px 0px, -1px -1px 3px 0 grey;
+    border-color: unset;
+}
+#more-feild-menu{
+    position: relative;
+    box-shadow: 1px 1px 1px 0px blue, -1px -1px 5px 0px grey;
+    background: white;
+    height: 1.5rem;
+    min-width: 1.5rem;
+    max-width: 1.5rem;
+    border-radius: 50%;
+    margin-right: auto;
+}
+#more-feild-div{
+    position: absolute;
+    width: 400px;
+    height: 200px;
+    bottom: 0;
+    left: 110%;
+    overflow: auto;
+    padding: 0.75rem;
+    border: 1px solid orangered;
+    background: white;
+    border-radius: 15px;
+}
+#more-feild-div>div{
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    margin: 0.15rem 0;
+    border: 1px solid;
+    border-radius: 5px;
+}
+#more-feild-div p{
+    color: inherit;
+}
+#page4>form{
+    gap: 0.5rem;
+    padding: 0.2rem;
+}
+#main{
+    flex: 3;
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+#payment-div{
+    flex: 2;
+    height: 90%;
+}
+#payment-div>div{
+    display: flex;
+    justify-content: space-between;
+}
+#payment-div>div>div{
+    flex: 1;
+    margin: 0.5rem 0;
+}
+#summary-div{
+    flex: 1;
+    padding: 1rem;
+    background: whitesmoke;
+    border: 1px solid black;
+    border-radius: 15px;
+}
+#summary-div h2{
+    border-bottom: 1px dashed;
+    padding-bottom: 0.5rem;
+}
+#summary-div>div{
+    display: flex;
+    justify-content: space-between;
+    margin: 1rem 0;
+    text-indent: 0.25rem;
+}
+#summary-div p{
+    font-size: 1.2rem;
+}
+#summary-div>div:last-child p{
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+.toast-div{
+    top: 1rem;
+    right: calc(1rem - 31%);
+}
+.body row{
+    position: relative;
+}
+.body-row-options{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
 }

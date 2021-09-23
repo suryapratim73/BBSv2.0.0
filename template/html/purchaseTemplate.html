@@ -11,12 +11,12 @@
 </head>
 
 <body>
-    <div id="page1" class="page hide">
+    <div id="page1" class="page ">
         <form onsubmit="addSupplier(event)">
             <h2>Add <span>Supplier</span> details</h2>
             <div>
                 <div><label for="name">Name:</label></div>
-                <div><input type="text" required autofocus placeholder="compulsory feild" name="name" id="name" list="suppliers-dl"/></div>
+                <div><input type="text" onchange="selectSupplier(event)" required autofocus placeholder="compulsory feild" name="name" id="name" list="suppliers-dl"/></div>
             </div>
             <div>
                 <div><label for="address">Address:</label></div>
@@ -26,7 +26,7 @@
                 <div><label for="phones">Phones:</label></div>
                 <div>
                     <input type="text" required placeholder="compulsory feild" data-type="Number" name="phones" id="phones" onkeypress="validateInput(event)"/>
-                    <button type="button" tabindex="-1" onclick="addNewNumber(event)">+</button>
+                    <button type="button" id="add-new-number" tabindex="-1" onclick="addNewNumber(event)">+</button>
                 </div>
             </div>
             <div>
@@ -38,13 +38,13 @@
                 <div><input type="text" placeholder="compulsory feild" required name="gst" id="gst" /></div>
             </div>
             <div>
-                <button type="button">Cancel</button>
+                <button type="button" data-cmd="cancel" onclick="proceedHandler(event)">Cancel</button>
                 <button type="submit">Proceed</button>
             </div>
         </form>
     </div>
-    <div id="page2" class="page">
-        <h2>Add Bill Items</h2>
+    <div id="page2" class="page hide">
+        <h2>Add <span>Bill Items</span></h2>
         <div id="table">
             <div class="row head">
                 <div class="col sm"><p>Sl No.</p></div>
@@ -59,69 +59,177 @@
                 <div class="col sm"><p>IGST</p></div>
                 <div class="col md"><p>Total</p></div>
             </div>
-            <div id="tbody">
+            <div id="tbody" onchange="selectStock(event)">
                 <div class="row row-control-div" id="add-item">
                     <button onclick="addRow(event)">+</button>
                 </div>
             </div>
         </div>
+        <div class="btn-container" onclick="proceedHandler(event)">
+            <button data-cmd="cancel">Cancel</button>
+            <button data-cmd="back">Back</button>
+            <button data-cmd="next">Proceed</button>
+        </div>
     </div>
-    <div id="page3" class="page hide"></div>
-    <div class="modal hide" id="purchase-page-modal">
+    <div id="page3" class="page hide">
+        <form onsubmit="proceedHandler(event)">
+            <h2>Add Purchase <span>Bill Headers</span></h2>
+            <div>
+                <div><label for="billNo">Enter Bill NO:</label></div>
+                <div><input type="text" placeholder="Compulsory feild" required id="billNo" name="billNo"></div>
+            </div>
+            <div>
+                <div><label for="billDate">Enter Bill Date:</label></div>
+                <div><input type="date" placeholder="Compulsory feild" required id="billDate" name="billDate"></div>
+            </div>
+            <div>
+                <div><label for="freightName">Enter Freight Name:</label></div>
+                <div><input type="text" name="freightName" onchange="selectFreight(event)" list="freightName-dl" id="freightName"></div>
+            </div>
+            <div>
+                <div><label for="freightCharge">Enter Freight Charge:</label></div>
+                <div><input type="text" data-kind="charge" name="freightCharge" id="freightCharge" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+            </div>
+            <div>
+                <button id="more-feild-btn" type="button" onclick="showModal()">Add More Details</button>
+                <div id="more-feild-menu" class="hide">
+                    <div class="dash-mark"></div>
+                    <div class="dash-mark"></div>
+                    <div class="dash-mark"></div>
+                    <div class="hide" id="more-feild-div"></div>
+                </div>
+            </div>
+            <div class="btn-container"> 
+                <button type="button" onclick="proceedHandler(event)" data-cmd="cancel">Cancel</button>
+                <button type="button" onclick="proceedHandler(event)" data-cmd="back">Back</button>
+                <button type="submit" data-cmd="next">Proceed</button>
+            </div>
+        </form>
+    </div>
+    <div id="page4" class="page hide">
+        <form onsubmit="saveData(event)">
+            <h2>Add <span>Payment</span> details</h2>
+            <div id="main">
+                <div id="payment-div">
+                    <div>
+                        <div><label for="pay-method">Payment method:</label></div>
+                        <div><select name="pay-method" id="pay-method">
+                            <option value="cash">Cash</option>
+                            <option value="other">Other</option>
+                        </select></div>
+                    </div>
+                    <div>
+                        <div><label for="pay-desc">Payment details:</label></div>
+                        <div><input type="text" placeholder="Cash/Cheque/Other details" name="pay-desc" id="pay-desc"></div>
+                    </div>
+                    <div>
+                        <div><label for="pay-date">Payment date:</label></div>
+                        <div><input type="date" name="pay-date" id="pay-date"></div>
+                    </div>
+                    <div>
+                        <div><label for="pay-amt">Payment amount</label></div>
+                        <div><input type="text" value="0" required oninput="updateSummaryDiv(event)" name="pay-amt" id="pay-amt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+                    </div>
+                    <div>
+                        <div><label for="pay-recpt">Payment receiver:</label></div>
+                        <div><input type="text" list="employee-to-supp" placeholder="Person receiving payment" name="pay-recpt" id="pay-recpt"></div>
+                    </div>
+                </div>
+                <div id="summary-div">
+                    <h2>Bill Summary</h2>
+                    <div>
+                        <p class="red">Bill Amount:</p>
+                        <p id="bill-amt">0</p>
+                    </div>
+                    <div>
+                        <p class="red">Tax Amount:</p>
+                        <p id="tax-amt">0</p>
+                    </div>
+                    <div id="pay-amt-div">
+                        <p class="red">Payment Amount:</p>
+                        <p id="summ-pay-amt">0</p>
+                    </div>
+                    <div>
+                        <p class="red">Total Amount:</p>
+                        <p id="total-amt">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="btn-container" onclick="proceedHandler(event)">
+                <button type="button" data-cmd="cancel">Cancel</button>
+                <button type="button" data-cmd="back">Back</button>
+                <button type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+    <div class="modal hide" data-type="page2" id="purchase-page-modal">
         <form onsubmit="addItem(event)">
             <div>
                 <div class="feild">
-                    <button type="button" onclick="addFeild(event)">Add More Feilds</button>
+                    <button type="button" id="add-feild-btn" onclick="addFeild(event)">Add More Feilds</button>
                 </div>
             </div>
             <div>
-                <button type="button" onclick="closeModal(event)" data-modal="purchase-page-modal">Cancel</button>
+                <button type="button" data-cmd="cancel" onclick="closeModal(event)" data-modal="purchase-page-modal">Cancel</button>
                 <button type="submit">Set</button>
             </div>
         </form>
     </div>
     <div class="popup2 modal hide">
         <form onsubmit="setFeild(event)">
+            <div class="feild hide">
+                <label for="kind">Feild label</label>
+                <select name="kind" id="kind">
+                    <option value="charge">Charge</option>
+                    <option value="info">Info</option>
+                </select>
+            </div>
             <div class="feild">
                 <label for="label">Feild label</label>
-                <input type="text" name="label" id="label" required list="feild-labels">
+                <input type="text" name="label" id="label" required>
             </div>
             <div class="feild">
                 <label for="value">Feild value</label>
                 <input type="text" name="value" id="value" required>
             </div>
             <div class="feild">
-                <button type="button" onclick="closeModal(event)" data-modal="popup2">Cancel</button>
+                <button type="button" data-cmd="cancel" onclick="closeModal(event)" data-modal="popup2">Cancel</button>
                 <button type="submit">Set</button>
             </div>
         </form>
     </div>
     <div class="cover hide"></div>
     <datalist id="stock-dl"></datalist>
+    <datalist id="freightName-dl"></datalist>
     <datalist id="feild-labels">
-        <option value="cgst">CGST</option>
-        <option value="sgst">SGST</option>
-        <option value="igst">IGST</option>
+        <!-- Add historic feild labels using js -->
+    <datalist id="suppliers-dl"></datalist>
     </datalist>
+    <datalist id="unit-dl">
+        <option value="Bag">Bag (50Kg)</option>
+        <option value="peice">Peice</option>
+        <option value="kg">Kg</option>
+    </datalist>
+    <datalist id="employee-to-supp"></datalist>
     <template id="body-row-template">
         <div class="body row">
             <div class="col sm"><p>1</p></div>
-            <div class="col lg"><input type="text" data-name="stock-name" list="stock-dl" /></div>
-            <div class="col md"><p></p></div>
+            <div class="col lg"><input type="text" data-name="name" list="stock-dl" /></div>
+            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input type="text" /></div>                            
-            <div class="col md"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col md"><input data-name="rate" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
-            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p></p></div>
         </div>
     </template>
     <template id="item-options">
         <div class="body-row-options">
-            <button data-cmd="delete">Delete</button>
-            <button data-cmd="add-info">Add More Details</button>
+            <button data-cmd="delete" tabindex="-1">Delete</button>
+            <button data-cmd="add-info" tabindex="-1">Add More Details</button>
         </div>
     </template>
 </body>

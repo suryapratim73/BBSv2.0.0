@@ -15,7 +15,7 @@ const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:"./db/usha.db",
     logging:function(...msg){
-        let loggerFD = getLoggerFD?.("dbLogs.txt")
+        let loggerFD = getLoggerFD?.("dbLogs.txt");
         if(!getLoggerFD)
             setTimeout(()=>{
                 getLoggerFD = require("../common").getLoggerFD;
@@ -27,7 +27,24 @@ const sequelize = new Sequelize({
     }
 });
 
-function appendToFile(fd,data){
+async function appendToFile(fd,data){
+    let timer;
+    if(!fd){
+        fd = await new Promise(res=>{
+            timer = setInterval(()=>{
+                try{
+                    fd = require("../common").getLoggerFD?.("dbLogs.txt");
+                    if(fd){
+                        clearInterval(timer);
+                        res(fd);
+                    }
+                }
+                catch(err){
+                    console.log({err,msg:"Reattempting fd retrueval"})
+                }
+            },50);
+        });
+    }
     fs.appendFile(fd,data+"\n",{flag:"a+"},(err)=>{
         if(err) throw err;
     });
@@ -54,10 +71,65 @@ const supplier = {
         type:DataTypes.TEXT
     },
     phones:{
-        type:DataTypes.TEXT
+        type:DataTypes.JSON
     },
     gst:{
         type:DataTypes.TEXT
+    },
+    moreInfo:{
+        type:DataTypes.JSON,
+        defaultValue:{}
+    },
+    paymentReciever:{
+        type:DataTypes.UUID,
+    }
+}
+
+const freight = {
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
+    },
+    name:{
+        type:DataTypes.TEXT
+    },
+    address:{
+        type:DataTypes.TEXT
+    },
+    charge:{
+        type:DataTypes.INTEGER
+    },
+    phones:{
+        type:DataTypes.JSON
+    },
+    gst:{
+        type:DataTypes.TEXT
+    },
+    moreInfo:{
+        type:DataTypes.JSON,
+        defaultValue:{}
+    }
+}
+
+const people = {
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
+    },
+    relation:{
+        type:DataTypes.JSON,
+        allowNull:false
+    },
+    name:{
+        type:DataTypes.TEXT
+    },
+    address:{
+        type:DataTypes.TEXT
+    },
+    phones:{
+        type:DataTypes.JSON
     },
     moreInfo:{
         type:DataTypes.JSON,
@@ -114,10 +186,10 @@ const transporterSchema = {
 }
 
 const stockSchema = {
-    itemNo:{
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
     },
     name:{
         type:DataTypes.TEXT,
@@ -214,6 +286,9 @@ const purchaseSchema = {
     billItemTable:{
         type:DataTypes.TEXT,
         allowNull: false
+    },
+    moreInfo:{
+        type:DataTypes.JSON
     }
 }
 
@@ -282,6 +357,9 @@ const outPaymentSchema = {
     date:{
         type: DataTypes.DATE,
         allowNull:false
+    },
+    moreInfo:{
+        type:DataTypes.JSON
     }
 }
 
@@ -341,6 +419,14 @@ module.exports = {
         freezeTableName:false,
         timestamps:false
     }),
+    freight: sequelize.define("freight",freight,{
+        freezeTableName:false,
+        timestamps:false
+    }),
+    people: sequelize.define("people",people,{
+        freezeTableName:false,
+        timestamps:false
+    }),
     customer: sequelize.define("customers",customerSchema,{
         freezeTableName:false,
         timestamps:false
@@ -350,11 +436,10 @@ module.exports = {
         freezeTableName:false,
         timestamps:false,
         setterMethods:{
-            updateStock({quantity,price,location}){
+            updateStock({quantity,price}){
                 this.setDataValue("quantity",Number(this.getDataValue("quantity"))+Number(quantity));
                 this.setDataValue("buyPrice",Number(this.getDataValue("buyPrice"))+Number(price));
                 this.setDataValue("standardSellPrice",1.1*Number(this.getDataValue("buyPrice")));
-                this.setDataValue("location",location);
             },
             reduceStock(quantity){
                 this.setDataValue("quantity",Number(this.getDataValue("quantity"))-Number(quantity));

@@ -145,7 +145,7 @@ exports.getLoggerFD = function(...arg){
     if(arg.length===0)
         return loggerFH.map(obj=>Object.values(obj)[0].fd);
     else
-        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])[arg[0]].fd;
+        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])?.[arg[0]].fd;
 }
 
 exports.appLogger = function(...lines){
@@ -155,3 +155,18 @@ exports.appLogger = function(...lines){
         if(err) throw err;
     })
 }
+
+class People{
+    static iterator(args,that){
+        for(let key in args)
+            that[key] = args[key];
+    }
+    constructor(args){
+        People.iterator(args,this)
+    }
+    append(args){
+        People.iterator(args,this);
+    }
+}
+
+exports.People = People;

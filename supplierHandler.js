@@ -3,8 +3,11 @@ const { Op } = require("sequelize");
 const { createModal } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
-const { getLedgerModel, getStartDate, appLogger } = require("./common");
+const { getLedgerModel, getStartDate, appLogger, People } = require("./common");
 const { ledgerPDF } = require("./scripts/makePDF.default");
+
+
+const suppliers = [];
 
 exports.getSuplier = mainWindow =>{
     return ()=>{
@@ -82,14 +85,26 @@ exports.checkOutPayments = mainWindow=>{
     }
 }
 
-ipcMain.handle("get-supplier-names",e=>{
-    return supplier.findAll({
+exports.getSuppliers = ()=>(suppliers);
+
+ipcMain.handle("get-supplier-names",async e=>{
+    if(suppliers.length>0) return suppliers;
+    let suppList = (await supplier.findAll({
         attributes:["name","id"]
-    })
+    })).map(({dataValues})=>dataValues);
+    suppList.forEach(suppObj=>{
+        suppObj._type = "supplier";
+        suppliers.push(new People(suppObj))
+    });
+    return suppliers;
 });
 
-ipcMain.handle("get-more-info-supplier",(e,id)=>{
-    return supplier.findOne({where:{id}})
+ipcMain.handle("get-more-info-supplier",async (e,id)=>{
+    let supplierSelected = suppliers.find((suppObj)=>suppObj.id===id);
+    if("phones" in supplierSelected) return supplierSelected;
+    let suppMoreInfo = (await supplier.findOne({where:{id}})).dataValues;
+    supplierSelected.append(suppMoreInfo);
+    return supplierSelected;
 })
 
 ipcMain.on("get-new-phone-number",()=>{

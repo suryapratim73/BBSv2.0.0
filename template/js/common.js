@@ -324,3 +324,21 @@ exports.renderPieChart = function(canvas,startAngle=0,endAngle,fillStyle,strokeS
 exports.removeAllElem = function(selector){
     [...document.querySelectorAll(selector)].forEach(node=>node.remove());
 }
+
+exports.closeToast = function (e){
+    e.target.parentNode.remove();
+}
+
+exports.toastNotification = function(msg,customClasses,...elems){
+    let div = document.createElement("div");
+    div.innerHTML = `
+        <p>${msg}</p>
+        <button type="button" onclick="closeToast(event)">x</button>
+    `;
+    if(elems.length>0)
+        elems.forEach(elem=>div.appendChild(elem));
+    div.className = "toast-div";
+    if(customClasses && typeof customClasses==="object")
+        customClasses.forEach(className=>div.classList.add(className));
+    return div;
+}

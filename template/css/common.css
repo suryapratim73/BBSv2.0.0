@@ -34,6 +34,7 @@
     left: 0;
     z-index: 1;
     background-color: rgba(128, 128, 128, 0.8);
+    pointer-events: none;
 }
 .modal{
     width: 80%;
@@ -298,6 +299,7 @@
     align-items: center;
 }
 .fade{
+    transform: inherit;
     animation: fade 300ms linear forwards;
 }
 @keyframes fade {
@@ -325,3 +327,75 @@
 .block p{
     color: orangered;
 }
+.dash-mark{
+    position: absolute;
+    width: 50%;
+    height: 0;
+    border: 1px solid blue;
+    left: 25%;
+    --top: 25%;
+}
+.dash-mark:nth-child(1){
+    top: var(--top);
+}
+.dash-mark:nth-child(2){
+    top: calc(var(--top) + 5px);
+}
+.dash-mark:nth-child(3){
+    top: calc(var(--top) + 10px);
+}
+.red-box{
+    border-color: red !important;
+    color: red;
+}
+.red-box>div{
+    color: red;
+}
+.blue-box{
+    border-color: blue !important;
+    color: blue;
+}
+.blue-box>div{
+    color: blue;
+}
+.blur-pointer{
+    pointer-events: none;
+}
+.red{
+    color: red !important;
+}
+.blue{
+    color: blue !important;
+}
+.toast-div{
+    position: absolute;
+    z-index: 10;
+    padding: 0.5rem;
+    border: 1px solid black;
+    border-radius: 15px;
+    display: flex;
+    gap: 1rem;
+    align-items: center; 
+}
+.toast-div button{
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none !important;
+    color: inherit !important;
+    border: none !important;
+    outline: inherit;
+}
+.toast-div p{
+    color: inherit;
+    text-shadow: 1px 1px white;
+    font-size: 1.2rem;
+}
+.blue-toast-box{
+    background: #afafff;
+    color: blue;
+    right: calc(1rem - 28%) !important;
+}
+.red-toast-box{
+    background: #ffc5c5;
+    color: red;
+}   

@@ -58,19 +58,27 @@ ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
     }
 });// This need a relook
 
-ipcMain.handle("get-stock-names",()=>{
-    return stock.findAll({attributes:["name"]})
+ipcMain.handle("get-stock-names",async ()=>{
+    return (await (await stock.sync()).findAll({attributes:["name","id"]})).map(({dataValues})=>dataValues);
 });
 
 ipcMain.handle("get-stocks",()=>{
     return stock.findAll({attributes:["name","type","quantity","buyPrice","standardSellPrice","tax","hsn","unit"]})
 });
 
-ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
+ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
     return (await stock.findOne({
         where:{
-            name:selectedStock
-        },
-        attributes: ["pInfo"]
+            id
+        }
     })).dataValues;
-});
+})
+
+// ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
+//     return (await stock.findOne({
+//         where:{
+//             name:selectedStock
+//         },
+//         attributes: ["pInfo"]
+//     })).dataValues;
+// });
