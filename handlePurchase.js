@@ -3,7 +3,7 @@ const { ipcMain } = require("electron/main");
 const { Op } = require("sequelize");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay } = require("./common");
 const { createModal } = require("./createModal");
-const { supplier, stock, purchase, outPayments, freight, people } = require("./model/dbConfig");
+const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
 const { supplierLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { getSuppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
@@ -51,7 +51,7 @@ exports.showPurchase = mainWindow =>{
 
 ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})=>{
     let { id,name,address,phones,moreInfo,gst } = suppObj;
-    let { billNo,billDate,freightName,freightCharge=0,totalWithoutTax,totalTax,total,paymentStatus,moreInfo:_moreInfo={} } = billMeta;
+    let { billNo,billDate,freightName,freightCharge=0,totalWithoutTax,totalTax,total,paymentStatus=false,moreInfo:_moreInfo={} } = billMeta;
     let { payMethod,detail,payDate,amount,receiverName,balance } = payObj;
     let suppliers = getSuppliers();
     let freights = getFreights();
@@ -221,3 +221,17 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
     })
     .catch(err=>console.log({err}));
 });
+
+ipcMain.handle("get-purchases",async e=>{
+    let purchases = (await purchase.findAll()).map(({dataValues})=>dataValues);
+    return purchases;
+});
+
+ipcMain.handle("get-table",async (e,tableName)=>{
+    if(e.sender.getTitle()==="Purchases"){
+        return (await (await sequelize.define(tableName,billItemSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }).sync()).findAll()).map(({dataValues})=>dataValues);
+    }
+})

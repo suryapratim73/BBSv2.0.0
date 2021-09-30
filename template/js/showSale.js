@@ -1,24 +1,10 @@
-const {toggleDevTool,drawSpinner} = require("../js/common");
+const {toggleDevTool,drawSpinner,searchHandler} = require("../js/common");
 const {ipcRenderer} = require("electron");
 
 
 toggleDevTool(document);
 
 const header = document.querySelector("header"),salesArr = [];
-const cmdMap = [
-    {
-        text: [">","greater than"],
-        value: "greater"
-    },
-    {
-        text: ["<","less than"],
-        value: "lesser"
-    },
-    {
-        text: ["between"],
-        value: "between"
-    }
-];
 let spinner = drawSpinner(document);
 
 header.addEventListener("click",function(e){
@@ -60,83 +46,6 @@ document.body.addEventListener("click",function(e){
     if(e.target!==document.querySelector("body > header > button")) 
         document.querySelector("#filter-options").classList.add("hide");
 });
-
-function searchHandler(e){
-    let searchText = e.target.value;
-    let bodyRows = [...document.querySelectorAll(".body.row")];
-    if(searchText.length===0) return bodyRows.forEach(row=>row.classList.remove("hide"));
-    bodyRows.forEach(row=>row.classList.add("hide"));
-    let matches = [],cmd,searchBy = {feild:"name",dataFeild:"name"};
-    let startDate,endDate;
-    console.clear();
-    searchText.split(" ").forEach(word=>{
-        if(word.length===0) return;
-        if(!/\d+/.test(word) && !/[/]/g.test(word)){
-            cmd = cmdMap.filter(({text})=>{
-                if(text.filter(prob=>{
-                    if(prob.match(word,"i")?.length>0)
-                        return true;
-                    else
-                        return false;
-                }).length>0)
-                    return true;
-                else
-                    return false;
-            })[0]?.value ?? cmd;
-            salesArr.forEach(saleObj=>{
-                if(word===saleObj.name)
-                    matches.push(saleObj);
-            });
-        }
-        else
-        if(/\d+/.test(word) && !/[/]/g.test(word)){
-            let _matches = salesArr.filter(({billNo})=>Number(word)===billNo);
-            searchBy = {feild:"billNo",dataFeild:"bill-no"};;
-            if(_matches.length>0)
-                _matches.forEach(match=>matches.push(match));
-        }
-        else
-        if(/[/]/g.test(word)){
-            console.log(word)
-            let [date,month,year] = word.split(/[/]/g);
-            searchBy = {feild:"billDate",dataFeild:"bill-date"};
-            if(!date || !month || !year) return;
-            let searchDate = new Date(year,+month-1,date),_matches;
-            if(cmd!=="between" || !cmd)
-                _matches = !cmd?salesArr.filter(({billDate})=>{
-                    if(searchDate.toLocaleDateString()===billDate.toLocaleDateString())
-                        return true;
-                }):salesArr.filter(({billDate})=>{
-                    if(cmd==="greater" && billDate>searchDate)
-                        return true;
-                    else
-                    if(cmd==="lesser" && billDate<=searchDate)
-                        return true;
-                });
-            else
-            if(cmd && cmd==="between"){
-                if(!startDate)
-                    startDate = searchDate;
-                else
-                    endDate = searchDate;
-                if(startDate && endDate){
-                    _matches = salesArr.filter(({billDate})=>{
-                        if(billDate>startDate && billDate<=endDate)
-                            return true;
-                        else
-                            return false;
-                    })
-                }
-            }
-            if(_matches?.length>0)
-                _matches.forEach(match=>matches.push(match));
-        }
-    });
-    matches.length>0 && matches.forEach(match=>{
-        [...document.querySelectorAll(`[data-${searchBy.dataFeild}="${match[searchBy.feild]}"]`)]
-            .forEach(row=>row.classList.remove("hide"));
-    })
-}
 
 ipcRenderer.send("get-sales");
 

@@ -342,3 +342,140 @@ exports.toastNotification = function(msg,customClasses,...elems){
         customClasses.forEach(className=>div.classList.add(className));
     return div;
 }
+
+const cmdMap = [
+    {
+        text: [">","greater than"],
+        value: "greater"
+    },
+    {
+        text: ["<","less than"],
+        value: "lesser"
+    },
+    {
+        text: ["between"],
+        value: "between"
+    }
+];
+
+function showOrHideScrollSym(){
+    let tbody = document.querySelector(".body.row").parentNode;
+    if(tbody.clientHeight>=tbody.scrollHeight)
+        tbody.querySelector(".scroll-sym-div")?.classList.add("hide");
+    else
+        tbody.querySelector(".scroll-sym-div")?.classList.remove("hide");
+}
+
+exports.searchHandler = function(e,arr){
+    let searchText = e.target.value;
+    let bodyRows = [...document.querySelectorAll(".body.row")];
+    if(searchText.length===0){
+        bodyRows.forEach((row,i)=>{
+            row.classList.remove("hide");
+            row.querySelector("p").textContent = i+1;
+        });
+        return showOrHideScrollSym();
+    }
+    bodyRows.forEach(row=>row.classList.add("hide"));
+    let matches = [],cmd,searchBy = {feild:"name",dataFeild:"name"};
+    let startDate,endDate;
+    searchText.split(" ").forEach(word=>{
+        if(word.length===0) return;
+        if(!/\d+/.test(word) && !/[/]/g.test(word)){
+            cmd = cmdMap.filter(({text})=>{
+                if(text.filter(prob=>{
+                    if(prob.match(word,"i")?.length>0)
+                        return true;
+                    else
+                        return false;
+                }).length>0)
+                    return true;
+                else
+                    return false;
+            })[0]?.value ?? cmd;
+            arr.forEach(obj=>{
+                let key = Object.keys(obj).filter(key=>["name","supplierName"].includes(key))?.[0];
+                if(!key) return;
+                if((new RegExp(`${obj[key]}`,"i")).test(word)){
+                    matches.push(obj);
+                    if(key==="supplierName"){
+                        searchBy.feild = "supplierName";
+                        searchBy.dataFeild = "supplier-name";
+                    }
+                }
+            });
+        }
+        else
+        if(/\d+/.test(word) && !/[/]/g.test(word)){
+            let _matches = arr.filter(({billNo})=>Number(word)===billNo);
+            searchBy = {feild:"billNo",dataFeild:"bill-no"};;
+            if(_matches.length>0)
+                _matches.forEach(match=>matches.push(match));
+        }
+        else
+        if(/[/]/g.test(word)){
+            let [date,month,year] = word.split(/[/]/g);
+            searchBy = {feild:"billDate",dataFeild:"bill-date"};
+            if(!date || !month || !year) return;
+            let searchDate = new Date(year,+month-1,date),_matches;
+            if(cmd!=="between" || !cmd)
+                _matches = !cmd?arr.filter(({billDate})=>{
+                    console.log(billDate)
+                    if(searchDate.toLocaleDateString()===billDate.toLocaleDateString())
+                        return true;
+                }):arr.filter(({billDate})=>{
+                    if(cmd==="greater" && billDate>searchDate)
+                        return true;
+                    else
+                    if(cmd==="lesser" && billDate<=searchDate)
+                        return true;
+                });
+            else
+            if(cmd && cmd==="between"){
+                if(!startDate)
+                    startDate = searchDate;
+                else
+                    endDate = searchDate;
+                if(startDate && endDate){
+                    _matches = arr.filter(({billDate})=>{
+                        if(billDate>startDate && billDate<=endDate)
+                            return true;
+                        else
+                            return false;
+                    })
+                }
+            }
+            if(_matches?.length>0)
+                _matches.forEach(match=>matches.push(match));
+        }
+    });
+    matches.length>0 && matches.forEach(match=>{
+        let slNo = 1;
+        [...document.querySelectorAll(`[data-${searchBy.dataFeild}="${match[searchBy.feild]}"]`)]
+            .forEach(row=>{
+                row.classList.remove("hide");
+                row.querySelector("p").textContent = slNo++;
+            });
+        showOrHideScrollSym();
+    })
+}
+
+exports.scrollSymSet = function(elem){
+    let scrollSymDiv = document.createElement("div"),mousedownTimer;
+    scrollSymDiv.className = "scroll-sym-common scroll-sym-div";
+    elem.appendChild(scrollSymDiv);
+    scrollSymDiv.addEventListener("mousedown",e=>{
+        mousedownTimer = setInterval(()=>{
+            elem.scrollBy(0,10)
+        },100);
+    });
+    scrollSymDiv.addEventListener("mouseup",()=>clearInterval(mousedownTimer));        
+    let scrollTopSymDiv = document.createElement("div");
+    scrollTopSymDiv.className = "scroll-sym-common scroll-top-sym hide";
+    elem.appendChild(scrollTopSymDiv);
+    scrollTopSymDiv.addEventListener("click",()=>{
+        elem.scrollTo(0,0);
+        clearInterval(mousedownTimer)
+    });
+    return mousedownTimer;
+}

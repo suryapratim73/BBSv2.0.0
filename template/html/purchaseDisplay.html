@@ -12,24 +12,61 @@
     <nav>
         <h1>Purchases</h1>
         <div id="searchbar-container">
-            <input type="text">
-            <button>Search</button>
+            <input type="text" placeholder="Type to filter through purchase table.." oninput="_searchHandler(event)">
         </div>
     </nav>
     <main>
-        <div><button>Filter</button></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sl No.</th>
-                    <th>Supplier Name</th>
-                    <th>Bill Number</th>
-                    <th>Bill Date</th>
-                    <th>Bill Amount</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div id="table">
+            <div class="row head">
+                <div class="col eq-space"><p>Sl. No</p></div>
+                <div class="col eq-space"><p>Supplier</p></div>
+                <div class="col eq-space"><p>Bill No</p></div>
+                <div class="col eq-space"><p>Bill Date</p></div>
+                <div class="col eq-space"><p>Bill Amount</p></div>
+            </div>
+            <div id="tbody" class="hide-scrollbar">
+            </div>
+        </div>
     </main>
+    <div class="modal hide"></div>
+    <div class="cover hide"></div>
+    <template id="body-row-template">
+        <div class="body row">
+            <p class="col eq-space" data-colName="slNo"></p>
+            <p class="col eq-space" data-colName="supplierName"></p>
+            <p class="col eq-space" data-colName="billNo"></p>
+            <p class="col eq-space" data-colName="billDate"></p>
+            <p class="col eq-space" data-colName="billAmt"></p>
+        </div>
+    </template>
+    <template id="bill-modal-template">
+        <div data-feildName="bill-header">
+            <div>
+                <p>Supplier</p>
+                <p data-feildName="supplier" class="highlight-3"></p>
+            </div>
+            <div>
+                <p>Date</p>
+                <p data-feildName="date" class="highlight-3"></p>
+            </div>
+            <div>
+                <p>Payment Status</p>
+                <p data-feildName="paymentStatus" class="highlight-3"></p>
+            </div>
+            <div>
+                <p>Bill Amount</p>
+                <p data-feildName="billAmt" class="highlight-3"></p>
+            </div>
+        </div>
+        <div data-feildName="bill-body" class="table">
+            <div class="row head">
+                <div class="col eq-space"><p>Item</p></div>
+                <div class="col eq-space"><p>Qty</p></div>
+                <div class="col eq-space"><p>Unit</p></div>
+                <div class="col eq-space"><p>Price</p></div>
+            </div>
+        </div>
+        <div id="btn-container"><button onclick="closeModal()">Close</button></div>
+    </template>
 </body>
 </html>
