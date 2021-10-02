@@ -8,7 +8,6 @@ exports.updateStock = mainWindow =>{
     }
 }
 
-
 exports.displayStock = mainWindow =>{
     let windowOptions = {
         width: 800,
@@ -62,8 +61,8 @@ ipcMain.handle("get-stock-names",async ()=>{
     return (await (await stock.sync()).findAll({attributes:["name","id"]})).map(({dataValues})=>dataValues);
 });
 
-ipcMain.handle("get-stocks",()=>{
-    return stock.findAll({attributes:["name","type","quantity","buyPrice","standardSellPrice","tax","hsn","unit"]})
+ipcMain.handle("get-stocks",async ()=>{
+    return (await (await stock.sync()).findAll()).map(({dataValues})=>dataValues);
 });
 
 ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{

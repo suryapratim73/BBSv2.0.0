@@ -25,55 +25,20 @@ nav input{
     border: none;
     box-shadow: 0 0 3px 1px grey;
 }
-::placeholder{
-    font-style: italic;
-}
 main{
     grid-row: 3/-1;
 }
 .row{
     justify-content: space-between;
 }
-.head{
-    border-bottom: 1px solid black;
-}
 .head p,p{
     color: black;
-}
-.col:last-child{
-    border-right: 1px solid black;
-}
-.eq-space{
-    flex: 1;
-    border: unset;
-    border-top: 1px solid gray;
-    border-left: 1px solid gray;
-}
-#tbody{
-    overflow-y: overlay;
-    height: max-content;
-    max-height: 90%;
-    border-bottom: 1px solid black;
-    /* position: relative; */
-}
-.hide-scrollbar::-webkit-scrollbar{
-    visibility: hidden;
-}
-.body.row:hover{
-    background: #f1f1f1;
 }
 .body.row[data-payment-status="false"]{
     color: red;
 }
 .body.row[data-payment-status="true"]{
     color: blue;
-}
-.body.row p{
-    color: inherit;
-    padding: 0.5rem;
-}
-.body.row:last-child{
-    margin: 0;
 }
 .cover{
     pointer-events: painted;

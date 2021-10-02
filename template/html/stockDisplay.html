@@ -5,32 +5,39 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Purchases</title>
-    <link rel="stylesheet" href="../css/purchaseDisplay.css">
+    <link rel="stylesheet" href="../css/stockDisplay.css">
     <script src="../js/stockDisplay.js" defer></script>
 </head>
 <body>
     <nav>
         <h1>Inventory viewer</h1>
         <div id="searchbar-container">
-            <input type="text">
-            <button>Search</button>
+            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock..">
         </div>
     </nav>
     <main>
-        <div><button>Filter</button></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sl No.</th>
-                    <th>Stock Name</th>
-                    <th>Type</th>
-                    <th>Quantity</th>
-                    <th>Buy Price</th>
-                    <th>Standard Price</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div id="table">
+            <div class="row head">
+                <div class="col eq-space"><p>Sl. No</p></div>
+                <div class="col eq-space"><p>Stock Name</p></div>
+                <div class="col eq-space"><p>Type</p></div>
+                <div class="col eq-space"><p>Quantity</p></div>
+                <div class="col eq-space"><p>Buy Price</p></div>
+            </div>
+            <div id="tbody" class="hide-scrollbar">
+            </div>
+        </div>
     </main>
+    <div class="modal hide"></div>
+    <div class="cover hide"></div>
+    <template id="body-row-template">
+        <div class="body row">
+            <p class="col eq-space" data-colName="slNo"></p>
+            <p class="col eq-space" data-colName="name"></p>
+            <p class="col eq-space" data-colName="type"></p>
+            <p class="col eq-space" data-colName="quantity"></p>
+            <p class="col eq-space" data-colName="buyPrice"></p>
+        </div>
+    </template>
 </body>
 </html>

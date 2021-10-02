@@ -468,3 +468,37 @@
     position: absolute;
     transform: translate(-50%, -50%);
 }
+.head{
+    border-bottom: 1px solid black;
+}
+.col:last-child{
+    border-right: 1px solid black;
+}
+#tbody{
+    overflow-y: overlay;
+    height: max-content;
+    max-height: 90%;
+    border-bottom: 1px solid black;
+}
+.hide-scrollbar::-webkit-scrollbar{
+    visibility: hidden;
+}
+.body.row:hover{
+    background: #f1f1f1;
+}
+.body.row:last-child{
+    margin: 0;
+}
+.body.row p{
+    color: inherit;
+    padding: 0.5rem;
+}
+.eq-space{
+    flex: 1;
+    border: unset;
+    border-top: 1px solid gray;
+    border-left: 1px solid gray;
+}
+::placeholder{
+    font-style: italic;
+}

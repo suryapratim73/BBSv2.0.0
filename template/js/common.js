@@ -366,17 +366,26 @@ function showOrHideScrollSym(){
         tbody.querySelector(".scroll-sym-div")?.classList.remove("hide");
 }
 
-exports.searchHandler = function(e,arr){
+exports.showOrHideScrollSym = showOrHideScrollSym;
+
+function initSearchHandler(e){
     let searchText = e.target.value;
     let bodyRows = [...document.querySelectorAll(".body.row")];
+    bodyRows.forEach(row=>row.classList.add("hide"));
     if(searchText.length===0){
         bodyRows.forEach((row,i)=>{
             row.classList.remove("hide");
             row.querySelector("p").textContent = i+1;
         });
-        return showOrHideScrollSym();
+        showOrHideScrollSym();
     }
-    bodyRows.forEach(row=>row.classList.add("hide"));
+    return {searchText,bodyRows}
+}
+
+exports.initSearchHandler = initSearchHandler;
+
+exports.searchHandler = function(e,arr){
+    let {searchText} = initSearchHandler(e);
     let matches = [],cmd,searchBy = {feild:"name",dataFeild:"name"};
     let startDate,endDate;
     searchText.split(" ").forEach(word=>{
@@ -420,7 +429,6 @@ exports.searchHandler = function(e,arr){
             let searchDate = new Date(year,+month-1,date),_matches;
             if(cmd!=="between" || !cmd)
                 _matches = !cmd?arr.filter(({billDate})=>{
-                    console.log(billDate)
                     if(searchDate.toLocaleDateString()===billDate.toLocaleDateString())
                         return true;
                 }):arr.filter(({billDate})=>{
