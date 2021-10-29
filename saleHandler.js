@@ -1,19 +1,21 @@
 const { ipcMain, dialog } = require("electron");
-const {createModal} = require("./createModal");
-const fs = require("fs");
+const { createModal } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
-const { customer, stock, transporters, inPayments, sale } = require("./model/dbConfig");
-const { Op } = require("sequelize");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger } = require("./common");
+const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
-const {scriptFile} = require("./config/saleConfig.json");
-const {billPDF} = require(`./scripts/${scriptFile}`);
+const { scriptFile } = require("./config/saleConfig.json");
+const { billPDF } = require(`./scripts/${scriptFile}`);
 const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
+const { unitMap } = require("./config/saleConfig.json");
+const { stockList } = require("./handleStock");
 
 
-let closeFlag = false,saleWindow;
+let closeFlag = false,
+    saleWindow,
+    customerList = [];
 let windowOptions = {
-    width: 1020,
+    width: 800,
     height: 600,
     resizable:false,
     webPreferences: {
@@ -60,125 +62,188 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     BrowserWindow.getFocusedWindow().close();
 });
 
-function save_exist(e,{billMeta,customer:customerObj,orderItems}){
+async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     closeFlag = true;
     saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
-    const { name, address, phones,gst } = customerObj;
-    const { billStatus, delivery, netDue, billNo, billDate, netTax } = billMeta;
+    const { name, address, phones, gst, email, id:custId } = customerObj;
+    const { 
+        billStatus, 
+        deliveryType,
+        transportName="",
+        transportId="",
+        transportAddress="",
+        transportContact="",
+        transportCharge="",
+        coolieName="",
+        coolieContact="",
+        coolieCharge="",
+        netDue, 
+        billNo, 
+        billDate, 
+        netTax,
+        payment,
+        netAmt,
+        id="",
+        paymentStatus 
+    } = billMeta;
     closeFlag = true;
-    const { type,transporterName="",transporterAddress="",transporterContact="",transporterCharge=0 } = delivery;
-    let netPayment = billMeta.payment?.map(({payment})=>payment).reduce((acc,val)=>(acc+val)) ?? 0;
-    if(netPayment >= billMeta.netAmt + transporterCharge)
-        netPayment = Math.round(billMeta.netAmt);
-    if(type!=="hand")
-        transporters.sync()
+    let netPayment = payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0;
+    let deliveryCharge = Number(transportCharge) + Number(coolieCharge);
+    if(deliveryType!=="hand")
+        freight.sync()
         .then(model=>
             model.findOrCreate({
-                where:{name:transporterName},
+                where:{id:transportId},
                 defaults:{
-                    name:transporterName,
-                    address:transporterAddress,
-                    phone:transporterContact,
-                    charge:transporterCharge
+                    id:transportId,
+                    name:transportName,
+                    address:transportAddress,
+                    phone:transportContact,
+                    charge:transportCharge
                 }
             })
             .then(()=>console.log("Transporter db updated!!"))
             .catch(console.log)
         )
-    customer.sync()
-    .then(async model=>{
-        let customerId = (await model.findOrCreate({
+    let match = customerList.find(obj=>obj.id===custId);
+    if(!match){
+        customerObj._type = "customer";
+        let custObj = {...customerObj,moreInfo:{email}};
+        Reflect.deleteProperty(custObj,"email");
+        customerList.push(new People(custObj));
+        console.log(customerList);
+        customer.findOrCreate({
             where:{
-                [Op.or]:[{name},{gst}]
+                id:custId
             },
             defaults:{
+                id:custId,
                 name,
                 address,
                 phones:JSON.stringify(phones),
-                gst
+                gst,
+                moreInfo:{email}
             }
-        }))[0].dataValues.id;
-        let billModel = await getBillModel(customerId,billNo,billDate,billItemSchema);
-        let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
-        let lastBalance = (await ((await customerLedger.sync()).findOne({
-            attributes:["balance"],
-            order:[
-                ["entryNo","DESC"]
-            ]
-        })))?.dataValues.balance ?? 0;
-        Promise.all([
-            ...orderItems.map(({name,qty,unit,rate,amt,cgst,sgst,igst,hsn,type})=>{
-                let tax = igst>0?igst:cgst+sgst;
-                return billModel.create({
-                    name,
-                    type,
-                    hsn,
-                    quantity:qty,
-                    unit,
-                    rate,
-                    tax:tax*amt
-                })
-            }),
-            customerLedger.create({
-                billStatus,
-                date:billDate,
-                billNo,
-                paymentStatus:netDue===0?true:false,
-                payments:netPayment,
-                netDue,
-                itemList:`${customerId}_${billNo}_${billDate}`,
-                delivery,
-                tax:netTax,
-                billAmt:billMeta.netAmt,
-                balance: Math.round(lastBalance + billMeta.netAmt - netPayment)
-            }),
-            ...orderItems.map(async ({name,qty})=>{
-                let item = await stock.findOne({where:{name}});
-                item.reduceStock=qty;
-                return item.save();
-            }),//updating stock
-            (await sale.sync()).create({
-                customerId,
-                name,
-                billStatus,
-                billNo,
-                billDate,
-                billAmt:Math.round(billMeta.netAmt),
-                tax:netTax,
-                payment:netPayment,
-                paymentStatus:netDue===0?true:false,
-                billItemTable:`${customerId}_${billNo}_${billDate}`
-            })
-        ])
-        .then(async ()=>{
-            if(netPayment>0)
-                await (await inPayments.sync())
-                .create({
-                    id:customerId,
-                    payment:netPayment,
-                    date:billDate
-                });
-            console.log("Added to DB!!");
-            let msg = {
-                type: "info",
-                title: "Bill saved",
-                message: "Bill added to your sale and stocks and/or ledger updated."
-            };
-            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-            appLogger("sale",JSON.stringify({name,billNo,netPayment}))
         })
         .catch(console.log);
+    }    
+    let billModel = await getBillModel(custId,billNo,billDate,billItemSchema);
+    let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
+    let lastBalance = (await ((await customerLedger.sync()).findOne({
+        attributes:["balance"],
+        order:[
+            ["entryNo","DESC"]
+        ]
+    })))?.dataValues.balance ?? 0;
+    Promise.all([
+        ...orderItems.map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
+            let tax = igst>0?igst:cgst+sgst;
+            let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
+            return billModel.create({
+                name,
+                type,
+                hsn,
+                quantity:qty,
+                sellUnit,
+                rate:rate*multiplier,
+                tax:tax*amt/100
+            })
+        }),
+        customerLedger.create({
+            billStatus,
+            date:billDate,
+            billNo,
+            billAmt:netAmt,
+            tax:netTax,
+            paymentStatus,
+            payments:netPayment,
+            netDue,
+            itemList:`${custId}_${billNo}_${billDate}`,
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge}:"hand",
+            balance: Math.round(lastBalance + billMeta.netAmtTax + deliveryCharge - netPayment)
+        }),
+        ...orderItems.map(async ({qty,id,sellUnit,rate})=>{
+            let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
+            let item = await stock.findOne({where:{id}});
+            item.reduceStock = qty*multiplier;
+            await item.save();
+            let match = stockList.find(obj=>obj.id===id);
+            match.quantity -= qty*multiplier;
+            match.saleHistory.push({
+                billDate,
+                customerId:custId,
+                billNo
+            })
+            match.specialPrice.push({
+                customerId:custId,
+                rate,
+                billDate
+            })
+            return await stock.update({
+                saleHistory:match.saleHistory,
+                specialPrice:match.specialPrice
+            },{
+                where:{id}
+            });
+        }),//updating stock
+        (await sale.sync()).create({
+            billStatus,
+            customerId:custId,
+            name,
+            billNo,
+            billDate,
+            billAmt:billMeta.netAmtTax+deliveryCharge,
+            tax:netTax,
+            payment:netPayment,
+            paymentStatus,
+            billItemTable:`${custId}_${billNo}_${billDate}`
+        }),
+        (await people.sync()).findOrCreate({
+            where:{id},
+            defaults:{
+                id,
+                relation:"Coolie",
+                name:coolieName,
+                phones:coolieContact,
+                moreInfo:{charge:transportCharge}
+            }
+        })
+    ])
+    .then(async ()=>{
+        if(netPayment>0)
+            await (await inPayments.sync())
+            .create({
+                id:custId,
+                payment:netPayment,
+                date:billDate
+            });
+        console.log("Added to DB!!");
+        let msg = {
+            type: "info",
+            title: "Bill saved",
+            message: "Bill added to your sale and stocks and/or ledger updated."
+        };
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        appLogger("sale",JSON.stringify({name,billNo,netPayment}))
     })
-    .catch(console.log)
+    .catch(console.log);
     return billPDF({billMeta,customer:customerObj,orderItems});
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
 
 ipcMain.handle("get-customers",async ()=>{
-    return (await customer.sync()).findAll();
+    if(customerList.length>0) return customerList;
+    (await (await customer.sync()).findAll())
+    .map(({dataValues})=>dataValues)
+    .forEach(obj=>{
+        obj._type = "customer";
+        customerList.push(new People(obj));
+    });
+    return customerList;
+    
 });
 
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
@@ -200,7 +265,7 @@ ipcMain.on("salepage-print-doc",(e,billObj)=>{
 });
 
 ipcMain.handle("get-transporter",async ()=>{
-    return (await transporters.sync()).findAll();
+    return (await (await freight.sync()).findAll()).map(({dataValues})=>dataValues);
 });
 
 ipcMain.on("get-sales",async e=>{

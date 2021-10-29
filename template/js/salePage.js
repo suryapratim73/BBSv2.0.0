@@ -1,400 +1,263 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput,roundOffTo2DecimalPlace,getAmtToWord} =  require("../js/common");
+const {toggleDevTool,validateInput,roundOffTo2DecimalPlace,getAmtToWord, showToastNotification, closeToast, retractHandler} =  require("../js/common");
+const uuid = require("uuid");
+const { unitMap } = require("../../config/saleConfig.json");
 
 
 toggleDevTool(document);
 
 let nameDatalist = document.createElement("datalist"),
-    itemList = [],
-    customerList = [],
+    // itemList = [],
+    // customerList = [],
     customerNameDatalist = document.createElement("datalist"),
     customer = {},
     currentStep = 1, 
     selectedItem = {}, 
-    slNo=1, 
     orderItems = [], 
     billMeta = {},
     payment = [],
     transporterDatalist = document.createElement("datalist"),
-    transporters = [];
+    unitDatalist = document.createElement("datalist"),
+    // transporters = [],
+    page2initialized = false,
+    footer = document.querySelector("footer"),
+    bodyRow,timer,
+    coolieDatalist = document.createElement("datalist");
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
+unitDatalist.id = "unit-dl";
+transporterDatalist.id = "transport-dl";
+coolieDatalist.id = "coolie-dl";
+
+async function appendToDL(eventName,datalist){
+    let list = await ipcRenderer.invoke(eventName);
+    list.forEach(obj=>{
+        let option = document.createElement("option");
+        for(let key in obj){
+            if(key==="name")
+                option.value = obj[key];
+            option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
+        }
+        datalist.appendChild(option)
+    });
+    document.body.appendChild(datalist);
+    return list;
+} 
 
 async function init(){
-    if(itemList.length===0){
-        itemList = (await ipcRenderer.invoke("get-stocks")).map(({dataValues})=>dataValues);
-        itemList.forEach(({name})=>{
-            let option = document.createElement("option");
-            option.value = name;
-            nameDatalist.appendChild(option);
-        });
-        customerList = (await ipcRenderer.invoke("get-customers")).map(({dataValues})=>dataValues);
-        customerList.forEach(({name})=>{
-            let option = document.createElement("option");
-            option.value = name;
-            customerNameDatalist.appendChild(option);
-        });
-        buildPage();
-    }
-    document.body.appendChild(nameDatalist);
-    document.body.appendChild(customerNameDatalist);
+    // itemList = await 
+    appendToDL("get-stocks",nameDatalist);
+    // customerList = await 
+    appendToDL("get-customers",customerNameDatalist);
+    appendToDL("get-transporter",transporterDatalist)
+    unitMap.forEach(obj=>{
+        let key = Object.keys(obj)[0];
+        let option = document.createElement("option");
+        option.value = key;
+        option.textContent = key==="Bag"?"Bag (=50 Kg)":key;
+        unitDatalist.appendChild(option);
+    });
+    appendToDL("get-coolies",coolieDatalist);
+    document.getElementById("page-header").innerHTML = stepDetail();
+    mainForm();
+    setFooter();
+    document.body.appendChild(unitDatalist);
 }
-init();
+init();// Datalist linking and selection handler work
 
-function addPhone(e){
-    let customerPhoneInput = document.getElementById("customer-phone");
-    customer.phones = customer.phones?[...customer.phones,Number(customerPhoneInput.value)]:[Number(customerPhoneInput.value)];
-    customerPhoneInput.value = "";
-    customerPhoneInput.focus();
-    customerPhoneInput.setAttribute("placeholder","Add new phone number");
-    customer.phones = Array.from(new Set(customer.phones));
+function clickOrFocusinHandler(e){
+    if(currentStep!==3) return;
+    if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
+        return deleteRow(e);
+    bodyRow = e.target.parentNode.parentNode;
+    if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
+        selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
+    displaySection();
+    [...document.querySelectorAll(".body-row-options")].forEach(div=>div.remove());
+    if(bodyRow.className==="body row"){
+        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
+        if(document.querySelector(".body-row-options"))
+            document.querySelector(".body-row-options").dataset.sellId = bodyRow.dataset.sellId;    
+        clearTimeout(timer);
+        timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
+    }
 }
 
-// Proceed or Back contrtoller.....
-async function proceedOrFinishHandler(e){
-    document.querySelector("main").removeEventListener("focus",mainFocusHandler,true);
-    if(currentStep===1 && e.target.dataset.type==="proceed"){
-        let inputFeilds = document.querySelectorAll(".row1>input");
-        if(Array.from(inputFeilds).some(input=>input.value==="") && !Array.from(inputFeilds).some(input=>input.value==="cash")) return alert("Cannot proceed with empty fields!");
-        inputFeilds.forEach(input=>{
-            if(input.dataset.name!=="phones")
-                customer[input.dataset.name] = input.value;
-            else
-                customer.phones = customer.phones?[...customer.phones,+input.value]:[+input.value];
-        });
-        billMeta.billStatus=([...document.getElementsByName("bill-status")].filter(input=>input.checked===true))[0].dataset.name
-        customer.phones = Array.from(new Set(customer.phones));
-        billMeta.delivery = { type: "hand" };
-        billMeta.billNo = !billMeta.billNo?await ipcRenderer.invoke("get-sale-bill-number"):billMeta.billNo;
+function stepDetail(){
+    if(currentStep===1) return `Add <span class="red">customer</span> detail`;
+    if(currentStep===2) return `Add <span class="red">bill</span> detail`;
+    if(currentStep===3) return `Add <span class="red">item</span> detail`;
+    if(currentStep===4) return `Add <span class="red">payment</span> detail`;
+}
+
+function setFooter(){
+    let footerDF = document.getElementById("footer-template").content.cloneNode(true);
+    [...footer.children].forEach(elem=>elem.remove());
+    footer.appendChild(footerDF);
+    if(currentStep<4){
+        footer.querySelector(`[data-type="print"]`).classList.add("hide");
+        footer.querySelector(`[data-type="save"]`).classList.add("hide");
+        footer.querySelector(`[data-type="proceed"]`).classList.remove("hide");
     }
-    if(currentStep===2 && e.target.dataset.type==="proceed"){
-        if(billMeta.delivery.type!=="hand")
-            [...document.querySelectorAll("input")].forEach(input=>{
-                if(input.dataset.name.startsWith("transp"))
-                    billMeta.delivery[input.dataset.name] = input.value;
-            });
+    else{
+        footer.querySelector(`[data-type="print"]`).classList.remove("hide");
+        footer.querySelector(`[data-type="save"]`).classList.remove("hide");
+        footer.querySelector(`[data-type="proceed"]`).classList.add("hide");
+    }
+    if(currentStep==1)
+        footer.querySelector(`[data-type="back"]`).classList.add("hide");
+    else
+        footer.querySelector(`[data-type="back"]`).classList.remove("hide");
+}
+
+async function mainForm(){
+    [...document.querySelectorAll(".page")].forEach(page=>{
+        if(Number(page.dataset.pageno)===currentStep)
+            page.classList.remove("hide");
         else
-            billMeta.delivery = { type: "hand" };
-        // console.log(billMeta)
+            page.classList.add("hide");
+    });
+    if(document.getElementById(`page-${currentStep}`).children.length===0){
+        let pageDF = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true);
+        document.getElementById(`page-${currentStep}`).appendChild(pageDF);
     }
-    if(currentStep===3 && ["proceed","back"].includes(e.target.dataset.type)){
-        orderItems = [];
-        [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
-            let name = bodyRow.querySelector("div:nth-child(2)>input").value ?? "",
-                qty = +bodyRow.querySelector("div:nth-child(4)>input").value ?? 0,
-                unit = bodyRow.querySelector("div:nth-child(5)>input").value ?? "Kg",
-                rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value) ?? 0,
-                amt = qty * rate,
-                cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 ?? 0,
-                sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 ?? 0,
-                igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0,
-                netAmt = roundOffTo2DecimalPlace(qty * rate * (1 + cgst + sgst + igst)) ?? 0
-                item = itemList.find((itemObj)=>itemObj.name===name);
-            if(name==="") return;
-            orderItems.push({ 
-                name,
-                qty,
-                unit,
-                rate,
-                amt,
-                cgst:cgst*100,
-                sgst:sgst*100,
-                igst:igst*100,
-                netAmt,
-                hsn:item.hsn,
-                type:item.type
+    if(currentStep===2 && !page2initialized){
+        document.querySelector(`[data-name="billDate"]`).valueAsDate = new Date();
+        document.querySelector(`[data-name="billNo"]`).value = await ipcRenderer.invoke("get-sale-bill-number");
+        page2initialized = true;
+    }
+    setFooter();
+    if(currentStep===3){
+        document.querySelector("#tbody")?.addEventListener("focusin",clickOrFocusinHandler);
+        document.querySelector("#tbody")?.addEventListener("click",clickOrFocusinHandler);
+    }
+}
+
+function phoneRegExpInp(text){
+    let numHead = "(\\+\\d+ )*";
+    text = text.replace(/(\+\d+ )*/,"");
+    text = numHead + text.substring(0,text.length/2)+ " *" + text.substring(text.length/2,text.length).trim();
+    return text;
+}
+
+function advanceSet(target=[],newValue){
+    if(typeof target==="string")
+        target = JSON.parse(target);
+    target.push(newValue);
+    return target
+            .filter((val,index,self)=>index===self.findIndex(_val=>new RegExp(phoneRegExpInp(val)).test(_val)))
+            .map(val=>val.replace("\\",""));
+}
+
+function page4Init(){
+    let netAmtTax = Math.round(billMeta.netAmtTax);
+    document.querySelector("#summary-div .highlight").textContent = Math.round(netAmtTax);
+    let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
+    deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
+    document.querySelector("[data-name='delCharge']").textContent = deliveryCharge;
+    document.querySelector("[data-name='netAmtTaxDel']").textContent = netAmtTax+deliveryCharge;
+    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,obj)=>acc+obj.payment,0):0;
+    if(netAmtTax+deliveryCharge-netPayment>0){
+        document.querySelector(`[data-name="dueAmt"]`).textContent = netAmtTax+deliveryCharge-netPayment;
+        document.querySelector(`[data-name="return"]`).textContent = 0;
+    }
+    else{
+        document.querySelector(`[data-name="dueAmt"]`).textContent = 0;
+        document.querySelector(`[data-name="return"]`).textContent = netPayment - (netAmtTax+deliveryCharge);
+    }
+    updatePayStatus();
+}
+
+function proceedOrFinishHandler(e){
+    e && e.preventDefault();
+    if(e.type==="submit"){
+        if(currentStep!==3){ 
+            let formObjs = {};
+            let allInputs = [...e.target.querySelectorAll(`#page-${currentStep} input`)];
+            allInputs = [...allInputs,...e.target.querySelectorAll(`#page-${currentStep} select`)];
+            allInputs.forEach(input=>{
+                if(input.type!=="radio"){
+                    if(input.dataset.name==="phones")
+                        formObjs[input.dataset.name] = advanceSet(customer.phones,input.value);
+                    else
+                    if(input.dataset.name==="delivery-mode")
+                        formObjs.deliveryType = input.value;
+                    else
+                    if(input.dataset.name==="colley-required")
+                        formObjs.coolieReq = input.value;
+                    else
+                        formObjs[input.dataset.name] = input.value;
+                }
+                else
+                if(input.type==="radio" && input.checked)
+                    formObjs[input.dataset.name] = input.value;
             });
-        })
-    }
-    if(currentStep===4 && e.target.dataset.type!="back")
-        return ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems})
-    if(e.target.dataset.type==="proceed")
+            if(currentStep===1){
+                customer = {...customer,...formObjs};
+                if(!("id" in customer))
+                    customer.id = uuid.v5(customer.name+"_customer","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+            }
+            else{
+                billMeta = {...billMeta,...formObjs};
+                if(billMeta.deliveryType==="transport" && !("transportId" in billMeta))
+                    billMeta.transportId = uuid.v5(billMeta.transportName,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+                if(billMeta.coolieReq==="yes" && !("id" in billMeta))
+                    billMeta.id = uuid.v5(billMeta.coolieName , "6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+                if(!("discVal" in billMeta))
+                    billMeta.discVal = 0;
+            }
+        }
+        else{
+            orderItems.forEach(itemObj=>{
+                ["sgst","cgst","igst"].forEach(key=>{
+                    if(itemObj[key]===0)
+                        Reflect.deleteProperty(itemObj,key);
+                });
+            });
+            if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
+                let reducedOrder = reduceOrder();
+                billMeta.netQty = reducedOrder.netQty;
+                billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
+                billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
+            }
+        }
         currentStep++;
-    else if(e.target.dataset.type==="back")
+    }
+    else
+    if(e.type==="click" && e.target.dataset.type==="back")
         currentStep--;
-    buildPage();
-    init();
+    document.getElementById("page-header").innerHTML = stepDetail();
+    mainForm();
+    if(currentStep===4)
+        page4Init();
 }
 
 function cancelAction(){
     ipcRenderer.send('cancel-sale-bill',currentStep)
-}// More need to be done...
-
-function footer(){
-    let proceedBtn = `<button data-type="proceed" onclick="proceedOrFinishHandler(event)">Proceed</button>`;
-    let backBtn = `<button data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>`;
-    let printBtn = `<button data-type="print" onclick="showPrintDialog()">Print</button>`;
-    let finishBtn = `<button data-type="save" onclick="proceedOrFinishHandler(event)">Save & Exit</button>`;
-    return `<footer>
-                <div>
-                    <button onclick="cancelAction()">Cancel</button>
-                    ${currentStep>1?backBtn:""}
-                    ${currentStep===4?printBtn:""}
-                    ${currentStep<4?proceedBtn:""}
-                    ${currentStep===4?finishBtn:""}
-                </div>
-            </footer>`
 }
 
-function stepDetail(){
-    if(currentStep===1) return `Add customer detail`;//design done
-    if(currentStep===2) return `Add bill detail`;
-    if(currentStep===3) return `Add item detail`;
-    if(currentStep===4) return `Add payment detail`;
+ipcRenderer.on("get-current-step",cancelAction);
+
+function addPhone(e){
+    let customerPhoneInput = document.getElementById("customer-phone");
+    customer.phones = advanceSet(customer?.phones,customerPhoneInput.value);
+    customerPhoneInput.value = "";
+    customerPhoneInput.focus();
+    customerPhoneInput.setAttribute("placeholder","Add new phone number");
 }
 
-function getTotal(nodeList){
-    return Array.from(nodeList).reduce((acc,p)=>{
-        acc += p.textContent?Number(p.textContent):0;
-        return acc;
-    },0);
-}
-
-function calculateR_O(){
-    let total = billMeta.netAmt;
-    if((Math.ceil(total) - total)<0.5){
-        let r_o = Math.ceil(total) - total;
-        return Math.round(r_o*100)/100;
-    }
-    else{
-        let r_o = -1*(total - Math.floor(total));
-        return Math.round(r_o*100)/100;
-    }
-}
-
-function getBillSummary(){
-    let billSummDiv = document.createElement("div");
-    billSummDiv.id = "bill-summary";
-    let netAmountPs = document.querySelectorAll(".row.body>div:nth-child(11)>p");
-    let amountPs = document.querySelectorAll(".row.body>div:nth-child(7)>p");
-    let totalNetAmt = getTotal(netAmountPs);
-    let totalAmt = getTotal(amountPs);
-    billSummDiv.innerHTML = `
-                <div><p>Net Tax:</p><p class="bold">${roundOffTo2DecimalPlace(totalNetAmt - totalAmt)}</p></div>
-                <div><p>Net Amount:</p><p class="bold">${roundOffTo2DecimalPlace(totalNetAmt)}</p></div>
-    `;
-    billMeta.netAmt = roundOffTo2DecimalPlace(totalNetAmt);
-    billMeta.netTax = roundOffTo2DecimalPlace(totalNetAmt - totalAmt);
-    billMeta.r_o = roundOffTo2DecimalPlace(calculateR_O());
-    return billSummDiv;
-}
-
-function getAvailQty(){
-    let quantity = 0;
-    [...document.querySelectorAll(".row.body")].forEach(bodyRow=>{
-        let itemName = bodyRow.querySelector("div:nth-child(2)>input").value;
-        if(itemName===selectedItem.name){
-            quantity += Number(bodyRow.querySelector("div:nth-child(4)>input").value);
-        }
+function addRow(e){
+    let clonedBodyRow = document.getElementById("body-row-template").content.cloneNode(true);
+    document.getElementById("add-item").before(clonedBodyRow);
+    [...document.querySelectorAll(".body.row>div:first-child>p")].forEach((p,index)=>{
+        p.textContent = index+1;
     });
-    return selectedItem.quantity - quantity
-}
-
-function getItemDiv({name="",buyPrice=0,standardSellPrice=0,tax=9}){
-    let itemDiv = document.createElement("div");
-    itemDiv.id = "item-summary";
-    itemDiv.innerHTML = `
-                    <div class="row0">
-                        <div><p>Item Name:</p><p class="bold">${name}</p></div>
-                        <div><p>Last Buy Price:</p><p class="bold">${buyPrice}</p></div>
-                        <div><p>Available Qty:</p><p data-name="availQty" class="bold">${getAvailQty()}</p></div>
-                        <div><p>Input Tax:</p><p class="bold">${tax}</p></div>
-                    </div>
-                    <div class="row1">
-                        <div><p>Standard Sell Price:</p><p class="bold">${standardSellPrice}</p></div>
-                        <div><p>Last Sell Price:</p><p class="bold">${standardSellPrice}</p></div>
-                        <div><p>Special Sell Price:</p><p class="bold">${standardSellPrice}</p></div>
-                    </div>
-    `;
-    return itemDiv;
-}
-
-function displaySection(){
-    if(!selectedItem || Object.keys(selectedItem).length===0) return;
-    let section = document.querySelector("section");
-    [...section.children].forEach(node=>node.remove());
-    section.appendChild(getItemDiv(selectedItem));
-    section.appendChild(getBillSummary());
-    section.style.display = "flex";
-    if(selectedItem.quantity<0)
-        document.querySelector("[data-name='availQty']").classList.add("red");
-    else
-        document.querySelector("[data-name='availQty']").classList.remove("red");
-}
-
-function selectionHandler(e,hideDisplaySection){
-    if(e.target.dataset.name==="stock-name"){
-        selectedItem = itemList.find(({name})=>name===e.target.value);
-        if(!selectedItem) return;
-        let {hsn,standardSellPrice,unit} = selectedItem;
-        let bodyRow = e.target.parentNode.parentNode;
-        let allP = bodyRow.querySelectorAll("p");
-        let allInput = bodyRow.querySelectorAll("input");
-        allP[1].textContent = hsn;
-        allInput[2].value = unit;
-        allInput[3].value = Math.round(standardSellPrice);
-        hideDisplaySection===false && displaySection();
-        bodyRow.querySelector("div:nth-child(4) input").focus();
-    }
-    if(e.target.dataset.name==="name"){
-        let selectedCustomer = customerList.find(({name})=>name===e.target.value);
-        if(!selectedCustomer) return;
-        let {address,phones,gst} = selectedCustomer;
-        document.querySelector("[data-name='address']").value = address;
-        document.querySelector("[data-name='phones']").value = JSON.parse(phones)[0];
-        document.querySelector("[data-name='gst']").value = gst;
-        document.querySelector("[data-name='close']").checked = true;
-    }
-    if(e.target.dataset.name==="transporterName"){
-        let selectedTransporter = transporters.find(({name})=>name===e.target.value);
-        if(!selectedTransporter) return;
-        let {address,phone,charge} = selectedTransporter;
-        document.querySelector("[data-name='transporterAddress']").value = address;
-        document.querySelector("[data-name='transporterContact']").value = phone;
-        document.querySelector("[data-name='transporterCharge']").value = charge;
-    }
-}
-
-function calculateAmounts(e,updateRetForm){
-    let bodyRow = e.target.parentNode.parentNode;
-    let quantity = Number(bodyRow.querySelector("div:nth-child(4)>input").value);
-    let rate = Number(bodyRow.querySelector("div:nth-child(6)>input").value);
-    bodyRow.querySelector("div:nth-child(7)>p").textContent = quantity * rate;
-    let cgst = Number(bodyRow.querySelector("div:nth-child(8)>input").value)/100 ?? 0;
-    let sgst = Number(bodyRow.querySelector("div:nth-child(9)>input").value)/100 ?? 0;
-    let igst = Number(bodyRow.querySelector("div:nth-child(10)>input").value)/100 ?? 0;
-    cgst *= quantity * rate;
-    sgst *= quantity * rate;
-    igst *= quantity * rate;
-    bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace(quantity * rate + cgst + sgst + igst);
-    displaySection();
-}
-
-function addRow(e,returnClassName=""){
-    let clonedBodyRow = document.createElement("div");
-    clonedBodyRow.className = `row body`;
-    clonedBodyRow.innerHTML = getBodyRow(returnClassName);
-    e.target.parentNode.before(clonedBodyRow);
-    clonedBodyRow.querySelectorAll("div p").forEach(p=>p.textContent="");
-    clonedBodyRow.querySelectorAll("div input").forEach(input=>input.value="");
-    clonedBodyRow.querySelector("div:nth-child(1)>p").textContent = ++slNo;
-    clonedBodyRow.querySelector("div:nth-child(2)>input").focus();
     e.target.scrollIntoView();
-}
-
-function openSelectionModal(e){
-    e.preventDefault();
-    const { key,target:orgInput } = e;
-    // Work in progress.
-}
-
-function getBodyRow(returnClassName=""){
-    return `
-            <div class="col sm"><p>${slNo}</p></div>
-            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" onkeypress="openSelectionModal(event)" onchange="selectionHandler(event,${returnClassName===''?false:true})" /></div>
-            <div class="col md"><p></p></div>
-            <div class="col md"><input data-name="quantity" type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input type="text" /></div>                            
-            <div class="col md"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col md"><p></p></div>
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input type="text" oninput="calculateAmounts(event,${returnClassName===''?false:true})" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col md"><p></p></div>
-            <div class="row-control-div ${returnClassName}">
-                <button tabindex="-1" data-name="delete-row">x</button>
-            </div>
-    `;
-}
-
-async function showDeliveryDetail(e){
-    let transporterDiv = document.getElementById("transporter-detail-div");
-    billMeta.delivery = {type : e.target.value};
-    if(e.target.value==="hand")
-        return transporterDiv.classList.add("hide");
-    transporterDiv.classList.remove("hide");
-    if(transporters.length===0){
-        transporters = (await ipcRenderer.invoke("get-transporter")).map(({dataValues})=>dataValues);
-        transporters.forEach(({name})=>{
-            let option = document.createElement("option");
-            option.value = name;
-            transporterDatalist.appendChild(option);
-        });
-        transporterDatalist.id = "transporter-names";
-        document.body.appendChild(transporterDatalist);
-    }
-}
-
-function reassignSummaryDivFeilds(netPayment=0){
-    if(netPayment===0 && Object.keys(billMeta).includes("payment"))
-        billMeta.payment.forEach((payObj)=>{
-            netPayment += payObj.payment;
-            document.querySelector('[data-name="payment"]').value = payObj.payment;
-            if(payObj.type==="cash")
-                document.querySelector("#cash-payment input").value = payObj.payment;
-            else if(payObj.type==="check"){
-                paymentModeDiv.querySelector("[data-name='bankName']").value = payObj.bnk;
-                paymentModeDiv.querySelector("[data-name='bankBranch']").value = payObj.branch;
-                paymentModeDiv.querySelector("[data-name='bankACNo']").value = payObj.a_c_No;
-                paymentModeDiv.querySelector("[data-name='chkNo']").value = payObj.chkNo;
-            }
-            else if(payObj.type==="online"){
-                paymentModeDiv.querySelector("[data-name='bankName']").value = payObj.bnk;
-                paymentModeDiv.querySelector("[data-name='bankTrnRef']").value = payObj.ref;
-            }
-        });
-    let deliveryCharge = billMeta.delivery.type==="hand"?0:Number(billMeta.delivery.transporterCharge);
-    document.querySelector("[data-name='billAmt']").textContent = billMeta.netAmt;
-    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
-    if(Math.sign(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment)<=0){
-        document.querySelector("[data-name='dueAmt']").textContent = 0;
-        billMeta.netDue = 0;
-        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(netPayment - (billMeta.netAmt + billMeta.r_o + deliveryCharge));
-    }
-    else{
-        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment);
-        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + billMeta.netAmt + billMeta.r_o - netPayment);
-        document.querySelector("[data-name='return']").textContent = 0;
-    }
-}
-
-function updateBillValue(e){
-    if(e.target.dataset.name!=="payment") return;
-    //Update summary and billMeta
-    let paymentModeDiv = e.target.parentNode.parentNode;
-    let payObj = {
-        payment:Number(e.target.value)
-    };
-    if(paymentModeDiv.id==="cash-payment")
-        payObj.type = "cash";
-    else if(paymentModeDiv.id==="check-payment"){
-        payObj.type = "check";
-        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.branch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
-        payObj.a_c_No = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
-        payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
-    }
-    else{
-        payObj.type = "online";
-        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.ref = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
-    }
-    let netPayment = 0, updateFlag = false;
-    if(payment.length>0)
-        for(let i=0;i<payment.length;i++)
-            if(payment[i].type===payObj.type){
-                payment[i] = payObj;
-                updateFlag = true;
-                break;
-            }
-    if(!updateFlag)
-        payment.push(payObj);
-    payment.forEach(_payObj=>{
-        netPayment += _payObj.payment;
-    });
-    reassignSummaryDivFeilds(netPayment);
-    billMeta.payment = payment;
+    e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
+    bodyRow = e.target.parentNode.previousSibling.previousSibling;
+    selectedItem = {};
+    bodyRow.dataset.sellId = uuid.v5(bodyRow.querySelector("p").textContent,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
 }
 
 function showPaymentMode(e){
@@ -412,338 +275,294 @@ function validateInput2(e){
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
 }
 
-function setBillNo(e){
-    billMeta.billDate = (new Date(e.target.value)).toISOString().split("T")[0];
-}
-
-function mainForm(){
-    slNo = 1;
-    if(currentStep===1)
-        return `
-                <div>
-                    <p class="row0">Name: </p>
-                    <div class="row1">
-                        <input type="text" autofocus data-name="name" onchange="selectionHandler(event)" list="customer-names"/>
-                    </div>
-                </div>
-                <div>
-                    <p class="row0">Address: </p>
-                    <div class="row1">
-                        <input type="text" data-name="address" />
-                    </div>
-                </div>
-                <div>
-                    <p class="row0">Phone:</p>
-                    <div class="row1">
-                        <input type="text" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
-                        <button id="add-new-phone" onclick="addPhone(event)">+</button>
-                    </div>
-                </div>
-                <div>
-                    <p class="row0">GST Number</p>
-                    <div class="row1">
-                        <input type="text" data-name="gst" id="customer-gst" />
-                    </div>
-                </div>
-                <div>
-                    <p class="row0">Bill Status</p>
-                    <div class="row1">
-                        <div class="radio-btn-div">
-                            <div>
-                                <label for="bill-status-open">Open: </label>
-                                <input type="radio" data-name="open"  name="bill-status" id="bill-status-open" value="open" />
-                            </div>
-                            <div>
-                                <label for="bill-status-close">Close: </label>
-                                <input type="radio" data-name="close" name="bill-status" id="bill-status-close" value="close" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                `;
-    if(currentStep===2)
-        return `
-                <div>
-                    <p class="row0">Date: </p>
-                    <div class="row1">
-                        <input type="date" data-name="billDate" onchange="setBillNo(event)" />
-                    </div>
-                </div>
-                <div>
-                    <p class="row0">Bill Number: </p>
-                    <div class="row1">
-                        <input type="text" data-name="billNo" />
-                    </div>
-                </div>
-                <div id="delivery-detail-div">
-                    <div>
-                        <label for="delivery-mode">Select delivery method: </label>
-                        <select id="delivery-mode" onchange="showDeliveryDetail(event)">
-                            <option value="hand" selected>By hand</option>
-                            <option value="transport">By Transporter</option>
-                        </select>
-                    </div>
-                    <div class="hide" id="transporter-detail-div" onkeypress="validateInput2(event)">
-                        <div>
-                            <p class="row0">Transporter Name</p>
-                            <div class="row1">
-                                <input type="text" onchange="selectionHandler(event)" list="transporter-names" data-name="transporterName" />
-                            </div>
-                        </div>
-                        <div>
-                            <p class="row0">Transporter Address</p>
-                            <div class="row1">
-                                <input type="text" data-name="transporterAddress" />
-                            </div>
-                        </div>
-                        <div>
-                            <p class="row0">Transporter Contact</p>
-                            <div class="row1">
-                                <input type="text" data-type="Number" data-name="transporterContact" />
-                            </div>
-                        </div>
-                        <div>
-                            <p class="row0">Transport Cost</p>
-                            <div class="row1">
-                                <input type="text" data-subtype="price" data-type="Number" data-name="transporterCharge" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-        `;
-    if(currentStep===3)
-        return `
-                <div id="table">
-                    <div class="row head">
-                        <div class="col sm"><p>Sl No.</p></div>
-                        <div class="col lg"><p>Particular</p></div>
-                        <div class="col md"><p>HSN No</p></div>
-                        <div class="col md"><p>Quantity</p></div>
-                        <div class="col md"><p>Unit</p></div>
-                        <div class="col md"><p>Rate</p></div>
-                        <div class="col md"><p>Amount</p></div>
-                        <div class="col sm"><p>CGST</p></div>
-                        <div class="col sm"><p>SGST</p></div>
-                        <div class="col sm"><p>IGST</p></div>
-                        <div class="col md"><p>Total</p></div>
-                    </div>
-                    <div id="tbody">
-                        <div class="row body">
-                            ${getBodyRow()}
-                        </div>
-                        <div class="row row-control-div" id="add-item">
-                            <button onclick="addRow(event)">+</button>
-                        </div>
-                    </div>
-                </div>
-        `;
-    if(currentStep===4)
-        return `
-            <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
-                <div id="payment-mode">
-                    <label for="payment-mode">Select payment mode:</label>
-                    <select id="payment-mode" onchange="showPaymentMode(event)">
-                        <option value="due" selected>Due</option>
-                        <option value="cash">Cash</option>
-                        <option value="check">Check</option>
-                        <option value="online">NEFT</option>
-                    </select>
-                </div>
-                <div id="cash-payment" class="hide payment-detail">
-                    <div>
-                        <p>Enter amount</p>
-                        <input data-type="Number" data-subtype="price" data-name="payment" />
-                    </div>
-                </div>
-                <div id="check-payment" class="hide payment-detail">
-                    <div>
-                        <p>Bank Name</p>
-                        <input type="text" data-name="bankName"/>
-                    </div>
-                    <div>
-                        <p>Bank Branch</p>
-                        <input type="text" data-name="bankBranch"/>
-                    </div>
-                    <div>
-                        <p>Account No.</p>
-                        <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
-                    </div>
-                    <div>
-                        <p>Check No.</p>
-                        <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
-                    </div>
-                    <div>
-                        <p>Amount paid</p>
-                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                    </div>
-                </div>
-                <div id="online-payment" class="hide payment-detail">
-                    <div>
-                        <p>Bank Name</p>
-                        <input type="text" data-name="bankName" />
-                    </div>
-                    <div>
-                        <p>Transaction Ref.</p>
-                        <input type="text" data-name="bankTrnRef" />
-                    </div>
-                    <div>
-                        <p>Amount paid</p>
-                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                    </div>
-                </div>
-            </div>
-            <div id="summary-div"></div>
-        `;//Payment and delivery detail
-}
-
-function summaryBlock(){
-    return `
-        <section>
-            <p>Nothing to show now</p>
-        </section>
-    `
-}
-
-function populateTableFeilds(bodyRowDivs,{name,hsn,qty,unit,rate,amt,cgst,sgst,igst,netAmt},index){
-    selectedItem = itemList.find(item=>item.name===name);
-    if(!amt)
-        amt = qty * rate;
-    if(!netAmt)
-        netAmt = igst>0?(1+igst/100)*amt:(1+(sgst+cgst)/100)*amt;
-    bodyRowDivs[0].querySelector("p").textContent = index + 1;
-    bodyRowDivs[1].querySelector("input").value = name;
-    bodyRowDivs[2].querySelector("p").textContent = hsn ?? selectedItem.hsn;
-    bodyRowDivs[3].querySelector("input").value = qty;
-    bodyRowDivs[4].querySelector("input").value = unit;
-    bodyRowDivs[5].querySelector("input").value = rate;
-    bodyRowDivs[6].querySelector("p").textContent = amt;
-    bodyRowDivs[7].querySelector("input").value = cgst;
-    bodyRowDivs[8].querySelector("input").value = sgst;
-    bodyRowDivs[9].querySelector("input").value = igst;
-    bodyRowDivs[10].querySelector("p").textContent = netAmt;
-}
-
-async function reInitCurrentPage(){
-    if(currentStep===3 && orderItems.length>0){
-        orderItems.forEach((item,index)=>{
-            let bodyRowDivs = document.querySelectorAll(".row.body:nth-last-child(2)>div");
-            populateTableFeilds(bodyRowDivs,item,index)
-            slNo = index + 1;
-            if(slNo<orderItems.length)
-                document.querySelector("#add-item>button").click();
-        });
+function selectionHandler(e){// Work needed here
+    let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
+    if(!match || Object.keys(match).length==0) return;
+    if(e.target.dataset.name==="stock-name"){
+        selectedItem = match;
+        bodyRow = e.target.parentNode.parentNode;
+        for(let key in match){
+            let input = bodyRow.querySelector(`input[data-name="${key}"]`);
+            if(input && key!=="unit")
+                input.value = match[key];
+            if(key==="unit")
+                input.value = "Kg";
+            bodyRow.dataset[key] = match[key];
+        }
+        bodyRow.querySelector(`[data-name="qty"]`).focus();
+        match.sellId = bodyRow.dataset.sellId;
+        orderItems = orderItems.filter(obj=>obj.sellId!==match.sellId);
+        orderItems.push(match);
+        if(selectedItem.id!==match.id)
+            selectedItem = match;
         displaySection();
     }
-    if(currentStep===1 && Object.keys(customer).length>0){
-        let inputFeilds = document.querySelectorAll(".row1>input");
-        inputFeilds.forEach(input=>{
-            if(input.dataset.name!=="phones")
-                input.value = customer[input.dataset.name]
-            else
-                input.value = customer.phones[customer.phones.length-1]!==0?customer.phones[customer.phones.length-1]:"";
-        });
-        [...document.getElementsByName("bill-status")].forEach(input=>{
-            input.checked = input.dataset.name===billMeta.billStatus && true;
-        }) 
+    else
+    if(e.target.dataset.name==="name"){// Done.
+        let {address,phones,gst,moreInfo} = match;
+        customer = {...match};
+        document.querySelector("[data-name='address']").value = address;
+        document.querySelector("[data-name='phones']").value = JSON.parse(phones)[0];
+        document.querySelector("[data-name='gst']").value = gst;
+        document.querySelector("[data-name='email']").value = JSON.parse(moreInfo).email;
     }
-    if(currentStep===2){
-        let inputFeilds = document.querySelectorAll(".row1>input");
-        if(billMeta.delivery){
-            [...document.querySelectorAll("#delivery-mode>option")].forEach(option=>{
-                option.selected = option.value===billMeta.delivery.type && true
-                if(option.selected && option.value==="transport")
-                    document.getElementById("transporter-detail-div").classList.remove("hide");
+    else
+    if(e.target.dataset.name==="transportName"){// Done
+        let {address,phone,charge} = match;
+        document.querySelector("[data-name='transportAddress']").value = address!==undefined?address:"";
+        document.querySelector("[data-name='transportContact']").value = phone!==undefined?phone:"";
+        document.querySelector("[data-name='transportCharge']").value = charge;
+    }
+    else
+    if(e.target.dataset.name==="coolieName"){
+        let { phones,moreInfo } = match;
+        document.querySelector("[data-name='coolieContact']").value = phones!==undefined?phones:"";
+        document.querySelector("[data-name='coolieCharge']").value = JSON.parse(moreInfo).charge;
+    }
+}
+
+function calculateAmounts(e){
+    if(Object.keys(selectedItem).length===0) return;
+    let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
+    let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
+    let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
+    let res = unitMap.find(uObj=>unit in uObj);
+    let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier);
+    let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
+    let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
+    let igst = Number(bodyRow.querySelector('[data-name="igst"]').value) ?? 0;
+    if(igst>0){
+        sgst = 0;
+        cgst = 0;
+        bodyRow.querySelector('[data-name="cgst"]').value = "";
+        bodyRow.querySelector('[data-name="sgst"]').value = "";
+    }
+    selectedItem.sgst = sgst;
+    selectedItem.cgst = cgst;
+    selectedItem.igst = igst;
+    selectedItem.rate = rate;
+    selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
+    selectedItem.qty = quantity;
+    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier * (1 + (cgst + sgst + igst)/100));
+    displaySection();
+}
+
+function reduceOrder(){
+    return orderItems.reduce((acc,obj)=>{
+        let keys = ["qty","sellUnit","rate"];
+        let obJKeys = Object.keys(obj);
+        let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
+            if(key in obj)
+                return acc + obj[key]
+            return acc
+        },0);
+        if(keys.every(val=>obJKeys.includes(val))){
+            let res = unitMap.find(uObj=>obj.sellUnit in uObj);
+            let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+            acc.netQty += obj.qty * multiplier;
+            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
+            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
+        }
+        return acc;
+    },{
+        netQty:0,
+        netAmt:0,
+        netAmtTax:0
+    });
+}
+
+function displaySection(){// Work need to done here
+    let df = document.getElementById("summary-div-template").content.cloneNode(true);
+    document.querySelector(".page #page3-summary-div")?.remove();
+    document.querySelector("#page-3").appendChild(df);
+    let summaryDiv = document.querySelector("#page3-summary-div");
+    [...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue")].forEach(p=>{
+        if(p.dataset.name==="specialPrice" && "specialPrice" in selectedItem){
+            let sorted = JSON.parse(selectedItem.specialPrice)
+                .filter(obj=>obj.customerId===customer.id)
+                .sort((obj1,obj2)=>{
+                    if(new Date(obj1.billDate)<new Date(obj2.billDate))
+                        return 1;
+                    else
+                    if(new Date(obj1.billDate)==new Date(obj2.billDate))
+                        return 0;
+                    else
+                        return -1
+                });
+            p.textContent = sorted?.[0]?.rate ?? 0;
+        }
+        else
+        if(p.dataset.name==="quantity"){
+            let quantity = selectedItem.quantity ?? 0;
+            let totalQty = orderItems.reduce((acc,obj)=>{
+                if(obj.id===selectedItem.id && "qty" in obj && "id" in selectedItem && "id" in obj){
+                    let res = unitMap.find(uObj=>obj?.sellUnit in uObj);
+                    let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+                    return acc+obj.qty*multiplier;
+                }
                 else
-                    document.getElementById("transporter-detail-div").classList.add("hide");
-            })
+                    return acc;
+            },0);
+            p.textContent = quantity - totalQty;
+            if(Math.sign(quantity - totalQty)<0)
+                p.classList.add("red");
+            else
+                p.classList.remove("red");
         }
-        inputFeilds.forEach(input=>{
-            if(input.dataset.name==="billDate"){
-                input.value = new Date().toISOString().split("T")[0];
-                billMeta.billDate = new Date().toISOString().split("T")[0];
+        else
+            p.textContent = selectedItem[p.dataset.name] ?? ""; 
+    });
+    let reducedOrder = reduceOrder();
+    billMeta.netQty = reducedOrder.netQty;
+    billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
+    billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
+    billMeta.netTax = roundOffTo2DecimalPlace(billMeta.netAmtTax - billMeta.netAmt);
+    [...summaryDiv.querySelectorAll("#bill-summary .red")].forEach(p=>p.textContent=!isNaN(reducedOrder[p.dataset.name])?roundOffTo2DecimalPlace(reducedOrder[p.dataset.name]):p.textContent);
+}
+
+function deleteRow(e){
+    if(e)
+        return ([...document.querySelectorAll(".body.row")].find(div=>div.dataset.sellId===e.target.parentNode.dataset.sellId)).remove();
+    if(!bodyRow.classList.contains("row")) return;
+    if(!bodyRow)
+        bodyRow = [...document.querySelectorAll('.row.body')].pop();
+    if("sellId" in bodyRow.dataset)
+        orderItems = orderItems.filter(obj=>obj.sellId!==bodyRow.dataset.sellId);
+    bodyRow.remove();
+    [...document.querySelectorAll(".body.row")].forEach((row,index)=>{
+        row.querySelector("p").textContent = index+1;
+    })
+}
+
+function updateBillValue(e){
+    if(e.target.dataset.name!=="payment") return;
+    //Update summary and billMeta
+    let paymentModeDiv = e.target.parentNode.parentNode;
+    let payObj = {
+        payment:Number(e.target.value)
+    };
+    if(paymentModeDiv.id==="cash-payment"){
+        payObj.type = "cash";
+        let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
+        deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
+        if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment)
+            billMeta.paymentStatus = true;
+        else
+            billMeta.paymentStatus = false;
+    }
+    else if(paymentModeDiv.id==="check-payment"){
+        payObj.type = "check";
+        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.branch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
+        payObj.a_c_No = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
+        payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
+        billMeta.paymentStatus = JSON.parse(paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value);
+    }
+    else{
+        payObj.type = "online";
+        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.ref = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
+        billMeta.paymentStatus = JSON.parse(paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value);
+    }
+    let updateFlag = false;
+    if(payment.length>0)
+        for(let i=0;i<payment.length;i++)
+            if(payment[i].type===payObj.type){
+                payment[i] = payObj;
+                updateFlag = true;
+                break;
             }
-            else
-            if(input.dataset.name.startsWith("trans"))
-                input.value = billMeta.delivery[input.dataset.name]?billMeta.delivery[input.dataset.name]:"";
-            else
-                input.value = billMeta.billNo;
-        })
+    if(!updateFlag)
+        payment.push(payObj);
+    billMeta.payment = payment;
+    if(billMeta.paymentStatus)
+        showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
+    else
+        showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
+    reassignSummaryDivFeilds();
+}
+
+function reassignSummaryDivFeilds(){
+    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,payObj)=>acc + payObj.payment,0):0;
+    let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
+    deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
+    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
+    if(Math.sign(deliveryCharge + billMeta.netAmtTax - netPayment)<=0){
+        document.querySelector("[data-name='dueAmt']").textContent = 0;
+        billMeta.netDue = 0;
+        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(netPayment - (Math.round(billMeta.netAmtTax) + deliveryCharge));
     }
-    if(currentStep===4){
-        document.getElementById("summary-div").innerHTML = `
-            <div>
-                <p>Net Bill Amount</p>
-                <p data-name="billAmt" class="highlight">${billMeta.netAmt + billMeta.r_o}</p>
-            </div>
-            <div>
-                <p>Net Payment</p>
-                <p data-name="paymentAmt" class="highlight">0</p>
-            </div>
-            <div>
-                <p>Net Due</p>
-                <p data-name="dueAmt" class="highlight">${billMeta.netAmt + billMeta.r_o}</p>
-            </div>
-            <div>
-                <p>Net Return</p>
-                <p data-name="return" class="highlight">0</p>
-            </div>
-        `;
-        if(billMeta.delivery.type!=="hand"){
-            let billAmtDiv = document.querySelector("#summary-div>div");
-            billAmtDiv.after(((new DOMParser()).parseFromString(`
-                <div>
-                    <p>Delivery/Service Charge</p>
-                    <p data-name="deliveryCharge" class="highlight">${billMeta.delivery.transporterCharge}</p>
-                </div>
-            `,"text/html")).body.querySelector("div"));
-            document.querySelector("#summary-div>div:nth-last-child(2)>p:last-child").textContent = billMeta.netAmt + Number(billMeta.delivery.transporterCharge) + billMeta.r_o;
+    else{
+        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
+        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
+        document.querySelector("[data-name='return']").textContent = 0;
+    }
+}
+
+function deleteKey(arr,obj){
+    arr.forEach(key=>{
+        if(key in obj)
+            Reflect.deleteProperty(obj,key);
+    })
+}
+
+function assignDeliveryOptions(e){
+    let transportDiv = document.getElementById("transport-div");
+    let coolieDiv = document.getElementById("coolie-div");
+    if(e.target.name==="delivery-mode"){
+        if(e.target.value==="transport"){
+            transportDiv.classList.remove("hide");
+            let transportOptDF = document.getElementById("transport-retractable-div-template").content.cloneNode(true);
+            transportDiv.appendChild(transportOptDF);
         }
-        if(Object.keys(billMeta).includes("payment"))
-            reassignSummaryDivFeilds();
+        else{
+            transportDiv.classList.add("hide");
+            transportDiv.querySelector(".retractable-div").remove();
+            deleteKey([
+                "deliveryType",
+                "transportName",
+                "transportAddress",
+                "transportContact",
+                "transportCharge"
+            ],billMeta);
+        }
+    }
+    else{
+        if(e.target.value==="yes"){
+            coolieDiv.classList.remove("hide");
+            let coolieOptDF = document.getElementById("coolie-retractable-div-template").content.cloneNode(true);
+            coolieDiv.appendChild(coolieOptDF);
+        }
+        else{
+            coolieDiv.classList.add("hide");
+            coolieDiv.querySelector(".retractable-div").remove();
+            deleteKey([
+                "coolieReq",
+                "coolieName",
+                "coolieContact",
+                "coolieCharge"
+            ],billMeta);
+        }
     }
 }
 
-function buildPage(){
-    document.body.innerHTML = `
-                    <header>
-                        <h1>Sale registor</h1>
-                        <p>
-                            <span>Step ${currentStep}:</span>
-                            ${stepDetail()}
-                        </p>
-                    </header>
-                    <main onclick="mainClickHandler(event)" onfocus="mainFocusHandler(event)" class="${currentStep===4 && 'step-4'}">
-                        ${mainForm()}
-                    </main>
-                    ${currentStep===3?summaryBlock():""}
-                    ${footer()}
-    `;
-    document.querySelector("main").addEventListener("focus",mainFocusHandler,true);
-    reInitCurrentPage()
+function updatePayStatus(e){
+    if(e)
+        billMeta.paymentStatus = JSON.parse(e.target.value);
+    if(billMeta.paymentStatus)
+        showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
+    else
+        showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
 }
 
-function mainClickHandler(e){
-    if(e.target.dataset.name==="delete-row" && e.target.parentNode.parentNode.className==='row body'){
-        let bodyRow = e.target.parentNode.parentNode;
-        let _slNo = 1;
-        bodyRow.remove();
-        document.querySelectorAll(".row.body").forEach(bodyRow=>{
-            bodyRow.querySelector("div:first-child>p").textContent = _slNo++;
-        })
-        slNo--;
-        displaySection();
+function execRetractHandler(e){
+    if(e.target.nodeName!=="DIV"){
+        let retractableDiv = e.target.parentNode.parentNode.querySelector(".retractable-div");
+        [...e.target.parentNode.querySelectorAll("button")].forEach(btn=>btn.classList.toggle("hide"));
+        retractHandler(retractableDiv);
     }
 }
-
-function mainFocusHandler(e){
-    if(currentStep===3 && e.target.nodeName==="INPUT"){
-        let bodyRow = e.target.parentNode.parentNode;
-        selectedItem = itemList.find(({name})=>name===bodyRow.querySelector("div:nth-child(2)>input").value);
-        displaySection();
-    }
-}
-
-ipcRenderer.on("get-current-step",cancelAction);
 
 function showPrintDialog(){
     if(payment.length===0)
@@ -753,8 +572,34 @@ function showPrintDialog(){
 
 ipcRenderer.on("printObj",(e,printObj)=>{
     billMeta.printObj = printObj;
-    ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems})
+    ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
+
+function saveExit(){
+    ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
+}
+
+function applyDiscount(e){
+    let discVal = Number(e.target.value);
+    document.getElementById("discount-feild")?.remove();
+    billMeta.discVal = 0;
+    let netAmt = reduceOrder().netAmt;
+    billMeta.discVal = discVal;
+    if(discVal>0){
+        let div = document.createElement("div");
+        div.innerHTML = `
+            <p>Discount</p>
+            <p data-name="discVal" class="highlight">${roundOffTo2DecimalPlace(netAmt - reduceOrder().netAmt)}</p>
+        `;
+        div.id = "discount-feild";
+        document.getElementById("netAmtTaxDel-div").before(div);
+    }
+    let reducedOrder = reduceOrder();
+    billMeta.netAmt = reducedOrder.netAmt;
+    billMeta.netAmtTax = reducedOrder.netAmtTax;
+    billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
+    page4Init();
+}
 
 document.addEventListener("keydown",e=>{
     if(e.ctrlKey && e.key==="Enter" && currentStep<4)
@@ -764,16 +609,8 @@ document.addEventListener("keydown",e=>{
         document.querySelector('[data-type="save"]').click();
     if(e.ctrlKey && e.key==="ArrowLeft")
         document.querySelector('[data-type="back"]').click();
-    if(e.shiftKey && e.key==="ArrowDown")
+    if(e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     if(e.shiftKey && e.key==="Delete")
-        [...document.querySelectorAll('.row.body')].pop().querySelector('[data-name="delete-row"]').click();
-    if(e.ctrlKey && e.key==="p" && currentStep===4)
-        document.querySelector('[data-type="print"]').click();
-    if(currentStep===4 && e.ctrlKey && e.key==="r")
-        document.querySelector('[data-type="return"]').click();
-    if(currentStep===4 && e.key==="Enter" && document.querySelector('[data-name="print-btn"]'))
-        document.querySelector('[data-name="print-btn"]').click();
-    if(currentStep===4 && e.key==="End" && document.querySelector('[data-name="print-cancel-btn"]'))
-        document.querySelector('[data-name="print-cancel-btn"]').click();
+        deleteRow();
 });

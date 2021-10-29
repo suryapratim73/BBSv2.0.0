@@ -165,26 +165,6 @@ const customerSchema = {
     }
 }
 
-const transporterSchema = {
-    id:{
-        type: DataTypes.UUID,
-        defaultValue:UUIDV4,
-        primaryKey:true
-    },
-    name:{
-        type:DataTypes.TEXT
-    },
-    address:{
-        type:DataTypes.TEXT
-    },
-    phone:{
-        type:DataTypes.TEXT
-    },
-    charge:{
-        type:DataTypes.TEXT
-    }
-}
-
 const stockSchema = {
     id:{
         type: DataTypes.UUID,
@@ -243,7 +223,7 @@ const stockSchema = {
     },
     saleHistory:{
         type: DataTypes.JSON,
-        defaultValue: {}
+        defaultValue: []
     }
 }
 
@@ -334,6 +314,10 @@ const saleSchema = {
     billItemTable:{
         type:DataTypes.TEXT,
         allowNull: false
+    },
+    deliveryStatus:{
+        type:DataTypes.TEXT,
+        defaultValue:"queued"
     }
 }
 
@@ -464,10 +448,6 @@ module.exports = {
         }
     }),
     inPayments: sequelize.define("inPayments",inPaymentSchema,{
-        freezeTableName:true,
-        timestamps:false
-    }),
-    transporters: sequelize.define("transporters",transporterSchema,{
         freezeTableName:true,
         timestamps:false
     }),

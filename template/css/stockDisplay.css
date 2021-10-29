@@ -31,3 +31,10 @@ nav input{
 main{
     grid-row: 3/-1;
 }
+#tbody{
+    max-height: 80%;
+    height: fit-content;
+}
+.scroll-sym-common{
+    top:79%
+}

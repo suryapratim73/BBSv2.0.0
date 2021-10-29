@@ -329,7 +329,7 @@ exports.closeToast = function (e){
     e.target.parentNode.remove();
 }
 
-exports.toastNotification = function(msg,customClasses,...elems){
+function toastNotification(msg,customClasses,...elems){
     let div = document.createElement("div");
     div.innerHTML = `
         <p>${msg}</p>
@@ -341,6 +341,31 @@ exports.toastNotification = function(msg,customClasses,...elems){
     if(customClasses && typeof customClasses==="object")
         customClasses.forEach(className=>div.classList.add(className));
     return div;
+}
+
+exports.showToastNotification = function(msg,className,container,adjX=8){
+    let toast = toastNotification(msg,className);
+    let { height } = toast.getBoundingClientRect();
+    [...document.querySelectorAll(".toast-div")].forEach(toast=>{
+        toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;
+    });
+    document.getElementById(container).appendChild(toast);
+    let toastTimers = [];
+    [...document.querySelectorAll(".toast-div")].forEach((toast,index,self)=>{
+        if(index>4)
+            for(let i=0;i<4;i++){
+                clearTimeout(toastTimers[i]);
+                toastTimers = toastTimers.filter((_,index)=>index!==i);
+                self[i].remove();
+            }
+        toastTimers.push(setTimeout(()=>{
+            toast.style.transform = "translateX(-100%)";
+            toast.classList.add("fade")
+            setTimeout(()=>{
+                toast?.remove();
+            },300);
+        },2000 + 200*index));
+    })
 }
 
 const cmdMap = [
@@ -486,4 +511,26 @@ exports.scrollSymSet = function(elem){
         clearInterval(mousedownTimer)
     });
     return mousedownTimer;
+}
+
+exports.retractHandler = function(retractableDiv){
+    let height = retractableDiv.scrollHeight;
+    if(retractableDiv.dataset.collapsed==="false"){
+        let transitionVal = retractableDiv.style.transition;
+        retractableDiv.style.transition = '';
+        debugger
+        requestAnimationFrame(()=>{
+            retractableDiv.style.height = height + "px";
+            retractableDiv.style.transition = transitionVal;
+            requestAnimationFrame(()=>{
+                retractableDiv.style.height = 0 + "px";
+            })
+        });
+        retractableDiv.dataset.collapsed = "true";
+    }
+    else{
+        retractableDiv.style.height = height + "px";
+        retractableDiv.dataset.collapsed = "false";
+    }
+    
 }

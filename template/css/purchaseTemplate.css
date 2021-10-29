@@ -81,6 +81,7 @@ form>div>div:last-child>button{
 #page2>#table{
     grid-row: 2/12;
     grid-column: 1/span 12;
+    width: min-content;
 }
 #page2>.btn-container{
     grid-row: 13;
@@ -149,6 +150,7 @@ form>div>div:last-child>button{
 .body.row input,.body.row p{
     width: 100%;
     border: none;
+    height: 100%;
 }
 .sm{
     width: 3rem;
@@ -269,10 +271,4 @@ form>div>div:last-child>button{
 }
 .body row{
     position: relative;
-}
-.body-row-options{
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
 }

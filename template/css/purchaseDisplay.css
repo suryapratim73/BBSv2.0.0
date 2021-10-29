@@ -102,3 +102,7 @@ main{
     margin: 0.25rem 0;
     border-bottom: 1px dashed black;
 }
+#tbody{
+    max-height: 80%;
+    height: fit-content;
+}

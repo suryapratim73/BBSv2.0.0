@@ -28,6 +28,14 @@ ipcMain.handle("get-employee-names",async (e,id)=>{
         attributes:["id","name"]
     })).map(({dataValues})=>dataValues);
     return employeesToSupp;
+});
+
+ipcMain.handle("get-coolies",async e=>{
+    return (await (await people).findAll({
+        where:{
+            relation:"Coolie"
+        }
+    })).map(({dataValues})=>dataValues);
 })
 
 exports.getFreights = ()=>(freightList);

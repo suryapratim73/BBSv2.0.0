@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
 const fs = require("fs")
-const { lib, margin, emblem, titleFontFamily, titileFontSize } = require("../config/saleConfig.json")
+const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.json")
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
@@ -23,8 +23,9 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj
     const {doc,pdfPath} = initBillPDF(billObj);
-    let j,lastJ=0,lastI=0,k,lastK=0;
-    const {printObj:{captions},returnOrder} = billMeta;
+    let j,lastJ=0,lastI=0,lastK=0;
+    const {printObj:{captions}} = billMeta;
+    let { height,margins:{bottom} } = doc.page;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;
@@ -49,32 +50,11 @@ exports.billPDF = function(billObj){
                 initialY+=40;
             else
                 initialY+=20;
-            if(initialY>615){
+            if(initialY>height-2*bottom){
                 doc.addPage();
                 i--;
                 lastJ = j;
                 continue loop1;
-            }
-        }
-        if(returnOrder?.length>0){
-            initialY+=20;
-            doc
-            .font("Times-BoldItalic")
-            .text("Return Orders",10,initialY)
-            .font(titleFontFamily);
-            initialY+=20;
-            for(;k<returnOrder.length;k++){
-                createBody(doc,orderItems[k],initialY,k+1)
-                if(doc.widthOfString(returnOrder[k].name)>185)
-                    initialY+=40;
-                else
-                    initialY+=20;
-                if(initialY>615){
-                    doc.addPage();
-                    i--;
-                    lastK = k;
-                    continue loop1;
-                }
             }
         }
     }

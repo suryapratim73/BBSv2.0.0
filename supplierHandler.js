@@ -85,8 +85,6 @@ exports.checkOutPayments = mainWindow=>{
     }
 }
 
-exports.getSuppliers = ()=>(suppliers);
-
 ipcMain.handle("get-supplier-names",async e=>{
     if(suppliers.length>0) return suppliers;
     let suppList = (await supplier.findAll({
@@ -105,7 +103,7 @@ ipcMain.handle("get-more-info-supplier",async (e,id)=>{
     let suppMoreInfo = (await supplier.findOne({where:{id}})).dataValues;
     supplierSelected.append(suppMoreInfo);
     return supplierSelected;
-})
+});
 
 ipcMain.on("get-new-phone-number",()=>{
     let windowOptions = {
@@ -302,3 +300,5 @@ ipcMain.on("add-out-payment",async (e,{id,billNo,billAmt,payment,type})=>{
 ipcMain.on("get-out-payments",async e=>{
     e.sender.send("show-out-payments",(await outPayments.findAll()).map(({dataValues})=>dataValues));
 });
+
+exports.suppliers = suppliers;

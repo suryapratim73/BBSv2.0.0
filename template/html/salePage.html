@@ -9,6 +9,390 @@
     <script src="../js/salePage.js" defer></script>
 </head>
 <body>
-    
+    <h1 id="page-header"></h1>
+    <form onsubmit="proceedOrFinishHandler(event)">
+        <main onchange="selectionHandler(event)">
+            <div id="page-1" class="page" data-pageno="1"></div>
+            <div id="page-2" class="page hide" data-pageno="2"></div>
+            <div id="page-3" class="page hide" data-pageno="3"></div>
+            <div id="page-4" class="page hide" data-pageno="4"></div>
+        </main>
+        <footer></footer>
+    </form>
+    <template id="page-1-template">
+        <div>
+            <div>
+                <label for="customer-name" class="red">Name: </label>
+            </div>
+            <div class="row1">
+                <input required type="text" spellcheck="false" name="customer-name" autofocus data-name="name" list="customer-names"/>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="customer-address" class="red">Address: </label>
+            </div>
+            <div class="row1">
+                <input required type="text" name="customer-address" data-name="address" />
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="customer-phones" class="red">Phone:</label>
+            </div>
+            <div class="row1">
+                <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="customer-email" class="red">Customer Email</label>
+            </div>
+            <div class="row1">
+                <input name="customer-email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="customer-gst" class="red">GST Number</label>
+            </div>
+            <div class="row1">
+                <input name="customer-gst" type="text" data-name="gst" id="customer-gst" />
+            </div>
+        </div>
+    </template>
+    <template id="page-2-template">
+        <div>
+            <div>
+                <label for="bill-date" class="red">Date: </label>
+            </div>
+            <div class="row1">
+                <input type="date" required name="bill-date" data-name="billDate"/>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="bill-number" class="red">Bill Number: </label>
+            </div>
+            <div class="row1">
+                <input name="bill-number" required type="text" data-name="billNo" />
+            </div>
+        </div>
+        <div>
+            <div>
+                <label class="red">Bill Status</label>
+            </div>
+            <div class="row1">
+                <div class="radio-btn-div">
+                    <div>
+                        <label for="bill-status-open">Open: </label>
+                        <input type="radio" required data-name="billStatus"  name="bill-status" id="bill-status-open" value="open" />
+                    </div>
+                    <div>
+                        <label for="bill-status-close">Close: </label>
+                        <input type="radio" data-name="billStatus" name="bill-status" id="bill-status-close" value="close" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="delivery-mode" class="red">Delivery Mode: </label>
+            </div>
+            <div class="row1">
+                <select name="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="delivery-mode">
+                    <option value="hand">Hand</option>
+                    <option value="transport">Transport</option>
+                </select>
+            </div>
+        </div>
+        <div id="transport-div" class="retractable-div-container hide">
+            <div onclick="execRetractHandler(event)">
+                <button tabindex="-1" type="button" class="hide">Show</button>
+                <button tabindex="-1" type="button">Hide</button>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="colley-required" class="red">Coolie Required? </label>
+            </div>
+            <div class="row1">
+                <select name="colley-required" onchange="assignDeliveryOptions(event)" required type="text" data-name="colley-required">
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                </select>
+            </div>
+        </div>
+        <div id="coolie-div" class="retractable-div-container hide">
+            <div onclick="execRetractHandler(event)">
+                <button tabindex="-1" type="button" class="hide">Show</button>
+                <button tabindex="-1" type="button">Hide</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-3-template">
+        <div id="table">
+            <div class="row head">
+                <div class="col sm"><p>Sl No.</p></div>
+                <div class="col lg"><p>Particular</p></div>
+                <div class="col md"><p>HSN No</p></div>
+                <div class="col md"><p>Quantity</p></div>
+                <div class="col md"><p>Unit</p></div>
+                <div class="col md"><p>Rate</p></div>
+                <div class="col md"><p>Amount</p></div>
+                <div class="col sm"><p>CGST</p></div>
+                <div class="col sm"><p>SGST</p></div>
+                <div class="col sm"><p>IGST</p></div>
+                <div class="col md"><p>Total</p></div>
+            </div>
+            <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                <div class="row row-control-div" id="add-item">
+                    <button type="button" onclick="addRow(event)">+</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="page-4-template">
+        <div id="left-section">
+            <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
+                <div id="payment-mode">
+                    <label for="payment-mode">Select payment mode:</label>
+                    <select id="payment-mode" onchange="showPaymentMode(event)">
+                        <option value="due" selected>Due</option>
+                        <option value="cash">Cash</option>
+                        <option value="check">Check</option>
+                        <option value="online">NEFT</option>
+                    </select>
+                </div>
+                <div id="cash-payment" class="hide payment-detail">
+                    <div>
+                        <p>Enter amount</p>
+                        <input data-type="Number" data-subtype="price" data-name="payment" />
+                    </div>
+                </div>
+                <div id="check-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" data-name="bankName"/>
+                    </div>
+                    <div>
+                        <p>Bank Branch</p>
+                        <input type="text" data-name="bankBranch"/>
+                    </div>
+                    <div>
+                        <p>Account No.</p>
+                        <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Check No.</p>
+                        <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Mark as paid</p>
+                        <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="online-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" data-name="bankName" />
+                    </div>
+                    <div>
+                        <p>Transaction Ref.</p>
+                        <input type="text" data-name="bankTrnRef" />
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Mark as paid</p>
+                        <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="discount-div">
+                <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+        </div>
+        <div id="summary-div">
+            <div>
+                <p>Bill Amount</p>
+                <p data-name="netAmtTax" class="highlight">0</p>
+            </div>
+            <div>
+                <p>Delivery Charge</p>
+                <p data-name="delCharge" class="highlight">0</p>
+            </div>
+            <div id="netAmtTaxDel-div">
+                <p>Net Amount</p>
+                <p data-name="netAmtTaxDel" class="highlight">0</p>
+            </div>
+            <div>
+                <p>Net Payment</p>
+                <p data-name="paymentAmt" class="highlight">0</p>
+            </div>
+            <div>
+                <p>Net Due</p>
+                <p data-name="dueAmt" class="highlight">0</p>
+            </div>
+            <div>
+                <p>Net Return</p>
+                <p data-name="return" class="highlight">0</p>
+            </div>
+        </div>
+    </template>
+    <template id="footer-template">
+        <div id="btn-container">
+            <button type="button" data-type="cancel" onclick="cancelAction()">Cancel</button>
+            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>
+            <button type="submit" data-type="proceed">Proceed</button>
+            <button type="button" data-type="print" onclick="showPrintDialog()">Print</button>
+            <button type="button" data-type="save" onclick="saveExit(event)">Save & Exit</button>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col sm"><p>1</p></div>
+            <div class="col lg"><input type="text" data-name="stock-name" list="stock-names" /></div>
+            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col md"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt"></p></div>
+            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt-with-tax"></p></div>
+        </div>
+    </template>
+    <template id="summary-div-template">
+        <div id="page3-summary-div">
+            <div id="product-summary">
+                <div class="summary-col">
+                    <div>
+                        <p>Product:</p>
+                        <p class="blue" data-name="name"></p>
+                    </div>
+                    <div>
+                        <p>Available Qty:</p>
+                        <p class="blue" data-name="quantity"></p>
+                    </div>
+                    <div>
+                        <p>Buy Price:</p>
+                        <p class="blue" data-name="buyPrice"></p>
+                    </div>
+                </div>
+                <div class="summary-col">
+                    <div>
+                        <p>Last Sell Price:</p>
+                        <p class="blue" data-name="lastSellPrice">0</p>
+                    </div>
+                    <div>
+                        <p>Standard Sell Price:</p>
+                        <p class="blue" data-name="standardSellPrice">0</p>
+                    </div>
+                    <div>
+                        <p>Special Sell Price:</p>
+                        <p class="blue" data-name="specialPrice">0</p>
+                    </div>
+                </div>
+            </div>
+            <div id="bill-summary">
+                <div>
+                    <p>Sold Qty:</p>
+                    <p class="red" data-name="netQty">0</p>
+                </div>
+                <div>
+                    <p>Amt:</p>
+                    <p class="red" data-name="netAmt">0</p>
+                </div>
+                <div>
+                    <p>Amt with Tax:</p>
+                    <p class="red" data-name="netAmtTax">0</p>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="transport-retractable-div-template">
+        <div class="retractable-div" data-collapsed="false">
+            <div>
+                <div>
+                    <label for="transport-name" class="red">Transport Name: </label>
+                </div>
+                <div class="row1">
+                    <input list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transport-address" class="red">Transport Address: </label>
+                </div>
+                <div class="row1">
+                    <input name="transport-address" type="text" data-name="transportAddress" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transport-contact" class="red">Transport Contact: </label>
+                </div>
+                <div class="row1">
+                    <input name="transport-contact" type="text" data-name="transportContact" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transport-charge" class="red">Transport Charge: </label>
+                </div>
+                <div class="row1">
+                    <input name="transport-charge" placeholder="compulsory feild" required type="text" data-name="transportCharge" />
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="coolie-retractable-div-template">
+        <div class="retractable-div" data-collapsed="false">
+            <div>
+                <div>
+                    <label for="coolie-name" class="red">Coolie Name: </label>
+                </div>
+                <div class="row1">
+                    <input name="coolie-name" list="coolie-dl" placeholder="compulsory feild" required type="text" data-name="coolieName" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="coolie-contact" class="red">Coolie Contact: </label>
+                </div>
+                <div class="row1">
+                    <input name="coolie-contact" placeholder="compulsory feild" required type="text" data-name="coolieContact" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="coolie-charge" class="red">Coolie Charge: </label>
+                </div>
+                <div class="row1">
+                    <input name="coolie-charge" placeholder="compulsory feild" required type="text" data-name="coolieCharge" />
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="body-row-options-template">
+        <div class="body-row-options">
+            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
+        </div>
+    </template>
 </body>
 </html>

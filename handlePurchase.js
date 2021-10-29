@@ -1,12 +1,12 @@
-const { BrowserWindow, dialog } = require("electron");
+const { BrowserWindow } = require("electron");
 const { ipcMain } = require("electron/main");
-const { Op } = require("sequelize");
-const { getLedgerModel, getBillModel, appLogger, closeAndDisplay } = require("./common");
+const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal } = require("./createModal");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
 const { supplierLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
-const { getSuppliers } = require("./supplierHandler");
+const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
+const { stockList } = require("./handleStock");
 
 
 exports.addPurchase = mainWindow=>{
@@ -51,11 +51,10 @@ exports.showPurchase = mainWindow =>{
 
 ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})=>{
     let { id,name,address,phones,moreInfo,gst } = suppObj;
-    let { billNo,billDate,freightName,freightCharge=0,totalWithoutTax,totalTax,total,paymentStatus=false,moreInfo:_moreInfo={} } = billMeta;
+    let { billNo,billDate,freightName,freightCharge=0,totalTax,total,paymentStatus=false,moreInfo:_moreInfo={} } = billMeta;
     let { payMethod,detail,payDate,amount,receiverName,balance } = payObj;
-    let suppliers = getSuppliers();
     let freights = getFreights();
-    new Promise(async (res,rej)=>{
+    new Promise(async res=>{
         if(!suppliers.find(suppObj=>suppObj.id===id)){
             let supplierObj = await (await supplier.sync()).findOrCreate({
                 where:{
@@ -69,15 +68,15 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                     moreInfo
                 }
             });
-            if(supplierObj)
+            if(supplierObj){
+                suppliers.push(new People(supplierObj[0].dataValues));
                 res(supplierObj[0].dataValues.id);
-            else
-                rej("NO ID")
+            }
         }
         else
             res((suppliers.find(suppObj=>suppObj.id===id)).id)
     })
-    .then(async (id)=>{
+    .then(async id=>{
         let freightId;
         if(freightName && !freights.find(frghtObj=>frghtObj.name===freightName))
             freightId = (await (await freight.sync()).findOrCreate({
@@ -140,7 +139,18 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         tax: Number(sgst) + Number(cgst) + Number(igst)
                     })
                 }),
-                ...itemList.map(async ({id,name,hsn,quantity,unit,rate,sgst=0,cgst=0,igst=0,pInfo})=>{
+                ...itemList.map(async stockObj=>{
+                    let {
+                        id,
+                        name,
+                        quantity,
+                        unit,
+                        rate,
+                        pHistory=[],
+                        sgst=0,
+                        cgst=0,
+                        igst=0,
+                        pInfo } = stockObj;
                     unit = unit==="Bag" ? 50 : 1;
                     let tax = Number(sgst) + Number(cgst) + Number(igst);
                     let type = "type" in pInfo ? pInfo.type : "Undefined";
@@ -150,32 +160,58 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         rate += freightCharge;
                     rate += rateIncrement;
                     rate /= quantity;
-                    if(id){
+                    pHistory.push({
+                        billDate,
+                        rate
+                    })
+                    let selectedStock = stockList.find(obj=>obj.id===id);
+                    if(selectedStock){
+                        selectedStock.buyPrice = rate;
+                        selectedStock.standardSellPrice = Math.round(1.1*rate);
+                        selectedStock.pHistory = pHistory;
+                        selectedStock.pInfo = pInfo;
+                        selectedStock.type = type;
+                        selectedStock.quantity += quantity;
+                        selectedStock.name = name;
+                        // console.log({rate,orgRt:stockObj.rate})
                         await stock.update(
                             {
                                 buyPrice:rate,
-                                standardSellPrice:1.1*rate
+                                standardSellPrice:Math.round(1.1*rate),
+                                pHistory,
+                                pInfo,
+                                type,
+                                name
                             },
                             {
                                 where:{
-                                    name
+                                    id
                                 }
                         });
                         let item = await stock.findOne({where:{id}})
                         item.updateStock = {quantity,price:0};
                         return item.save();
                     }
-                    else
-                        return stock.create({
-                            name,
-                            hsn,
+                    else{
+                        let obj = {
                             type,
                             quantity,
                             buyPrice:rate,
-                            standardSellPrice:1.1*rate,
+                            standardSellPrice:Math.round(1.1*rate),
                             tax,
-                            pInfo
-                        })
+                            pHistory
+                        }
+                        let newStockObj = {
+                            ...stockObj,
+                            ...obj
+                        };
+                        ["rate","cgst","sgst","igst","uid"].forEach(key=>key in newStockObj && Reflect.deleteProperty(newStockObj,key));
+                        stockList.push(new People(newStockObj))
+                        return stock.create({
+                            ...stockObj,
+                            ...obj
+                        });
+                    }
                 }),
                 purchase.create({
                     supplierId:id,
@@ -190,7 +226,8 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                     moreInfo: freightId ? {
                         freightId,
                         freightName,
-                        freightCharge
+                        freightCharge,
+                        ..._moreInfo
                     } : {}
                 })
             ])

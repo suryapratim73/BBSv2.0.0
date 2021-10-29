@@ -1,5 +1,5 @@
 const {ipcRenderer} = require("electron");
-const {toggleDevTool,validateInput,init,removeAllElem, roundOffTo2DecimalPlace, toastNotification,closeToast} = require("../js/common.js");
+const {toggleDevTool,validateInput,init,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast} = require("../js/common.js");
 const uuid = require("uuid");
 
 
@@ -123,9 +123,10 @@ function addRow(e){
     let bodyRowTemplate = document.getElementById("body-row-template");
     let clonedBodyRow = bodyRowTemplate.content.cloneNode(true);
     clonedBodyRow.querySelector(".sm>p").textContent = slNo;
-    clonedBodyRow.querySelector("div").dataset.uid = uuid.v4();
+    let uid = uuid.v5(slNo.toString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    clonedBodyRow.querySelector("div").dataset.uid = uid;
     itemList.filter(obj=>obj!={});
-    itemList = [...itemList,{...itemObj,pInfo:{...itemObj.pInfo},uid:clonedBodyRow.querySelector("div").dataset.uid}];
+    itemList = [...itemList,{...itemObj,pInfo:{...itemObj.pInfo},uid}];
     e.target.parentNode.before(clonedBodyRow);
     e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
 }
@@ -309,7 +310,6 @@ function addFeild2SummaryDiv(label,value){
 }
 
 function initPage4(){
-    console.log(itemList)
     let total = 0;
     let { totalWithTax,totalWithoutTax } = itemList.reduce((acc,{rate,quantity,sgst=0,cgst=0,igst=0})=>{
         rate = Number(rate);
@@ -350,25 +350,6 @@ function initPage4(){
                 deletedProperty = deletedProperty.filter(prop=>prop!==property);
             }
         });
-}
-
-function showToastNotification(msg,className,container){
-    let toast = toastNotification(msg,className);
-    let { height } = toast.getBoundingClientRect();
-    [...document.querySelectorAll(".toast-div")].forEach(toast=>{
-        toast.style.top = `${toast.getBoundingClientRect().y + height + 8}px`;
-    });
-    document.getElementById(container).appendChild(toast);
-    [...document.querySelectorAll(".toast-div")].forEach((toast,index)=>{
-        setTimeout(()=>{
-            toast.style.transform = "translateX(-100%)";
-            toast.classList.add("fade")
-            setTimeout(()=>{
-                toast.remove();
-            },300);
-        },2000 + 200*index);
-    })
-    
 }
 
 function updateSummaryDiv(e){
@@ -421,6 +402,10 @@ function saveData(e){
             let typeVal = item.pInfo[typeAttr];
             Reflect.deleteProperty(item.pInfo,typeAttr);
             item.pInfo.type = typeVal;
+        });
+        itemList.forEach(item=>{
+            if(item.type==="Undefined")
+                item.type = item.pInfo.type;
         })
     }
     ipcRenderer.send("purchase-data",{supplier,billMeta,itemList,payObj});
@@ -435,7 +420,7 @@ function getOptions(e,id){
 
 function getNewId(e){
     let name = e.target.value;
-    let uuidV5 = uuid.v5(name,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    let uuidV5 = uuid.v5(name+"_supplier","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
     supplier.id = uuidV5;
 }
 
@@ -472,12 +457,13 @@ async function selectStock(e){
     if(e.target.dataset.name!=="name") return;
     let { selectedOption } = getOptions(e,"#stock-dl");
     if(!selectedOption && bodyRow){
-        itemObj.id = undefined;
+        itemObj.id = uuid.v4();
         return;
     }
     let { id } = selectedOption.dataset;
     itemObj.id = id;
     let _itemObj = await ipcRenderer.invoke("get-more-info-on-selected-stock",id);
+    // console.log(_itemObj)
     for(let key in _itemObj){
         if(key==="pInfo"){
             Object.keys(_itemObj.pInfo).forEach(key=>{
@@ -491,6 +477,8 @@ async function selectStock(e){
             itemObj[key] = (key==="unit" && _itemObj[key]===50)? 1 : _itemObj[key];
             feild.value = _itemObj[key];
         }
+        if(key!=="quantity")
+            itemObj[key] = _itemObj[key];
     }
     bodyRow.querySelector(`input[data-name="quantity"]`)?.focus();
 }
@@ -549,7 +537,7 @@ document.addEventListener("keydown",e=>{
     if(currentPage===3 && e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     else
-    if(currentPage===3 && e.ctrlKey && e.key==="-" && bodyRow)
+    if(currentPage===3 && e.ctrlKey && e.key==="Delete" && bodyRow)
         document.querySelector(".body-row-options button[data-cmd='delete']")?.click();
     else
     if(currentPage===3 && e.ctrlKey && e.key==="ArrowDown" && bodyRow)

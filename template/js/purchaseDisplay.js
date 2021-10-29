@@ -2,8 +2,6 @@ const { ipcRenderer } = require("electron");
 let { toggleDevTool,removeAllElem,searchHandler, scrollSymSet } = require("../js/common.js");
 
 let tbody = document.querySelector("#tbody"),
-    timer,
-    mousedownTimer,
     bodyRow,
     modal = document.querySelector(".modal"),
     cover = document.querySelector(".cover"),
@@ -32,11 +30,6 @@ toggleDevTool(document);
 })();
 
 tbody.addEventListener("scroll",function(e){
-    tbody.classList.remove("hide-scrollbar");
-    clearTimeout(timer);
-    timer = setTimeout(()=>{
-        tbody.classList.add("hide-scrollbar");
-    },2000);
     if(tbody.scrollTop == Math.abs(tbody.clientHeight-tbody.scrollHeight)){
         tbody.querySelector(".scroll-sym-div")?.classList.add("hide");
         tbody.querySelector(".scroll-top-sym")?.classList.remove("hide");

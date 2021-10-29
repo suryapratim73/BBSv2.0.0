@@ -2,302 +2,277 @@
 body{
     grid-gap: 0.5rem 0;
     padding: 1rem;
+    height: 100vh;
+    display: grid;
+    grid-template: repeat(12,1fr)/1fr;
+    width: 100vw;
+    overflow: hidden;
 }
-input,p,label{
-    color: black;
-}
-header{
+h1{
+    grid-row: 1;
     grid-column: 1/-1;
-    grid-row: 1/2;
-    display: flex;
-    flex-direction: column;
 }
-main{
+form{
+    grid-row: 2/-1;
     grid-column: 1/-1;
-    grid-row: 2/-4;
-    display: flex;
-    flex-direction: column;
-}
-main>div{
-    display: flex;
-    margin: 0.5rem;
-}
-footer{
-    grid-column: 1/-1;
-    grid-row: -2/-1;
-    display: flex;
-    justify-content: flex-end;
-}
-footer div{
-    width: fit-content;
-}
-footer button{
-    color: black;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 5px;
-}
-footer [data-type="proceed"],footer [data-type="print"]{
-    background-color: rgb(50, 50, 255);
-}
-footer [data-type="save"]{
-    background-color: lawngreen;
-}
-input{
-    width: 100%;
-    color: black;
-    height: 100%;
-}
-section{
-    grid-row: -4/-1;
-    grid-column: 1/10;
-    background: white;
-    border: 2px solid black;
-    border-radius: 15px;
-    display: none;
-    padding: 0.5rem;
-    justify-content: stretch;
-    align-items: center;
-}
-section p{
-    color:black;
-    font-size: 1rem;
-}
-section>div{
-    display: flex;
-}
-#item-summary{
-    flex: 3;
-    border-right: 2px dashed black;
-    margin-right: 0.5rem;
-}
-#item-summary .row0{
-    margin-right: 1.5rem;
-}
-#item-summary .row1{
-    flex: 1;
-    display: block;
-    margin-right: 0.5rem;
-}
-#bill-summary{
-    flex-direction: column;
-    flex: 1;
-}
-#item-summary .row0>div,#item-summary .row1>div,#bill-summary>div{
     display: flex;
     justify-content: space-between;
+    flex-direction: column;
+    width: 100%;
+    overflow: auto;
 }
-.row1 button{
-    color:orange;
+main{
+    height: 100%;
+    overflow-y: hidden;
+}
+.page{
+    padding: 0.15rem;
+}
+.page>div{
+    display: flex;
+    box-shadow: 0 0 5px 0 black;
+    margin: 1.5rem 0;
+    padding: 0.25rem;
+    align-items: center;
+    justify-content: space-between;
+}
+.page>div>div{
+    flex: 1;
+}
+.row1{
+    flex: 6 !important;
+}
+.row1>button{
+    margin:0.25rem 0
+}
+.row1>input,.payment-detail input{
+    border: 1px solid gray;
+    box-shadow: inset 0 0 1px 0px black;
+    border-radius: 5px;
+}
+.row{
+    border:unset;
+    margin-bottom: 0.5rem;
+    border-top: 1px solid black;
+    width: 100%;
+    justify-content: space-evenly;
+}
+.col{
+    border: unset;
+    border-right: 1px solid black;
+    border-bottom: 1px solid black;
+    max-height: 40%;
+}
+.col:first-child{
+    border-left: 1px solid;
+}
+.row-control-div{
+    justify-content: flex-start;
+}
+.row-control-div button{
+    width: max-content;
 }
 .radio-btn-div{
     display: flex;
-    width: 20%;
 }
 .radio-btn-div>div{
     display: flex;
-    width: 50%;
+    align-items: center;
+    margin: 0 0.5rem 0 0;
 }
-#delivery-detail-div{
-    flex-direction: column;
+.radio-btn-div input{
+    width: 25px;
 }
-#delivery-detail-div select,#payment-mode select{
-    color: black;
-    font-size: 1.2rem;
-    border-radius: 5px;
-    margin-left: 0.3rem;
-    background: white;
-}
-#delivery-detail-div option,#payment-mode option{
-    color: black;
-}
-#transporter-detail-div>div{
+footer{
     display: flex;
-    margin-top: 1rem;
+    justify-content: flex-end;
 }
-.step-4{
-    flex-direction: row;
+footer>div{
+    display: flex;
+    gap: 0.5rem;
+}
+button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+    box-shadow: 1px 1px 1px 0, -1px -1px 3px 0 grey;
+    border-color: unset;
+}
+footer button:nth-child(1){
+    color:red;
+}
+footer button:nth-child(2),.row1 button{
+    color: black;
+}
+footer button:nth-child(3),footer button:nth-child(5){
+    color: blue;
+}
+footer button:nth-child(4){
+    color: green;
+}
+p,label,h1{
+    color: black;
+}
+::placeholder{
+    font-style: italic;
+}
+input,select{
+    width: 100%;
+    color: black;
+    height: revert;
+    font-size: 1rem;
+    padding: 0.5rem 0.25rem;
+    border:none;
+}
+#page-4{
+    display: flex;
+    justify-content: space-between;
+    gap: 2.5rem;
 }
 #payment-div{
-    flex: 2;
-    display: flex;
+    height: min-content;
     flex-direction: column;
-    border-right: 1px dashed;
-    padding-right: 2rem;
 }
-.payment-detail>div{
-    margin: 1rem 0;
-}
-.payment-detail input{
-    font-size: 1rem;
-    border-radius: 5px;
-    padding: 0.2rem;
+#payment-div>div{
+    width: 100%;
 }
 #summary-div{
     flex-direction: column;
-    flex: 1;
-    background: white;
-    border: 2px solid black;
-    border-radius: 15px;
-    padding: 1rem;
-    height: fit-content;
-    align-self: center;
+    flex: 3;
+    height: min-content;
 }
 #summary-div>div{
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin: 0.5rem 0;
 }
-#summary-div p{
-    color: black;
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
-}
-.modal{
-    background: #312f2f;
+#page-3{
     display: flex;
     flex-direction: column;
-    width: 50%;
-    left: 25%;
-    height: 70%;
-    top: 15%;
-}
-.modal form{
+    justify-content: space-between;
     height: 100%;
+    gap: 1.5rem;
 }
-.modal div{
-    margin: 1rem 0.5rem;
+#page-3>#table{
+    height: auto;
+    min-height: 50%;
+    max-height: 100%;
 }
-.modal div:last-child{
-    margin-top: 3rem;
-}
-.modal input{
-    width: 1rem;
-    color: white;
-    height: 1rem;
-}
-.modal button{
-    background: white;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 5px;
-    color: blue;
+#summary-div p{
     margin: 0 0.5rem;
 }
-.modal button[type="button"]{
-    background: none;
-    color: red;
-}
-#printer-list{
-    width: fit-content;
-    padding: 0.75rem;
-    border-radius: 3px;
-    font-size: 1rem;
-    color: black;
-}
-#no-of-copies{
-    color: black;
+#page3-summary-div{
+    margin: unset;
+    margin-bottom: 0.5rem;
     padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 3px;
-    width: 4rem;
+    border-radius: 15px;
+    height: 20%;
 }
-#return-btn{
-    margin-right: auto;
-}
-#return-modal{
-    width: 70%;
-    left: 15%;
-    height: 90%;
-    top: 5%;
-    background: white;
-    display: grid;
-    grid-template-rows: repeat(8,1fr);
-}
-.modal div{
-    margin:0;
-}
-.modal>div{
-    margin:5px 0 !important;
-    color:black;
-    border:1px solid;
-}
-.modal #head-section{
-    grid-row: 1/span 3;
-    grid-column: span 12;
+#product-summary{
+    flex: 2;
     display: flex;
+    justify-content: space-between;
+    height: 100%;
+    padding: 0 0.5rem 0 0;
+    border-right: 1px dashed black;
+    margin-right: 0.5rem;
 }
-#current-bill-metadata{
-    flex: 1;
-    border-right: 1px solid black;
-}
-#current-bill-metadata>div,#return-bill-metadata>div{
-    margin: 1rem 0.5rem;
-    display: flex;
-}
-.modal p,.modal label{
-    color:black;
-}
-#return-bill-metadata{
-    margin: 0;
-    flex: 1;
-}
-#return-bill-metadata input{
-    color: black;
-    padding: 0.5rem 0.3rem;
-    border-radius: 3px;
-}
-.modal .col-1{
-    width: 10rem;
-}
-.modal .col-2{
-    width: 10rem;
-    margin: 0;
-}
-.modal #body-section{
-    grid-row: 4/8;
-    grid-column: span 12;
-}
-.modal #footer-section{
-    grid-row: 8/span 1;
-    grid-column: span 12;
-    display: flex;
-}
-.modal #footer-section>div{
+.summary-col{
     flex: 1;
     display: flex;
-    margin: 0;
+    flex-direction: column;
+    justify-content: space-evenly;
+    margin-right: 0.5rem;
+}
+.summary-col>div,#bill-summary>div{
+    display: flex;
     align-items: center;
+    justify-content: space-between;
 }
-.modal #footer-section button{
+.summary-col:first-child .red{
+    padding-right: 0.5rem;
+}
+#tbody{
+    border: unset;
+}
+option{
+    color:black;
+}
+#page-4 .toast-div{
+    top: 0;
+    right: -25%;
     padding: 0.5rem;
+    box-shadow: unset;
+    gap: unset;
 }
-.modal #footer-section button:first-child{
-    margin-left: auto;
-    background: green;
-    margin-right: 0.5rem;
+.blue-toast-box{
+    right: -22.7% !important;
 }
-.modal #footer-section button:last-child{
-    background: gray;
-    margin-right: 0.5rem;
+.retractable-div-container{
+    flex-direction: column;
 }
-.table .col{
-    padding: 0 0.3rem;
-    border-color: black;
-    height: fit-content;
-}
-.table .col p{
-    font-size: 0.8rem;
-}
-.table div:last-child{
-    margin:0;
-}
-.table .sm{
-    width: 4rem;
-}
-.return-add-btn{
-    display: none;
-}
-.table input{
+.retractable-div-container>div:first-child{
     width: 100%;
+    display: flex;
+    justify-content: flex-end;
+}
+.retractable-div-container button{
     color: black;
+    outline: none;
+    border: 1px solid gray;
+    box-shadow: none;
+    background: white;
+}
+.retractable-div-container button:active{
+    background-color: gray;
+}
+.retractable-div{
+    width: 100%;
+    transition: height 0.3s ease-out;
+    height: auto;
+    overflow: hidden;
+    flex: unset !important;
+}
+.retractable-div>div{
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0.75rem 0;
+}
+.retractable-div>div>div{
+    flex: 2;
+}
+#page-2{
+    overflow-y: scroll;
+    height: 100%;
+}
+.body.row{
+    position: relative;
+}
+.body-row-options{
+    top: 100%;
+    margin-top: 0.5rem;
+}
+.body-row-options button{
+    color:red;
+}
+#left-section{
+    flex: 2;
+    flex-direction: column;
+    justify-content: space-between;
+    height: max-content;
+}
+#left-section>div{
+    width: 100%;
+}
+#discount-div{
+    height: min-content;
+    flex: unset;
+    margin-top:0.5rem;
+}
+#discount-div input{
+    border: 1px solid gray;
 }

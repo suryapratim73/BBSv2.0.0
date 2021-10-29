@@ -1,6 +1,10 @@
 const {BrowserWindow, ipcMain, dialog} = require("electron");
+const { People } = require("./common");
 const { createModal } = require("./createModal");
 const {stock} = require("./model/dbConfig");
+
+
+let stockList = [];
 
 exports.updateStock = mainWindow =>{
     return ()=>{
@@ -57,21 +61,43 @@ ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
     }
 });// This need a relook
 
-ipcMain.handle("get-stock-names",async ()=>{
-    return (await (await stock.sync()).findAll({attributes:["name","id"]})).map(({dataValues})=>dataValues);
+ipcMain.handle("get-stock-names",()=>{
+    return queryStock(["name","id"]);
 });
 
-ipcMain.handle("get-stocks",async ()=>{
-    return (await (await stock.sync()).findAll()).map(({dataValues})=>dataValues);
+async function queryStock(attributes){
+    if(stockList.length===0)      
+        (await (await stock.sync()).findAll())
+        .map(({dataValues})=>dataValues)
+        .forEach(obj=>{
+            obj._type = "stock";
+            stockList.push(new People(obj));
+        });
+    if(typeof attributes==="object"){
+        return stockList.map(stockObj=>{
+            let tempObj = {}
+            for(let key in stockObj)
+                if(attributes.includes(key))
+                    tempObj[key] = stockObj[key];
+            return tempObj;
+        })
+    }
+    else{
+        return stockList
+    }
+}
+
+ipcMain.handle("get-stocks",()=>{
+    return queryStock();
 });
 
-ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
-    return (await stock.findOne({
-        where:{
-            id
-        }
-    })).dataValues;
-})
+ipcMain.handle("get-more-info-on-selected-stock",(e,id)=>{
+    if(stockList.length===0)
+        queryStock();
+    return stockList.find(obj=>obj.id===id);
+});
+
+exports.stockList = stockList;
 
 // ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
 //     return (await stock.findOne({
