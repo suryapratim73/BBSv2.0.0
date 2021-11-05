@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput} = require("../js/common");
+const {toggleDevTool,validateInput, drawSpinner} = require("../js/common");
 const {noReturn} = require("../../config/policy.json");
 
 
@@ -26,7 +26,7 @@ let customerObjs = [],
         {value:12,word:"twelve" }
     ],
     page_2 = document.getElementById("page-2"),
-    itemTable = document.getElementById("item-table"),
+    itemTable = document.getElementById("tbody"),
     returnObj = {},
     toggle = document.getElementById("toggle"),
     mode = 1;
@@ -34,6 +34,7 @@ let customerObjs = [],
 returnObj.itemList = [];
 
 async function initForm(mode){
+    let spinner = drawSpinner(document);
     document.querySelectorAll(".ret-date").forEach(input=>input.valueAsDate = new Date());
     if(mode===1){
         returnObj.mode = 1;
@@ -47,7 +48,7 @@ async function initForm(mode){
             let suppliers = await ipcRenderer.invoke("get-supplier-names");
             let dl = document.createElement("datalist");
             dl.id = "supplier-name";
-            suppliers.forEach(({dataValues:{name,id}})=>{
+            suppliers.forEach(({name,id})=>{
                 createOptions(name,id,dl);
                 supplierObjs.push({name,id});
             });
@@ -55,6 +56,7 @@ async function initForm(mode){
         }
         document.getElementById("supp-name").focus();
     }
+    spinner.remove(window);
 }
 initForm(mode);
 
@@ -95,21 +97,18 @@ function handleToggle(e){
             initForm(mode);
         }
     }
-    else
-        console.log(e.target)
 }
 
 page_2.addEventListener("click",function(e){
     if(e.target.dataset.cmd==="delete-row"){
         let targetRow = e.target.parentNode.previousSibling;
-        let targetInput = targetRow.querySelector("div>input"); 
+        let targetInput = targetRow.querySelector("input");
         let name = targetInput.value;
         targetInput.list.querySelector(`[value='${name}']`).removeAttribute("disabled");
         returnObj.itemList = returnObj.itemList.filter(itemObj=>itemObj.name!==name);
         targetRow.remove();
-        [...document.querySelectorAll(".col1")].forEach((p,index)=>{
-            if(index>0)
-                p.textContent = index;
+        [...document.querySelectorAll(".body.row>p:first-child")].forEach((p,index)=>{
+            p.textContent = index + 1;
         });
         return document.getElementById("option-div")?.remove();
     }
@@ -119,7 +118,7 @@ page_2.addEventListener("click",function(e){
             let name = input.value;
             input.list.querySelector(`[value='${name}']`).setAttribute("disabled","disabled");
         });
-        let slNo = +([...document.querySelectorAll(".col1")].pop())?.textContent + 1 ?? 1;
+        let slNo = [...document.querySelectorAll(".body.row")].length + 1;
         itemTable.appendChild(getBodyRow(slNo));
         ([...document.querySelectorAll(".itemName")].pop()).focus();
     }
@@ -128,8 +127,25 @@ page_2.addEventListener("click",function(e){
         return alert("Return item count cannot be greater than the purchased item count.");
     if(e.target.dataset.cmd==="confirm-return")
         ipcRenderer.send(`${mode===2?"supp-":""}return-obj`,returnObj);
-    if(e.target.parentNode.parentNode.className==="row body")
-        e.target.parentNode.parentNode.after(showOptionsDiv());
+    if(e.target.parentNode.className==="row body")
+        e.target.parentNode.after(showOptionsDiv());
+    if(e.target.dataset.cmd==="back"){
+        page_2.classList.add("hide");
+        [...page_2.querySelectorAll(".body.row")].forEach(div=>div.remove());
+        let divId = mode===1?"customer-bill-div":"supplier-bill-div"
+        document.getElementById(divId).classList.remove("hide");
+        document.getElementById("toggle").classList.remove("hide");
+        initForm(mode);
+        returnObj = {itemList:[]};
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}name`).removeAttribute("disabled");
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}name`).focus();
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}name`).value = "";
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}date`).removeAttribute("disabled");
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}date`).value = "";
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}billNo`).removeAttribute("disabled");
+        document.querySelector(`#${divId} #${mode===2?"supp-":""}billNo`).value = "";
+
+    }
 });
 
 ipcRenderer.on("customer-names",(e,customerNames)=>{
@@ -181,6 +197,7 @@ function searchHandler(e){
         }
         else
             text = textMatch;
+        // New condition starts
         if(/\//g.test(text)){
             let textArr = text.match(/[tobewnad\- ]+/gi) ? text.split(/[tobewnad\- ]+/gi):text;
             if(textArr?.length===2){
@@ -259,13 +276,13 @@ function assignQtyRate(e){
     if(value.length===0){
         let itemNames = [...document.querySelectorAll(".itemName")].map(input=>input.value);
         returnObj.itemList = returnObj.itemList.filter(itemObj=>{
-            if(itemNames.includes(itemObj.name)){
-                return true;}
+            if(itemNames.includes(itemObj.name))
+                return true;
             else{
                 input.list.querySelector(`[value='${itemObj.name}']`).removeAttribute("disabled");
-                input.parentNode.parentNode.querySelector("div:nth-child(4)>input").value = "";
-                input.parentNode.parentNode.querySelector("div:nth-child(3)>input").value = "";
-                e.target.parentNode.parentNode.querySelector("p:last-child").textContent = 0;
+                input.parentNode.querySelector("input:nth-child(4)").value = "";
+                input.parentNode.querySelector("input:nth-child(3)").value = "";
+                input.parentNode.querySelector("p:last-child").textContent = 0;
                 return false;
             }
         });
@@ -275,22 +292,22 @@ function assignQtyRate(e){
     input.dataset.quantity = quantity;
     input.dataset.rate = rate;
     input.dataset.name = value;
-    input.parentNode.parentNode.querySelector("div:nth-child(3)>input").removeAttribute("disabled");
-    input.parentNode.parentNode.querySelector("div:nth-child(3)>input").focus();
-    input.parentNode.parentNode.querySelector("div:nth-child(4)>input").value = rate;
+    input.parentNode.querySelector("input:nth-child(3)").removeAttribute("disabled");
+    input.parentNode.querySelector("input:nth-child(3)").focus();
+    input.parentNode.querySelector("input:nth-child(4)").value = rate;
     returnObj.itemList.push({name:value,max_quantity:+quantity,rate:+rate});
 }
 
 function checkQty2(e){
     let qty = e.target.value;
-    let {quantity,rate,name} = e.target.parentNode.parentNode.querySelector("div:nth-child(2)>input")?.dataset;
+    let {quantity,rate,name} = e.target.parentNode.querySelector("input:nth-child(2)")?.dataset;
     if(!quantity || !rate) return;
     if(+qty>+quantity){
         e.target.value = "";
         return alert("Return quantity cannot be greater than bought quantity!!")
     }
     else{
-        e.target.parentNode.parentNode.querySelector("p:last-child").textContent = Math.round(+qty * +rate);
+        e.target.parentNode.querySelector("p:last-child").textContent = Math.round(+qty * +rate);
         returnObj.itemList = returnObj.itemList.map((itemObj)=>{
             const {name:_name} = itemObj;
             if(_name===name)
@@ -304,11 +321,11 @@ function getBodyRow(slNo=1){
     let div = document.createElement("div");
     div.className = "row body";
     div.innerHTML = `
-        <p class="col col1">${slNo}</p>
-        <div class="col col2"><input class="itemName" type="text" list="item-list" onchange="assignQtyRate(event)" /></div>
-        <div class="col col3"><input type="text" data-type="Number" disabled data-subtype="price" onkeypress="validateInput(event)" oninput="checkQty2(event)" /></div>
-        <div class="col col4"><input type="text" disabled /></div>
-        <p class="col col5"></p>
+        <p class="col eq-space">${slNo}</p>
+        <input class="itemName eq-space" type="text" list="item-list" onchange="assignQtyRate(event)" />
+        <input class="eq-space" type="text" data-type="Number" disabled data-subtype="price" onkeypress="validateInput(event)" oninput="checkQty2(event)" />
+        <input class="eq-space" type="text" disabled />
+        <p class="col eq-space"></p>
     `;
     return div;
 }
@@ -325,7 +342,6 @@ function handle_proceed(e){
     returnObj.billMeta.billDate = billDate;
     let billDiv = mode===1?document.getElementById("customer-bill-div"):document.getElementById("supplier-bill-div");
     billDiv.classList.add("animation-common");
-    billDiv.classList.add("vanish");
     let id = mode===1?selectedCustomer.id:selectedSupplier.id;
     setTimeout(()=>{
         billDiv.classList.add("hide")
@@ -343,7 +359,7 @@ function showOptionsDiv(){
 }
 
 ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
-    let bodyRow = getBodyRow()
+    let bodyRow = getBodyRow();
     itemTable.appendChild(bodyRow);
     ([...document.querySelectorAll(".itemName")].pop()).focus();
     document.getElementById("item-list")?.remove();

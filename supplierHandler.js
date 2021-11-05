@@ -9,79 +9,46 @@ const { ledgerPDF } = require("./scripts/makePDF.default");
 
 const suppliers = [];
 
+let windowOptions = {
+    width: 800,
+    height: 600,
+    resizable:false,
+    webPreferences: {
+        nodeIntegration: true,
+        devTools:true
+    },
+    show:false,
+    contextIsolation:true
+}   
 exports.getSuplier = mainWindow =>{
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
+        windowOptions.parent = mainWindow;
         let pathToHTML = "./template/html/getSupplier.html";
-        createModal(windowOptions,pathToHTML);
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Page"});
     }
 }
 
 exports.getLedger = mainWindow =>{
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
+        windowOptions.parent = mainWindow;   
         let pathToHTML = "./template/html/getSupplierLedger.html";
-        createModal(windowOptions,pathToHTML);
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Ledger"});
     }
 }
 
 exports.addPaymentForSupplier = mainWindow=>{
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
+        windowOptions.parent = mainWindow;  
         let pathToHTML = "./template/html/outPayments.html";
-        createModal(windowOptions,pathToHTML);
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Add-Payment"});
     }
 }
 
 exports.checkOutPayments = mainWindow=>{
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
+        windowOptions.parent = mainWindow;  
         let pathToHTML = "./template/html/checkOutPayments.html";
-        createModal(windowOptions,pathToHTML);
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Payments"});
     }
 }
 

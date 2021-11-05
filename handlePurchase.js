@@ -8,44 +8,21 @@ const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
 const { stockList } = require("./handleStock");
 
-
+let windowOptions = {
+    width: 800,
+    height: 600
+} 
 exports.addPurchase = mainWindow=>{
     return ()=>{
-        let purchaseWindow = new BrowserWindow({
-            width: 800,
-            height: 600,
-            resizable: false,
-            webPreferences: {
-                nodeIntegration: true,
-                devTools: true
-            },
-            show: false,
-            parent: mainWindow,
-            // modal:true,
-            contextIsolation: true
-        });
-        purchaseWindow.on("ready-to-show",purchaseWindow.show);
-        purchaseWindow.loadFile("./template/html/purchaseTemplate.html");
-        purchaseWindow.removeMenu();
+        windowOptions.parent = mainWindow;
+        createModal(windowOptions,"./template/html/purchaseTemplate.html",{maxWinCount:2,label:"Purchase-Entry"});
     }
 }
 
 exports.showPurchase = mainWindow =>{
     return ()=>{
-        let windowOptions = {
-            width: 800,
-            height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
-            parent:mainWindow,
-            contextIsolation:true
-        }   
-        let pathToHTML = "./template/html/purchaseDisplay.html";
-        createModal(windowOptions,pathToHTML)
+        windowOptions.parent = mainWindow;
+        createModal(windowOptions,"./template/html/purchaseDisplay.html",{maxWinCount:1,label:"Purchase-Display"});
     }
 }
 

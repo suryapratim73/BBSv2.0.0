@@ -150,15 +150,23 @@ exports.getAmtToWord = function (amt){
     return word;
 }//need more testing.
 
-exports.applyFilter = function (tbody,selection="*"){
+function applyFilter(tbody,selection="*"){
     [...tbody.children].forEach(tr=>tr.classList.remove("hide")); 
+    let slNo = 1;
     if(selection!=="*")
         [...tbody.children].forEach(tr=>{
-            let billDate = new Date(tr.children[1].textContent);
-            let currentDate = new Date();
-            if(Math.ceil((currentDate-billDate)/(1000*60*60*24))>selection)
-                tr.classList.add("hide")
+            let billDate = new Date(tr.dataset.date);
+            let currentDate = new Date(Date.now() - selection*30*24*60*60*1000);
+            currentDate.setDate(1);
+            if(billDate>=currentDate){
+                tr.classList.remove("hide");
+                tr.querySelector("p").textContent = slNo++;
+            }
+            else
+                tr.classList.add("hide");
         });
+    else
+        [...tbody.children].forEach(tr=>tr.querySelector("p").textContent=slNo++);
 };
 
 exports.filterSelector = function(e){
@@ -509,6 +517,16 @@ exports.scrollSymSet = function(elem){
     scrollTopSymDiv.addEventListener("click",()=>{
         elem.scrollTo(0,0);
         clearInterval(mousedownTimer)
+    });
+    elem.addEventListener("scroll",function(e){
+        if(this.scrollTop == Math.abs(this.clientHeight-this.scrollHeight)){
+            this.querySelector(".scroll-sym-div")?.classList.add("hide");
+            this.querySelector(".scroll-top-sym")?.classList.remove("hide");
+        }
+        else{
+            this.querySelector(".scroll-sym-div")?.classList.remove("hide");
+            this.querySelector(".scroll-top-sym")?.classList.add("hide");
+        }
     });
     return mousedownTimer;
 }

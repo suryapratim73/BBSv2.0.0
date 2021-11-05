@@ -10,7 +10,7 @@
 </head>
 <body>
     <header>
-        <input type="text" placeholder="Type to search bill.." oninput="searchHandler(event)">
+        <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." oninput="searchHandler(event)">
         <button data-cmd="toggle-filter-option">Filter</button>
         <div id="filter-options" class="hide">
             <div data-cmd="paid" class="option">
@@ -38,12 +38,13 @@
     <main>
         <section class="table">
             <div class="head row">
-                <p data-name="date" class="col col1">Sl No</p>
-                <p data-name="billNo" class="col col2">Bill Date</p>
-                <p data-name="billNo" class="col col3">Bill Number</p>
-                <p data-name="billAmt" class="col col4">Bill Amount</p>
-                <p data-name="payment" class="col col5">Net Tax</p>
+                <p data-name="date" class="col eq-space">Sl No</p>
+                <p data-name="billNo" class="col eq-space">Bill Date</p>
+                <p data-name="billNo" class="col eq-space">Bill Number</p>
+                <p data-name="billAmt" class="col eq-space">Bill Amount</p>
+                <p data-name="payment" class="col eq-space">Net Tax</p>
             </div>
+            <div id="tbody"></div>
         </section>
         <section id="emphasis-tables">
             <div class="table">
@@ -51,6 +52,11 @@
             </div>
             <div class="table">
                 <h2 class="table-header">Top Defaulter</h2>
+                <div class="head row">
+                    <p class="col eq-space">Name</p>
+                    <p class="col eq-space">Due</p>
+                </div>
+                <div class="tbody"></div>
             </div>
         </section>
     </main>

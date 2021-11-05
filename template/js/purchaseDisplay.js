@@ -26,19 +26,8 @@ toggleDevTool(document);
         tbody.appendChild(clonedBodyRow);
     });
     if(tbody.clientHeight<tbody.scrollHeight)
-        mousedownTimer = scrollSymSet(tbody);
+        scrollSymSet(tbody);
 })();
-
-tbody.addEventListener("scroll",function(e){
-    if(tbody.scrollTop == Math.abs(tbody.clientHeight-tbody.scrollHeight)){
-        tbody.querySelector(".scroll-sym-div")?.classList.add("hide");
-        tbody.querySelector(".scroll-top-sym")?.classList.remove("hide");
-    }
-    else{
-        tbody.querySelector(".scroll-sym-div")?.classList.remove("hide");
-        tbody.querySelector(".scroll-top-sym")?.classList.add("hide");
-    }
-});
 
 tbody.addEventListener("click",async function(e){
     bodyRow = e.target.parentNode;

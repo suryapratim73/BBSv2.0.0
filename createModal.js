@@ -1,26 +1,53 @@
 const {BrowserWindow} = require("electron");
 
-exports.createModal = (windowOptions,pathToHTML,show=true,loadFile=true)=>{
-    windowOptions = windowOptions ?? {
-        width: 400,
-            height: 450,
-            resizable:false,
-            webPreferences: {
-              nodeIntegration: true,
-              devTools:true
-            },
-            parent:BrowserWindow.getFocusedWindow(),
-            contextIsolation:true,
-            movable:false
+
+let windowList = [];
+
+exports.createModal = (windowOptions={},pathToHTML,{
+  show=true,
+  loadFile=true,
+  protocol="file://",
+  maxWinCount,
+  label
+}={})=>{
+  let modal;
+  windowOptions = {
+      width: 400,
+      height: 450,
+      resizable:false,
+      webPreferences: {
+        nodeIntegration: true,
+        devTools:true
+      },
+      parent:BrowserWindow.getFocusedWindow(),
+      contextIsolation:true,
+      movable:false,
+      show:false,
+      modal:false,
+      ...windowOptions
+  }
+  if(maxWinCount){
+    if(windowList.filter(obj=>obj.label===label).length<maxWinCount){
+      modal = new BrowserWindow(windowOptions);
+      windowList.push({label,modal});
+      modal.on("closed",function(e){
+          this.removeListener("closed",arguments.callee);
+          windowList = windowList.filter(obj=>obj.label!==label)
+      });
     }
-    // console.log(windowOptions)
-    let modal = new BrowserWindow(windowOptions);
+    else
+      windowList.filter(obj=>obj.label===label)[0].modal.focus();
+  }
+  else
+    modal = new BrowserWindow(windowOptions);
+  if(modal){
     modal.removeMenu();
     if(show)
       modal.on("ready-to-show",modal.show);
     if(loadFile)
       modal.loadFile(pathToHTML);
     else
-      modal.loadURL("file://"+pathToHTML);
+      modal.loadURL(protocol+pathToHTML);
     return modal;
+  }
 }

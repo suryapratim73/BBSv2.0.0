@@ -13,26 +13,24 @@
         <h1>Outward Payments</h1>
         <button>Filter</button>
         <div id="filter" class="hide">
-            <a data-time="1">1 month</a>
-            <a data-time="3">3 months</a>
-            <a data-time="6">6 months</a>
-            <a data-time="12.17">1 year</a>
-            <a data-time="*" class="selection">all</a>
+            <button data-time="1">1 month</button>
+            <button data-time="3">3 months</button>
+            <button data-time="6">6 months</button>
+            <button data-time="12.17">1 year</button>
+            <button data-time="*" class="selection">all</button>
         </div>
     </header>
     <main>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sl No.</th>
-                    <th>Beneficiary Name</th>
-                    <th>Type of payment</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div id="table">
+            <div class="head row">
+                <p class="col eq-space">Sl No.</p>
+                <p class="col eq-space">Beneficiary Name</p>
+                <p class="col eq-space">Type of payment</p>
+                <p class="col eq-space">Amount</p>
+                <p class="col eq-space">Date</p>
+            </div>
+            <div id="tbody"></div>
+        </div>
     </main>
 </body>
 </html>

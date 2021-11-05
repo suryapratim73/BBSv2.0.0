@@ -6,8 +6,11 @@ body{
     overflow-y: hidden;
 }
 #chart-div{
-    background: goldenrod;
+    background: gray;
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    justify-content: center;
 }
 #right-div{
     flex: 4;
@@ -15,7 +18,7 @@ body{
     flex-direction: column;
 }
 #searchbar{
-    background: midnightblue;
+    background: white;
     display: flex;
     justify-content: flex-end;
     align-items: center;
@@ -23,30 +26,38 @@ body{
     height: 15%;
 }
 #searchbar #form{
-    width: fit-content;
+    width: 100%;
     display: flex;
+    justify-content: flex-end;
+}
+#searchbar #form div{
+    width: 100%;
 }
 #searchbar #form>div>button[type='button']{
     margin: 0 0.5rem 0 0;
 }
 #searchbar #form>div:first-child{
     position: relative;
+    width: fit-content;
 }
 #searchbar input{
     color: black;
     font-size: 1rem;
-    padding: 0.5rem;
+    padding: 0.75rem 0.5rem;
     border-radius: 5px;
-    border: 3px solid cornflowerblue;
-    width: 15rem;
+    border: unset;
+    width: 100%;
+    box-shadow: inset 1px 1px 0px 0px black, inset -1px -1px 0px 0px grey;
+    outline: none;
+    font-style: italic;
 }
 #searchbar button{
     font-size: 1rem;
-    color: blue;
+    color: black;
     padding: 0.5rem;
-    box-shadow: inset 0px 0px 6px 0px cornflowerblue;
-    border: 1px solid cornflowerblue;
     border-radius: 3px;
+    background: white;
+    border-color: unset;
 }
 #main-section{
     flex: 5;
@@ -57,16 +68,19 @@ body{
     overflow-y: auto;
 }
 .table{
-    height: 90%;
+    height: 100%;
+    display: flex;
 }
 .head{
-    top: 2.3rem;
     background: white;
+    border-bottom: unset;
 }
 #customer-list>div{
     margin: 0.5rem;
     padding: 0.5rem;
-    box-shadow: 2px 2px 15px 0px grey;
+    box-shadow: 3px 3px 5px 0px grey, 
+                -1px -1px 1px 1px white,
+                -2px -2px 1px 1px grey;
     border-radius: 3px;
 }
 #customer-list h1,#customer-list p{
@@ -188,10 +202,12 @@ body{
     background: gray;
     justify-content: center;
     width: fit-content;
+    box-shadow: 0px 2px 1px 0px black;
 }
 #filter-option>div{
     display: flex;
     justify-content: center;
+    background: gray;
 }
 .bill-option-div{
     display: flex;
@@ -263,7 +279,7 @@ body{
     border: 1px solid orangered;
     box-shadow: inset 0 0 3px 0px orangered;
 }
-.body p{
+.body.row p{
     color: blue;
 }
 .head p{
@@ -291,13 +307,21 @@ body{
 #chart-div>p:last-child{
     font-size: 0.8rem;
 }
-.card>div:last-child{
+#back-btn-div{
+    display: flex;
+    margin: 1rem 5rem 0 0.5rem;
     justify-content: center;
-    position: fixed;
-    bottom: 1rem;
-    z-index: 2;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 5px 5px 5px 5px;
 }
-.card button{
+#back-btn-div p{
+    margin-left: 0.5rem;
+    color: black;
+    font-size: 1.2rem;
+}
+#back-btn-div button{
     color: orangered;
     font-size: 1.5rem;
     width: 2rem;
@@ -309,13 +333,24 @@ body{
     border-left: 1px solid orangered;
     outline: none;
 }
-.card button:hover{
+.card{
+    box-shadow: unset;
+    width: calc(200px - 0.4rem);
+}
+.card>div{
+    margin: 1rem 0;
+}
+.card p{
+    font-size: 1rem;
+    color: black;
+}
+#back-btn-div button:hover{
     border-top: 1px solid gray;
     border-right: 1px solid orangered;
     border-bottom: 1px solid orangered;
     border-left: 1px solid gray;
 }
-.card button:active{
+#back-btn-div button:active{
     border: 2px solid;
     background: limegreen;
 }
@@ -361,4 +396,7 @@ body{
 #customer-ledger-dialog div>button:last-child{
     background: gray;
     margin-left: 0.5rem;
+}
+::-webkit-scrollbar{
+    display: none;
 }

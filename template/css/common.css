@@ -61,21 +61,6 @@
 .col{
     text-align: center;
 }
-/* .col1{
-    flex:1;
-}
-.col2{
-    flex:1;
-}
-.col3{
-    flex:1;
-}
-.col4{
-    flex:1;
-}
-.col5{
-    flex:1;
-} */
 .sm{
     width: 3rem;
     word-break: break-all;
@@ -289,8 +274,8 @@
     transform: translateX(1rem);
 }
 .highlight-2{
-    color: black;
-    background: white;
+    color: white !important;
+    background: gray;
     padding: 0.15rem;
     border-radius: 5px;
 }
@@ -469,7 +454,7 @@
     width: 25px;
     height: 25px;
     border-bottom: 1px solid black;
-    background: white;
+    background: transparent;
     top: 5%;
     left: 50%;
     position: absolute;
@@ -501,7 +486,7 @@
 }
 .body.row p{
     color: inherit;
-    padding: 0.5rem;
+    padding: 0.5rem 0;
 }
 .eq-space{
     flex: 1;

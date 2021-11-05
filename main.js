@@ -1,29 +1,37 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD } = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
+const { createModal } = require('./createModal');
 
 
 function createWindow () {
-  const mainWindow = new BrowserWindow({
+  let windowOptions = {
     width: 1200,
-    height: 800,
+    height: 650,
     minWidth:800,
     minHeight:600,
-    webPreferences: {
-      nodeIntegration: true
-    },
-    show:false,
-    contextIsolation:true
-  });
-
-  let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow))
-
+  }
+  const mainWindow = createModal(windowOptions,'localhost:5000',{maxWinCount:1,label:"Main",loadFile:false,protocol:"http://"});
+  let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
   Menu.setApplicationMenu(menu);
-  // mainWindow.loadFile(__dirname+'/build/index.html');
-  mainWindow.loadURL('http://localhost:5000');
-  mainWindow.once("ready-to-show",mainWindow.show);
+  mainWindow.maximize();
+  let focussedWindow = BrowserWindow.getFocusedWindow()
+  globalShortcut.register("CommandOrControl+Tab",()=>{
+    if(mainWindow){
+      let brWindows = BrowserWindow.getAllWindows();
+      brWindows = brWindows.filter(win=>win!==mainWindow);
+      let index = brWindows.indexOf(focussedWindow);
+      index = index===-1?0:index;
+      if(index===brWindows.length-1)
+        index = 0;
+      else
+        index++;
+      focussedWindow = brWindows?.[index];
+      focussedWindow?.focus();
+    }
+  })
 }
 
 app.whenReady().then(createWindow);
@@ -38,7 +46,8 @@ app.on("quit",()=>{
     fs.close(fd,err=>{
       if(err) throw err;
     });
-  })
+  });
+  globalShortcut.unregister("CommandOrControl+N");
 });
 
 app.on('window-all-closed', () => {

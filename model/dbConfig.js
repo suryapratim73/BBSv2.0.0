@@ -24,7 +24,9 @@ const sequelize = new Sequelize({
             },10)
         if(loggerFD)
             appendToFile(loggerFD,msg[0]);
-    }
+        // console.log(msg[0])
+    },
+    transactionType:"IMMEDIATE"
 });
 
 async function appendToFile(fd,data){

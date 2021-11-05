@@ -21,7 +21,7 @@ let tbody = document.querySelector("#tbody");
         tbody.appendChild(bodyRow);
     });
     if(tbody.clientHeight<tbody.scrollHeight)
-        mousedownTimer = scrollSymSet(tbody);
+        scrollSymSet(tbody);
 })();
 
 function searchHandler(e){

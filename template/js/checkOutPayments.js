@@ -1,11 +1,12 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool, applyFilter, filterSelector} = require("../js/common");
+const {toggleDevTool, filterSelector, scrollSymSet, drawSpinner} = require("../js/common");
 
 
 let filter = document.querySelector("#filter");
 let filterBtn = document.querySelector("header button");
-let tbody = document.querySelector("tbody");
+let tbody = document.querySelector("#tbody");
 let rowNo = 1;
+let spinner = drawSpinner(document);
 
 toggleDevTool(document);
 
@@ -19,16 +20,20 @@ ipcRenderer.on("show-out-payments",async (e,outPaymentList)=>{
     outPaymentList.forEach(async ({beneficiaryId,date,payment,type}) => {
         if(type==="bill"){
             let {name} = await ipcRenderer.invoke("get-supplier-name",beneficiaryId);
-            let tr = document.createElement("tr");
+            let tr = document.createElement("div");
+            tr.className = "body row";
             tr.innerHTML = `
-                        <td>${rowNo++}</td>
-                        <td>${name}</td>
-                        <td>${type}</td>
-                        <td>${payment}</td>
-                        <td>${date.toDateString()}</td>
+                        <p class="col eq-space">${rowNo++}</p>
+                        <p class="col eq-space">${name}</p>
+                        <p class="col eq-space">${type}</p>
+                        <p class="col eq-space">${payment}</p>
+                        <p class="col eq-space">${date.toDateString()}</p>
             `;
+            tr.dataset.date = date;
             tbody.appendChild(tr);
         }
     });
-    applyFilter(tbody);
-})
+    if(tbody.scrollHeight>tbody.clientHeight)
+        scrollSymSet(tbody);
+    spinner.remove(window);
+});

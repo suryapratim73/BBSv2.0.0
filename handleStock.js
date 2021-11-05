@@ -4,37 +4,31 @@ const { createModal } = require("./createModal");
 const {stock} = require("./model/dbConfig");
 
 
-let stockList = [];
+let stockList = [],
+    windowOptions = {
+        width: 800,
+        height: 600
+    };
 
-exports.updateStock = mainWindow =>{
+exports.updateStock = () =>{
     return ()=>{
-        createModal(undefined,"template/html/updateStock.html")
+        createModal(null,"template/html/updateStock.html",{maxWinCount:1,label:"Stock-Updater"});
     }
 }
 
 exports.displayStock = mainWindow =>{
-    let windowOptions = {
-        width: 800,
-        height: 600,
-        resizable:false,
-        webPreferences: {
-        nodeIntegration: true,
-        devTools:true
-        },
-        show:false,
-        parent:mainWindow,
-        contextIsolation:true
-    };
     return ()=>{
+        windowOptions.parent = mainWindow;
         let pathToHTML = "./template/html/stockDisplay.html";
-        createModal(windowOptions,pathToHTML)
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Stock-Display"});
     }
 }
 
 exports.handleReturn = ()=>{
     return ()=>{ 
+        windowOptions.width = 400;
         let pathToHTML = "./template/html/goodsReturn.html";
-        createModal(null,pathToHTML)
+        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Item-Return-Handler"});
     }
 }
 

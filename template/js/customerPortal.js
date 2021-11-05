@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput, printModal, drawSpinner, renderPieChart } = require("../js/common");
+const { toggleDevTool,validateInput, printModal, drawSpinner, renderPieChart, scrollSymSet } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -21,11 +21,17 @@ function rgbToHex(r, g, b){
 
 document.querySelector("#canvas-container").addEventListener("click",function(e){
     if(currentPage>0) return;
+    ctx.restore();
+    drawPieChart();
     let {x,y} = e;
-    let imgData = e.target.getContext("2d").getImageData(x,y,1,1).data;
+    canvas = e.target;
+    y -= canvas.offsetTop;
+    ctx = canvas.getContext("2d");
+    let imgData = ctx.getImageData(x,y,1,1).data;
     let hex = "#" + ("000000" + rgbToHex(imgData[0], imgData[1], imgData[2])).slice(-6);
     [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
-    let {id,startAngle,endAngle} = colorCode.find(({color})=>color===hex)
+    let {id,startAngle,endAngle} = colorCode.find(({color})=>color===hex) ?? {};
+    if(!id) return;
     let customerDiv = document.querySelector(`[data-cust-id="${id}"]`)
     customerDiv.scrollIntoView(false);
     customerDiv.style.borderColor = "red";
@@ -76,6 +82,24 @@ function searchHandler(e){
 
 ipcRenderer.send("get-customer");
 
+function drawPieChart(){
+    colorCode = [];
+    let netBalance = 0,startAngle = 0;
+    customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
+    customerList.forEach(({netPurchase:balance,id})=>{
+        netBalance += balance;
+        let endAngle = 2*Math.PI*netBalance/total;
+        let customerDiv = document.querySelector(`[data-cust-id='${id}']`);
+        renderPieChart(canvas,startAngle,endAngle);
+        colorCode.push({color:ctx.fillStyle,id,startAngle,endAngle});
+        startAngle = endAngle;
+        [...customerDiv.children].forEach(p=>{
+            p.style.color=ctx.fillStyle;
+        });
+    });
+    ctx.save();
+}
+
 ipcRenderer.on("customer-list",(e,{customerObj})=>{
     customerObj.forEach(_customerList=>{
         customerList.push(_customerList);
@@ -96,21 +120,7 @@ ipcRenderer.on("customer-list",(e,{customerObj})=>{
         selectedDiv.classList.remove("hide");
         total += netPurchase;
     });
-    colorCode = [];
-    let netBalance = 0,startAngle = 0;
-    customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
-    customerList.forEach(({netPurchase:balance,id})=>{
-        netBalance += balance;
-        let endAngle = 2*Math.PI*netBalance/total;
-        let customerDiv = document.querySelector(`[data-cust-id='${id}']`);
-        renderPieChart(canvas,startAngle,endAngle);
-        colorCode.push({color:ctx.fillStyle,id,startAngle,endAngle});
-        startAngle = endAngle;
-        [...customerDiv.children].forEach(p=>{
-            p.style.color=ctx.fillStyle;
-        });
-        
-    });
+    drawPieChart();
     spinner.remove(window);
 });
 
@@ -128,12 +138,13 @@ async function loadLedgerTable(_name){
     ledgerDiv.innerHTML = `
         <h1>Ledger</h1>
         <div class="head row">
-            <p data-name="date" class="col col1">Date</p>
-            <p data-name="billNo" class="col col2">Bill No</p>
-            <p data-name="billAmt" class="col col3">Bill Amt</p>
-            <p data-name="payment" class="col col4">Payment</p>
-            <p data-name="balance" class="col col5">Balance</p>
+            <p data-name="date" class="col eq-space">Date</p>
+            <p data-name="billNo" class="col eq-space">Bill No</p>
+            <p data-name="billAmt" class="col eq-space">Bill Amt</p>
+            <p data-name="payment" class="col eq-space">Payment</p>
+            <p data-name="balance" class="col eq-space">Balance</p>
         </div>
+        <div id="tbody"></div>
     `;
     ledgerDiv.className = "table";
     ledgerDiv.id = "ledger-div";
@@ -166,50 +177,67 @@ async function loadLedgerTable(_name){
             <p class="col-0">Net Due:</p>
             <p class="col-1">${balance}</p>
         </div>
-        <div>
-            <button onclick="resetPortal(event)"><</button>
-        </div>
     `;
     let ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",id);
-    ledgerEntries.forEach(({date,billNo,billAmt,payments,retAmt,balance,itemList,entryNo})=>{
+    let tbody = ledgerDiv.querySelector("#tbody");
+    ledgerEntries.forEach(obj=>{
+        let {date,billNo,billAmt,tax,delivery,payments,balance,itemList,entryNo} = obj;
         let row = document.createElement("div");
+        let deliveryCharge = 0;
+        deliveryCharge += typeof delivery==="object" && "transportCharge" in delivery ? Number(delivery.transportCharge) : 0;
+        deliveryCharge += typeof delivery==="object" && "coolieCharge" in delivery ? Number(delivery.coolieCharge) : 0;
         row.innerHTML = `
-            <p class="col col1">${date.toLocaleDateString("en-GB")}</p>
-            <p class="col col2">${billNo}</p>
-            <p class="col col3">${billAmt - retAmt}</p>
-            <p class="col col4">${payments}</p>
-            <p class="col col5">${balance}</p>
+            <p class="col eq-space">${date.toLocaleDateString("en-GB")}</p>
+            <p class="col eq-space">${billNo}</p>
+            <p class="col eq-space">${Math.round(billAmt+tax+deliveryCharge)}</p>
+            <p class="col eq-space">${payments}</p>
+            <p class="col eq-space">${balance}</p>
         `;
         row.classList.add("row");
         row.classList.add("body");
         row.dataset.itemList = itemList;
         row.dataset.entryNo = entryNo;
-        row.dataset.retAmt = retAmt;
-        ledgerDiv.appendChild(row);
+        tbody.appendChild(row);
     });
     this.after(ledgerDiv);
+    if(tbody.scrollHeight>tbody.clientHeight)
+        scrollSymSet(tbody);
     sideDiv.appendChild(customerDiv);
+    let div = document.createElement("div");
+    div.id = "back-btn-div";
+    div.innerHTML = `
+        <button><</button>
+        <p>Back</p>
+    `;
+    div.addEventListener("click",resetPortal)
+    sideDiv.appendChild(div);
+    [...document.querySelectorAll("#chart-div>div#canvas-container,#chart-div>p")].forEach(elem=>{
+        elem.classList.add("hide");
+    });
 }
 
 document.getElementById("customer-list").addEventListener("click",function(e){
     if(!e.target.classList.contains("customer-div")) return;
     loadLedgerTable.call(this,e.target.children[0].textContent);
-    document.querySelector("#form [name='searchText']").classList.add("hide");
+    document.querySelector("#form>div:last-child").classList.add("hide");
     document.querySelector("#chart-div > p:nth-child(3)").classList.add("hide");
 });
 
 function resetPortal(e){
     if(currentPage===1){
-        e.target.parentNode.parentNode.remove();
-        [...document.querySelectorAll(".table")].forEach(div=>div.remove());    
+        document.querySelector("#back-btn-div").removeEventListener("click",arguments.callee);
+        [".card","#back-btn-div"].forEach(selector=>document.querySelector(selector).remove());
+        [...document.querySelectorAll(".table")].forEach(div=>div.remove());  
         document.getElementById("customer-list").classList.remove("hide");
         page2BTNS.classList.add("hide");
         document.querySelector('[data-cmd="bills"]').classList.remove("hide");
         document.querySelector('[data-cmd="filter"]')?.classList.add("hide");
-        document.querySelector("#form [name='searchText']").classList.remove("hide");
+        document.querySelector("#form>div:last-child").classList.remove("hide");
         currentPage = 0;
         document.querySelector("#chart-div > p:nth-child(3)").classList.remove("hide");
-        console.log(document.querySelector("#chart-div > p:nth-child(3)"))
+        [...document.querySelectorAll("#chart-div>div#canvas-container,#chart-div>p")].forEach(elem=>{
+            elem.classList.remove("hide");
+        });
     }
     else{
         currentPage = 1;
@@ -312,33 +340,37 @@ page2BTNS.addEventListener("click",async function(e){
         let headRow = document.createElement("div");
         headRow.className = `head row`;
         headRow.innerHTML = `
-            <p data-name="date" class="col col1">Date</p>
-            <p data-name="billNo" class="col col2">Bill No</p>
-            <p data-name="billAmt" class="col col3">Bill Amt</p>
-            <p data-name="payment" class="col col4">Payment</p>
-            <p data-name="balance" class="col col5">Due</p>
+            <p data-name="date" class="col eq-space">Date</p>
+            <p data-name="billNo" class="col eq-space">Bill No</p>
+            <p data-name="billAmt" class="col eq-space">Bill Amt</p>
+            <p data-name="payment" class="col eq-space">Payment</p>
+            <p data-name="balance" class="col eq-space">Due</p>
         `;
         billsDiv.appendChild(headRow);
-        bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus,retAmt})=>{
+        let tbody = document.createElement("div");
+        tbody.id = "tbody";
+        billsDiv.appendChild(tbody);
+        bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
             let row = document.createElement("div");
             row.innerHTML = `
-                <p class="col col1">${billDate.toLocaleDateString("en-GB")}</p>
-                <p class="col col2">${billNo}</p>
-                <p class="col col3">${billAmt - retAmt}</p>
-                <p class="col col4">${payment}</p>
-                <p class="col col5 ${paymentStatus?"paid":"unpaid"}">${Math.round(billAmt - payment - retAmt)}</p>
+                <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
+                <p class="col eq-space">${billNo}</p>
+                <p class="col eq-space">${Math.round(billAmt)}</p>
+                <p class="col eq-space">${payment}</p>
+                <p class="col eq-space ${paymentStatus?"paid":"unpaid"}">${Math.round(billAmt - payment)}</p>
             `;
             row.classList.add("row");
             row.classList.add("body");
             row.dataset.itemList = billItemTable;
-            row.dataset.paymentStatus = paymentStatus;
+            row.dataset.paymentStatus = paymentStatus?paymentStatus:false;
             row.dataset.billStatus = billStatus;
             row.dataset.billAmt = billAmt;
-            row.dataset.retAmt = retAmt;
             row.dataset.payment = payment;
-            billsDiv.appendChild(row);
+            tbody.appendChild(row);
         });
         mainDiv.appendChild(billsDiv);
+        if(tbody.scrollHeight>tbody.clientHeight)
+            scrollSymSet(tbody);
         if(!document.getElementById("filter-btn")){
             let filterBTN = document.createElement("button");
             filterBTN.textContent = "Filter";
@@ -385,27 +417,31 @@ page2BTNS.addEventListener("click",async function(e){
     }
     else
     if(e.target.dataset.cmd==="filter" && document.getElementById("filter-option"))
-        document.getElementById("filter-option").classList.remove("hide");
+        document.getElementById("filter-option").classList.toggle("hide");
     else{
         [...document.getElementById("filter-option").children].forEach(div=>div.classList.remove("selected"));
-        e.target.parentNode.classList.add("selected");
-        [...document.querySelectorAll(".row.body")].forEach(div=>{
-            if(e.target.dataset.cmd==="unpaid" && div.dataset.paymentStatus==="true")
+        let elem = e.target.nodeName!=="DIV"?e.target.parentNode:e.target;
+        elem.classList.add("selected");
+        [...document.querySelectorAll("#bill-table .row.body")].forEach(div=>{
+            let elem = e.target.nodeName==="DIV"?e.target.children[0]:e.target;
+            if(elem.dataset.cmd==="unpaid" && div.dataset.paymentStatus==="true")
                 div.classList.add("hide");
             else
-            if(e.target.dataset.cmd==="paid" && div.dataset.paymentStatus==="false")
+            if(elem.dataset.cmd==="paid" && div.dataset.paymentStatus==="false")
                 div.classList.add("hide");
             else
                 div.classList.remove("hide");
         });
-        e.target.parentNode.parentNode.classList.add("hide");
+        // e.target.parentNode.parentNode.classList.add("hide");
     }
 });
 
 document.body.addEventListener("click",(e)=>{
     document.getElementById("filter-option")?.classList.add("hide");
-    if(e.target.nodeName!=="CANVAS")
+    if(e.target.nodeName!=="CANVAS"){
         ctx.restore();
+        drawPieChart();
+    }
     renderPieChart();
     [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
 },true);

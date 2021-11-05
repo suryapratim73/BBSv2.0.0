@@ -1,6 +1,6 @@
 @import "../css/common.css";
 body{
-    background-color: black;
+    background-color: white;
     height: 100vh;
 }
 header{
@@ -9,7 +9,7 @@ header{
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    background: slateblue;
+    background: inherit;
 }
 header input{
     height: fit-content;
@@ -61,54 +61,67 @@ main{
     height: 90%;
     display: flex;
     overflow-y: auto;
+    background: inherit;
 }
 .table{
     flex: 2;
-    border: 5px solid slateblue;
     border-radius: 15px;
     padding: 0.5rem;
-    background: darkslategray;
+    background: inherit;
 }
 .head{
-    background: slateblue;
+    background: inherit;
     border-bottom: none !important;
-}
-.head>p{
-    text-shadow: 1px 1px black;
 }
 .body{
 
 }
-.body>p{
+.body.row>p{
     border-right: 1px solid;
-}
-.col5{
-    border-right: none !important;
+    color: black;
 }
 .row{
     padding: 0.25rem;
-    border-bottom: 1px dashed slateblue;
     border-radius: 0 0 3px 3px;
 }
 #emphasis-tables{
     flex: 1;
     display: flex;
     flex-direction: column;
+    margin-right: 0.5rem;
+    padding-top: 0.5rem;
 }   
 #emphasis-tables>.table{
     flex: 1;
     overflow-y: auto;
+    box-shadow: 1px 1px 5px 0px black;
+    margin-bottom: 0.5rem;
 }
 .table-header{
     font-size: 1.2rem;
-    text-shadow: 1px 1px black;
     border-bottom: 2px solid black;
     padding-bottom: 0.25rem;
+    color: black;
 }
 .body.row:hover{
-    background: yellowgreen;
+    background: #f1f1f1;;
 }
-.body.row:hover p{
-    color: yellow;
-    text-shadow: 1px 1px black;
+::-webkit-scrollbar{
+    display: none;
+}
+#tbody{
+    height: 100%;
+}
+.scroll-sym-common{
+    left: 35%;
+}
+.scroll-top-sym{
+    left: 38%;
+}
+.head p{
+    padding: 0.5rem 0;
+}
+#emphasis-tables .tbody{
+    height: 65%;
+    overflow: auto;
 }

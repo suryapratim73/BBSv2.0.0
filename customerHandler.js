@@ -5,6 +5,8 @@ const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stoc
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
+const { customerList } = require("./saleHandler");
+const { People } = require("./common");
 
 
 exports.customerPortal = mainWindow =>{
@@ -12,23 +14,19 @@ exports.customerPortal = mainWindow =>{
         let windowOptions = {
             width: 800,
             height: 600,
-            resizable:false,
-            webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-            },
-            show:false,
             parent:mainWindow,
-            contextIsolation:true
         }   
         let pathToHTML = "./template/html/customerPortal.html";
-        createModal(windowOptions,pathToHTML);
+        createModal(windowOptions,pathToHTML,{
+            maxWinCount:1,
+            label:"customer-portal"
+        });
     }
 }
 
 ipcMain.on("get-customer",async e=>{
     let _customerObj = (await (await customer.sync()).findAll()).map(({dataValues})=>dataValues);
-    let customerObj = await _customerObj.reduce(async (acc,customerObj,index)=>{
+    let customerObj = await _customerObj.reduce(async (acc,customerObj)=>{
         let customerLedger = await getLedgerModel(customerObj.id,customerLedgerSchema);
         let {balance} = (await customerLedger.findOne({
             attributes:["balance"],
@@ -129,24 +127,17 @@ ipcMain.handle("show-customer-bills",async (e,id)=>{
 });
 
 ipcMain.on("get-customer-names",async e=>{
-    let customerNames = (await customer.findAll({
-        attributes:["name","id"]
-    })).map(({dataValues})=>dataValues);
+    let customerNames = [];
+    if(customerList.length>0)
+        customerNames = customerList.map(({name,id})=>({name,id}));
+    else
+        customerNames = (await customer.findAll())
+            .map(({dataValues})=>dataValues)
+            .map(obj=>{
+                customerList.push(new People(obj));
+                return {name:obj.name,id:obj.id};
+            })
     e.sender.send("customer-names",customerNames);
-});
-
-ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
-    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
-    let billNumbers = (await customerLedger.findAll({
-        where:{
-            returnable:true,
-            date:{
-                [Op.between]:[startDate,endDate]
-            }
-        },
-        attributes:["billNo","date"]
-    })).map(({dataValues:{billNo,date}})=>({billNo,date})).filter(({billNo,date})=>billNo!==null && date!==null);
-    e.sender.send("get-bill-numbers-response",billNumbers)
 });
 
 ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
@@ -155,22 +146,16 @@ ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
 });
 
-ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id:customerId})=>{
+async function returnOps(id,itemList,billMeta,retDate){
+    let ledger = await getLedgerModel(id,customerLedgerSchema);
     let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
-    let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
-    Promise.all([
+    await Promise.all([
         (await returnRegister.sync()).create({
             itemList,
             billMeta,
             retAmt,
             retDate: new Date(retDate),
-            id:customerId
-        }),
-        (await outPayments.sync()).create({
-            beneficiaryId: customerId,
-            type: "return",
-            payment: retAmt,
-            date: new Date(retDate)
+            id
         }),
         ...itemList.map(async ({name,qty})=>{
             let item = await (await stock.sync()).findOne({
@@ -181,32 +166,74 @@ ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id:customerId})=>{
             item.reduceStock = -1 * qty;
             return item.save();
         }),
-        customerLedger.update({
+        ledger.update({
             returnable:false
         },{
             where:{
                 billNo:billMeta.billNo
             }
         })
-    ])
-    .then(()=>{
-        let msg = {
-            type: "info",
-            title: "Stocks updated",
-            message: "Returned items registered successfully and the selected bill is now unreturnable."
-        };
-        let focussedWindow = BrowserWindow.getFocusedWindow()
-        dialog.showMessageBox(focussedWindow,msg)
-            .then(()=>focussedWindow.close());
-        appLogger("received goods return from customer",JSON.stringify({customerId,itemList,retAmt,retDate}));
-    })
-    .catch(err=>dialog.showErrorBox("Error",err));
+    ]);
+    return {retAmt};
+}
+
+function displayConfirmMsg(msg,appLogMsg,id,itemList,retAmt,retDate){
+    let focussedWindow = BrowserWindow.getFocusedWindow()
+    dialog.showMessageBox(focussedWindow,msg)
+        .then(()=>focussedWindow.close());
+    appLogger(appLogMsg,JSON.stringify({id,itemList,retAmt,retDate}));
+}
+
+ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id})=>{
+    try{
+        const {retAmt} = await returnOps(id,itemList,billMeta,retDate)
+        (await outPayments.sync()).create({
+            beneficiaryId: id,
+            type: "return",
+            payment: retAmt,
+            date: new Date(retDate)
+        })
+        .then(()=>{
+            let msg = {
+                type: "info",
+                title: "Stocks updated",
+                message: "Returned items registered successfully and the selected bill is now unreturnable."
+            };
+            displayConfirmMsg(msg,"received goods return from customer",id,itemList,retAmt,retDate);
+        })
+        .catch(console.log);
+    }
+    catch(err){console.log({err})}
 });
 
-ipcMain.on("get-supp-bill-numbers",async (e,suppId,startDate,endDate)=>{
-    let supplierLedger = await getLedgerModel(suppId,supplierLedgerSchema);
-    let billNumbers = (await supplierLedger.findAll({
+ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
+    try{
+        const {retAmt} = returnOps(id,itemList,billMeta,retDate);
+        (await inPayments.sync()).create({
+            id,
+            type: "return",
+            payment: retAmt,
+            date: new Date(retDate)
+        })
+        .then(()=>{
+            let msg = {
+                type: "info",
+                title: "Stocks updated",
+                message: "Returned items registered successfully."
+            };
+            displayConfirmMsg(msg,"returned goods to supplier",id,itemList,retAmt,retDate);
+        })
+        .catch(console.log)
+    }
+    catch(err){
+        console.log({err});
+    }
+});
+
+async function billNoResponse(model,e,startDate,endDate){
+    let billNumbers = (await model.findAll({
         where:{
+            returnable:true,
             date:{
                 [Op.between]:[startDate,endDate]
             }
@@ -214,46 +241,14 @@ ipcMain.on("get-supp-bill-numbers",async (e,suppId,startDate,endDate)=>{
         attributes:["billNo","date"]
     })).map(({dataValues:{billNo,date}})=>({billNo,date})).filter(({billNo,date})=>billNo!==null && date!==null);
     e.sender.send("get-bill-numbers-response",billNumbers);
+}
+
+ipcMain.on("get-supp-bill-numbers",async (e,suppId,startDate,endDate)=>{
+    let supplierLedger = await getLedgerModel(suppId,supplierLedgerSchema);
+    billNoResponse(supplierLedger,e,startDate,endDate);
 });
 
-ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
-    let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
-    let supplierLedger = await getLedgerModel(id,supplierLedgerSchema);
-    //work with supplierLedger object.
-    Promise.all([
-        (await returnRegister.sync()).create({
-            itemList,
-            billMeta,
-            retAmt,
-            retDate: new Date(retDate),
-            id
-        }),
-        (await inPayments.sync()).create({
-            id,
-            type: "return",
-            payment: retAmt,
-            date: new Date(retDate)
-        }),
-        ...itemList.map(async ({name,qty})=>{
-            let item = await (await stock.sync()).findOne({
-                where:{
-                    name
-                }
-            });
-            item.reduceStock = qty;
-            return item.save();
-        })
-    ])
-    .then(()=>{
-        let msg = {
-            type: "info",
-            title: "Stocks updated",
-            message: "Returned items registered successfully."
-        };
-        let focussedWindow = BrowserWindow.getFocusedWindow()
-        dialog.showMessageBox(focussedWindow,msg)
-            .then(()=>focussedWindow.close());
-        appLogger("returned goods to supplier",JSON.stringify({customerId,itemList,retAmt,retDate}));
-    })
-    .catch(err=>dialog.showErrorBox("Error",err));
+ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    billNoResponse(customerLedger,e,startDate,endDate);
 });

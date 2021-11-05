@@ -7,33 +7,28 @@ const { Op } = require("sequelize");
 const { gstRecurranceTerm,financialYearStartDate } = require("./config/policy.json");
 
 
-
-function getWindowOptions(mainWindow){
-    return {
-        width: 800,
-        height: 600,
-        resizable:false,
-        webPreferences: {
-        nodeIntegration: true,
-        devTools:true
-        },
-        show:false,
-        parent:mainWindow,
-        contextIsolation:true
-    };
+let windowOptions = {
+    width: 800,
+    height: 600,
 }
 
 exports.createGSTSummaryWindow = mainWindow => {
-    let pathToHTML = "./template/html/gstSummaryPage.html";
     return ()=>{
-        createModal(getWindowOptions(mainWindow),pathToHTML);
+        windowOptions.parent = mainWindow;
+        createModal(windowOptions,"./template/html/gstSummaryPage.html",{
+            maxWinCount:1,
+            label:"GST-Summary"
+        });
     }
 }
 
 exports.createBusinessStatPage = mainWindow => {
-    let pathToHTML = "./template/html/businessStat.html";
     return ()=>{
-        createModal(getWindowOptions(mainWindow),pathToHTML);
+        windowOptions.parent = mainWindow;
+        createModal(windowOptions,"./template/html/businessStat.html",{
+            maxWinCount:1,
+            label:"Business-Stat"
+        });
     }
 }
 

@@ -13,24 +13,17 @@ const { stockList } = require("./handleStock");
 
 let closeFlag = false,
     saleWindow,
-    customerList = [];
-let windowOptions = {
-    width: 800,
-    height: 600,
-    resizable:false,
-    webPreferences: {
-        nodeIntegration: true,
-        devTools:true
-    },
-    show:false,
-    contextIsolation:true
-}
+    customerList = [],
+    windowOptions = {
+        width: 800,
+        height: 600
+    };
 
 exports.saleWindow = ()=>{
     return ()=>{
-        let pathToHTML = "./template/html/salePage.html";
-        saleWindow = createModal(windowOptions,pathToHTML);
-        saleWindow.on("close",(e)=>{
+        windowOptions.parent = undefined;
+        saleWindow = createModal(windowOptions,"./template/html/salePage.html");
+        saleWindow?.on("close",(e)=>{
             if(!closeFlag){
                 e.preventDefault();
                 e.sender.send("get-current-step");
@@ -41,13 +34,9 @@ exports.saleWindow = ()=>{
 }
 
 exports.showSales = mainWindow=>{
-    let _windowOptions = {...windowOptions};
-    _windowOptions.parent = mainWindow;
-    _windowOptions.width = 800;
-    _windowOptions.height = 600;
     return ()=>{
-        let pathToHTML = "./template/html/showSale.html";
-        saleWindow = createModal(_windowOptions,pathToHTML);
+        windowOptions.parent = mainWindow;
+        saleWindow = createModal(windowOptions,"./template/html/showSale.html",{maxWinCount:1,label:"Sale-Dsiplay"});
     }
 }
 
@@ -113,7 +102,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         let custObj = {...customerObj,moreInfo:{email}};
         Reflect.deleteProperty(custObj,"email");
         customerList.push(new People(custObj));
-        console.log(customerList);
         customer.findOrCreate({
             where:{
                 id:custId
@@ -127,6 +115,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 moreInfo:{email}
             }
         })
+        .then(()=>console.log("Customer db updated"))
         .catch(console.log);
     }    
     let billModel = await getBillModel(custId,billNo,billDate,billItemSchema);
@@ -161,7 +150,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             payments:netPayment,
             netDue,
             itemList:`${custId}_${billNo}_${billDate}`,
-            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge}:"hand",
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge,coolieName,coolieCharge,coolieContact}:"hand",
             balance: Math.round(lastBalance + billMeta.netAmtTax + deliveryCharge - netPayment)
         }),
         ...orderItems.map(async ({qty,id,sellUnit,rate})=>{
@@ -243,7 +232,6 @@ ipcMain.handle("get-customers",async ()=>{
         customerList.push(new People(obj));
     });
     return customerList;
-    
 });
 
 ipcMain.on("salepage-print-doc",(e,billObj)=>{
@@ -271,3 +259,15 @@ ipcMain.handle("get-transporter",async ()=>{
 ipcMain.on("get-sales",async e=>{
     e.sender.send("get-sales-response",(await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues));
 });
+
+ipcMain.handle("get-ledger-balance",async (e,custId)=>{
+    let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
+    return (await ((await customerLedger.sync()).findOne({
+        attributes:["balance"],
+        order:[
+            ["entryNo","DESC"]
+        ]
+    })))?.dataValues.balance ?? 0;
+});
+
+exports.customerList = customerList;

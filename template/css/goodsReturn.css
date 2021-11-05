@@ -1,20 +1,24 @@
 @import "../css/common.css";
-
 body{
     width: 100vw;
     height: 100vh;
-    background: slateblue;
-    overflow: hidden;
+    background: white;
     position: relative;
+    display: flex;
+    overflow: auto;
+    flex-direction: column;
+    justify-content: center;
 }
 main{
     height: 100%;
 }
 .ret-bill-div{
-    height: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-direction: column;
+    width: 100%;
+    margin: 2rem 0;
 }
 .ret-bill-div>div{
     height: 100%;
@@ -26,12 +30,13 @@ main{
 .ret-bill-div form{
     background: wheat;
     padding: 0.5rem;
-    box-shadow: inset 2px 0px 0 2px white;
-    border-radius: 15px 0px 0px 15px/15px 0 0 15px;
+    box-shadow: inset 1px -1px 1px 0px black, 
+                1px -1px 1px 1px grey;
+    border-radius: 5px;
     flex: 1;
 }
 .ret-bill-div h1{
-    color: white;
+    color: black;
     text-align: center;
     font-size: 1.5rem;
     font-weight: 200;
@@ -77,31 +82,7 @@ main{
     width: 100%;
     text-align: left;
     color: black;
-    padding: 0.15rem;
-}
-.col{
-    border: 1px solid;
-    flex: unset;
-    border-right-width: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.col1{
-    width: 10%;
-}
-.col2{
-    width: 40%;
-}
-.col3{
-    width: 15%;
-}
-.col4{
-    width: 15%;
-}
-.col5{
-    border-right: 1px solid;
-    width: 20%;
+    padding: 0;
 }
 #page-2>div:last-child>button{
     padding: 0.3rem 0.5rem;
@@ -111,8 +92,11 @@ main{
 #page-2>div:last-child>button:first-child{
     color: blue;
 }
-#page-2>div:last-child>button:last-child{
+#page-2>div:last-child>button:nth-child(2){
     color: darkgreen;
+}
+#page-2>div:last-child>button:last-child{
+    color: black;
 }
 #option-div button{
     color: red;
@@ -123,4 +107,18 @@ main{
 }
 .dot{
     background: darkred;
+}
+#toggle>p>span{
+    color:  black
+}
+#tbody{
+    height: fit-content;
+    max-height: 100%;
+    border-bottom: unset;
+}
+.body.row{
+    border-bottom: 1px solid black;
+}
+.body.row p{
+    color: black;
 }

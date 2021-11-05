@@ -1,11 +1,11 @@
-const {toggleDevTool,drawSpinner,searchHandler} = require("../js/common");
+const {toggleDevTool,drawSpinner,searchHandler, scrollSymSet} = require("../js/common");
 const {ipcRenderer} = require("electron");
 
 
 toggleDevTool(document);
 
 const header = document.querySelector("header"),salesArr = [];
-let spinner = drawSpinner(document);
+let spinner = drawSpinner(document),saleList = [];
 
 header.addEventListener("click",function(e){
     const filterOptions = this.querySelector("#filter-options"),
@@ -51,9 +51,11 @@ ipcRenderer.send("get-sales");
 
 ipcRenderer.on("get-sales-response",(e,sales)=>{
     sales.forEach((saleObj,i)=>{
+        saleList.push(saleObj);
         let bodyDiv = document.createElement("div");
         bodyDiv.className = "row body";
-        [...document.querySelectorAll(".row")].pop().after(bodyDiv);
+        let tbody = document.querySelector("#tbody");
+        tbody.appendChild(bodyDiv);
         const {
             billDate,
             billNo,
@@ -72,13 +74,45 @@ ipcRenderer.on("get-sales-response",(e,sales)=>{
         bodyDiv.dataset.customerId = customerId;
         bodyDiv.dataset.name = name;
         bodyDiv.dataset.paymentStatus = paymentStatus;
-        Object.keys({i,billDate,billNo,billAmt,tax}).forEach((key,index)=>{
+        Object.keys({i,billDate,billNo,billAmt,tax}).forEach(key=>{
             let p = document.createElement("p");
-            p.textContent = key in saleObj?(key !=="billDate"?saleObj[key]:saleObj[key].toLocaleDateString("en-GB")):i+1;
-            p.className = `col col${index+1}`;
+            if(key==="billAmt" || key==="tax")
+                p.textContent = Math.round(saleObj[key]);
+            else
+            if(key==="billDate")
+                p.textContent = saleObj[key].toLocaleDateString("en-GB");
+            else
+            if(key in saleObj)
+                p.textContent = saleObj[key];
+            else
+                p.textContent = i+1;
+            p.className = `col eq-space`;
             bodyDiv.appendChild(p);
-        })
+        });
         bodyDiv.dataset.itemTable = billItemTable;
     });
+    if(tbody.scrollHeight>tbody.clientHeight)
+        scrollSymSet(tbody);
+    let defaultTbody = document.querySelector("#emphasis-tables .tbody");
+    let suppliers = Array.from(new Set(saleList.map(({name})=>name).sort())).map(name=>{
+        let { customerId } = saleList.find(obj=>obj.name===name);
+        return {name,customerId}; 
+    });
+    suppliers.forEach(async ({customerId,name})=>{
+        let balance = await ipcRenderer.invoke("get-ledger-balance",customerId);
+        if(balance>0){
+            let div = document.createElement("div");
+            div.className = "row body";
+            div.innerHTML = `
+                <p class="col eq-space">${name}</p>
+                <p class="col eq-space">${balance}</p>
+            `;
+            defaultTbody.appendChild(div);
+        }
+    });
     spinner.remove(window);
-})
+});
+
+function _searchHandler(e){
+    searchHandler(e,saleList);
+}

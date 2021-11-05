@@ -61,19 +61,19 @@ ipcMain.on("show-print-modal",e=>{
     let pathToHTML = "./template/html/printDialog.html";
     let windowOptions = {
         width: 400,
-            height: 450,
-            resizable:false,
-            webPreferences: {
-              nodeIntegration: true,
-              devTools:true
-            },
-            parent:BrowserWindow.getFocusedWindow(),
-            contextIsolation:true,
-            movable:false,
-            frame:false,
-            titleBarStyle:"hidden"
+        height: 450,
+        resizable:false,
+        webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+        },
+        parent:BrowserWindow.getFocusedWindow(),
+        contextIsolation:true,
+        movable:false,
+        frame:false,
+        titleBarStyle:"hidden"
     }
-    modal = createModal(windowOptions,pathToHTML);
+    modal = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog"});
     if(typeof e==="string"){
         modal.addListener("show",()=>{
             modal.webContents.send("hide-label",e);
