@@ -1,0 +1,179 @@
+@import "../css/common.css";
+body{
+    height: 100vh;
+    display: grid;
+    grid-template: repeat(8,1fr)/1fr;
+}
+nav{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0.5rem;
+    grid-row: 1/2;
+    grid-column: 1/-1;
+}
+nav button{
+    margin-right: 0.5rem;
+    color: black;
+    padding: 0.5rem 0.75rem;
+}
+nav input{
+    padding: 0.5rem 0.75rem;
+    width: 16rem;
+    border-radius: 5px;
+    border: none;
+    box-shadow: inset -1px -1px 1px 0px black,
+                -1px -1px 1px 0px grey;
+    outline: none;
+    color: black;
+}
+main{
+    grid-row: 2/-1;
+    grid-column: 1/-1;
+}
+.body.row p{
+    color: black;
+}
+.table{
+    height: 95%;
+}
+.tbody{
+    height: fit-content;
+}
+::-webkit-scrollbar{
+    display: none;
+}
+#supplier-bills{
+    display: flex;
+    height: 100%;
+    align-items: center;
+    gap: 1rem;
+}
+#supplier-bills .scroll-sym-common{
+    left: 23%;
+}
+#supplier-bills .scroll-top-sym{
+    left: 26%;
+}
+#supplier-bills .table{
+    flex:1;
+    display: flex;
+}
+#graph-container{
+    flex: 1;
+    height: fit-content;
+    position: relative;
+}
+.data-modal{
+    position: absolute;
+}
+.data-modal p{
+    padding: 0.5rem;
+    color: black;
+    background-color: wheat;
+    width: fit-content;
+}
+#graph-container > h2{
+    color: black;
+    text-align: center;
+    font-size: 1.2rem;
+}
+#supplier-bills .tbody [data-payment-status="false"] p{
+    color: red;
+}
+.modal{
+    width: 40%;
+    height: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 25%;
+    left: 30%;
+    flex-direction: column;
+}
+.modal>form{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.modal>form>div{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#add-payment-modal>form>div:first-child{
+    background: lightgreen;
+}
+#add-payment-modal>form>div:first-child>h2{
+    width: 100%;
+    text-align: center;
+    color: blue;
+    text-shadow: 1px 1px white;
+}
+.modal>form>div>div{
+    flex: 1;
+}
+.modal label{
+    color: black;
+}
+.modal input,.modal select,.modal option{
+    color: black;
+}
+.modal button{
+    height: fit-content;
+    padding: 0.5rem 0.25rem;
+}
+.modal button:first-child,.modal button:nth-child(2){
+    color: red;
+}
+.modal button:last-child{
+    color: blue;
+}
+#bill-item-modal{
+    border-radius: unset;
+    width: 40%;
+    height: 100%;
+    top: 0;
+    left: unset;
+    right: 0;
+    gap: 1rem;
+    background: gray;
+}
+#bill-item-modal>div{
+    flex: 5;
+    width: 100%;
+    background: white;
+    border-radius: 10px;
+    padding: 0.5rem;
+    overflow: auto;
+}
+#bill-item-modal>div:nth-child(1){
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+#bill-item-modal>div:nth-child(1)>div{
+    display: flex;
+    padding: 0.15rem 0.1rem;
+    background: gray;
+    border-radius: 3px;
+}
+#bill-item-modal>div:nth-child(1) p{
+    color: white;
+    flex: 1;
+    text-shadow: 1px 1px black;
+}
+#bill-item-modal>div:nth-child(1) p:last-child{
+    color: yellow;
+}
+#bill-item-modal .tbody{
+    height: fit-content;
+    max-height: 80%;
+}
+#bill-item-modal>div:nth-child(3){
+    flex: 1;
+    display: flex;
+    align-items: center;
+}

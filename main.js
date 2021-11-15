@@ -18,7 +18,7 @@ function createWindow () {
   Menu.setApplicationMenu(menu);
   mainWindow.maximize();
   let focussedWindow = BrowserWindow.getFocusedWindow()
-  globalShortcut.register("CommandOrControl+Tab",()=>{
+  globalShortcut.register("CommandOrControl+Tab+Up",()=>{
     if(mainWindow){
       let brWindows = BrowserWindow.getAllWindows();
       brWindows = brWindows.filter(win=>win!==mainWindow);

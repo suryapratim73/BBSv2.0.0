@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Portal</title>
+    <script src="../js/supplierPortal.js" defer></script>
+    <link rel="stylesheet" href="../css/supplierPortal.css">
+</head>
+<body>
+    <nav>
+        <button class="page1-elem" data-cmd="addSupplier">Add Supplier</button>
+        <button class="hide page2-elem" data-cmd="bills">Show Bills</button>
+        <button class="hide page2-elem" data-cmd="profile">View Profile</button>
+        <button class="hide page2-elem" data-cmd="print-ledger">Print Ledger</button>
+        <button class="hide page3-elem" data-cmd="addPayment">Add Payment</button>
+        <button class="hide page2-elem page3-elem" data-cmd="back">Back</button>
+        <input class="page1-elem" placeholder="Type to search for supplier" oninput="searchHandler(event)" type="text" name="" id="">
+        <input class="page3-elem" placeholder="Type to search bill." oninput="searchHandler(event)" type="text" name="" id="">
+    </nav>
+    <main>
+        <div id="all-suppliers" class="table page hide page1">
+            <div class="row head">
+                <p class="col eq-space">Sl No.</p>
+                <p class="col eq-space">Name</p>
+                <p class="col eq-space">Purchase Value</p>
+                <p class="col eq-space">Net Debt</p>
+            </div>
+            <div class="tbody"></div>
+        </div>
+        <div id="supplier-ledger" class="table page hide page2">
+            <div class="row head">
+                <p class="col eq-space">Sl No</p>
+                <p class="col eq-space">Date</p>
+                <p class="col eq-space">Purchases</p>
+                <p class="col eq-space">Payment</p>
+                <p class="col eq-space">Balance</p>
+            </div>
+            <div class="tbody"></div>
+        </div>
+        <div id="supplier-bills" class="page hide page3">
+            <div class="table">
+                <div class="row head">
+                    <p class="col eq-space">Sl No</p>
+                    <p class="col eq-space">Bill Date</p>
+                    <p class="col eq-space">Bill No</p>
+                    <p class="col eq-space">Bill Amount</p>
+                </div>
+                <div class="tbody"></div>
+            </div>
+            <div id="graph-container">
+                <h2>Line graph representation of purchase over periods</h2>
+                <canvas id="purchase-graph"></canvas>
+                <h2>Line graph representation of payment over periods</h2>
+                <canvas id="payment-graph"></canvas>
+            </div>
+        </div>
+    </main>
+    <template id="supplier-ledger-bodyRow-temp">
+        <div class="body row">
+            <p class="col eq-space" data-colName="entryNo"></p>
+            <p class="col eq-space" data-colName="date"></p>
+            <p class="col eq-space" data-colName="billAmt"></p>
+            <p class="col eq-space" data-colName="payments"></p>
+            <p class="col eq-space" data-colName="balance"></p>
+        </div>
+    </template>
+    <template id="supplier-bills-bodyRow-temp">
+        <div class="body row">
+            <p class="col eq-space" data-colName="entryNo"></p>
+            <p class="col eq-space" data-colName="billDate"></p>
+            <p class="col eq-space" data-colName="billNo"></p>
+            <p class="col eq-space" data-colName="billAmt"></p>
+        </div>
+    </template>
+    <template id="data-modal-template">
+        <div class="data-modal">
+            <p></p>
+        </div>
+    </template>
+    <template id="add-payment-modal-template">
+        <form onsubmit="addPayment(event)">
+            <div>
+            </div>
+            <div>
+                <div><label for="billNo">Choose Bill Number</label></div>
+                <div><input type="text" name="billNo" list="billNo-list" onchange="assignBillAmt(event)"></div>
+            </div>
+            <div>
+                <div><label for="payDate">Choose Date</label></div>
+                <div><input type="date" id="payDate" name="payDate"></div>
+            </div>
+            <div>
+                <div><label for="payAmt">Enter Amount</label></div>
+                <div><input type="text" name="payAmt" oninput="validateBillAmt(event)" data-type="Number" onkeypress="validateInput(event)"></div>
+            </div>
+            <div>
+                <button type="submit">Add Payment</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="profile-modal-template">
+        <form onsubmit="updateSupplierProfile(event,'update-supplier')">
+            <div>
+                <div><label for="name">Name</label></div>
+                <div><input type="text" disabled name="name"></div>
+            </div>
+            <div>
+                <div><label for="address">Address</label></div>
+                <div><input type="text" disabled name="address"></div>
+            </div>
+            <div>
+                <div><label for="phones">Phones</label></div>
+                <div><input type="text" placeholder="Enter phone numbers separated by commas" disabled name="phones"></div>
+            </div>
+            <div>
+                <div><label for="gst">GST Number</label></div>
+                <div><input type="text" disabled name="gst"></div>
+            </div>
+            <div>
+                <div><label for="email">Email</label></div>
+                <div><input type="text" disabled name="email"></div>
+            </div>
+            <div>
+                <button type="button" onclick="enableInput(event)">Edit</button>
+                <button type="submit" class="hide">Save</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="add-supplier-modal-template">
+        <form onsubmit="updateSupplierProfile(event,'new-supplier')">
+            <div>
+                <div><label for="name">Name</label></div>
+                <div><input type="text" name="name"></div>
+            </div>
+            <div>
+                <div><label for="address">Address</label></div>
+                <div><input type="text" name="address"></div>
+            </div>
+            <div>
+                <div><label for="phones">Phones</label></div>
+                <div><input type="text" placeholder="Enter phone numbers separated by commas" name="phones"></div>
+            </div>
+            <div>
+                <div><label for="gst">GST Number</label></div>
+                <div><input type="text" name="gst"></div>
+            </div>
+            <div>
+                <div><label for="email">Email</label></div>
+                <div><input type="text" name="email"></div>
+            </div>
+            <div>
+                <button type="submit">Save</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="bill-item-modal-template">
+        <div>
+            <div>
+                <p>Supplier</p>
+                <p data-colName="supplierName"></p>
+            </div>
+            <div>
+                <p>Bill No.</p>
+                <p data-colName="billNo"></p>
+            </div>
+            <div>
+                <p>Bill Date</p>
+                <p data-colName="billDate"></p>
+            </div>
+            <div>
+                <p>Bill Amt.</p>
+                <p data-colName="billAmt"></p>
+            </div>
+            <div>
+                <p>Bill Tax</p>
+                <p data-colName="tax"></p>
+            </div>
+            <div>
+                <p>Payment Status</p>
+                <p data-colName="paymentStatus"></p>
+            </div>
+        </div>
+        <div>
+            <div class="table">
+                <div class="row head">
+                    <p class="col eq-space">Item Name</p>
+                    <p class="col eq-space">Quantity</p>
+                    <p class="col eq-space">Rate</p>
+                    <p class="col eq-space">Tax Rate</p>
+                </div>
+                <div class="tbody"></div>
+            </div>
+        </div>
+        <div>
+            <button onclick="closeModal()">Close</button>
+        </div>
+    </template>
+</body>
+</html>

@@ -330,6 +330,7 @@ exports.renderPieChart = function(canvas,startAngle=0,endAngle,fillStyle,strokeS
 }
 
 exports.removeAllElem = function(selector){
+    // console.log([...document.querySelectorAll(selector)]);
     [...document.querySelectorAll(selector)].forEach(node=>node.remove());
 }
 
@@ -551,4 +552,66 @@ exports.retractHandler = function(retractableDiv){
         retractableDiv.dataset.collapsed = "false";
     }
     
+}
+
+exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor){
+    let canvas =  document.querySelector(selector);
+    canvas.width = canvas.parentNode.clientWidth;
+    canvas.height = 200;
+    let ctx =  canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.beginPath();
+    ctx.lineWidth = 1;
+    ctx.lineCap = "round";
+    ctx.moveTo(0,8);
+    ctx.lineTo(0,canvas.height-16);
+    ctx.lineTo(canvas.width-8,canvas.height-16);
+    ctx.stroke();
+    let reducedObjs = objs.reduce((acc,obj)=>{
+        let date = obj.date.toLocaleDateString("en-GB");
+        if(!acc[date])
+            acc[date] = {amt: obj.amt};
+        else
+            acc[date].amt += obj.amt;
+        return acc;
+    },{});
+    let redObjsLen = Object.keys(reducedObjs).length;
+    Object.keys(reducedObjs).forEach((date,i)=>{
+        let xPos = 4 + (canvas.width-16) * (i/redObjsLen);
+        let yPos = 8 + (canvas.height-24) * (1 - reducedObjs[date].amt/total);
+        if(i===0)
+            ctx.beginPath();
+        else{
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = lineColor;
+            ctx.lineTo(xPos,yPos);
+            ctx.stroke();
+        }
+        ctx.moveTo(xPos,yPos);
+        ctx.lineWidth = 0;
+        ctx.arc(xPos,yPos,2,0,2*Math.PI,true);
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.closePath();
+        reducedObjs[date].xPos = xPos;
+        reducedObjs[date].yPos = yPos;
+    });
+    ctx.save();
+    return {canvas,ctx,reducedObjs};
+}
+
+exports.createModal = function(id){
+    let modal = document.createElement("div");
+    modal.className = "modal";
+    let cover = document.createElement("div");
+    cover.className = "cover";
+    document.body.appendChild(modal);        
+    document.body.appendChild(cover);
+    removeAllElem(`#${id}`);
+    modal.id = id;
+    return modal;
+}
+
+exports.closeModal = function(){
+    removeAllElem(".cover,.modal");
 }

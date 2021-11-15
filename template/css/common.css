@@ -466,7 +466,7 @@
 .col:last-child{
     border-right: 1px solid black;
 }
-#tbody{
+#tbody,.tbody{
     overflow-y: overlay;
     max-height: 90%;
     border-bottom: 1px solid black;

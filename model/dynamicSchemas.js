@@ -32,10 +32,10 @@ exports.supplierLedgerSchema = {
     itemList:{
         type:DataTypes.TEXT
     },
-    returnable:{
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
-    }
+    // returnable:{
+    //     type: DataTypes.BOOLEAN,
+    //     defaultValue: true
+    // }
 }
 
 exports.customerLedgerSchema = {
@@ -117,8 +117,8 @@ exports.billItemSchema = {
     tax:{
         type: DataTypes.TEXT
     },
-    itemReturned:{
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    }
+    // itemReturned:{
+    //     type: DataTypes.BOOLEAN,
+    //     defaultValue: false
+    // }
 }
