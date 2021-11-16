@@ -64,15 +64,6 @@ main{
     height: fit-content;
     position: relative;
 }
-.data-modal{
-    position: absolute;
-}
-.data-modal p{
-    padding: 0.5rem;
-    color: black;
-    background-color: wheat;
-    width: fit-content;
-}
 #graph-container > h2{
     color: black;
     text-align: center;

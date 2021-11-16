@@ -1,10 +1,11 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, initSearchHandler, showOrHideScrollSym, scrollSymSet} = require("../js/common.js");
+const {toggleDevTool,validateInput, initSearchHandler, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace} = require("../js/common.js");
 toggleDevTool(document);
 
-let tbody = document.querySelector("#tbody");
+let tbody = document.querySelector("#tbody"),timer;
 
 (async ()=>{
+    let spinner = drawSpinner(document);
     let stock = await ipcRenderer.invoke("get-stocks");
     let bodyRowTemp = document.getElementById("body-row-template");
     stock.forEach((itemObj,i)=>{
@@ -20,6 +21,7 @@ let tbody = document.querySelector("#tbody");
         }
         tbody.appendChild(bodyRow);
     });
+    spinner.remove(window);
     if(tbody.clientHeight<tbody.scrollHeight)
         scrollSymSet(tbody);
 })();
@@ -108,3 +110,87 @@ function searchHandler(e){
         });
     showOrHideScrollSym();
 }
+
+tbody.addEventListener("click",function(e){
+    let bodyRow = e.target.parentNode;
+    let { pHistory,specialPrice } = bodyRow.dataset;
+    let modal = createModal("pHistory-modal");
+    let pHistModalDivs = document.getElementById("pHistory-modal-template").content.cloneNode(true);
+    modal.appendChild(pHistModalDivs);
+    pHistory = JSON.parse(pHistory);
+    pHistory
+    .reduce((acc,obj)=>{
+        acc[0][0].push(obj.rate);
+        acc[0][1].push(obj);
+        return acc;
+    },[[[],[]]])
+    .map(([sortedRate,objs])=>{
+        sortedRate = Array.from(new Set(sortedRate));
+        return [sortedRate,objs];
+    })
+    .reduce((acc,[sortedRate,objs])=>{
+        acc[0][0] = sortedRate.reduce((acc,rate)=>(acc+rate),0)/sortedRate.length;
+        acc[0][1] = objs.map(obj=>({date:obj.billDate,amt:obj.rate}));
+        return acc;
+    },[[]])
+    .forEach(([total,objs])=>{
+        let reducedArr = objs.reduce((acc,{date,amt})=>{
+            if(!acc[date])
+                acc[date] = {amt,count:1};
+            else{
+                acc[date].amt += amt;
+                acc[date].count++;
+            }
+            return acc;
+        },{});
+        reducedArr = Object.keys(reducedArr).reduce((acc,date)=>{
+            let {amt,count} = reducedArr[date];
+            acc.push({date,amt:roundOffTo2DecimalPlace(amt/count)});
+            return acc; 
+        },[]);
+        const { canvas,reducedObjs } = drawLineGraph(total,reducedArr,".modal canvas","green","red",{tOffset:24,bOffset:48});
+        canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs,"Rate"]));
+    });
+    specialPrice = JSON.parse(specialPrice);
+    let reducedSP = specialPrice.reduce((acc,{customerId:id,billDate})=>{
+        if(!acc[id])
+            acc[id] = [billDate];
+        else
+            acc[id].push(billDate);
+        return acc;
+    },{});
+    let pArr = [];
+    Object.keys(reducedSP).forEach(id=>{
+        let dts = Array.from(new Set(reducedSP[id]));
+        dts.forEach(dt=>{
+            if(typeof dt==="string"){
+                let [yr,mnt,dd] = dt.split("-").map(num=>Number(num));
+                mnt--;
+                dt = new Date(yr,mnt,dd);
+            }
+            pArr.push({id,date:dt});
+        });
+    });
+    pArr.sort((a,b)=>{
+        if(a.date>b.date)
+            return -1;
+        else
+        if(a.date===b.date)
+            return 0;
+        else
+            return 1;
+    })
+    .forEach(async ({id,date})=>{
+        let { name } = await ipcRenderer.invoke("customer-id-to-name",id);
+        let bodyRow = document.createElement("div");
+        bodyRow.className = "body row";
+        date = date.toLocaleDateString("en-GB");
+        [name,date].forEach(key=>{
+            let p = document.createElement("p");
+            p.className = "col eq-space";
+            p.textContent = key;
+            bodyRow.appendChild(p);
+        })
+        document.querySelector(".modal .tbody").appendChild(bodyRow);
+    });
+});

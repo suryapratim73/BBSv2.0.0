@@ -55,9 +55,8 @@ module.exports = mainWindow=>{
                     click:saleWindow()
                 },
                 {
-                    label:"Show Sales",
-                    accelerator:"F2",
-                    click:showSales(mainWindow)
+                    label:"Customer Portal",
+                    click: customerPortal(mainWindow)
                 }
             ]
         },
@@ -70,14 +69,14 @@ module.exports = mainWindow=>{
                     click: addPurchase(mainWindow)
                 },
                 {
-                    label: "Check Purchases",
-                    accelerator: "Shift+F2",
-                    click: showPurchase(mainWindow)
+                    label: "Get Details",
+                    accelerator:"F4",
+                    click: getSuplierPortal(mainWindow)
                 }
             ]
         },
         {
-            label:"Stock",
+            label:"Tables",
             submenu:[
                 {
                     label: "View Stock",
@@ -85,40 +84,21 @@ module.exports = mainWindow=>{
                     click: displayStock(mainWindow)
                 },
                 {
-                    label:"Stock Return Registor",
-                    click:handleReturn()
-                }
-            ]
-        },
-        {
-            label:"Supplier",
-            submenu: [
-                {
-                    label: "Get Details",
-                    accelerator:"F4",
-                    click: getSuplierPortal(mainWindow)
-                },
-                // {
-                //     label: "Check Ledger",
-                //     accelerator: "Shift+F4",
-                //     click: getLedger(mainWindow)
-                // },
-                {type:"separator"},
-                // {
-                //     label: "Add Payment",
-                //     accelerator: "F5",
-                //     click: addPaymentForSupplier(mainWindow)
-                // },
-                {
                     label: "Check Payments",
                     accelerator: "Shift+F5",
                     click: checkOutPayments(mainWindow)
+                },
+                {
+                    label: "Check Purchases",
+                    accelerator: "Shift+F2",
+                    click: showPurchase(mainWindow)
+                },
+                {
+                    label:"Show Sales",
+                    accelerator:"F2",
+                    click:showSales(mainWindow)
                 }
             ]
-        },
-        {
-            label:"Customer Portal",
-            click: customerPortal(mainWindow)
         },
         {
             label:"Tools and Analytics",
@@ -159,6 +139,10 @@ module.exports = mainWindow=>{
                     click: updateStock(mainWindow),
                     enabled: false
                 },
+                {
+                    label:"Stock Return Registor",
+                    click:handleReturn()
+                },
                 { type: "separator" },
                 {
                     label: "Register New Employee",
@@ -167,6 +151,12 @@ module.exports = mainWindow=>{
                 {
                     label: "Employee Portal",
                     enabled: false
+                },
+                {
+                    label: "Register Services"
+                },
+                { 
+                    label: "Settings"
                 },
                 { type: "separator" },
                 {

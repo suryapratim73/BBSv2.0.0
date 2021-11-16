@@ -28,8 +28,6 @@
             </div>
         </div>
     </main>
-    <div class="modal hide"></div>
-    <div class="cover hide"></div>
     <template id="body-row-template">
         <div class="body row">
             <p class="col eq-space" data-colName="slNo"></p>
@@ -37,6 +35,26 @@
             <p class="col eq-space" data-colName="type"></p>
             <p class="col eq-space" data-colName="quantity"></p>
             <p class="col eq-space" data-colName="buyPrice"></p>
+        </div>
+    </template>
+    <template id="pHistory-modal-template">
+        <div>
+            <canvas class="pHistory-graph"></canvas>
+        </div>
+        <div class="table">
+            <div class="row head">
+                <p class="col eq-space">Customer Name</p>
+                <p class="col eq-space">Sell Date</p>
+            </div>
+            <div class="tbody hide-scrollbar"></div>
+        </div>
+        <div>
+            <button onclick="closeModal()">Close</button>
+        </div>
+    </template>
+    <template id="data-modal-template">
+        <div class="data-modal">
+            <p></p>
         </div>
     </template>
 </body>

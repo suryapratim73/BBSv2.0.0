@@ -252,3 +252,10 @@ ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     billNoResponse(customerLedger,e,startDate,endDate);
 });
+
+ipcMain.handle("customer-id-to-name",async (e,id)=>{
+    if(customerList.length===0)
+        return (await (await customer.sync()).findOne({where:{id},attributes:["name"]})).dataValues;
+    else
+        return customerList.find(obj=>obj.id===id);
+})

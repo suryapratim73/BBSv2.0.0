@@ -1,6 +1,6 @@
 const { ipcRenderer } = require("electron");
 const UUID = require("uuid");
-const { drawSpinner, closeModal, createModal, toggleDevTool, scrollSymSet, removeAllElem, drawLineGraph, validateInput, printModal } = require("../js/common");
+const { drawSpinner, closeModal, createModal, toggleDevTool, scrollSymSet, removeAllElem, drawLineGraph, validateInput, printModal, dataModal } = require("../js/common");
 
 toggleDevTool(document);
 let suppliersTbody = document.querySelector("#all-suppliers .tbody"),
@@ -86,40 +86,6 @@ async function page2Init(e){
 }
 
 suppliersTbody.addEventListener("click",page2Init);
-
-function dataModal([reducedObjs],e){
-    let { x,y } = e;
-    let { left,top } = this.getBoundingClientRect();
-    let clientX = x-left;
-    let clientY = y;
-    let date = Object.keys(reducedObjs).filter(date=>{
-        const { xPos,yPos } = reducedObjs[date];
-        if(Math.abs(xPos-clientX)<=20 && Math.abs(yPos-(clientY-top))<=20)
-            return date;
-    });
-    removeAllElem(".data-modal");
-    if(date.length>0){
-        let dataModal = document.getElementById("data-modal-template").content.cloneNode("true").querySelector("div");
-        this.parentNode.appendChild(dataModal);
-        dataModal.querySelector("p").textContent = `Date: ${date[0]}, Amt: ${reducedObjs[date[0]].amt}`;
-        if(clientX+8+dataModal.clientWidth<this.width)
-            dataModal.style.left = clientX+8+"px";
-        else
-            dataModal.style.left = clientX - dataModal.clientWidth + "px";
-        if(clientY<(this.parentNode.getBoundingClientRect().bottom*0.5))
-            dataModal.style.top = clientY+"px";
-        else
-            dataModal.style.top = clientY - this.getBoundingClientRect().top*0.3 + "px";
-        clearTimeout(timer);
-        timer = setTimeout(()=>{
-            dataModal.remove();
-        },2000);
-        dataModal.addEventListener("mousemove",function(){
-            this.removeEventListener("mousemove",arguments.callee);
-            this.remove();
-        });
-    }
-}
 
 async function page3Init(){
     currentPage = 3;

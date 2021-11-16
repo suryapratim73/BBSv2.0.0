@@ -554,7 +554,7 @@ exports.retractHandler = function(retractableDiv){
     
 }
 
-exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor){
+exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32}={}){
     let canvas =  document.querySelector(selector);
     canvas.width = canvas.parentNode.clientWidth;
     canvas.height = 200;
@@ -568,6 +568,11 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor){
     ctx.lineTo(canvas.width-8,canvas.height-16);
     ctx.stroke();
     let reducedObjs = objs.reduce((acc,obj)=>{
+        if(typeof obj.date==="string"){
+            let [yr,mnt,dt] = obj.date.split("-").map(num=>Number(num));
+            mnt--;
+            obj.date = new Date(yr,mnt,dt);
+        }
         let date = obj.date.toLocaleDateString("en-GB");
         if(!acc[date])
             acc[date] = {amt: obj.amt};
@@ -577,8 +582,8 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor){
     },{});
     let redObjsLen = Object.keys(reducedObjs).length;
     Object.keys(reducedObjs).forEach((date,i)=>{
-        let xPos = 4 + (canvas.width-16) * (i/redObjsLen);
-        let yPos = 8 + (canvas.height-24) * (1 - reducedObjs[date].amt/total);
+        let xPos = lOffset + (canvas.width-rOffset) * (i/redObjsLen);
+        let yPos = tOffset + (canvas.height-bOffset) * (1 - reducedObjs[date].amt/total);
         if(i===0)
             ctx.beginPath();
         else{
@@ -614,4 +619,38 @@ exports.createModal = function(id){
 
 exports.closeModal = function(){
     removeAllElem(".cover,.modal");
+}
+
+exports.dataModal = function([reducedObjs,key="Amt"],e){
+    let { x,y } = e;
+    let { left,top } = this.getBoundingClientRect();
+    let clientX = x-left;
+    let clientY = y;
+    let date = Object.keys(reducedObjs).filter(date=>{
+        const { xPos,yPos } = reducedObjs[date];
+        if(Math.abs(xPos-clientX)<=20 && Math.abs(yPos-(clientY-top))<=20)
+            return date;
+    });
+    removeAllElem(".data-modal");
+    if(date.length>0){
+        let dataModal = document.getElementById("data-modal-template").content.cloneNode("true").querySelector("div");
+        this.parentNode.appendChild(dataModal);
+        dataModal.querySelector("p").textContent = `Date: ${date[0]}, ${key}: ${reducedObjs[date[0]].amt}`;
+        if(clientX+8+dataModal.clientWidth<this.width)
+            dataModal.style.left = clientX+8+"px";
+        else
+            dataModal.style.left = clientX - dataModal.clientWidth + "px";
+        if(clientY<(this.parentNode.getBoundingClientRect().bottom*0.5))
+            dataModal.style.top = clientY+"px";
+        else
+            dataModal.style.top = clientY - this.getBoundingClientRect().top*0.3 + "px";
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+            dataModal.remove();
+        },2000);
+        dataModal.addEventListener("mousemove",function(){
+            this.removeEventListener("mousemove",arguments.callee);
+            this.remove();
+        });
+    }
 }

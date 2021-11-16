@@ -17,7 +17,7 @@ filter.addEventListener("click",filterSelector);
 ipcRenderer.send("get-out-payments");
 
 ipcRenderer.on("show-out-payments",async (e,outPaymentList)=>{
-    outPaymentList.forEach(async ({beneficiaryId,date,payment,type}) => {
+    await outPaymentList.reduce(async (acc,{beneficiaryId,date,payment,type}) => {
         if(type==="bill"){
             let {name} = await ipcRenderer.invoke("get-supplier-name",beneficiaryId);
             let tr = document.createElement("div");
@@ -32,6 +32,7 @@ ipcRenderer.on("show-out-payments",async (e,outPaymentList)=>{
             tr.dataset.date = date;
             tbody.appendChild(tr);
         }
+        return acc;
     });
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);

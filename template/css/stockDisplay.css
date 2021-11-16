@@ -38,3 +38,36 @@ main{
 .scroll-sym-common{
     top:79%
 }
+.modal{
+    width: 40%;
+    height: 100%;
+    top: 0;
+    left: unset;
+    right: 0;
+    border-radius: unset;
+    display: flex;
+    gap: 1rem;
+    flex-direction: column;
+    background: gray;
+}
+.modal>div{
+    flex: 5;
+    background: white;
+    border-radius: 15px;
+    padding: 1rem;
+}
+.modal>div:nth-child(1){
+    padding: 0.65rem 0.35rem;
+}
+.modal>div:nth-child(3){
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+.modal>div:nth-child(3)>button{
+    color: black;
+    padding: 0.5rem;
+}
+.tbody{
+    height: 88%;
+}
