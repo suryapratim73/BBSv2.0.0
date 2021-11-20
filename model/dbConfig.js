@@ -222,10 +222,52 @@ const stockSchema = {
     pScore:{
         type: DataTypes.NUMBER,
         defaultValue: 0
+    }
+}
+
+const serviceSchema = {
+    id:{
+        type: DataTypes.UUID,
+        defaultValue:UUIDV4,
+        primaryKey:true
     },
-    saleHistory:{
+    name:{
+        type:DataTypes.TEXT,
+        allowNull:false
+    },
+    hsn:{
+        type:DataTypes.NUMBER,
+        defaultValue:7318
+    },
+    type:{
+        type:DataTypes.TEXT
+    },
+    unit:{
+        type:DataTypes.TEXT,
+        defaultValue:"Kg"
+    },
+    standardSellPrice:{
+        type:DataTypes.INTEGER,
+        defaultValue:0
+    },
+    lastSellPrice:{
+        type: DataTypes.INTEGER,
+        defaultValue:0
+    },
+    specialPrice:{
         type: DataTypes.JSON,
-        defaultValue: []
+        defaultValue:[]
+    },
+    tax:{
+        type: DataTypes.INTEGER
+    },
+    pInfo:{
+        type: DataTypes.JSON,
+        defaultValue: {}
+    },
+    pScore:{
+        type: DataTypes.NUMBER,
+        defaultValue: 0
     }
 }
 
@@ -456,6 +498,10 @@ module.exports = {
     returnRegister: sequelize.define("returnRegister",returnRegister,{
         freezeTableName:true,
         timestamps:false
+    }),
+    service: sequelize.define("service",serviceSchema,{
+        freezeTableName: true,
+        timestamps: false
     })
 }
 

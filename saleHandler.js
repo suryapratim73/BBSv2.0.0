@@ -160,18 +160,13 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             await item.save();
             let match = stockList.find(obj=>obj.id===id);
             match.quantity -= qty*multiplier;
-            match.saleHistory.push({
-                billDate,
-                customerId:custId,
-                billNo
-            })
             match.specialPrice.push({
                 customerId:custId,
                 rate,
-                billDate
+                billDate,
+                billNo
             })
             return await stock.update({
-                saleHistory:match.saleHistory,
                 specialPrice:match.specialPrice
             },{
                 where:{id}

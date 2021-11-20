@@ -5,6 +5,7 @@ const {getSuplierPortal,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
+const { serviceRegistor } = require("./serviceHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -56,6 +57,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label:"Customer Portal",
+                    accelerator: "F5",
                     click: customerPortal(mainWindow)
                 }
             ]
@@ -70,7 +72,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Get Details",
-                    accelerator:"F4",
+                    accelerator: "F4",
                     click: getSuplierPortal(mainWindow)
                 }
             ]
@@ -80,22 +82,22 @@ module.exports = mainWindow=>{
             submenu:[
                 {
                     label: "View Stock",
-                    accelerator: "Shift+F3",
+                    accelerator: "F9",
                     click: displayStock(mainWindow)
                 },
                 {
                     label: "Check Payments",
-                    accelerator: "Shift+F5",
+                    accelerator: "F10",
                     click: checkOutPayments(mainWindow)
                 },
                 {
                     label: "Check Purchases",
-                    accelerator: "Shift+F2",
+                    accelerator: "F11",
                     click: showPurchase(mainWindow)
                 },
                 {
                     label:"Show Sales",
-                    accelerator:"F2",
+                    accelerator:"F12",
                     click:showSales(mainWindow)
                 }
             ]
@@ -105,11 +107,13 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label: "GST Summary",
-                    click: createGSTSummaryWindow(mainWindow)
+                    click: createGSTSummaryWindow(mainWindow),
+                    accelerator: "F2"
                 },
                 {
                     label: "Business Statistics",
-                    click: createBusinessStatPage(mainWindow)
+                    click: createBusinessStatPage(mainWindow),
+                    accelerator: "F3"
                 },
                 {
                     label: "GST Return JSON"
@@ -135,13 +139,14 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label: "Update Stock",
-                    accelerator: "F3",
+                    accelerator: "Shift+F6",
                     click: updateStock(mainWindow),
                     enabled: false
                 },
                 {
                     label:"Stock Return Registor",
-                    click:handleReturn()
+                    click:handleReturn(),
+                    accelerator: "F6"
                 },
                 { type: "separator" },
                 {
@@ -153,10 +158,13 @@ module.exports = mainWindow=>{
                     enabled: false
                 },
                 {
-                    label: "Register Services"
+                    label: "Register Services",
+                    click: serviceRegistor(mainWindow),
+                    accelerator: "F8"
                 },
                 { 
-                    label: "Settings"
+                    label: "Settings",
+                    accelerator: "Shift+F1"
                 },
                 { type: "separator" },
                 {

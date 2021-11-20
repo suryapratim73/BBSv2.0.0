@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="../css/serviceRegistor.css">
+    <script src="../js/serviceRegistor.js" defer></script>
+</head>
+<body>
+    <nav>
+        <button class="page1-elem hide" data-cmd="new-service">Add New Service</button>
+        <button class="page2-elem hide" data-cmd="back">Back</button>
+        <input class="page1-elem hide" type="text" name="" id="">
+    </nav>
+    <main>
+        <div class="table page1-elem page hide">
+            <div class="row head">
+                <p class="col eq-space">Sl No.</p>
+                <p class="col eq-space">Name</p>
+                <p class="col eq-space">Rate</p>
+                <p class="col eq-space">Unit</p>
+            </div>
+            <div class="tbody"></div>
+        </div>
+    </main>
+    <template id="body-row-template">
+        <div class="body row">
+            <p class="col eq-space" data-colname="entryNo"></p>
+            <p class="col eq-space" data-colname="name"></p>
+            <p class="col eq-space" data-colname="standardSellPrice"></p>
+            <p class="col eq-space" data-colname="unit"></p>
+        </div>
+    </template>
+    <template id="service-registor-modal-template">
+        <form onsubmit="addNewService(event)" class="modal-page page1">
+            <div>
+                <h2>New Service Form</h2>
+            </div>
+            <div>
+                <div><label for="name">Service Name</label></div>
+                <div><input type="text" id="name" name="name"></div>
+            </div>
+            <div>
+                <div><label for="rate">Rate</label></div>
+                <div><input type="text" id="rate" name="rate"></div>
+            </div>
+            <div>
+                <div><label for="unit">Unit</label></div>
+                <div><input type="text" id="unit" name="unit"></div>
+            </div>
+            <div>
+                <div><label for="hsn">HSN</label></div>
+                <div><input type="text" id="hsn" name="hsn"></div>
+            </div>
+            <div>
+                <div>
+                    <button type="button" onclick="addFeild(event)">Add Feilds</button>
+                    <div id="more-feild-menu" class="hide" onclick="showOrHideFeildDiv()">
+                        <div class="dash-mark"></div>
+                        <div class="dash-mark"></div>
+                        <div class="dash-mark"></div>
+                        <div class="hide" id="more-feild-div"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Add</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="add-feild-template">
+        <form id="add-feild" class="modal-page page2" onsubmit="addNewFeild(event)">
+            <div>
+                <div>
+                    <label for="key">Feild Name</label>
+                </div>
+                <div>
+                    <input type="text" id="key" name="key">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="val">Feild Value</label>
+                </div>
+                <div>
+                    <input type="text" id="val" name="val">
+                </div>
+            </div>
+            <div>
+                <button type="submit">Add</button>
+                <button type="button" onclick="closeAddFeild(event)">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="feild-template">
+        <div>
+            <p data-colname="key"></p>
+            <p data-colname="val"></p>
+        </div>
+    </template>
+    <template id="page2-template">
+        <div class="page page2-elem">
+            <div>
+                <div>
+                    <div>
+                        <p>Name</p>
+                    </div>
+                    <div>
+                        <input type="text" data-colname="name" disabled />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <p>HSN</p>
+                    </div>
+                    <div>
+                        <input type="text" data-colname="hsn" disabled />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <p>Rate per unit</p>
+                    </div>
+                    <div>
+                        <input type="text" data-colname="standardSellPrice" disabled />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <p>Unit</p>
+                    </div>
+                    <div>
+                        <input type="text" data-colname="unit" disabled />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <p>Service Type</p>
+                    </div>
+                    <div>
+                        <input type="text" data-colname="type" disabled />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <p>More Informations</p>
+                    </div>
+                    <div>
+                        <div id="more-feild-menu" class="hide" onclick="showOrHideFeildDiv(event)">
+                            <div class="dash-mark"></div>
+                            <div class="dash-mark"></div>
+                            <div class="dash-mark"></div>
+                            <div class="hide" id="more-feild-div"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="btn-container" onclick="enableBTNs(event)">
+                        <button data-mode="1">Edit</button>
+                        <button class="hide" data-mode="save">Save Changes</button>
+                        <button class="hide" data-mode="2">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <canvas></canvas>
+                </div>
+                <div class="table">
+                    <div class="row head">
+                        <p class="col eq-space">Name</p>
+                        <p class="col eq-space">Date</p>
+                    </div>
+                    <div class="tbody"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+</body>
+</html>
