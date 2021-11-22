@@ -231,3 +231,9 @@ ipcMain.handle("get-out-payments",async (e,id)=>{
         attributes:["payment","date"]
     })).map(({dataValues:{payment,date}})=>({payment,date}));
 });
+
+ipcMain.handle("get-supplier-names",async ()=>{
+    if(suppliers.length===0)
+        await initSuppliers();
+    return suppliers.map(({id,name})=>({id,name}));    
+});

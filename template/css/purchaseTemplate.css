@@ -122,17 +122,18 @@ form>div>div:last-child>button{
 .feild label,.feild input,.feild select{
     flex:1;
 }
-.popup2{
+.modal{
+    align-items: center;
+}
+/* .popup2{
     width: 50%;
-    height: 50%;
-    left: 25%;
-    top: 25%;
+    height: 100%;
     display: flex;
     box-shadow: 0 0 5px 0 grey;
 }
-.popup2>form{
+.popup2 form{
     width: 100%;
-}
+} */
 #purchase-page-modal form>div:last-child{
     flex: 1;
 }

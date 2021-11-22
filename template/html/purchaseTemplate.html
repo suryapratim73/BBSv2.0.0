@@ -90,7 +90,7 @@
                 <div><label for="freightCharge">Enter Freight Charge:</label></div>
                 <div><input type="text" data-kind="charge" name="freightCharge" id="freightCharge" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
             </div>
-            <div>
+            <!-- <div>
                 <button id="more-feild-btn" type="button" onclick="showModal()">Add More Details</button>
                 <div id="more-feild-menu" class="hide">
                     <div class="dash-mark"></div>
@@ -98,7 +98,7 @@
                     <div class="dash-mark"></div>
                     <div class="hide" id="more-feild-div"></div>
                 </div>
-            </div>
+            </div> -->
             <div class="btn-container"> 
                 <button type="button" onclick="proceedHandler(event)" data-cmd="cancel">Cancel</button>
                 <button type="button" onclick="proceedHandler(event)" data-cmd="back">Back</button>
@@ -175,29 +175,6 @@
             </div>
         </form>
     </div>
-    <div class="popup2 modal hide">
-        <form onsubmit="setFeild(event)">
-            <div class="feild hide">
-                <label for="kind">Feild label</label>
-                <select name="kind" id="kind">
-                    <option value="charge">Charge</option>
-                    <option value="info">Info</option>
-                </select>
-            </div>
-            <div class="feild">
-                <label for="label">Feild label</label>
-                <input type="text" name="label" id="label" required>
-            </div>
-            <div class="feild">
-                <label for="value">Feild value</label>
-                <input type="text" name="value" id="value" required>
-            </div>
-            <div class="feild">
-                <button type="button" data-cmd="cancel" onclick="closeModal(event)" data-modal="popup2">Cancel</button>
-                <button type="submit">Set</button>
-            </div>
-        </form>
-    </div>
     <div class="cover hide"></div>
     <datalist id="stock-dl"></datalist>
     <datalist id="freightName-dl"></datalist>
@@ -231,6 +208,31 @@
             <button data-cmd="delete" tabindex="-1">Delete</button>
             <button data-cmd="add-info" tabindex="-1">Add More Details</button>
         </div>
+    </template>
+    <template id="new-feild-template">
+        <form onsubmit="setFeild(event)" class="popup2">
+            <!-- <div class="feild hide">
+                <label for="kind">Feild label</label>
+                <select name="kind" id="kind">
+                    <option value="charge">Charge</option>
+                    <option value="info">Info</option>
+                </select>
+            </div> -->
+            <div>
+                <div class="feild">
+                    <label for="label">Feild label</label>
+                    <input type="text" name="label" id="label" required>
+                </div>
+                <div class="feild">
+                    <label for="value">Feild value</label>
+                    <input type="text" name="value" id="value" required>
+                </div>
+            </div>
+            <div>
+                <button type="button" data-cmd="cancel" onclick="closeModal(event)" data-modal="popup2">Cancel</button>
+                <button type="submit">Set</button>
+            </div>
+        </form>
     </template>
 </body>
 

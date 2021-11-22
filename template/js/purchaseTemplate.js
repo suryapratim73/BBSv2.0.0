@@ -1,5 +1,5 @@
 const {ipcRenderer} = require("electron");
-const {toggleDevTool,validateInput,init,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast} = require("../js/common.js");
+const {toggleDevTool,validateInput,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner} = require("../js/common.js");
 const uuid = require("uuid");
 
 
@@ -24,8 +24,8 @@ function clickOrFocusinHandler(e){
     removeAllElem(".body-row-options")
     if(["P","INPUT"].includes(e.target.nodeName)){
         bodyRow = e.target.parentNode.parentNode;
-        let optionTemplate = document.getElementById("item-options");
-        bodyRow.after(optionTemplate.content.cloneNode(true));
+        let optionDiv = document.getElementById("item-options").content.cloneNode(true).querySelector("div");
+        bodyRow.after(optionDiv);
         clearTimeout(timer);
         timer = setTimeout(removeAllElem,5000,".body-row-options");
         let unit = itemObj.unit && ((itemObj.unit).toLowerCase()==="bag" ? 1 : Number(itemObj.unit));
@@ -34,14 +34,12 @@ function clickOrFocusinHandler(e){
             bodyRow.querySelector("div:nth-child(7)>p").textContent = roundOffTo2DecimalPlace(unit * rate);
         let tax = ("sgst" && "cgst") in itemObj ? Number(itemObj.sgst)+Number(itemObj.cgst) : ("igst" in itemObj && Number(itemObj.igst)) ?? null;
         tax/=100;
-        if(tax)
+        if(tax || tax===0)
             bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace((1+tax)*rate*unit);
     }
     else{
         if(e.target.dataset.cmd==="delete"){
-            let uid = bodyRow.dataset.uid;
-            itemList = itemList.filter(obj=>obj.uid!==uid);
-            return bodyRow.remove();
+            return deleteRow()
         }
         else
         if(e.target.dataset.cmd==="add-info"){
@@ -56,6 +54,30 @@ function clickOrFocusinHandler(e){
         }
     }
     itemObj = itemList.find(obj=>bodyRow?.dataset?.uid==obj.uid) ?? {};
+    let addRowBTN = document.querySelector(".body-row-options button:last-child");
+    if(addRowBTN){
+        if(itemObj.type==="service")
+            addRowBTN.classList.add("hide");
+        else
+            addRowBTN.classList.remove("hide");
+    }
+}
+
+function deleteRow(){
+    if(!bodyRow)
+        bodyRow = document.querySelector(".body.row:last-child");
+    let uid = bodyRow.dataset.uid;
+    itemList = itemList.filter(obj=>obj.uid!==uid);
+    bodyRow.remove();
+    [...document.querySelectorAll(".body.row>div:first-child>p")]
+    .forEach((p,index)=>{
+        let bodyRow = p.parentNode.parentNode;
+        p.textContent = index + 1;
+        let itemObj = itemList.find(obj=>obj.uid===bodyRow.dataset.uid);
+        bodyRow.dataset.uid = uuid.v5((index+1).toString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+        if(itemObj && "uid" in itemObj)
+            itemObj.uid = bodyRow.dataset.uid;
+    });
 }
 
 document.querySelector("#tbody")?.addEventListener("focusin",clickOrFocusinHandler);
@@ -71,24 +93,8 @@ document.querySelector("#tbody")?.addEventListener("input",function(e){
         ["sgst","cgst"].forEach(key=>Reflect.deleteProperty(itemObj,key));
 });
 
-document.getElementById("more-feild-menu").addEventListener("click",function(e){
-    document.getElementById("more-feild-div").classList.toggle("hide");
-},true);
-
 document.getElementById("billDate").valueAsDate = new Date();
 document.getElementById("pay-date").valueAsDate = new Date();
-
-document.getElementById("value").dataset.type = "Number";
-document.getElementById("value").dataset.subtype = "price";
-document.getElementById("value").onkeypress = validateInput2;
-
-document.getElementById("kind").addEventListener("change",function(e){
-    if(currentPage===2 && this.value==="charge")
-        document.getElementById("value").onkeypress = validateInput2;
-    else
-    if(currentPage===2 && this.value!=="charge")
-        document.getElementById("value").onkeypress = null;
-});
 
 function validateInput2(e){
     validateInput(e)
@@ -132,13 +138,13 @@ function addRow(e){
 }
 
 function addFeild(e){
-    modal.classList.add("blur-pointer");
-    if(e.target.parentNode.parentNode.parentNode.parentNode.dataset.type==="page3")
-        document.querySelector(".popup2 .feild").classList.remove("hide");
-    else
-        document.querySelector(".popup2 .feild").classList.add("hide");
-    document.querySelector(".popup2").classList.remove("hide");
+    removeAllElem(".popup2");
+    modal.querySelector("form").classList.add("hide");
+    let popup2 = document.getElementById("new-feild-template").content.cloneNode(true).querySelector("form");
+    modal.appendChild(popup2);
     [...document.querySelectorAll(".popup2 .feild>input")].forEach(input=>input.value="");
+    document.getElementById("value").dataset.type = "Number";
+    document.getElementById("value").dataset.subtype = "price";
 }
 
 function removeFeild(e){
@@ -153,7 +159,7 @@ function removeFeild(e){
     btn.parentNode.remove();
 }
 
-function setNewFeild(label,value,kind){
+function setNewFeild(label,value,kind="info"){//remove "kind" dependency
     document.querySelector(`[data-feild="${label}"]`)?.remove();
     let newFeild = document.createElement("div");
     newFeild.className = "feild deletable";
@@ -171,12 +177,10 @@ function setNewFeild(label,value,kind){
 function setFeild(e){
     e.preventDefault();
     closeModal(undefined,"popup2");
-    modal.classList.remove("blur-pointer");
-    let { label,value,kind } = e.target;
+    let { label,value } = e.target;
     label = label.value;
     value = value.value;
-    kind = kind.value;
-    setNewFeild(label,value,kind);
+    setNewFeild(label,value);
 }
 
 function closeModal(e,popup){
@@ -185,8 +189,8 @@ function closeModal(e,popup){
         modal.classList.add("hide");
         cover.classList.add("hide");
     }
-    modal.classList.remove("blur-pointer");
-    document.querySelector(".popup2").classList.add("hide");
+    removeAllElem(".popup2");
+    modal.querySelector("form").classList.remove("hide");
 }
 
 function addItem(e){
@@ -208,28 +212,6 @@ function addItem(e){
         billMeta.moreInfo = billMeta.moreInfo.filter((val,index,self)=>(
             index===self.findIndex(obj=>(obj.label===val.label && obj.kind===val.kind && obj.value===val.value))
         ));
-        let moreFeildDiv = document.getElementById("more-feild-div");
-        let moreFeildMenu = document.getElementById("more-feild-menu");
-        if(billMeta.moreInfo.length>0){
-            moreFeildMenu.classList.remove("hide");
-            [...moreFeildDiv.children].forEach(elem=>elem.remove());
-            billMeta.moreInfo.forEach(info_obj=>{
-                let div = document.createElement("div");
-                moreFeildDiv.appendChild(div);
-                div.innerHTML = `
-                    <div>
-                        <p>${info_obj.label}</p>
-                    </div>
-                    <div>
-                        <p>${info_obj.value}</p>
-                    </div>
-                `;
-                div.className = info_obj.kind==="charge"?"red-box":"blue-box";
-            });
-            secondPage.classList.remove("blur-pointer");
-        }
-        else
-            moreFeildMenu.classList.add("hide")
     }
 }
 
@@ -237,7 +219,6 @@ function proceedHandler(e){
     if(e.type==="submit"){// Page 2 submit event.
         e.preventDefault();
         currentPage = 3;
-        document.getElementById("value").onkeypress = null;
         thirdPage.classList.remove("hide");
         secondPage.classList.add("hide");
         billMeta.billNo = e.target.billNo.value;
@@ -254,6 +235,14 @@ function proceedHandler(e){
     else{
         const {cmd} = e.target.dataset;
         if(cmd==="next"){
+            if(!("services" in billMeta))
+                billMeta.services = [];
+            billMeta.services = [...billMeta.services,...itemList.reduce((acc,itemObj,index)=>{
+                if(itemObj.type!=="service") return acc;
+                acc.push(itemObj);
+                itemList.splice(index,1);
+                return acc;
+            },[])];
             if(itemList.length===0) return alert("Can't proceed with empty item list.");
             thirdPage.classList.add("hide");
             fourthPage.classList.remove("hide");
@@ -285,17 +274,6 @@ function proceedHandler(e){
     }
 }
 
-function showModal(){
-    modal.classList.remove("hide");
-    removeAllElem(".deletable");
-    if(billMeta.moreInfo)
-        billMeta.moreInfo.forEach(({label,kind,value})=>{
-            setNewFeild(label,value,kind);
-        })
-    modal.dataset.type = "page3";
-    cover.classList.remove("hide");
-}
-
 function addFeild2SummaryDiv(label,value){
     let labelDiv = document.querySelector(`#summary-div div[data-label='${label}']`);
     if(labelDiv)
@@ -325,15 +303,20 @@ function initPage4(){
         totalWithTax:0
     });
     total = totalWithTax;
-    let freightCharge = Number(billMeta.freightCharge) ?? 0;
+    let freightCharge = "freightCharge" in billMeta ? Number(billMeta.freightCharge) : 0;
     total += freightCharge;
     if(freightCharge>0)
         addFeild2SummaryDiv("Freight Charge",freightCharge);
-    if("moreInfo" in billMeta)
-        total += billMeta.moreInfo.reduce((acc,{kind,label,value})=>{
-            if(kind!=="charge") return acc;
-            addFeild2SummaryDiv(label,value);
-            return acc + Number(value);
+    if("services" in billMeta)
+        total += billMeta.services.reduce((acc,obj)=>{
+            addFeild2SummaryDiv(obj.name,obj.rate);
+            let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
+                if(key in obj)
+                    return acc + Number(obj[key]);
+                else
+                    return acc;
+            },0);
+            return acc + Number(obj.rate)*Number(obj.quantity)*(1+(tax/100));
         },0);
     document.getElementById("bill-amt").textContent = totalWithoutTax;
     document.getElementById("tax-amt").textContent = totalWithTax - totalWithoutTax;
@@ -463,9 +446,13 @@ async function selectStock(e){
     let { id } = selectedOption.dataset;
     itemObj.id = id;
     let _itemObj = await ipcRenderer.invoke("get-more-info-on-selected-stock",id);
-    // console.log(_itemObj)
+    if(!_itemObj){
+        _itemObj = {...selectedOption.dataset};
+        _itemObj.pInfo = JSON.parse(_itemObj.pInfo);
+    }
     for(let key in _itemObj){
         if(key==="pInfo"){
+            itemObj.pInfo = {};
             Object.keys(_itemObj.pInfo).forEach(key=>{
                 itemObj.pInfo[key] = _itemObj.pInfo[key];
             });
@@ -479,6 +466,15 @@ async function selectStock(e){
         }
         if(key!=="quantity")
             itemObj[key] = _itemObj[key];
+    }
+    if(_itemObj.type==="service"){
+        ["buyPrice","pHistory","quantity","cgst","sgst","igst"]
+        .forEach(key=>{
+            if(key in itemObj)
+                Reflect.deleteProperty(itemObj,key);
+        });
+        itemObj._type = "service";
+        itemObj.rate = itemObj.standardSellPrice;
     }
     bodyRow.querySelector(`input[data-name="quantity"]`)?.focus();
 }
@@ -494,36 +490,31 @@ function assignOpt_Dl(arr,dl){
             if(key==="name")
                 option.value = obj[key];
             else
-                option.dataset[key] = obj[key];
+                option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
         dl.appendChild(option);
     });
 }
 
 (async ()=>{
+    let spinner = drawSpinner(document);
     let supplierNames = await ipcRenderer.invoke("get-supplier-names");
     assignOpt_Dl(supplierNames,"suppliers-dl");
     let freightList = await ipcRenderer.invoke("get-freights");
     assignOpt_Dl(freightList,"freightName-dl");
     let stockNames = await ipcRenderer.invoke("get-stock-names");
     assignOpt_Dl(stockNames,"stock-dl");
+    let serviceNames = await ipcRenderer.invoke("get-services");
+    assignOpt_Dl(serviceNames,"stock-dl");
+    spinner.remove(window);
 })();
 
 document.addEventListener("keydown",e=>{
     if(currentPage===1 && e.ctrlKey && e.key==="+")
         document.getElementById("add-new-number").click();
     else
-    if(currentPage===2 && e.ctrlKey && e.key==="+")
-        document.getElementById("more-feild-btn").click();
-    else
-    if(currentPage===2 && e.ctrlKey && e.key==="Enter")
-        document.getElementById("add-feild-btn").click();
-    else
     if(e.key==="Enter"){
-        if(!document.querySelector(".popup2").classList.contains("hide"))
-            document.querySelector(".popup2 [type='submit']").click();
-        else
         if(!modal.classList.contains("hide"))
-            modal.querySelector("[type='submit']").click();
+            modal.querySelector("form:last-child button[type='submit']").click();
         else
         if([...document.querySelectorAll(".page")].some(page=>(!page.classList.contains("hide")))){
             let page = [...document.querySelectorAll(".page")].find(page=>(!page.classList.contains("hide")));
@@ -537,9 +528,6 @@ document.addEventListener("keydown",e=>{
     if(currentPage===3 && e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     else
-    if(currentPage===3 && e.ctrlKey && e.key==="Delete" && bodyRow)
-        document.querySelector(".body-row-options button[data-cmd='delete']")?.click();
-    else
-    if(currentPage===3 && e.ctrlKey && e.key==="ArrowDown" && bodyRow)
-        document.querySelector(".body-row-options button[data-cmd='add-info']")?.click();
+    if(currentPage===3 && e.ctrlKey && e.key==="Delete")
+        deleteRow();
 });  

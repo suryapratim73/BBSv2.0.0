@@ -18,15 +18,18 @@ exports.serviceRegistor = function (mainWindow){
     }
 }
 
+async function initService(){
+    (await (await service.sync()).findAll())
+    .map(({dataValues})=>{
+        serviceList.push(new People(dataValues));
+        return dataValues;
+    });
+}
+
 ipcMain.handle("get-services",async e=>{
-    if(serviceList.length>0)
-        return serviceList;
-    else{
-        return (await (await service.sync()).findAll()).map(({dataValues})=>{
-            serviceList.push(new People(dataValues));
-            return dataValues;
-        });
-    }
+    if(serviceList.length===0)
+        await initService();
+    return serviceList;
 });
 
 ipcMain.on("add-new-service",(e,servObj)=>{

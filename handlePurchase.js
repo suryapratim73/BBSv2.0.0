@@ -1,4 +1,3 @@
-const { BrowserWindow } = require("electron");
 const { ipcMain } = require("electron/main");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal } = require("./createModal");
@@ -28,7 +27,7 @@ exports.showPurchase = mainWindow =>{
 
 ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})=>{
     let { id,name,address,phones,moreInfo,gst } = suppObj;
-    let { billNo,billDate,freightName,freightCharge=0,totalTax,total,paymentStatus=false,moreInfo:_moreInfo={} } = billMeta;
+    let { billNo,billDate,freightName,freightCharge=0,totalTax,total,paymentStatus=false,services:_moreInfo={} } = billMeta;
     let { payMethod,detail,payDate,amount,receiverName,balance } = payObj;
     let freights = getFreights();
     new Promise(async res=>{
@@ -64,7 +63,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                 }
             }))[0].dataValues?.id;
         else
-        if(freightName)
+        if(freightName)// Update required
             freightId = freights.find(frghtObj=>frghtObj.name===freightName)
         let receiverId = receiverName ? (await (await people.sync()).findOrCreate({
             where:{name:receiverName},
@@ -88,9 +87,14 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                     ["entryNo","DESC"]
                 ]
             }))?.dataValues.balance ?? 0;
-            let rateIncrement = _moreInfo.reduce ? _moreInfo.reduce?.((acc,{kind="",value=0})=>{
-                if(kind!=="charge") return acc;
-                return acc + Number(value);
+            let rateIncrement = _moreInfo.reduce ? _moreInfo.reduce?.((acc,obj)=>{
+                let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
+                    if(key in obj)
+                        return acc + Number(obj[key]);
+                    else
+                        return acc;
+                },0);
+                return acc + Number(obj.rate)*Number(obj.quantity)*(1+(tax/100));
             },0) : 0;
             rateIncrement /= itemList.length;
             freightCharge = Number(freightCharge) / itemList.length;
@@ -234,7 +238,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
         }
     })
     .catch(err=>console.log({err}));
-});
+});// Update required
 
 ipcMain.handle("get-purchases",async e=>{
     let purchases = (await purchase.findAll()).map(({dataValues})=>dataValues);
@@ -248,4 +252,4 @@ ipcMain.handle("get-table",async (e,tableName)=>{
             timestamps: false
         }).sync()).findAll()).map(({dataValues})=>dataValues);
     }
-})
+});

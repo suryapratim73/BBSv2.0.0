@@ -85,9 +85,9 @@ ipcMain.handle("get-stocks",()=>{
     return queryStock();
 });
 
-ipcMain.handle("get-more-info-on-selected-stock",(e,id)=>{
+ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
     if(stockList.length===0)
-        queryStock();
+        await queryStock();
     return stockList.find(obj=>obj.id===id);
 });
 
