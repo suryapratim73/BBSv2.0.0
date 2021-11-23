@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput,roundOffTo2DecimalPlace,getAmtToWord, showToastNotification, closeToast, retractHandler} =  require("../js/common");
+const {toggleDevTool,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon} =  require("../js/common");
 const uuid = require("uuid");
 const { unitMap } = require("../../config/saleConfig.json");
 
@@ -7,8 +7,6 @@ const { unitMap } = require("../../config/saleConfig.json");
 toggleDevTool(document);
 
 let nameDatalist = document.createElement("datalist"),
-    // itemList = [],
-    // customerList = [],
     customerNameDatalist = document.createElement("datalist"),
     customer = {},
     currentStep = 1, 
@@ -18,7 +16,6 @@ let nameDatalist = document.createElement("datalist"),
     payment = [],
     transporterDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
-    // transporters = [],
     page2initialized = false,
     footer = document.querySelector("footer"),
     bodyRow,timer,
@@ -46,9 +43,8 @@ async function appendToDL(eventName,datalist){
 } 
 
 async function init(){
-    // itemList = await 
     appendToDL("get-stocks",nameDatalist);
-    // customerList = await 
+    appendToDL("get-services",nameDatalist);
     appendToDL("get-customers",customerNameDatalist);
     appendToDL("get-transporter",transporterDatalist)
     unitMap.forEach(obj=>{
@@ -285,8 +281,14 @@ function selectionHandler(e){// Work needed here
             let input = bodyRow.querySelector(`input[data-name="${key}"]`);
             if(input && key!=="unit")
                 input.value = match[key];
-            if(key==="unit")
+            if(key==="unit" && selectedItem.type!=="service")
                 input.value = "Kg";
+            else
+            if(key==="unit" && selectedItem.type==="service")
+                input.value = selectedItem.unit;
+            else
+            if(key==="standardSellPrice")
+                input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
             bodyRow.dataset[key] = match[key];
         }
         bodyRow.querySelector(`[data-name="qty"]`).focus();
@@ -328,6 +330,8 @@ function calculateAmounts(e){
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
     let res = unitMap.find(uObj=>unit in uObj);
     let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+    if(selectedItem.type==="service" && unit===selectedItem.unit)
+        multiplier = 1;
     bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier);
     let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
     let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
@@ -358,9 +362,20 @@ function reduceOrder(){
             return acc
         },0);
         if(keys.every(val=>obJKeys.includes(val))){
+            if(!("discVal" in billMeta))
+                billMeta.discVal = 0;
             let res = unitMap.find(uObj=>obj.sellUnit in uObj);
-            let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            acc.netQty += obj.qty * multiplier;
+            let multiplier;
+            if(obj.type!=="service")
+                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+            else
+            if(obj.type==="service" && obj.unit===Object.keys(res)[0])
+                multiplier = 1;
+            else
+            if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
+                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+            if(obj.type!=="service")
+                acc.netQty += obj.qty * multiplier;
             acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
             acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
         }
@@ -372,12 +387,13 @@ function reduceOrder(){
     });
 }
 
-function displaySection(){// Work need to done here
+function displaySection(){
     let df = document.getElementById("summary-div-template").content.cloneNode(true);
     document.querySelector(".page #page3-summary-div")?.remove();
     document.querySelector("#page-3").appendChild(df);
     let summaryDiv = document.querySelector("#page3-summary-div");
-    [...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue")].forEach(p=>{
+    [...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue")]
+    .forEach(p=>{
         if(p.dataset.name==="specialPrice" && "specialPrice" in selectedItem){
             let sorted = JSON.parse(selectedItem.specialPrice)
                 .filter(obj=>obj.customerId===customer.id)
@@ -393,7 +409,7 @@ function displaySection(){// Work need to done here
             p.textContent = sorted?.[0]?.rate ?? 0;
         }
         else
-        if(p.dataset.name==="quantity"){
+        if(p.dataset.name==="quantity" && selectedItem.type!=="service"){
             let quantity = selectedItem.quantity ?? 0;
             let totalQty = orderItems.reduce((acc,obj)=>{
                 if(obj.id===selectedItem.id && "qty" in obj && "id" in selectedItem && "id" in obj){
@@ -411,6 +427,9 @@ function displaySection(){// Work need to done here
                 p.classList.remove("red");
         }
         else
+        if(p.dataset.name==="standardSellPrice")
+            p.textContent = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
+        else
             p.textContent = selectedItem[p.dataset.name] ?? ""; 
     });
     let reducedOrder = reduceOrder();
@@ -421,18 +440,9 @@ function displaySection(){// Work need to done here
     [...summaryDiv.querySelectorAll("#bill-summary .red")].forEach(p=>p.textContent=!isNaN(reducedOrder[p.dataset.name])?roundOffTo2DecimalPlace(reducedOrder[p.dataset.name]):p.textContent);
 }
 
-function deleteRow(e){
-    if(e)
-        return ([...document.querySelectorAll(".body.row")].find(div=>div.dataset.sellId===e.target.parentNode.dataset.sellId)).remove();
-    if(!bodyRow.classList.contains("row")) return;
-    if(!bodyRow)
-        bodyRow = [...document.querySelectorAll('.row.body')].pop();
-    if("sellId" in bodyRow.dataset)
-        orderItems = orderItems.filter(obj=>obj.sellId!==bodyRow.dataset.sellId);
-    bodyRow.remove();
-    [...document.querySelectorAll(".body.row")].forEach((row,index)=>{
-        row.querySelector("p").textContent = index+1;
-    })
+function deleteRow(){
+    orderItems = deleteRowCommon(bodyRow,orderItems,"sellId");
+    displaySection();
 }
 
 function updateBillValue(e){

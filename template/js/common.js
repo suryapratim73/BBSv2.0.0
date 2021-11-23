@@ -1,4 +1,5 @@
 const {ipcRenderer} = require("electron");
+const uuid = require("uuid");
 require("dotenv").config();
 const {
     APP_ENV
@@ -653,4 +654,22 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
             this.remove();
         });
     }
+}
+
+exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
+    if(!bodyRow)
+        bodyRow = document.querySelector(".body.row:last-child");
+    let uid = bodyRow.dataset[key];
+    itemList = itemList.filter(obj=>obj[key]!==uid);
+    bodyRow.remove();
+    [...document.querySelectorAll(".body.row>div:first-child>p")]
+    .forEach((p,index)=>{
+        let bodyRow = p.parentNode.parentNode;
+        p.textContent = index + 1;
+        let itemObj = itemList.find(obj=>obj[key]===bodyRow.dataset[key]);
+        bodyRow.dataset[key] = uuid.v5((index+1).toString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+        if(itemObj && key in itemObj)
+            itemObj[key] = bodyRow.dataset[key];
+    });
+    return itemList;
 }

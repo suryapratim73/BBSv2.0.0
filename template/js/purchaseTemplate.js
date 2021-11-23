@@ -1,5 +1,5 @@
 const {ipcRenderer} = require("electron");
-const {toggleDevTool,validateInput,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner} = require("../js/common.js");
+const {toggleDevTool,validateInput,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon} = require("../js/common.js");
 const uuid = require("uuid");
 
 
@@ -39,7 +39,8 @@ function clickOrFocusinHandler(e){
     }
     else{
         if(e.target.dataset.cmd==="delete"){
-            return deleteRow()
+            itemList = deleteRowCommon(bodyRow,itemList);
+            return;
         }
         else
         if(e.target.dataset.cmd==="add-info"){
@@ -61,23 +62,6 @@ function clickOrFocusinHandler(e){
         else
             addRowBTN.classList.remove("hide");
     }
-}
-
-function deleteRow(){
-    if(!bodyRow)
-        bodyRow = document.querySelector(".body.row:last-child");
-    let uid = bodyRow.dataset.uid;
-    itemList = itemList.filter(obj=>obj.uid!==uid);
-    bodyRow.remove();
-    [...document.querySelectorAll(".body.row>div:first-child>p")]
-    .forEach((p,index)=>{
-        let bodyRow = p.parentNode.parentNode;
-        p.textContent = index + 1;
-        let itemObj = itemList.find(obj=>obj.uid===bodyRow.dataset.uid);
-        bodyRow.dataset.uid = uuid.v5((index+1).toString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
-        if(itemObj && "uid" in itemObj)
-            itemObj.uid = bodyRow.dataset.uid;
-    });
 }
 
 document.querySelector("#tbody")?.addEventListener("focusin",clickOrFocusinHandler);
@@ -529,5 +513,5 @@ document.addEventListener("keydown",e=>{
         document.querySelector("#add-item>button").click();
     else
     if(currentPage===3 && e.ctrlKey && e.key==="Delete")
-        deleteRow();
+        itemList = deleteRowCommon(bodyRow,itemList);
 });  

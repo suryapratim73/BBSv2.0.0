@@ -127,7 +127,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         ]
     })))?.dataValues.balance ?? 0;
     Promise.all([
-        ...orderItems.map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
+        ...orderItems.filter(obj=>obj.type!=="service")
+        .map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
             let tax = igst>0?igst:cgst+sgst;
             let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
             return billModel.create({
@@ -153,7 +154,9 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge,coolieName,coolieCharge,coolieContact}:"hand",
             balance: Math.round(lastBalance + billMeta.netAmtTax + deliveryCharge - netPayment)
         }),
-        ...orderItems.map(async ({qty,id,sellUnit,rate})=>{
+        ...orderItems
+        .filter(obj=>obj.type!=="service")
+        .map(async ({qty,id,sellUnit,rate})=>{
             let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
             let item = await stock.findOne({where:{id}});
             item.reduceStock = qty*multiplier;
