@@ -10,12 +10,6 @@ let stockList = [],
         height: 600
     };
 
-exports.updateStock = () =>{
-    return ()=>{
-        createModal(null,"template/html/updateStock.html",{maxWinCount:1,label:"Stock-Updater"});
-    }
-}
-
 exports.displayStock = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
@@ -32,28 +26,28 @@ exports.handleReturn = ()=>{
     }
 }
 
-ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
-    try{
-        await stock.update({pInfo:feildMap},{
-            where:{name}
-        })
-        let selectedStock = await stock.findOne({
-            where:{
-                name
-            }
-        });
-        selectedStock.updateStock={quantity,price,location};
-        if(await selectedStock.save()){
-            BrowserWindow.getFocusedWindow().close();
-            dialog.showMessageBox({
-                title:"Stock update",
-                message: "The selected stock has been updated successfully."            })
-        }
-    }
-    catch(err){
-        console.log(err)
-    }
-});// This need a relook
+// ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
+//     try{
+//         await stock.update({pInfo:feildMap},{
+//             where:{name}
+//         })
+//         let selectedStock = await stock.findOne({
+//             where:{
+//                 name
+//             }
+//         });
+//         selectedStock.updateStock={quantity,price,location};
+//         if(await selectedStock.save()){
+//             BrowserWindow.getFocusedWindow().close();
+//             dialog.showMessageBox({
+//                 title:"Stock update",
+//                 message: "The selected stock has been updated successfully."            })
+//         }
+//     }
+//     catch(err){
+//         console.log(err)
+//     }
+// });// This need a relook
 
 ipcMain.handle("get-stock-names",()=>{
     return queryStock(["name","id"]);
@@ -93,12 +87,3 @@ ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
 
 exports.stockList = stockList;
 exports.queryStock = queryStock;
-
-// ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
-//     return (await stock.findOne({
-//         where:{
-//             name:selectedStock
-//         },
-//         attributes: ["pInfo"]
-//     })).dataValues;
-// });

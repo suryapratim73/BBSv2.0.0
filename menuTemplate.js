@@ -1,6 +1,6 @@
 const { BrowserWindow } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
-const {updateStock,displayStock,handleReturn} = require("./handleStock");
+const {displayStock,handleReturn} = require("./handleStock");
 const {getSuplierPortal,checkOutPayments} = require("./supplierHandler");
 const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
@@ -137,12 +137,6 @@ module.exports = mainWindow=>{
         {
             label: "Admin",
             submenu: [
-                {
-                    label: "Update Stock",
-                    accelerator: "Shift+F6",
-                    click: updateStock(mainWindow),
-                    enabled: false
-                },
                 {
                     label:"Stock Return Registor",
                     click:handleReturn(),
