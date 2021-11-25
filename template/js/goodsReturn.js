@@ -347,7 +347,7 @@ function handle_proceed(e){
         billDiv.classList.add("hide")
         page_2.classList.remove("hide");
         page_2.classList.add("move-up");
-        ipcRenderer.send("get-bill-items",id,billNo,billDate)
+        ipcRenderer.send("get-bill-items",id,billNo,billDate,mode);
     },201);
 }
 
@@ -378,8 +378,13 @@ ipcRenderer.on("get-bill-items-response",(e,billItems)=>{
 document.addEventListener("keydown",(e)=>{
     if(e.ctrlKey && e.key==="+")
         document.querySelector('[data-cmd="add-item"]').click();
+    else
     if(e.ctrlKey && e.key==="-")
         document.getElementById("option-div").click();
+    else
     if(e.ctrlKey && e.key==="Enter")
         document.querySelector('[data-cmd="confirm-return"]').click();
+    else
+    if(e.ctrlKey && e.key==="Tab")
+        document.querySelector("#toggle .dot").click();
 });

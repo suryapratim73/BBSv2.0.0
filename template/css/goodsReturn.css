@@ -28,10 +28,10 @@ main{
     padding: 0.5rem 1rem 0.5rem 0;
 }
 .ret-bill-div form{
-    background: wheat;
+    background: white;
     padding: 0.5rem;
-    box-shadow: inset 1px -1px 1px 0px black, 
-                1px -1px 1px 1px grey;
+    box-shadow: 10px 10px 10px 0px grey,
+                -1px -1px 3px 0px grey;
     border-radius: 5px;
     flex: 1;
 }
@@ -47,11 +47,11 @@ main{
     margin: 1rem 0;
 }
 .ret-bill-div form button{
-    color: white;
+    color: green;
     font-size: 1rem;
     padding: 0.3rem 0.15rem;
     border-radius: 3px;
-    background: green;
+    outline: none;
 }
 .ret-bill-div form input{
     color: black;

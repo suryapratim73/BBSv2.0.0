@@ -1,13 +1,15 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { getLedgerModel, print, getBillModel, appLogger } = require("./common");
 const { createModal } = require("./createModal");
-const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock } = require("./model/dbConfig");
+const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
 const { customerList } = require("./saleHandler");
 const { People } = require("./common");
 
+
+const { stockList,queryStock } = require("./handleStock");
 
 exports.customerPortal = mainWindow =>{
     return ()=>{
@@ -140,13 +142,33 @@ ipcMain.on("get-customer-names",async e=>{
     e.sender.send("customer-names",customerNames);
 });
 
-ipcMain.on("get-bill-items",async (e,id,billNo,billDate)=>{
+ipcMain.on("get-bill-items",async (e,id,billNo,billDate,mode)=>{
+    if(mode===1)
+        billDate = (await sale.findOne({
+            where:{
+                [Op.and]:[
+                    {customerId:id},
+                    {billNo}
+                ]
+            },
+            attributes:["billDate"]
+        })).dataValues.billDate;
+    else
+    billDate = (await purchase.findOne({
+        where:{
+            [Op.and]:[
+                {supplierId:id},
+                {billNo}
+            ]
+        },
+        attributes:["billDate"]
+    })).dataValues.billDate;
     billDate = (new Date(billDate)).toISOString().split("T")[0];
     let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
 });
 
-async function returnOps(id,itemList,billMeta,retDate){
+async function returnOps(id,itemList,billMeta,retDate,mode){
     let ledger = await getLedgerModel(id,customerLedgerSchema);
     let retAmt = itemList.reduce((acc,{rate,qty})=>acc+=rate*qty,0);
     await Promise.all([
@@ -163,7 +185,11 @@ async function returnOps(id,itemList,billMeta,retDate){
                     name
                 }
             });
-            item.reduceStock = -1 * qty;
+            item.reduceStock = mode * qty;
+            if(stockList.length===0)
+                await queryStock();
+            let itemObj = stockList.find(obj=>obj.name===name);
+            itemObj.quantity -= mode * qty;
             return item.save();
         }),
         ledger.update({
@@ -186,7 +212,7 @@ function displayConfirmMsg(msg,appLogMsg,id,itemList,retAmt,retDate){
 
 ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id})=>{
     try{
-        const {retAmt} = await returnOps(id,itemList,billMeta,retDate)
+        const {retAmt} = await returnOps(id,itemList,billMeta,retDate,-1);
         (await outPayments.sync()).create({
             beneficiaryId: id,
             type: "return",
@@ -208,7 +234,7 @@ ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id})=>{
 
 ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
     try{
-        const {retAmt} = returnOps(id,itemList,billMeta,retDate);
+        const {retAmt} = returnOps(id,itemList,billMeta,retDate,1);
         (await inPayments.sync()).create({
             id,
             type: "return",
@@ -236,10 +262,12 @@ async function billNoResponse(model,e,startDate,endDate){
             returnable:true,
             date:{
                 [Op.between]:[startDate,endDate]
-            }
+            },
+            paymentStatus:true
         },
         attributes:["billNo","date"]
     })).map(({dataValues:{billNo,date}})=>({billNo,date})).filter(({billNo,date})=>billNo!==null && date!==null);
+    billNumbers = billNumbers.filter((obj,i,self)=>(i===self.findIndex(({billNo})=>billNo===obj.billNo)));
     e.sender.send("get-bill-numbers-response",billNumbers);
 }
 
@@ -258,4 +286,4 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
         return (await (await customer.sync()).findOne({where:{id},attributes:["name"]})).dataValues;
     else
         return customerList.find(obj=>obj.id===id);
-})
+});

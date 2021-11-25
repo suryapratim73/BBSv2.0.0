@@ -26,9 +26,9 @@ exports.displayStock = mainWindow =>{
 
 exports.handleReturn = ()=>{
     return ()=>{ 
-        windowOptions.width = 400;
+        let _windowOptions = {...windowOptions,width:400};
         let pathToHTML = "./template/html/goodsReturn.html";
-        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Item-Return-Handler"});
+        createModal(_windowOptions,pathToHTML,{maxWinCount:1,label:"Item-Return-Handler"});
     }
 }
 
@@ -92,6 +92,7 @@ ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
 });
 
 exports.stockList = stockList;
+exports.queryStock = queryStock;
 
 // ipcMain.handle("get-more-info-on-selected-stock",async (e,selectedStock)=>{
 //     return (await stock.findOne({
