@@ -1,5 +1,5 @@
 const {ipcRenderer} = require("electron");
-const {toggleDevTool,validateInput,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon} = require("../js/common.js");
+const {toggleDevTool,validateInput,validateInput2,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon} = require("../js/common.js");
 const uuid = require("uuid");
 
 
@@ -79,12 +79,6 @@ document.querySelector("#tbody")?.addEventListener("input",function(e){
 
 document.getElementById("billDate").valueAsDate = new Date();
 document.getElementById("pay-date").valueAsDate = new Date();
-
-function validateInput2(e){
-    validateInput(e)
-    if(e.defaultPrevented) return;
-    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
-}
 
 function addSupplier(e){
     e.preventDefault();

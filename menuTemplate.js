@@ -6,6 +6,7 @@ const {saleWindow, showSales} = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
+const { employeePortal } = require("./peopleHandler");
 
 module.exports = mainWindow=>{
     return [
@@ -13,7 +14,8 @@ module.exports = mainWindow=>{
             label:"BBS",
             submenu: [
                 {
-                    label: "Settings"
+                    label: "Settings",
+                    accelerator: "Shift+F1"
                 },
                 {
                     label: "Backup and Restore"
@@ -46,7 +48,7 @@ module.exports = mainWindow=>{
                 { type: "separator" },
                 { role: "quit" }
             ]
-        },
+        },// Application menu
         {
             label:"Sale",
             submenu:[
@@ -61,7 +63,7 @@ module.exports = mainWindow=>{
                     click: customerPortal(mainWindow)
                 }
             ]
-        },
+        },// Sale menu
         {
             label:"Purchase",
             submenu:[
@@ -76,7 +78,7 @@ module.exports = mainWindow=>{
                     click: getSuplierPortal(mainWindow)
                 }
             ]
-        },
+        },// Purchase menu
         {
             label:"Tables",
             submenu:[
@@ -101,7 +103,7 @@ module.exports = mainWindow=>{
                     click:showSales(mainWindow)
                 }
             ]
-        },
+        },// Table menu
         {
             label:"Tools and Analytics",
             submenu: [
@@ -133,48 +135,40 @@ module.exports = mainWindow=>{
                     label: "BBS Remote"
                 }
             ]
-        },
+        },// Tools menu
         {
             label: "Admin",
             submenu: [
                 {
                     label:"Stock Return Registor",
                     click:handleReturn(),
-                    accelerator: "F6"
+                    accelerator: "F7"
                 },
                 { type: "separator" },
                 {
-                    label: "Register New Employee",
-                    enabled: false
-                },
-                {
                     label: "Employee Portal",
-                    enabled: false
+                    click: employeePortal(mainWindow),
+                    accelerator: "F6"
+                    // enabled: false
                 },
                 {
                     label: "Register Services",
                     click: serviceRegistor(mainWindow),
                     accelerator: "F8"
                 },
-                { 
-                    label: "Settings",
-                    accelerator: "Shift+F1"
-                },
                 { type: "separator" },
                 {
                     label: "Lock/Unlock Admin",
-                    click: function(e){
-                        e.menu.items.forEach(menu=>{
-                            if(menu.enabled===false)
-                                menu.enabled = true;
-                            else
-                                menu.enabled = false;
-                        });
-                        e.enabled = true;
-                    }
+                    // click: function(e){
+                    //     e.menu.items.forEach(menu=>{
+                    //         if(menu.enabled===false)
+                    //             menu.enabled = true;
+                    //     });
+                    //     e.enabled = true;
+                    // }
                 }
             ]
-        },
+        },// Admin menu
         {
             label:"Dev",
             submenu:[
@@ -193,7 +187,7 @@ module.exports = mainWindow=>{
                     }
                 }
             ]
-        }
+        }// Dev menu -- shall be removed
     ]
 }
 

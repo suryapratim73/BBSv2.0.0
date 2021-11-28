@@ -14,7 +14,7 @@ exports.toggleDevTool = function(document){
     });
 }
 
-exports.validateInput = function(e){
+exports.validateInput = function validateInput(e){
     if(e.target.id==="payment-status" && e.target.value.length>2)
         return e.preventDefault();
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) 
@@ -28,6 +28,12 @@ exports.validateInput = function(e){
             return e.preventDefault();
     }
     return 1;
+}
+
+exports.validateInput2 = function(e){
+    validateInput(e)
+    if(e.defaultPrevented) return;
+    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
 }
 class Supplier{
     constructor(name,id){

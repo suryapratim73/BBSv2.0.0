@@ -1,0 +1,46 @@
+@import "../css/common.css";
+nav{
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+#new-employee-modal{
+    display: flex;
+    width: 40%;
+    left: 30%;
+}
+#new-employee-modal>form{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+#new-employee-modal>form>div{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#new-employee-modal>form>div>div{
+    flex: 1;
+}
+#new-employee-modal>form>div>div:last-child{
+    flex: 2;
+    display: flex;
+}
+#new-employee-modal input{
+    width: 100%;
+}
+#new-employee-modal button:first-child{
+    color: green;
+}
+#new-employee-modal button:last-child{
+    color: red;
+}
+input{
+    padding: 0.25rem 0.15rem;
+}
+button{
+    padding: 0.5rem;
+}
+.body.row{
+    color: black;
+}

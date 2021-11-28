@@ -1,19 +1,6 @@
 @import "../css/common.css";
-body{
-    height: 100vh;
-    display: grid;
-    grid-template: repeat(12,1fr)/1fr;
-    overflow: hidden;
-    padding: 0.5rem;
-}
 p{
     color: black !important;
-}
-nav{
-    grid-row: 1/3;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 nav h1{
     color: black;
@@ -27,9 +14,6 @@ nav input, #feild-container input{
     border-radius: 5px;
     border: none;
     box-shadow: 0 0 3px 1px grey;
-}
-main{
-    grid-row: 3/-1;
 }
 #tbody{
     max-height: 80%;

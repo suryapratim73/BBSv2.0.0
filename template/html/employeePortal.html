@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Portal</title>
+    <link rel="stylesheet" href="../css/employeePortal.css">
+    <script src="../js/employeePortal.js" defer></script>
+</head>
+<body>
+    <nav>
+        <button class="page1-elem" data-cmd="addEmployee">Add Employee</button>
+        <input class="page1-elem" placeholder="Type to search for employee" />
+        <!-- oninput="searchHandler(event)" type="text"> -->
+    </nav>
+    <main></main>
+    <template id="page1-template">
+        <div class="page page1 table">
+            <div class="row head">
+                <p class="col eq-space">Sl No.</p>
+                <p class="col eq-space">Name</p>
+                <p class="col eq-space">Attendance</p>
+                <p class="col eq-space">Last Pay Date</p>
+            </div>
+            <div class="tbody"></div>
+        </div>
+    </template>
+    <template id="new-employee-template">
+        <form onsubmit="newEmployee(event)">
+            <h2>New Employee Form</h2>
+            <div>
+                <div><label for="name">Name</label></div>
+                <div><input type="text" id="name" name="name"></div>
+            </div>
+            <div>
+                <div><label for="address">Address</label></div>
+                <div><input type="text" id="address" name="address"></div>
+            </div>
+            <div>
+                <div><label for="phones">Phone</label></div>
+                <div>
+                    <input type="text" data-type="Number" id="phones" name="phones" onkeypress="validateInput(event)" >
+                    <button type="button">+</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="joinDate">Join Date</label></div>
+                <div><input type="date" id="joinDate" name="joinDate"></div>
+            </div>
+            <div>
+                <div><label for="salary">Salary</label></div>
+                <div><input type="text" data-subtype="price" data-type="Number" onkeypress="validateInput2(event)" id="salary" name="salary"></div>
+            </div>
+            <div>
+                <div><label for="salaryDate">Salary Pay Date</label></div>
+                <div><input type="text" data-subtype="price" data-type="Number" onkeypress="validateInput2(event)" id="salaryDate" name="salaryDate"></div>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Add</button>
+                    <button type="button" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <p class="col eq-space" data-colname="slNo"></p>
+            <p class="col eq-space" data-colname="name"></p>
+            <p class="col eq-space" data-colname="attendance"></p>
+            <p class="col eq-space" data-colname="payDate"></p>
+        </div>
+    </template>
+</body>
+</html>
