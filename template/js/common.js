@@ -533,23 +533,20 @@ exports.scrollSymSet = function(elem){
     return mousedownTimer;
 }
 
-exports.retractHandler = function(retractableDiv){
-    let height = retractableDiv.scrollHeight;
+exports.retractHandler = function retractHandler(retractableDiv,mode="height",val1=0,val2){
+    if(!val2)
+        val2 = mode==="height" ? retractableDiv.scrollHeight : 0;
     if(retractableDiv.dataset.collapsed==="false"){
-        let transitionVal = retractableDiv.style.transition;
-        retractableDiv.style.transition = '';
-        debugger
         requestAnimationFrame(()=>{
-            retractableDiv.style.height = height + "px";
-            retractableDiv.style.transition = transitionVal;
+            retractableDiv.style[mode] = val2 + "px";
             requestAnimationFrame(()=>{
-                retractableDiv.style.height = 0 + "px";
+                retractableDiv.style[mode] = val1 + "px";
             })
         });
         retractableDiv.dataset.collapsed = "true";
     }
     else{
-        retractableDiv.style.height = height + "px";
+        retractableDiv.style[mode] = val2 + "px";
         retractableDiv.dataset.collapsed = "false";
     }
     
@@ -606,7 +603,7 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
     return {canvas,ctx,reducedObjs};
 }
 
-exports.createModal = function(id){
+exports.createModal = function(id,makeRetractable=false){
     let modal = document.createElement("div");
     modal.className = "modal";
     let cover = document.createElement("div");
@@ -615,11 +612,31 @@ exports.createModal = function(id){
     document.body.appendChild(cover);
     removeAllElem(`#${id}`);
     modal.id = id;
+    if(makeRetractable){
+        modal.dataset.collapsed = "false";
+        modal.classList.add("appear")
+        retractHandler(modal,"width",modal.scrollWidth);
+        setTimeout(()=>{
+            modal.classList.remove("appear");
+        },400);
+    }
     return modal;
 }
 
 exports.closeModal = function(){
-    removeAllElem(".cover,.modal");
+    let modal = document.querySelector(".modal");
+    if("collapsed" in {...modal.dataset}){
+        setTimeout(()=>{
+            removeAllElem(".cover,.modal");    
+        },305);
+        modal.dataset.collapsed = "false";
+        retractHandler(modal,"width",0,modal.scrollWidth);
+        let {bodyRow,initPage} = getBodyRow?.();
+        if(bodyRow && "stockUpdated" in {...bodyRow.dataset} && bodyRow.dataset.stockUpdated)
+            initPage?.();
+    }
+    else
+        removeAllElem(".cover,.modal");
 }
 
 exports.dataModal = function([reducedObjs,key="Amt"],e){
@@ -672,4 +689,8 @@ exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
             itemObj[key] = bodyRow.dataset[key];
     });
     return itemList;
+}
+
+exports.capitalize = function(str){
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }

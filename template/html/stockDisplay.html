@@ -38,23 +38,61 @@
         </div>
     </template>
     <template id="pHistory-modal-template">
-        <div>
-            <canvas class="pHistory-graph"></canvas>
-        </div>
-        <div class="table">
-            <div class="row head">
-                <p class="col eq-space">Customer Name</p>
-                <p class="col eq-space">Sell Date</p>
+        <div class="page1-elem">
+            <div>
+                <canvas class="pHistory-graph"></canvas>
             </div>
-            <div class="tbody hide-scrollbar"></div>
-        </div>
-        <div>
-            <button onclick="closeModal()">Close</button>
+            <div class="table">
+                <div class="row head">
+                    <p class="col eq-space">Customer Name</p>
+                    <p class="col eq-space">Sell Date</p>
+                </div>
+                <div class="tbody hide-scrollbar"></div>
+            </div>
+            <div>
+                <button onclick="closeModal()">Close</button>
+                <button onclick="showUpdater()">Update Stock</button>
+            </div>
         </div>
     </template>
     <template id="data-modal-template">
         <div class="data-modal">
             <p></p>
+        </div>
+    </template>
+    <template id="stock-updater-template">
+        <div class="page2-elem">
+            <div id="feild-container" onmouseover="showDeleteBTN(event)"></div>
+            <div>
+                <button onclick="updateStock()">Update</button>
+                <button onclick="backToPage1()">Cancel</button>
+                <button onclick="showAddNewFeild()" data-msg="Add New Feild" class="hover right top">+</button>
+            </div>
+        </div>
+    </template>
+    <template id="add-new-feild-template">
+        <div class="page3-elem">
+            <div id="feild-container">
+                <h2>Add New Feild</h2>
+                <div>
+                    <p>Feild Name</p>
+                    <div><input type="text" data-colName="feild"></div>
+                </div>
+                <div>
+                    <p>Feild Value</p>
+                    <div><input type="text" data-colName="value"></div>
+                </div>
+            </div>
+            <div>
+                <button onclick="appendNewInfo()">Add</button>
+                <button onclick="backToPage2()">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="new-row-template">
+        <div class="new-row">
+            <p data-colName="feild"></p>
+            <div><input type="text" data-colName="value"></div>
         </div>
     </template>
 </body>

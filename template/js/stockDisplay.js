@@ -1,13 +1,14 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, initSearchHandler, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace} = require("../js/common.js");
+const {toggleDevTool,validateInput, initSearchHandler, capitalize, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace, retractHandler} = require("../js/common.js");
 toggleDevTool(document);
 
-let tbody = document.querySelector("#tbody"),timer;
+let tbody = document.querySelector("#tbody"),timer,bodyRow;
 
-(async ()=>{
+async function initPage(){
     let spinner = drawSpinner(document);
     let stock = await ipcRenderer.invoke("get-stocks");
     let bodyRowTemp = document.getElementById("body-row-template");
+    removeAllElem(".body.row");
     stock.forEach((itemObj,i)=>{
         let bodyRowDF = bodyRowTemp.content.cloneNode(true);
         let bodyRow = bodyRowDF.querySelector("div");
@@ -16,7 +17,7 @@ let tbody = document.querySelector("#tbody"),timer;
             if(["name","quantity","buyPrice"].includes(key))
                 bodyRow.querySelector(`[data-colName="${key}"]`).textContent = itemObj[key];
             if(key==="pInfo")
-                bodyRow.querySelector(`[data-colName="type"]`).textContent = "type" in itemObj.pInfo ? itemObj.pInfo.type : "Not Defined";
+                bodyRow.querySelector(`[data-colName="type"]`).textContent = "type" in itemObj.pInfo ? itemObj.pInfo.type : itemObj.type;
             bodyRow.dataset[key] = typeof itemObj[key]==="object"?JSON.stringify(itemObj[key]):itemObj[key];            
         }
         tbody.appendChild(bodyRow);
@@ -24,7 +25,8 @@ let tbody = document.querySelector("#tbody"),timer;
     spinner.remove(window);
     if(tbody.clientHeight<tbody.scrollHeight)
         scrollSymSet(tbody);
-})();
+}
+initPage();
 
 function searchHandler(e){
     let { searchText, bodyRows } = initSearchHandler(e);
@@ -112,9 +114,9 @@ function searchHandler(e){
 }
 
 tbody.addEventListener("click",function(e){
-    let bodyRow = e.target.parentNode;
+    bodyRow = e.target.parentNode;
     let { pHistory,specialPrice } = bodyRow.dataset;
-    let modal = createModal("pHistory-modal");
+    let modal = createModal("pHistory-modal",true);
     let pHistModalDivs = document.getElementById("pHistory-modal-template").content.cloneNode(true);
     modal.appendChild(pHistModalDivs);
     pHistory = JSON.parse(pHistory);
@@ -194,3 +196,138 @@ tbody.addEventListener("click",function(e){
         document.querySelector(".modal .tbody").appendChild(bodyRow);
     });
 });
+
+function appendFeildCommon(tem,container,selector){
+    let df = tem.content.cloneNode(true).querySelector("div");
+    container.querySelector(selector).appendChild(df);
+    return {df,input:df.querySelector("[data-colname='value']")};
+}
+
+function showUpdater(){
+    document.querySelector(".modal .page1-elem").classList.add("hide");
+    let modalPage2 = document.getElementById("stock-updater-template").content.cloneNode(true).querySelector("div");
+    document.querySelector(".modal").appendChild(modalPage2);
+    const itemObj = {...bodyRow.dataset};
+    let newRowTemp = document.getElementById("new-row-template");
+    ["name","hsn","standardSellPrice","type","pInfo"]
+    .forEach(key=>{
+        if(key!=="pInfo"){
+            let {df,input} = appendFeildCommon(newRowTemp,modalPage2,"#feild-container");
+            df.querySelector("[data-colname='feild']").textContent = capitalize(key==="standardSellPrice"?"rate":key);
+            input.dataset.feildname = key;
+            input.value = key==="standardSellPrice"?roundOffTo2DecimalPlace(Number(itemObj[key])):itemObj[key];
+            if(["quantity","standardSellPrice","hsn"].includes(key)){
+                input.setAttribute("onkeypress","validateInput(event)");
+                input.dataset.type = "Number";        
+            }
+        }
+        else{
+            let pInfo = JSON.parse(itemObj.pInfo);
+            Object.keys(pInfo)
+            .forEach(key=>{
+                let {df,input} = appendFeildCommon(newRowTemp,modalPage2,"#feild-container");
+                df.querySelector("[data-colname='feild']").textContent = capitalize(key);
+                input.dataset.feildname = key;
+                input.value = pInfo[key];
+                input.dataset.feildtype = "pInfo";
+            })
+        }
+    });
+}
+
+function backToPage1(){
+    document.querySelector(".modal .page2-elem").remove();
+    document.querySelector(".modal .page1-elem").classList.remove("hide");
+}
+
+function updateStock(){
+    let itemObj = {pInfo:{}};
+    [...document.querySelectorAll(".modal .page2-elem input")]
+    .forEach(input=>{
+        let {feildname} = input.dataset;
+        if("feildtype" in {...input.dataset})
+            itemObj.pInfo[feildname] = input.value;
+        else
+            itemObj[feildname] = input.value;
+    });
+    itemObj.id = bodyRow.dataset.id;
+    ipcRenderer.send("update-stock",itemObj);
+    backToPage1();
+}
+
+ipcRenderer.on("update-stock-response",(e,itemObj)=>{
+    bodyRow.dataset.stockUpdated = true;
+    for(let key in itemObj)
+        bodyRow.dataset[key] = typeof itemObj[key]!=="object" ? itemObj[key] : JSON.stringify(itemObj[key]);
+});
+
+function showAddNewFeild(){
+    document.querySelector(".modal .page2-elem").classList.add("hide");
+    let modalPage3 = document.getElementById("add-new-feild-template").content.cloneNode(true).querySelector("div");
+    document.querySelector(".modal").appendChild(modalPage3);
+}
+
+function appendNewInfo(){
+    let newRowTemp = document.getElementById("new-row-template");
+    let {df,input} = appendFeildCommon(newRowTemp,document.querySelector(".modal .page2-elem"),"#feild-container");
+    let feildname;
+    [...document.querySelectorAll(".modal .page3-elem input")]
+    .forEach((inp,index)=>{
+        let { value } = inp;
+        if(index===0){
+            df.querySelector("[data-colname='feild']").textContent = capitalize(value);
+            feildname = value;
+        }
+        else{
+            input.value = value;
+            input.dataset.feildtype = "pInfo";
+            input.dataset.feildname = feildname;
+        }
+    });
+    backToPage2();
+}
+
+function backToPage2(){
+    document.querySelector(".modal .page3-elem").remove();
+    document.querySelector(".modal .page2-elem").classList.remove("hide");
+}
+
+function getBodyRow(){
+    return {bodyRow,initPage};
+}
+
+function showDeleteBTN(e){
+    let target = e.target;
+    if(target.nodeName==="INPUT" && "feildtype" in {...target.dataset} && target.dataset.feildtype==="pInfo"){
+        let hoveredDiv = target.parentNode.parentNode;
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+            hoveredDiv.classList.add("red-box-shadow");
+            let button = document.createElement("button");
+            button.textContent = "X";
+            button.dataset.msg = "Delete Row";
+            button.className = "hover right top";
+            button.addEventListener("click",deleteRow.bind(hoveredDiv));
+            setTimeout(()=>{
+                hoveredDiv.appendChild(button);
+            },300);
+        },1000);
+        hoveredDiv.addEventListener("mouseleave",hideDeleteBTN);
+    }
+}
+
+function hideDeleteBTN(e){
+    let target = e.target;
+    if(target.classList.contains("new-row")){
+        clearTimeout(timer);
+        target.removeEventListener("mouseout",arguments.callee);
+        // debugger
+        [...target.querySelectorAll("button")].forEach(btn=>btn.remove());
+        target.classList.remove("red-box-shadow");
+    }
+}
+
+function deleteRow(e){
+    e.target.removeEventListener("click",arguments.callee);
+    this.remove();
+}

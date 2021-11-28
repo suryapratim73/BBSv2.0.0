@@ -548,6 +548,72 @@
 #more-feild-div p{
     color: inherit;
 }
-.no-elem{
+/* .no-elem{
     
+} */
+.hover:hover.hover::before{
+    content: attr(data-msg);
+    z-index: 10;
+    position: absolute;
+    width: 7rem;
+    display: flex;
+    justify-content: center;
+    background: white;
+    padding: 0.5rem 0.25rem;
+    border-radius: 5px;
+    box-shadow: 3px 3px 3px 0px grey, -1px -1px 1px 0px grey;
+    font-size: 1rem;
+}
+.hover.left:hover.hover.left::before{
+    right: unset;
+    left: 0;
+}
+.hover.right:hover.hover.right::before{
+    left: unset;
+    right: 0;
+}
+.hover.top:hover.hover.top::before{
+    bottom: unset;
+    top: -2.5rem;
+}
+.hover.bottom:hover.hover.bottom::before{
+    top: unset;
+    bottom: -2.5rem;
+}
+.appear>div{
+    transform: scale(0);
+    animation: appear 0.3s linear 0s 1 forwards;
+}
+@keyframes appear{
+    from{
+        transform:scale(0);
+    }
+    to{
+        transform: scale(1);
+    }
+}
+.red-box-shadow{
+    position: relative;
+    animation: red-box-shadow 0.3s linear 0s 1 forwards;
+}
+.red-box-shadow button{
+    color: red !important;
+    border: none;
+    position: absolute !important;
+    right: 0;
+    height: 100%;
+    background: transparent;
+    font-size: 1.25rem !important;
+}
+.red-box-shadow button:hover{
+    background: revert;
+    transition: background 0.3s linear;
+}
+@keyframes red-box-shadow{
+    from{
+        box-shadow: none;
+    }
+    to{
+        box-shadow: 0px 0px 3px 1px red;
+    }
 }

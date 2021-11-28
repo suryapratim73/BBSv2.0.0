@@ -1,5 +1,5 @@
 const {BrowserWindow, ipcMain, dialog} = require("electron");
-const { People } = require("./common");
+const { People, appLogger } = require("./common");
 const { createModal } = require("./createModal");
 const {stock} = require("./model/dbConfig");
 
@@ -26,28 +26,42 @@ exports.handleReturn = ()=>{
     }
 }
 
-// ipcMain.on("update-stock",async (e,{name,quantity,price,location,feildMap})=>{
-//     try{
-//         await stock.update({pInfo:feildMap},{
-//             where:{name}
-//         })
-//         let selectedStock = await stock.findOne({
-//             where:{
-//                 name
-//             }
-//         });
-//         selectedStock.updateStock={quantity,price,location};
-//         if(await selectedStock.save()){
-//             BrowserWindow.getFocusedWindow().close();
-//             dialog.showMessageBox({
-//                 title:"Stock update",
-//                 message: "The selected stock has been updated successfully."            })
-//         }
-//     }
-//     catch(err){
-//         console.log(err)
-//     }
-// });// This need a relook
+ipcMain.on("update-stock",async (e,itemObj)=>{
+    let {
+        id,
+        name,
+        hsn,
+        standardSellPrice,
+        type,
+        pInfo
+    } = itemObj
+    stock.update({
+        name,
+        hsn,
+        standardSellPrice,
+        type,
+        pInfo
+    },{
+        where:{id}
+    })
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Stock Info Updated",
+            message: "Stock information updated successfully."
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        let stock = stockList.find(obj=>obj.id===id);
+        stock.name = name;
+        stock.hsn = hsn;
+        stock.standardSellPrice = standardSellPrice;
+        stock.type = type;
+        stock.pInfo = {...pInfo};
+        appLogger("stock information updated successfully",JSON.stringify({id,name}));
+        e.sender.send("update-stock-response",stock);
+    })
+    .catch(console.log)
+});
 
 ipcMain.handle("get-stock-names",()=>{
     return queryStock(["name","id"]);
