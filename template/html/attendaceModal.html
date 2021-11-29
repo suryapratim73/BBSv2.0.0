@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Registor</title>
+    <link rel="stylesheet" href="../css/attendaceModal.css">
+    <script src="../js/attendaceModal.js" defer></script>
+</head>
+<body>
+    <nav>
+        <h2></h2>
+    </nav>
+    <main onclick="popCard(event)"></main>
+    <template id="employee-card-template">
+        <div class="emp-card">
+            <p data-colname="name"></p>
+            <div>
+                <button data-value="1">Present</button>
+                <button data-value="0">Late</button>
+                <button data-value="-1">Absent</button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

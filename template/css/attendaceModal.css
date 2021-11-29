@@ -1,0 +1,41 @@
+@import "../css/common.css";
+.emp-card{
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    box-shadow: 0px 0px 3px 1px green;
+    margin: 1rem 0;
+    border-radius: 5px;
+    align-items: center;
+}
+.emp-card p{
+    font-size: 1rem;
+}
+.emp-card button{
+    padding: 0.5rem;
+    background: white;
+    border: 1px solid;
+    border-radius: 5px;
+    text-shadow: 1px 1px grey;
+}
+button:hover,button:focus{
+    color: white !important;
+}
+.emp-card button:nth-child(1){
+    color: green;
+}
+.emp-card button:nth-child(1):hover,.emp-card button:nth-child(1):focus{
+    background: green;
+}
+.emp-card button:nth-child(2){
+    color: goldenrod;
+}
+.emp-card button:nth-child(2):hover,.emp-card button:nth-child(2):focus{
+    background: goldenrod;
+}
+.emp-card button:nth-child(3){
+    color: red;
+}
+.emp-card button:nth-child(3):hover,.emp-card button:nth-child(3):focus{
+    background: red;
+}

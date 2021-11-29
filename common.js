@@ -7,6 +7,7 @@ const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSc
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
+const { getMainWindow } = require("./createModal");
 
 
 ipcMain.on("openDevTool",(e)=>{
@@ -18,7 +19,15 @@ ipcMain.on("close",()=>{
     let purchaseWindows = BrowserWindow.getAllWindows();
     if(purchaseWindows.length>0)
         purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
-    BrowserWindow.getFocusedWindow().close();
+    let win = BrowserWindow.getFocusedWindow();
+    if(win!==getMainWindow())
+        win.close();
+    else{
+        let mainWin = getMainWindow();
+        let windows = BrowserWindow.getAllWindows();
+        windows = windows.filter(win=>win!==mainWin);
+        windows.pop().close();
+    }
 });
 
 exports.closeAndDisplay = function(msg){

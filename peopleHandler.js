@@ -1,7 +1,8 @@
-const { freight,people } = require("./model/dbConfig");
+const { freight,people,attendances } = require("./model/dbConfig");
 const { ipcMain,dialog,BrowserWindow } = require("electron");
 const { People,appLogger } = require("./common");
 const { createModal } = require("./createModal");
+const uuid = require("uuid");
 
 
 let freightList = [],
@@ -90,23 +91,56 @@ ipcMain.on("new-employee",(e,empObj)=>{
     .catch(console.log)
 });
 
-ipcMain.handle("get-own-employees",async ()=>{
-    if(peopleList.length>0) return peopleList.map(obj=>obj.relation==="Employee");
+async function initEmployeeList(){
     try{
-        return (await people.findAll({
+        (await people.findAll({
             where:{
                 relation:"Employee"
             }
         }))
-        .map(({dataValues})=>{
+        .forEach(({dataValues})=>{
             peopleList.push(new People(dataValues));
             return dataValues
         });
     }
     catch(err){
         console.log({err});
-        return [];
     }
-})
+    return;
+}
+
+ipcMain.handle("get-own-employees",async ()=>{
+    if(peopleList.length===0)
+        await initEmployeeList();
+    return peopleList.map(obj=>obj.relation==="Employee");
+});
+
+ipcMain.handle("get-own-employee-names",async ()=>{
+    if(peopleList.length===0) 
+        await initEmployeeList()
+    return peopleList.map(({id,name,relation})=>{
+        if(relation==="Employee")
+            return {id,name};
+    });
+});
+
+ipcMain.on("update-attendace-registry",(e,attenArr)=>{
+    attendances.create({
+        dayId: uuid.v5(new Date().toDateString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        date: new Date().toDateString(),
+        attendees: attenArr
+    })
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Attendance registered",
+            message: "Attendance registered."
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        BrowserWindow.getFocusedWindow().close();
+    })
+});
 
 exports.getFreights = ()=>(freightList);
+exports.peopleList = peopleList;
+exports.initEmployeeList = initEmployeeList;

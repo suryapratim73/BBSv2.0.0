@@ -442,6 +442,19 @@ const returnRegister = {
     }
 }
 
+const attendanceSchema = {
+    dayId:{
+        type: DataTypes.UUID,
+        primaryKey: true
+    },
+    date: {
+        type: DataTypes.TEXT,
+    },
+    attendees:{
+        type: DataTypes.JSON
+    }
+}
+
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
         freezeTableName:false,
@@ -500,6 +513,10 @@ module.exports = {
         timestamps:false
     }),
     service: sequelize.define("service",serviceSchema,{
+        freezeTableName: true,
+        timestamps: false
+    }),
+    attendances: sequelize.define("attendances",attendanceSchema,{
         freezeTableName: true,
         timestamps: false
     })

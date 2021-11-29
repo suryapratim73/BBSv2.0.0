@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
 const { createModal } = require('./createModal');
+const { attendances } = require('./model/dbConfig');
 
 
 function createWindow () {
@@ -17,24 +18,10 @@ function createWindow () {
   let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
   Menu.setApplicationMenu(menu);
   mainWindow.maximize();
-  let focussedWindow = BrowserWindow.getFocusedWindow()
-  globalShortcut.register("CommandOrControl+Tab+Up",()=>{
-    if(mainWindow){
-      let brWindows = BrowserWindow.getAllWindows();
-      brWindows = brWindows.filter(win=>win!==mainWindow);
-      let index = brWindows.indexOf(focussedWindow);
-      index = index===-1?0:index;
-      if(index===brWindows.length-1)
-        index = 0;
-      else
-        index++;
-      focussedWindow = brWindows?.[index];
-      focussedWindow?.focus();
-    }
-  })
+  return mainWindow;
 }
 
-app.whenReady().then(createWindow);
+// app.whenReady().then(createWindow);
 
 app.on("quit",()=>{
   let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
@@ -127,4 +114,42 @@ app.on("ready",async (e,launchInfo)=>{
       }
     });
   });
+  // Adding tab switcher
+  let mainWindow = createWindow();
+  let focussedWindow = BrowserWindow.getFocusedWindow()
+  globalShortcut.register("CommandOrControl+Tab+Up",()=>{
+    if(mainWindow){
+      let brWindows = BrowserWindow.getAllWindows();
+      brWindows = brWindows.filter(win=>win!==mainWindow);
+      let index = brWindows.indexOf(focussedWindow);
+      index = index===-1?0:index;
+      if(index===brWindows.length-1)
+        index = 0;
+      else
+        index++;
+      focussedWindow = brWindows?.[index];
+      focussedWindow?.focus();
+    }
+  });
+  // Taking attendance
+  let todaysAttendance = (await attendances.findOne({
+    where:{
+      date:new Date().toDateString()
+    }
+  }))?.dataValues;
+  if(!todaysAttendance && mainWindow){
+    let windowOptions = {
+      width: 600,
+      height: 400,
+      resizable:false,
+      webPreferences: {
+        nodeIntegration: true,
+        devTools:true
+      },
+      show:false,
+      contextIsolation:true,
+      parent: mainWindow
+    }
+    createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
+  }
 });

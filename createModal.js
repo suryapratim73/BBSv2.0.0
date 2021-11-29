@@ -51,3 +51,5 @@ exports.createModal = (windowOptions={},pathToHTML,{
     return modal;
   }
 }
+
+exports.getMainWindow = ()=>(windowList.find(win=>win.label==="Main").modal);
