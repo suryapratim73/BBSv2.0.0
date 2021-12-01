@@ -7,6 +7,8 @@ const { createModal } = require('./createModal');
 const { attendances } = require('./model/dbConfig');
 
 
+let closeFlag = false;
+
 function createWindow () {
   let windowOptions = {
     width: 1200,
@@ -135,9 +137,13 @@ app.on("ready",async (e,launchInfo)=>{
   let todaysAttendance = (await attendances.findOne({
     where:{
       date:new Date().toDateString()
-    }
+    },
+    attributes:["attendees"]
   }))?.dataValues;
-  if(!todaysAttendance && mainWindow){
+  let attendees = todaysAttendance?.attendees ?? [];
+  if(attendees.length>0)
+    attendees = attendees.filter(({presence})=>presence===0);
+  if(mainWindow && (!todaysAttendance || (todaysAttendance && attendees.length>0))){
     let windowOptions = {
       width: 600,
       height: 400,
@@ -150,6 +156,15 @@ app.on("ready",async (e,launchInfo)=>{
       contextIsolation:true,
       parent: mainWindow
     }
-    createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
+    closeFlag = false;
+    let win = createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
+    win.on("close",(e)=>{
+      if(closeFlag==false){
+        e.preventDefault();
+        e.sender.send("update-attendance-close");
+      }
+    });
   }
 });
+
+exports.updateCloseFlag = ()=>{closeFlag=true};

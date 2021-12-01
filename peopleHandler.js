@@ -1,8 +1,9 @@
 const { freight,people,attendances } = require("./model/dbConfig");
 const { ipcMain,dialog,BrowserWindow } = require("electron");
 const { People,appLogger } = require("./common");
-const { createModal } = require("./createModal");
+const { createModal, getTargetWindow } = require("./createModal");
 const uuid = require("uuid");
+const { updateCloseFlag } = require("./main");
 
 
 let freightList = [],
@@ -23,7 +24,12 @@ exports.employeePortal = mainWindow => {
             parent: mainWindow
         };
         let pathToHTML = "./template/html/employeePortal.html";
-        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Employee-Page"});
+        let win = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Employee-Page"});
+        // win?.on("close",e=>{
+        //     e.preventDefault();
+        //     console.log("stopping closure")
+        //     // e.sender.send("update-attendance-close");
+        // });
     }
 }
 
@@ -112,24 +118,50 @@ async function initEmployeeList(){
 ipcMain.handle("get-own-employees",async ()=>{
     if(peopleList.length===0)
         await initEmployeeList();
-    return peopleList.map(obj=>obj.relation==="Employee");
+    return peopleList.filter(obj=>obj.relation==="Employee");
 });
 
-ipcMain.handle("get-own-employee-names",async ()=>{
-    if(peopleList.length===0) 
-        await initEmployeeList()
-    return peopleList.map(({id,name,relation})=>{
-        if(relation==="Employee")
-            return {id,name};
-    });
-});
-
-ipcMain.on("update-attendace-registry",(e,attenArr)=>{
-    attendances.create({
-        dayId: uuid.v5(new Date().toDateString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
-        date: new Date().toDateString(),
-        attendees: attenArr
-    })
+ipcMain.on("update-attendace-registry",async (e,attenArr)=>{
+    let res = (await attendances.findOrCreate({
+        where:{
+            dayId: uuid.v5(new Date().toDateString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        },
+        defaults:{
+            dayId: uuid.v5(new Date().toDateString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+            date: new Date().toDateString(),
+            attendees: attenArr
+        }
+    }))[0]
+    if(!res._options.isNewRecord)
+        await attendances.update({
+            attendees: attenArr
+        },
+        {
+            where:{
+                dayId: uuid.v5(new Date().toDateString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+            },
+        })
+    Promise.all([
+        ...attenArr.map(async ({presence,id})=>{
+            let moreInfo = (await people.findOne({
+                where:{
+                    id
+                },
+                attributes:["moreInfo"]
+            })).dataValues.moreInfo;
+            if(!moreInfo.attendance.find(obj=>obj.date==new Date().toDateString()))
+                moreInfo.attendance.push({presence,date: new Date().toDateString()});
+            else
+                moreInfo.attendance.find(obj=>obj.date==new Date().toDateString()).presence = presence;
+            return people.update({
+                moreInfo
+            },{
+                where:{
+                    id
+                }
+            });
+        })
+    ])
     .then(()=>{
         let msg = {
             type: "info",
@@ -137,8 +169,13 @@ ipcMain.on("update-attendace-registry",(e,attenArr)=>{
             message: "Attendance registered."
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        BrowserWindow.getFocusedWindow().close();
+        let attenModal = getTargetWindow("Attendance-modal");
+        if(attenModal){
+            updateCloseFlag();
+            attenModal.close();
+        }
     })
+    .catch(console.log);
 });
 
 exports.getFreights = ()=>(freightList);

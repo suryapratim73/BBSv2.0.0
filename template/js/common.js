@@ -542,6 +542,7 @@ exports.scrollSymSet = function(elem){
 exports.retractHandler = function retractHandler(retractableDiv,mode="height",val1=0,val2){
     if(!val2)
         val2 = mode==="height" ? retractableDiv.scrollHeight : 0;
+    console.log({val1,val2});
     if(retractableDiv.dataset.collapsed==="false"){
         requestAnimationFrame(()=>{
             retractableDiv.style[mode] = val2 + "px";

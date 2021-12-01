@@ -21,7 +21,7 @@ ipcMain.on("close",()=>{
         purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
     let win = BrowserWindow.getFocusedWindow();
     if(win!==getMainWindow())
-        win.close();
+        win?.close();
     else{
         let mainWin = getMainWindow();
         let windows = BrowserWindow.getAllWindows();
