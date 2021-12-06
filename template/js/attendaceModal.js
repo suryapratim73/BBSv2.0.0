@@ -15,7 +15,7 @@ async function initPage(){
     let empCardTem = document.getElementById("employee-card-template");
     employeeList = employeeList
                     .filter(({moreInfo:{attendance}})=>(!attendance.find(({date,presence})=>(date==new Date().toDateString() && (presence>0 || presence<0)))));
-    employeeList.length===0 && ipcRenderer.send("close");
+    employeeList.length===0 && ipcRenderer.send("close","Attendance-modal");
     employeeList.forEach(empObj=>{
         let cardDiv = empCardTem.content.cloneNode(true).querySelector("div");
         cardDiv.querySelector("p").textContent = empObj.name;

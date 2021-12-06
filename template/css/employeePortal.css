@@ -3,6 +3,16 @@ nav{
     justify-content: flex-end;
     gap: 0.5rem;
 }
+nav input{
+    width: 18rem;
+    padding: 0.5rem 0.3rem;
+    color: black;
+    font-size: 1rem;
+    border-radius: 5px;
+    border: none;
+    box-shadow: 0 0 3px 1px grey;
+    outline: none;
+}
 #new-employee-modal{
     display: flex;
     width: 40%;
@@ -43,4 +53,61 @@ button{
 }
 .body.row{
     color: black;
+}
+.tbody{
+    height: fit-content;
+    max-height: 100%;
+}
+#emp-modal{
+    transition: width 0.3s ease-out;
+    width: 40%;
+    height: 100%;
+    top: 0;
+    left: unset;
+    right: 0;
+    background: gray;
+}
+#emp-modal>div{
+    grid-row: 1/-1;
+    grid-column: 1/-1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+}
+#emp-modal>div>div{
+    background: white;
+    padding: 0.5rem;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    flex: 5;
+    overflow: auto;
+}
+#emp-modal>div>div:last-child{
+    flex: 1;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+#emp-modal>div>div:last-child button{
+    height: 100%;
+    margin: unset;
+    padding: 0 0.5rem;
+}
+.new-row{
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+.modal button:last-child{
+    margin-left: 0.5rem;
+}
+.hover{
+    position: relative;
+}
+#add-feild{
+    margin-left: unset;
+    border-radius: 50%;
+    border-color: unset;
+    outline: none;
 }

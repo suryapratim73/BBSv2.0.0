@@ -1,6 +1,6 @@
-const { freight,people,attendances } = require("./model/dbConfig");
+const { freight,people,attendances, outPayments } = require("./model/dbConfig");
 const { ipcMain,dialog,BrowserWindow } = require("electron");
-const { People,appLogger } = require("./common");
+const { People,appLogger, checkAuthority } = require("./common");
 const { createModal, getTargetWindow } = require("./createModal");
 const uuid = require("uuid");
 const { updateCloseFlag } = require("./main");
@@ -75,10 +75,14 @@ ipcMain.on("new-employee",(e,empObj)=>{
             address: empObj.address,
             phones: empObj.phones,
             moreInfo: {
-                payDate: empObj.payDate,
-                salary: empObj.salary,
                 attendance: [],
-                payHistory: []
+                payHistory: [],
+                ...Object.keys(empObj)
+                    .reduce((acc,key)=>{
+                        if(!["id","name","address","phones"].includes(key))
+                            acc[key] = empObj[key];
+                        return acc;
+                    },{})
             }
         }
     })
@@ -131,7 +135,7 @@ ipcMain.on("update-attendace-registry",async (e,attenArr)=>{
             date: new Date().toDateString(),
             attendees: attenArr
         }
-    }))[0]
+    }))[0];
     if(!res._options.isNewRecord)
         await attendances.update({
             attendees: attenArr
@@ -153,6 +157,8 @@ ipcMain.on("update-attendace-registry",async (e,attenArr)=>{
                 moreInfo.attendance.push({presence,date: new Date().toDateString()});
             else
                 moreInfo.attendance.find(obj=>obj.date==new Date().toDateString()).presence = presence;
+            let emp = peopleList.find(obj=>obj.id===id);
+            emp.moreInfo = moreInfo;
             return people.update({
                 moreInfo
             },{
@@ -174,8 +180,103 @@ ipcMain.on("update-attendace-registry",async (e,attenArr)=>{
             updateCloseFlag();
             attenModal.close();
         }
+        ipcMain.emit("attendance-registered");
     })
     .catch(console.log);
+});
+
+ipcMain.handle("fire-employee",async (e,id)=>{
+    await checkAuthority();
+    peopleList = peopleList.filter(obj=>obj.id!==id);
+    await people.destroy({
+        where:{id}
+    });
+    return true;
+});
+
+ipcMain.handle("update-employee",async (e,empObj)=>{
+    let selectedEmp = peopleList.find(obj=>obj.id===empObj.id);
+    for(let key in selectedEmp)
+        if(typeof selectedEmp[key]!=="object" && key in empObj)
+            selectedEmp[key] = empObj[key];
+        else
+            for(let key2 in selectedEmp[key])
+                selectedEmp[key][key2] = key2 in empObj ? empObj[key2]: selectedEmp[key][key2];
+    await people.update({
+        name:empObj.name,
+        address: empObj.address,
+        phones: empObj.phones,
+        moreInfo: selectedEmp.moreInfo
+    },{
+        where:{id:empObj.id}
+    })
+    let msg = {
+        type: "info",
+        title: "Update Successful",
+        message: "Employee information has been successfully updates.."
+    }
+    dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+    return selectedEmp;
+});
+
+ipcMain.on("register-salary-payment",async (e,empPayArr)=>{
+    if(peopleList.length===0)
+        await initEmployeeList();
+    Promise.all([
+        ...empPayArr.map(async payObj=>{
+            let {moreInfo} = (await people.findOne({
+                where:{
+                    id:payObj.id
+                },
+                attributes: ["moreInfo"]
+            })).dataValues;
+            if(!moreInfo.payHistory.some(({date})=>new Date(date).getMonth()===new Date().getMonth()))
+                moreInfo.payHistory.push({
+                    date: new Date(),
+                    payment: Number(payObj.payment),
+                    bonus: payObj.bonus,
+                    payDeficit: payObj.payDeficit
+                });
+            else{
+                let obj = moreInfo.payHistory.find(({date})=>new Date(date).getMonth()===new Date().getMonth());
+                obj.date = new Date();
+                obj.payment = Number(payObj.payment);
+                obj.bonus = payObj.bonus;
+                obj.payDeficit = payObj.payDeficit;
+            }
+            let emp = peopleList.find(obj=>obj.id===payObj.id);
+            let obj = emp.moreInfo.payHistory.find(({date})=>new Date(date).getMonth()===new Date().getMonth());
+            obj.date = new Date();
+            obj.payment = Number(payObj.payment);
+            obj.bonus = payObj.bonus;
+            obj.payDeficit = payObj.payDeficit;
+            return people.update({
+                moreInfo
+            },{
+                where:{
+                    id: payObj.id
+                }
+            })
+        }),
+        ...empPayArr.map(payObj=>{
+            return outPayments.create({
+                beneficiaryId: payObj.id,
+                type: "salary",
+                payment: payObj.payment,
+                date: new Date()
+            })
+        })
+    ])
+    .then(()=>{
+        let msg = {
+            type: "info",
+            title: "Salary registered",
+            message: "Salary registered successfully."
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        getTargetWindow("Salary-Modal")?.close();
+    })
+    .catch(console.log)
 });
 
 exports.getFreights = ()=>(freightList);

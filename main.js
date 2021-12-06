@@ -1,13 +1,24 @@
-const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD } = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
-const { createModal } = require('./createModal');
-const { attendances } = require('./model/dbConfig');
+const { createModal, getMainWindow, getTargetWindow } = require('./createModal');
+const { attendances, people } = require('./model/dbConfig');
 
 
-let closeFlag = false;
+let closeFlag = false,
+  windowOptions = {
+    width: 600,
+    height: 400,
+    resizable:false,
+    webPreferences: {
+      nodeIntegration: true,
+      devTools:true
+    },
+    show:false,
+    contextIsolation:true
+  };
 
 function createWindow () {
   let windowOptions = {
@@ -50,7 +61,24 @@ app.on('activate', () => {
     createWindow();
 });
 
-app.on("ready",async (e,launchInfo)=>{
+function takeAttendance(refWindow){
+  windowOptions.parent = refWindow;
+  closeFlag = false;
+  let win = createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
+  win.on("close",(e)=>{
+    if(closeFlag==false){
+      e.preventDefault();
+      e.sender.send("update-attendance-close");
+    }
+  });
+}
+
+function paySalary(refWindow){
+  windowOptions.parent = refWindow;
+  createModal(windowOptions,"template/html/salaryPaymentModal.html",{maxWinCount:1,label:"Salary-Modal"});
+}
+
+app.on("ready",async ()=>{
   let policyJsonSchema = {
     "noReturn":120,
     "gstRecurranceTerm":1,
@@ -143,28 +171,44 @@ app.on("ready",async (e,launchInfo)=>{
   let attendees = todaysAttendance?.attendees ?? [];
   if(attendees.length>0)
     attendees = attendees.filter(({presence})=>presence===0);
-  if(mainWindow && (!todaysAttendance || (todaysAttendance && attendees.length>0))){
-    let windowOptions = {
-      width: 600,
-      height: 400,
-      resizable:false,
-      webPreferences: {
-        nodeIntegration: true,
-        devTools:true
-      },
-      show:false,
-      contextIsolation:true,
-      parent: mainWindow
-    }
-    closeFlag = false;
-    let win = createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
-    win.on("close",(e)=>{
-      if(closeFlag==false){
-        e.preventDefault();
-        e.sender.send("update-attendance-close");
-      }
+  if(mainWindow && (!todaysAttendance || (todaysAttendance && attendees.length>0)))
+    takeAttendance(mainWindow);
+  if(new Date().getDate()>1){
+    let payHistory = (await people.findAll({
+      attributes: ["moreInfo"]
+    }))
+    .map(({dataValues})=>dataValues.moreInfo)
+    let thisMonthPayments = payHistory.filter((obj)=>{
+      const {payHistory,salary} = obj;
+      let thisMonthPayment = payHistory.filter(({date})=>(new Date(date).getMonth()===new Date().getMonth()))?.[0]?.payment ?? 0;
+      if(thisMonthPayment<Number(salary))
+        return true;
     });
+    if(thisMonthPayments.length>0)
+      paySalary(mainWindow);
   }
 });
+
+ipcMain.on("take-attendance",e=>{
+  let refWin = getTargetWindow("Employee-Page")
+  takeAttendance(refWin);
+  ipcMain.on("attendance-registered",()=>{
+    e.sender.send("attendance-registered")
+  })
+});
+
+ipcMain.on("open-salary-modal",e=>{
+  let refWin = getTargetWindow("Employee-Page");
+  paySalary(refWin);
+  ipcMain.on("Salary-Modal",()=>{
+    let msg = {
+      type: "info",
+      title: "Salary registered",
+      message: "Salary registered successfully."
+    }
+    dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+    e.sender.send("attendance-registered");
+  });
+})
 
 exports.updateCloseFlag = ()=>{closeFlag=true};

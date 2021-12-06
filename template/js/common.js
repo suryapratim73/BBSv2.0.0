@@ -542,7 +542,6 @@ exports.scrollSymSet = function(elem){
 exports.retractHandler = function retractHandler(retractableDiv,mode="height",val1=0,val2){
     if(!val2)
         val2 = mode==="height" ? retractableDiv.scrollHeight : 0;
-    console.log({val1,val2});
     if(retractableDiv.dataset.collapsed==="false"){
         requestAnimationFrame(()=>{
             retractableDiv.style[mode] = val2 + "px";
@@ -638,7 +637,7 @@ exports.closeModal = function(){
         },305);
         modal.dataset.collapsed = "false";
         retractHandler(modal,"width",0,modal.scrollWidth);
-        let {bodyRow,initPage} = getBodyRow?.();
+        let {bodyRow,initPage} = typeof getBodyRow==="function" ? getBodyRow() : {};
         if(bodyRow && "stockUpdated" in {...bodyRow.dataset} && bodyRow.dataset.stockUpdated)
             initPage?.();
     }
@@ -698,6 +697,17 @@ exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
     return itemList;
 }
 
-exports.capitalize = function(str){
+exports.capitalize = function capitalize(str){
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+exports.makeKey = function(key){
+    key = key.split(" ").reduce((acc,word,index)=>{
+        if(index>0)
+            acc += capitalize(word);
+        else
+            acc = word.toLowerCase();
+        return acc;
+    },"");
+    return key;
 }

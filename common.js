@@ -7,7 +7,7 @@ const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSc
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
-const { getMainWindow } = require("./createModal");
+const { getMainWindow,getTargetWindow } = require("./createModal");
 
 
 ipcMain.on("openDevTool",(e)=>{
@@ -15,13 +15,16 @@ ipcMain.on("openDevTool",(e)=>{
     e.sender.toggleDevTools();
 });
 
-ipcMain.on("close",()=>{
+ipcMain.on("close",(e,label)=>{
     let purchaseWindows = BrowserWindow.getAllWindows();
     if(purchaseWindows.length>0)
         purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
-    let win = BrowserWindow.getFocusedWindow();
-    if(win!==getMainWindow())
+    if(label){
+        let win = getTargetWindow(label);
         win?.close();
+        if(label==="Salary-Modal")
+            ipcMain.emit("Salary-Modal");
+    }
     else{
         let mainWin = getMainWindow();
         let windows = BrowserWindow.getAllWindows();
@@ -179,3 +182,8 @@ class People{
 }
 
 exports.People = People;
+
+exports.checkAuthority = async function(){
+    // throw new Error("No permission"); 
+    return true;
+}

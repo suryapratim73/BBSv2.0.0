@@ -1,5 +1,5 @@
 @import "../css/common.css";
-.emp-card{
+/* .emp-card{
     display: flex;
     justify-content: space-between;
     padding: 0.5rem 1rem;
@@ -19,8 +19,8 @@
     border: 1px solid;
     border-radius: 5px;
     text-shadow: 1px 1px grey;
-}
-.hide-card{
+} */
+/* .hide-card{
     animation: hide-card 0.3s ease-out 0s 1 forwards;
 }
 @keyframes hide-card{
@@ -32,11 +32,11 @@
         transform: scale(1,0);
         display: none;
     }
-}
+} */
 button:hover,button:focus{
     color: white !important;
 }
-.emp-card button:nth-child(1){
+/* .emp-card button:nth-child(1){
     color: green;
 }
 .emp-card button:nth-child(1):hover,.emp-card button:nth-child(1):focus{
@@ -53,4 +53,4 @@ button:hover,button:focus{
 }
 .emp-card button:nth-child(3):hover,.emp-card button:nth-child(3):focus{
     background: red;
-}
+} */

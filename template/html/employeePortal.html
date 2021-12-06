@@ -10,9 +10,10 @@
 </head>
 <body>
     <nav>
-        <button class="page1-elem" data-cmd="addEmployee">Add Employee</button>
-        <input class="page1-elem" placeholder="Type to search for employee" />
-        <!-- oninput="searchHandler(event)" type="text"> -->
+        <button data-cmd="take-attendance">Conduct Attendance</button>
+        <button data-cmd="addEmployee">Add Employee</button>
+        <button data-cmd="add-payment">Add Payment</button>
+        <input oninput="searchHandler(event)" placeholder="Type to search for employee" />
     </nav>
     <main></main>
     <template id="page1-template">
@@ -27,7 +28,7 @@
         </div>
     </template>
     <template id="new-employee-template">
-        <form onsubmit="newEmployee(event)">
+        <form onsubmit="newEmployee(event)" class="page1-elem">
             <h2>New Employee Form</h2>
             <div>
                 <div><label for="name">Name</label></div>
@@ -41,7 +42,7 @@
                 <div><label for="phones">Phone</label></div>
                 <div>
                     <input type="text" data-type="Number" id="phones" name="phones" onkeypress="validateInput(event)" >
-                    <button type="button">+</button>
+                    <button type="button" tabindex="-1">+</button>
                 </div>
             </div>
             <div>
@@ -49,17 +50,38 @@
                 <div><input type="date" id="joinDate" name="joinDate"></div>
             </div>
             <div>
+                <div><label for="jobRole">Job Role</label></div>
+                <div><input type="text" id="jobRole" name="jobRole"></div>
+            </div>
+            <div>
                 <div><label for="salary">Salary</label></div>
                 <div><input type="text" data-subtype="price" data-type="Number" onkeypress="validateInput2(event)" id="salary" name="salary"></div>
             </div>
             <div>
-                <div><label for="salaryDate">Salary Pay Date</label></div>
-                <div><input type="text" data-subtype="price" data-type="Number" onkeypress="validateInput2(event)" id="salaryDate" name="salaryDate"></div>
+                <button type="button" onclick="addNewRow(event)" data-msg="Add new feild" id="add-feild" class="hover left top">+</button>                
             </div>
             <div>
                 <div>
                     <button type="submit">Add</button>
                     <button type="button" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="new-emp-form-page2-template">
+        <form onsubmit="newFeildToNewEmp(event)" class="page2-elem">
+            <div>
+                <div><label for="key">Feild Name</label></div>
+                <div><input type="text" id="key" name="key"></div>
+            </div>
+            <div>
+                <div><label for="val">Feild Value</label></div>
+                <div><input type="text" id="val" name="val"></div>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Add</button>
+                    <button type="button" onclick="showPage1(event)">Cancel</button>
                 </div>
             </div>
         </form>
@@ -70,6 +92,25 @@
             <p class="col eq-space" data-colname="name"></p>
             <p class="col eq-space" data-colname="attendance"></p>
             <p class="col eq-space" data-colname="payDate"></p>
+        </div>
+    </template>
+    <template id="employee-modal-template">
+        <div class="page1">
+            <div>
+                <canvas></canvas>
+            </div>
+            <div></div>
+            <div>
+                <button onclick="_closeModal()">Close</button>
+                <button onclick="updateEmployee()">Update Employee</button>
+                <button onclick="removeEmployee()">Remove Employee</button>
+            </div>
+        </div>
+    </template>
+    <template id="new-row-template">
+        <div class="new-row">
+            <p data-colName="feild"></p>
+            <div><input type="text" data-colName="value" disabled></div>
         </div>
     </template>
 </body>

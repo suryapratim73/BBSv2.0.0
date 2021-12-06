@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Disburser</title>
+    <link rel="stylesheet" href="../css/salaryPaymentModal.css">
+    <script src="../js/salaryPaymentModal.js" defer></script>
+</head>
+<body>
+    <nav>
+        <h2></h2>
+    </nav>
+    <main onclick="popCard(event)"></main>
+    <template id="employee-card-template">
+        <div class="emp-card">
+            <p data-colname="name"></p>
+            <div>
+                <p data-colname="salary"></p>
+                <p data-colname="amtPaid"></p>
+                <div><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+            </div>
+            <div>
+                <button>Done</button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>
