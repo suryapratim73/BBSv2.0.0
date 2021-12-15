@@ -180,7 +180,7 @@ app.on("ready",async ()=>{
     .map(({dataValues})=>dataValues.moreInfo)
     let thisMonthPayments = payHistory.filter((obj)=>{
       const {payHistory,salary} = obj;
-      let thisMonthPayment = payHistory.filter(({date})=>(new Date(date).getMonth()===new Date().getMonth()))?.[0]?.payment ?? 0;
+      let thisMonthPayment = payHistory?.filter(({date})=>(new Date(date).getMonth()===new Date().getMonth()))?.[0]?.payment ?? 0;
       if(thisMonthPayment<Number(salary))
         return true;
     });

@@ -711,3 +711,18 @@ exports.makeKey = function(key){
     },"");
     return key;
 }
+
+exports.appendToDL = async function (eventName,datalist){
+    let list = await ipcRenderer.invoke(eventName);
+    list.forEach(obj=>{
+        let option = document.createElement("option");
+        for(let key in obj){
+            if(key==="name")
+                option.value = obj[key];
+            option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
+        }
+        datalist.appendChild(option)
+    });
+    document.body.appendChild(datalist);
+    return list;
+}

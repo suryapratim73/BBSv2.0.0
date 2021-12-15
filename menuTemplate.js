@@ -7,6 +7,8 @@ const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
+const { genRoadChallan } = require("./exTool");
+
 
 module.exports = mainWindow=>{
     return [
@@ -122,7 +124,9 @@ module.exports = mainWindow=>{
                 },
                 {type:"separator"},
                 {
-                    label: "Generate Road Challan"
+                    label: "Generate Road Challan",
+                    click: genRoadChallan(mainWindow),
+                    accelerator: "Shift+F4"
                 },
                 {
                     label: "Generate Voucher"
@@ -130,9 +134,15 @@ module.exports = mainWindow=>{
                 {
                     label: "Generate Payment Receipt"
                 },
+                {
+                    label: "Generate Requirement Slip"
+                },
                 {type:"separator"},
                 {
                     label: "BBS Remote"
+                },
+                {
+                    label: "BBS Connect"
                 }
             ]
         },// Tools menu

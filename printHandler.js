@@ -23,6 +23,7 @@ exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,p
                 message: stdout
             }
             dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+            BrowserWindow.getFocusedWindow().webContents.send("print-done");
         });
 }
 

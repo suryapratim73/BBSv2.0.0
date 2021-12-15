@@ -4,7 +4,7 @@ const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.j
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
-const { createLedgerHead, createLedgerBody, fillLedgerEntry } = require('../lib/buildPage.default');
+const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody } = require('../lib/buildPage.default');
 
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
@@ -88,4 +88,38 @@ exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate){
     doc.stroke()
     .save().end();
     return path.join(path2pdf,"ledger");
+}
+
+exports.roadChallanPDF = function(roadChallanObj){
+    const doc = new PDFDocument({margin});
+    let path2pdf = app.getPath("temp"),pageNo = 1;
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"road-challan")));
+    const { header,body } = roadChallanObj;
+    function initPage(){
+        let { y:headerEndY,xArr,colWidths } = roadChallanHeader(header,doc,Object.keys(body[0]));
+        xArr = xArr.reverse();
+        colWidths = colWidths.reverse()
+        let { y:footerStartY } = roadChallanFooter(doc,body,headerEndY,xArr,pageNo);
+        doc.y = headerEndY + 8;
+        return {xArr,colWidths,footerStartY}
+    }
+    const {xArr,colWidths,footerStartY} = initPage();
+    body.forEach((obj,i)=>{
+        obj = {
+            "Sl No": i+1,
+            ...obj,
+            "Amount": Number(obj.Rate) * Number(obj.Quantity)
+        }
+        let { y } = roadChallanBody(doc,obj,xArr,colWidths);
+        if(y>=footerStartY-16){
+            doc.addPage();
+            pageNo++;
+            initPage();
+        }
+    });
+    doc
+    .stroke()
+    .save()
+    .end();
+    return path.join(path2pdf,"road-challan");
 }

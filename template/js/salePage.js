@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon} =  require("../js/common");
+const {toggleDevTool,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon} =  require("../js/common");
 const uuid = require("uuid");
 const { unitMap } = require("../../config/saleConfig.json");
 
@@ -26,21 +26,6 @@ customerNameDatalist.id = "customer-names";
 unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
 coolieDatalist.id = "coolie-dl";
-
-async function appendToDL(eventName,datalist){
-    let list = await ipcRenderer.invoke(eventName);
-    list.forEach(obj=>{
-        let option = document.createElement("option");
-        for(let key in obj){
-            if(key==="name")
-                option.value = obj[key];
-            option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
-        }
-        datalist.appendChild(option)
-    });
-    document.body.appendChild(datalist);
-    return list;
-} 
 
 async function init(){
     appendToDL("get-stocks",nameDatalist);
