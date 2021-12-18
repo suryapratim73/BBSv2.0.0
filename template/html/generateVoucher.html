@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voucher Generator</title>
+    <link rel="stylesheet" href="../css/generateVoucher.css">
+    <script src="../js/generateVoucher.js" defer></script>
+</head>
+<body>
+    <form onsubmit="createVoucher(event)">
+        <h2>Voucher Generator</h2>
+        <div>
+            <div>
+                <div><label for="payee">Payee Name</label></div>
+                <div><input type="text" required id="payee" name="payee"></div>
+            </div>
+            <div>
+                <div><label for="pay-date">Date</label></div>
+                <div><input type="date" required id="pay-date" name="pay-date"></div>
+            </div>
+            <div>
+                <div><label for="pay-mode">Payment Mode</label></div>
+                <div onchange="changeFeilds(event)">
+                    <label for="cash">Cash</label>
+                    <input type="radio" required id="cash" name="pay-mode" value="cash" checked>
+                    <label for="cheque">Cheque</label>
+                    <input type="radio" required id="cheque" name="pay-mode" value="cheque">
+                    <label for="net">Online</label>
+                    <input type="radio" required id="net" name="pay-mode" value="net">
+                </div>
+            </div>
+            <div id="amt-div">
+                <div><label for="pay-amt">Amount</label></div>
+                <div><input type="text" required id="pay-amt" name="pay-amt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+            </div>
+        </div>
+        <div>
+            <button type="submit">Generate</button>
+            <button type="button" onclick="ipcRenderer.send('close','Voucher-Generator')">CLose</button>
+        </div>
+    </form>
+    <template id="cheque-detail-template">
+        <div class="deletable">
+            <div><label for="bank-name">Bank Name</label></div>
+            <div><input type="text" required id="bank-name" name="bank-name"></div>
+        </div>
+        <div class="deletable">
+            <div><label for="bank-ac-no">Bank Account Number</label></div>
+            <div><input type="text" required id="bank-ac-no" name="bank-ac-no"></div>
+        </div>
+        <div class="deletable">
+            <div><label for="cheque-no">Cheque Number</label></div>
+            <div><input type="text" required id="cheque-no" name="cheque-no"></div>
+        </div>
+        <div class="deletable">
+            <div><label for="cheque-date">Cheque Date</label></div>
+            <div><input type="date" required id="cheque-date" name="cheque-date"></div>
+        </div>
+    </template>
+    <template id="net-detail-template">
+        <div class="deletable">
+            <div><label for="bank-name">Bank Name</label></div>
+            <div><input type="text" required id="bank-name" name="bank-name"></div>
+        </div>
+        <div class="deletable">
+            <div><label for="bank-ac-no">Bank Account Number</label></div>
+            <div><input type="text" required id="bank-ac-no" name="bank-ac-no"></div>
+        </div>
+    </template>
+</body>
+</html>

@@ -232,8 +232,8 @@ ipcMain.handle("get-customers",async ()=>{
     return customerList;
 });
 
-ipcMain.on("salepage-print-doc",(e,billObj)=>{
-    let path2pdf = save_exist(e,billObj);
+ipcMain.on("salepage-print-doc",async (e,billObj)=>{
+    let path2pdf = await save_exist(e,billObj);
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
     if(billStatus!=="open")
         switch(process.platform){

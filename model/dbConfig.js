@@ -373,6 +373,7 @@ const outPaymentSchema = {
     },
     beneficiaryId:{
         type: DataTypes.UUID,
+        defaultValue:UUIDV4
     },
     type:{
         type: DataTypes.TEXT,

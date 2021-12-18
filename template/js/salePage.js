@@ -562,7 +562,7 @@ function execRetractHandler(e){
 function showPrintDialog(){
     if(payment.length===0)
         payment.push({type:"due"})
-    ipcRenderer.send("show-print-modal");
+    ipcRenderer.send("show-print-modal",{pageFit:"-o fit-to-page"});
 }
 
 ipcRenderer.on("printObj",(e,printObj)=>{

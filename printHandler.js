@@ -1,14 +1,15 @@
-const { exec,spawn } = require("child_process");
+const { exec } = require("child_process");
 const { ipcMain,dialog,BrowserWindow } = require("electron");
 const { createModal } = require("./createModal");
 const fs = require("fs");
 const { setTimeout } = require("timers");
 
 
-let modal;
+let modal,pageFit;
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
-    let cmd = `lp -d ${printer} -n ${copies} -o fit-to-page -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
+    if(!path2pdf) return;
+    let cmd = `lp -d ${printer} -n ${copies} ${pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
     let timer;
     if(fs.existsSync(path2pdf))
         exec(cmd,(err,stdout)=>{
@@ -58,7 +59,9 @@ ipcMain.handle("get-printers",()=>{
     }
 });
 
-ipcMain.on("show-print-modal",e=>{
+ipcMain.on("show-print-modal",(e,...arg)=>{
+    if(arg.some(obj=>"pageFit" in obj))
+        pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = "./template/html/printDialog.html";
     let windowOptions = {
         width: 400,

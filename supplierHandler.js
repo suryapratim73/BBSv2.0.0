@@ -54,6 +54,7 @@ ipcMain.handle("get-supplier-name",async (e,id)=>{
 });
 
 exports.suppliers = suppliers;
+exports.initSuppliers = initSuppliers;
 
 ipcMain.handle("get-suppliers", async (e,reload)=>{
     if(reload===false && suppliers.length>0 && suppliers.every(suppObj=>["name","netPurchase","netDebt"].every(key=>key in suppObj))) 

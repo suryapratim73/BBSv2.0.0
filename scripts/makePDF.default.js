@@ -4,7 +4,7 @@ const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.j
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
-const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody } = require('../lib/buildPage.default');
+const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc } = require('../lib/buildPage.default');
 
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
@@ -91,7 +91,7 @@ exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate){
 }
 
 exports.roadChallanPDF = function(roadChallanObj){
-    const doc = new PDFDocument({margin});
+    const doc = new PDFDocument({margin,size:"A4"});
     let path2pdf = app.getPath("temp"),pageNo = 1;
     doc.pipe(fs.createWriteStream(path.join(path2pdf,"road-challan")));
     const { header,body } = roadChallanObj;
@@ -122,4 +122,20 @@ exports.roadChallanPDF = function(roadChallanObj){
     .save()
     .end();
     return path.join(path2pdf,"road-challan");
+}
+
+exports.generateVoucher = function(voucherObj){
+    const doc = new PDFDocument({margin,size:"A7"});
+    let path2pdf = app.getPath("documents"),pageNo = 1;
+    if(!fs.existsSync(path2pdf+"/Vouchers/"))
+        fs.mkdirSync(path.join(path2pdf,"Vouchers"));
+    path2pdf = path.join(path2pdf,"Vouchers");
+    const { id,'pay-date':payDate } =voucherObj;
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"voucher_"+id+"_"+payDate)));
+    voucherDoc(doc,voucherObj);
+    doc
+    .stroke()
+    .save()
+    .end();
+    return path.join(path2pdf,`voucher_${id}_${payDate}`);
 }

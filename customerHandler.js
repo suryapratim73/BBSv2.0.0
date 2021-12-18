@@ -63,7 +63,7 @@ ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
 });
 
 ipcMain.on("print",(e,name,billDate,billNo)=>{
-    ipcMain.emit("show-print-modal");
+    ipcMain.emit("show-print-modal",null,{pageFit:"-o fit-to-page"});
     let path2pdf = path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`);
     ipcMain.on("printObj",print.bind(path2pdf))
 });
