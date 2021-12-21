@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipt Generator</title>
+    <link rel="stylesheet" href="../css/paymentReceipt.css">
+    <script src="../js/paymentReceipt.js" defer></script>
+</head>
+<body>
+    <form onsubmit="genPayReceipt(event)">
+        <h2>Payment Receipt Generator</h2>
+        <div>
+            <div><label for="name">Select Customer</label></div>
+            <div><input type="text" autofocus id="name" name="name" onchange="initPayReceipt(event)" list="customer-list"></div>
+        </div>
+        <div>
+            <div><label for="date-range">Date Range</label></div>
+            <div><input type="text" disabled id="date" oninput="_searchHandler(event)" name="date"></div>
+        </div>
+        <div>
+            <div><label for="billNo">Bill Number</label></div>
+            <div><input type="text" id="billNo" oninput="document.querySelector('button:first-child').removeAttribute('disabled')" disabled name="billNo" list="billNo-list"></div>
+        </div>
+        <div>
+            <div>
+                <button type="submit" disabled>Print Pay Receipt</button>
+                <button type="button" onclick="ipcRenderer.send('close','Payment-Receipt-Generator')">Close</button>
+            </div>
+        </div>
+    </form>
+    <datalist id="customer-list"></datalist>
+    <datalist id="billNo-list"></datalist>
+</body>
+</html>

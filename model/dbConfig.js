@@ -412,7 +412,10 @@ const inPaymentSchema = {
     },
     date:{
         type: DataTypes.DATE
-    }
+    },
+    // moreInfo:{
+    //     type: DataTypes.JSON
+    // }
 }
 
 const returnRegister = {

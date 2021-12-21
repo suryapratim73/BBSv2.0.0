@@ -257,14 +257,13 @@ function closeModal(){
 function addPayment(e){
     e.preventDefault();
     let payment = e.target.payment.value;
-    const { name,billno:billNo,id,billamt:billAmt,retamt:retAmt } = e.target.dataset;
+    const { name,billno:billNo,id,billamt:billAmt } = e.target.dataset;
     closeModal();
-    ipcRenderer.send("add-payment",name,billNo,payment,id,billAmt,retAmt);
+    ipcRenderer.send("add-payment",name,billNo,payment,id,billAmt);
 }
 
 function utilCMD(e){
     let bodyRow = e.target.parentNode.parentNode;
-    let retAmt = bodyRow.dataset.retAmt;
     let billAmt = bodyRow.querySelector("p:nth-child(3)").textContent;
     let oldPayment = bodyRow.querySelector("p:nth-child(4)").textContent;
     let cmd = e.target.dataset.cmd;
@@ -283,7 +282,7 @@ function utilCMD(e){
         modal.classList.add("modal");
         modal.id="add-payment";
         modal.innerHTML = `
-            <form onsubmit="addPayment(event)" data-retamt="${retAmt}" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
+            <form onsubmit="addPayment(event)" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
                 <div>
                     <label for="payment">Enter the payment amount:</label>
                     <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)" />
@@ -319,7 +318,7 @@ ipcRenderer.on("payment-successful",(e,_name,balance,payment)=>{
             selectedDiv.dataset.paymentStatus = "true";
             optionDiv.querySelector("button:last-child").remove();
         }
-        document.querySelector(".card>div:nth-last-child(2)>p:last-child").textContent = balance;
+        document.querySelector(".card>div:nth-last-child(1)>p:last-child").textContent = balance;
     }
 })
 
@@ -451,12 +450,11 @@ function showBillOptions(e){
     [...this.querySelectorAll(".bill-option-div")].forEach(div=>div.remove())
     let bodyRow = e.target.parentNode;
     selectedDiv = bodyRow;
-    const { itemList,billAmt,retAmt,payment } = bodyRow.dataset;
+    const { itemList,billAmt,payment } = bodyRow.dataset;
     let optionDiv = document.createElement("div");
     optionDiv.className = "bill-option-div";
     optionDiv.dataset.itemList = itemList;
     optionDiv.dataset.billAmt = billAmt;
-    optionDiv.dataset.retAmt = retAmt;
     optionDiv.dataset.payment = payment;
     optionDiv.innerHTML = `
         <button data-cmd="open">Open</button>
@@ -469,7 +467,7 @@ function showBillOptions(e){
 
 function billUtils(e){
     const {cmd} = e.target.dataset;
-    const {itemList,billAmt,retAmt,payment} = e.target.parentNode.dataset;
+    const {itemList,billAmt,payment} = e.target.parentNode.dataset;
     let name = document.querySelector(".card>div:first-child>p:last-child").textContent;
     let [id,billNo,billDate] = itemList.split("_");
     if(cmd==="open")
@@ -483,11 +481,11 @@ function billUtils(e){
         modal.classList.add("modal");
         modal.id = "add-payment-modal";
         modal.innerHTML = `
-            <form onsubmit="addPayment(event)" data-retamt="${retAmt}" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
+            <form onsubmit="addPayment(event)" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
                 <h1>Add Payment</h1>
                 <div>
                     <p>The bill amount is:</p>
-                    <p class="highlight-1">${Math.round(billAmt - retAmt - payment)}</p>
+                    <p class="highlight-1">${Math.round(billAmt - payment)}</p>
                 </div>
                 <div>
                     <label for="payment">Enter payment amount: </label>

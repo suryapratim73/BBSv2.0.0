@@ -221,14 +221,18 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
 
 ipcMain.on("save-exit-sale-bill",save_exist);
 
-ipcMain.handle("get-customers",async ()=>{
-    if(customerList.length>0) return customerList;
+async function initCustomerList(){
     (await (await customer.sync()).findAll())
     .map(({dataValues})=>dataValues)
     .forEach(obj=>{
         obj._type = "customer";
         customerList.push(new People(obj));
     });
+}
+
+ipcMain.handle("get-customers",async ()=>{
+    if(customerList.length>0) return customerList;
+    await initCustomerList();
     return customerList;
 });
 
@@ -269,3 +273,4 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
 });
 
 exports.customerList = customerList;
+exports.initCustomerList = initCustomerList;

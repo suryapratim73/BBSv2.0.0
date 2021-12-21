@@ -4,6 +4,7 @@ const { People,appLogger, checkAuthority } = require("./common");
 const { createModal, getTargetWindow } = require("./createModal");
 const uuid = require("uuid");
 const { updateCloseFlag } = require("./main");
+const { generateVoucher } = require("./scripts/makePDF.default");
 
 
 let freightList = [],
@@ -259,6 +260,13 @@ ipcMain.on("register-salary-payment",async (e,empPayArr)=>{
             })
         }),
         ...empPayArr.map(payObj=>{
+            let path2pdf = generateVoucher({
+                name: peopleList.find(obj=>obj.id===payObj.id)?.name,
+                "pay-mode": "cash",
+                "pay-amt": payObj.payment,
+                "pay-date": new Date().toLocaleDateString("en-GB")
+            });
+            ipcMain.emit("show-print-modal",path2pdf,{pageFit:""});
             return outPayments.create({
                 beneficiaryId: payObj.id,
                 type: "salary",
@@ -276,7 +284,7 @@ ipcMain.on("register-salary-payment",async (e,empPayArr)=>{
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         getTargetWindow("Salary-Modal")?.close();
     })
-    .catch(console.log)
+    .catch(console.log);
 });
 
 exports.getFreights = ()=>(freightList);

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, drawSpinner} = require("../js/common");
+const {toggleDevTool,validateInput, drawSpinner, _searchHandler:searchHandler} = require("../js/common");
 const {noReturn} = require("../../config/policy.json");
 
 
@@ -157,96 +157,6 @@ ipcRenderer.on("customer-names",(e,customerNames)=>{
     });
     document.body.appendChild(dl);
 });
-
-function searchHandler(e){
-    let text = e.target.value;
-    let startDate,endDate;
-    if(e.target.name==="name" && mode===1){
-        selectedCustomer = customerObjs.find(({name})=>text===name);
-        if(!selectedCustomer) return;
-        e.target.setAttribute("disabled","disabled")
-        dateFeild.removeAttribute("disabled");
-        dateFeild.focus();
-    }// Set selected customer
-    else
-    if(e.target.name==="name" && mode===2){
-        selectedSupplier = supplierObjs.find(({name})=>text===name);
-        if(!selectedSupplier) return;
-        e.target.setAttribute("disabled","disabled")
-        suppDateFeild.removeAttribute("disabled");
-        suppDateFeild.focus();
-    }
-    else
-    if(e.target.name==="date"){
-        let textMatch = text.match(/(\d+.+\d)|(\d+.months?|\d+.weeks?|\d+.days?)/g)?.[0] ?? null;
-        if(!textMatch){
-            let replaceWord = [];
-            text.split(/\b/g).forEach(_word=>{
-                let match = langSet.find(({word})=>word===_word);
-                if(match)
-                    replaceWord.push({word:_word,replaceValue:match.value})
-            });//Text to value conversion
-            replaceWord.forEach(({word,replaceValue})=>{
-                text = text.replace(word,replaceValue);
-            });
-            textMatch = text.match(/(\d+.+\d)|(\d+.months?|\d+.weeks?|\d+.days?)/g)?.[0] ?? null;            
-            if(!textMatch)
-                return document.getElementById("billNo").setAttribute("disabled","disabled");
-            else
-                text = textMatch;
-        }
-        else
-            text = textMatch;
-        // New condition starts
-        if(/\//g.test(text)){
-            let textArr = text.match(/[tobewnad\- ]+/gi) ? text.split(/[tobewnad\- ]+/gi):text;
-            if(textArr?.length===2){
-                [startDate,endDate] = textArr;
-                const [stDay,stMnth,stYear=(new Date()).getFullYear()] = startDate.split("/");
-                const [endDay,endMnth,endYear=(new Date()).getFullYear()] = endDate.split("/");
-                startDate = new Date(stYear,+stMnth-1,stDay);
-                endDate = new Date(endYear,+endMnth-1,endDay);
-            }
-            else{
-                const [stDay=null,stMnth=null,stYear=(new Date()).getFullYear()] = textArr.split("/") ?? [];
-                startDate = new Date(stYear,+stMnth-1,stDay);
-                endDate = new Date();
-            }
-        }// dd/mm/yyyy pattern filter
-        else{
-            if(/months?/.test(text) && /\d+/.test(text)){
-                let noMonths = Number(text.match(/\d+/)[0]);
-                endDate = new Date();
-                startDate = new Date(Date.now() - noMonths*30*24*60*60*1000);
-                startDate.setDate(1);
-            }
-            else
-            if(/weeks?/.test(text) && /\d+/.test(text)){
-                let noDays = Number(text.match(/\d+/)[0])*7;
-                endDate = new Date();
-                startDate = new Date(Date.now() - noDays*24*60*60*1000);
-            }
-            else
-            if(/days?/.test(text) && /\d+/.test(text)){
-                let noDays = Number(text.match(/\d+/)[0]);
-                endDate = new Date();
-                startDate = new Date(Date.now() - noDays*24*60*60*1000);
-            }
-        }// 'X' month/week pattern filter
-        let diff = Math.ceil((Math.abs(endDate - startDate))/(1000*60*60*24));
-        if(!startDate || !endDate || startDate>endDate || !diff) return document.getElementById("billNo").setAttribute("disabled","disabled");
-        if(diff>noReturn){
-            if(mode===1)
-                document.getElementById("billNo").setAttribute("disabled","disabled");
-            return alert("Return not possible");
-        }
-        // console.log({diff,startDate,endDate});
-        if(mode===1)
-            ipcRenderer.send("get-bill-numbers",selectedCustomer.id,startDate,endDate);
-        else
-            ipcRenderer.send("get-supp-bill-numbers",selectedSupplier.id,startDate,endDate);
-    }// set and find bill numbers in specified date range
-}
 
 function assignBillDate(e){
     let {value} = e.target;

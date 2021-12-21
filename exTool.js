@@ -1,7 +1,7 @@
 const { ipcMain } = require("electron");
 const { createModal } = require("./createModal");
-const { roadChallanPDF, generateVoucher } = require("./scripts/makePDF.default");
-const { outPayments } = require("./model/dbConfig");
+const { roadChallanPDF, generateVoucher, genPayReceiptPDF } = require("./scripts/makePDF.default");
+const { outPayments, sale } = require("./model/dbConfig");
 
 
 let windowOptions = {
@@ -30,6 +30,13 @@ exports.genVoucher = mainWindow =>{
   }
 }
 
+exports.genPayReceipt = mainWindow =>{
+  return ()=>{
+    windowOptions.parent = mainWindow;
+    createModal(windowOptions,"template/html/paymentReceipt.html",{maxWinCount:1,label:"Payment-Receipt-Generator"});
+  }
+}
+
 ipcMain.on("generate-road-challan",async (e,roadChallanObj)=>{
   let path2pdf = roadChallanPDF(roadChallanObj);
   ipcMain.emit("show-print-modal",path2pdf,{pageFit:"-o fit-to-page"});
@@ -48,4 +55,17 @@ ipcMain.on("generate-voucher",(e,voucher)=>{
     ipcMain.emit("show-print-modal",path2pdf,{pageFit:""});
   })
   .catch(console.log)
+});
+
+ipcMain.on("generate-pay-receipt",async (e,payReceiptObj)=>{
+  let { billNo } = payReceiptObj;
+  let { billAmt } = (await sale.findOne({
+    where:{
+      billNo
+    },
+    attributes: ["billAmt"]
+  })).dataValues;
+  payReceiptObj.billAmt = billAmt;
+  let path2pdf = genPayReceiptPDF(payReceiptObj);
+  ipcMain.emit("show-print-modal",path2pdf,{pageFit:""});
 });

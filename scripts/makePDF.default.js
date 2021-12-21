@@ -4,7 +4,7 @@ const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.j
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
-const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc } = require('../lib/buildPage.default');
+const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc } = require('../lib/buildPage.default');
 
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
@@ -124,18 +124,34 @@ exports.roadChallanPDF = function(roadChallanObj){
     return path.join(path2pdf,"road-challan");
 }
 
+function makeKey(str){
+    return str.split(" ").reduce((acc,str)=>(acc+str),"")
+}
+
 exports.generateVoucher = function(voucherObj){
     const doc = new PDFDocument({margin,size:"A7"});
-    let path2pdf = app.getPath("documents"),pageNo = 1;
+    let path2pdf = app.getPath("documents");
     if(!fs.existsSync(path2pdf+"/Vouchers/"))
         fs.mkdirSync(path.join(path2pdf,"Vouchers"));
     path2pdf = path.join(path2pdf,"Vouchers");
-    const { id,'pay-date':payDate } =voucherObj;
-    doc.pipe(fs.createWriteStream(path.join(path2pdf,"voucher_"+id+"_"+payDate)));
+    const { name,'pay-date':payDate } =voucherObj;
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"voucher_"+makeKey(name)+"_"+payDate)));
     voucherDoc(doc,voucherObj);
     doc
     .stroke()
     .save()
     .end();
-    return path.join(path2pdf,`voucher_${id}_${payDate}`);
+    return path.join(path2pdf,`voucher_${makeKey(name)}_${payDate}`);
+}
+
+exports.genPayReceiptPDF = function(payReceiptObj){
+    const doc = new PDFDocument({margin,size:"A7"});
+    let path2pdf = app.getPath("temp");
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"payReceipt")));
+    payReceiptDoc(doc,payReceiptObj);
+    doc
+    .stroke()
+    .save()
+    .end();
+    return path.join(path2pdf,"payReceipt");
 }

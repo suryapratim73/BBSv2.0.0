@@ -68,7 +68,7 @@ ipcMain.on("print",(e,name,billDate,billNo)=>{
     ipcMain.on("printObj",print.bind(path2pdf))
 });
 
-ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt,retAmt)=>{
+ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let {payment:oldPay} = (await (await sale.sync()).findOne({
         where:{
@@ -87,11 +87,11 @@ ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt,retAmt)=>{
         ]
     })))?.dataValues.balance ?? 0;
     lastBalance = Number(lastBalance);
-    let netDue = Math.round(billAmt - oldPay - payment - retAmt);
+    let netDue = Math.round(billAmt - oldPay - Number(payment));
     if(netDue<0) return dialog.showErrorBox("Pament greater than Bill Amount","Please re-enter the payment making sure the pament is less than the bill amount.")
     Promise.all([
         await sale.update({
-            payment:Math.round(oldPay+payment),
+            payment:Math.round(oldPay+Number(payment)),
             paymentStatus: netDue==0?true:false
         },{
             where:{
@@ -103,17 +103,22 @@ ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt,retAmt)=>{
         }),
         (await customerLedger.sync()).create({
             date:new Date(),
-            payments:payment,
-            balance:Math.round(lastBalance - payment)
+            billNo,
+            payments:Number(payment),
+            balance:Math.round(lastBalance - Number(payment)),
+            paymentStatus: netDue==0?true:false
         }),
         (await inPayments.sync()).create({
             id,
             payment,
-            date:new Date()
+            date:new Date(),
+            // moreInfo:{
+            //     billNo
+            // }
         })
     ])
     .then(()=>{
-        e.sender.send("payment-successful",name,Math.round(lastBalance - payment));
+        e.sender.send("payment-successful",name,lastBalance-Number(payment) , Number(payment));
         appLogger("received payment",JSON.stringify({name,billNo,payment}));
     })
     .catch(console.log)
