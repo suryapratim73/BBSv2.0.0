@@ -1,7 +1,8 @@
-const { ipcMain } = require("electron");
-const { createModal } = require("./createModal");
-const { roadChallanPDF, generateVoucher, genPayReceiptPDF } = require("./scripts/makePDF.default");
-const { outPayments, sale } = require("./model/dbConfig");
+const { ipcMain, dialog, BrowserWindow } = require("electron");
+const { createModal, getTargetWindow } = require("./createModal");
+const { roadChallanPDF, generateVoucher, genPayReceiptPDF, genReqSlipPDF } = require("./scripts/makePDF.default");
+const { outPayments, sale, requirement } = require("./model/dbConfig");
+const { appLogger } = require("./common");
 
 
 let windowOptions = {
@@ -37,6 +38,13 @@ exports.genPayReceipt = mainWindow =>{
   }
 }
 
+exports.genRequirementSlip = mainWindow =>{
+  return ()=>{
+    windowOptions.parent = mainWindow;
+    createModal(windowOptions,"template/html/genReqSlip.html",{maxWinCount:1,label:"Requirement-Slip-Generator"});
+  }
+}
+
 ipcMain.on("generate-road-challan",async (e,roadChallanObj)=>{
   let path2pdf = roadChallanPDF(roadChallanObj);
   ipcMain.emit("show-print-modal",path2pdf,{pageFit:"-o fit-to-page"});
@@ -68,4 +76,36 @@ ipcMain.on("generate-pay-receipt",async (e,payReceiptObj)=>{
   payReceiptObj.billAmt = billAmt;
   let path2pdf = genPayReceiptPDF(payReceiptObj);
   ipcMain.emit("show-print-modal",path2pdf,{pageFit:""});
+});
+
+ipcMain.handle("get-requirement-number",async ()=>{
+  let obj = Number((await requirement.findOne({
+    order: [ ["entryNo","DESC"] ],
+    attributes: [ "entryNo" ]
+  }))?.dataValues.entryNo ?? 1) ;
+  return obj
+});
+
+ipcMain.on("generate-request-slip",async (e,reqSlipObj)=>{
+  const { header,body } = reqSlipObj;
+  requirement.create({
+    header,
+    body,
+    status: "PENDING"
+  })
+  .then(()=>{
+    let path2pdf = genReqSlipPDF(reqSlipObj);
+    if(header.print===true)
+      ipcMain.emit("show-print-modal",path2pdf,{pageFit:"-o fit-to-page"});
+    let msg = {
+      type: "info",
+      title: "Requirement queued",
+      message: "Requirement await for fulfillment."
+    };
+    let focussedWindow = getTargetWindow("Requirement-Slip-Generator");
+    dialog.showMessageBox(focussedWindow,msg);
+    appLogger("sale",JSON.stringify(reqSlipObj));
+    focussedWindow.close();
+  })
+  .catch(console.log)
 });

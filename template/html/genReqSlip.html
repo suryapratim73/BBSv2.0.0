@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Requirement Slip</title>
+    <link rel="stylesheet" href="../css/genReqSlip.css">
+    <script src="../js/genReqSlip.js" defer></script>
+</head>
+<body>
+    <form class="page page1" onsubmit="proceedToPage2(event)">
+        <h2>Generate Requirement Slip</h2>
+        <div>
+            <div><label for="name">Supplier Name</label></div>
+            <div><input type="text" autofocus required id="name" name="name" list="supplier-list"></div>
+        </div>
+        <div>
+            <div><label for="reqNo">Requirement Number</label></div>
+            <div><input type="text" required id="reqNo" name="reqNo"></div>
+        </div>
+        <div>
+            <div><label for="date">Date</label></div>
+            <div><input type="date" required id="date" name="date"></div>
+        </div>
+        <div id="btn-div">
+            <button type="button" onclick="newFeildForm(event)">+</button>
+        </div>
+        <div>
+            <div>
+                <input type="checkbox" id="print" name="print">
+                <label for="print">Print requirement</label>
+            </div>
+        </div>
+        <div>
+            <div>
+                <button type="submit">Next</button>
+                <button type="button" onclick="ipcRenderer.send('close','Requirement-Slip-Generator')">Close</button>
+            </div>
+        </div>
+    </form>
+    <template id="new-feild-template">
+        <div>
+            <div><label></label></div>
+            <div><input type="text"></div>
+        </div>
+    </template>
+    <template id="new-feild-form-template">
+        <form onsubmit="newFeild(event)" class="page3">
+            <div>
+                <div><label for="key">Feild Name</label></div>
+                <div><input type="text" id="key" name="key"></div>
+            </div>
+            <div>
+                <div><label for="val">Feild Value</label></div>
+                <div><input type="text" id="val" name="val"></div>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Add</button>
+                    <button type="button" onclick="backToPage1()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="page2-template">
+        <div class="page page2">
+            <div id="table">
+                <div class="row head">
+                    <p class="col eq-space">Sl No.</p>
+                    <p class="col eq-space">Particular</p>
+                    <p class="col eq-space">Quantity</p>
+                    <p class="col eq-space">Unit</p>
+                    <p class="col eq-space">Rate</p>
+                    <p class="col eq-space">Amount</p>
+                </div>
+                <div id="tbody" onclick="deleteRow(event)" oninput="inputHandler(event)" onmouseover="showDeleteBTN(event)" onchange="inputChangeHandler(event)">
+                    <div class="row row-control-div" id="add-item">
+                        <button onclick="addRow(event)">+</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button onclick="generateReqSlip()">Generate</button>
+                <button onclick="backToPage1()">Back</button>
+                <button onclick="ipcRenderer.send('close','Requirement-Slip-Generator')">Close</button>
+            </div>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col eq-space"><p>1</p></div>
+            <div class="col eq-space"><input type="text" data-name="name" list="stock-dl" /></div>
+            <div class="col eq-space"><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col eq-space"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col eq-space"><input data-name="rate" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><p id="amt"></p></div>
+        </div>
+    </template>
+    <template id="body-row-options-template">
+        <div class="body-row-options">
+            <button data-cmd="DELETE" type="button" tabindex="-1">Delete Row</button>
+        </div>
+    </template>
+    <datalist id="stock-dl"></datalist>
+    <datalist id="supplier-list"></datalist>
+    <datalist id="unit-dl"></datalist>
+</body>
+</html>

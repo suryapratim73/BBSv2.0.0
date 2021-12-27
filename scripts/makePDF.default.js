@@ -4,7 +4,7 @@ const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.j
 const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
 const {app} = require("electron");
 const path = require("path");
-const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc } = require('../lib/buildPage.default');
+const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
 
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
@@ -154,4 +154,33 @@ exports.genPayReceiptPDF = function(payReceiptObj){
     .save()
     .end();
     return path.join(path2pdf,"payReceipt");
+}
+
+exports.genReqSlipPDF = function(reqSlipObj){
+    const {header,body} = reqSlipObj;
+    const doc = new PDFDocument({margin,size:"A4"});
+    const { height } = doc.page;
+    let path2pdf = app.getPath("temp");
+    doc.pipe(fs.createWriteStream(path.join(path2pdf,"reqSlip")));
+    function initPage(){
+        let { headEndY,xArr,colNames,colWidths } = genReqSlipDocHeader(doc,header,Object.keys(body[0]));
+        doc.stroke()
+        genReqSlipDocFooter(doc);
+        doc.stroke()
+        return {headEndY,xArr,colNames,colWidths};
+    }
+    let {xArr,headEndY,colNames,colWidths} = initPage();
+    doc.y = headEndY;
+    body.forEach((obj,i)=>{
+        genReqSlipDocBody(doc,obj,xArr,colNames,i+1,colWidths);
+        if(doc.y>0.85*height-margin){
+            doc.addPage();
+            doc.y = initPage().headEndY;
+        }
+    });
+    doc
+    .stroke()
+    .save()
+    .end();
+    return path.join(path2pdf,"reqSlip");
 }

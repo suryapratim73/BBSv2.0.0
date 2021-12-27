@@ -7,7 +7,7 @@ const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
-const { genRoadChallan, genVoucher, genPayReceipt } = require("./exTool");
+const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
 
 
 module.exports = mainWindow=>{
@@ -134,10 +134,11 @@ module.exports = mainWindow=>{
                 {
                     label: "Generate Payment Receipt",
                     click: genPayReceipt(mainWindow),
-                    accelerator: "Shift+F4" // Dev Time Shortcut
                 },
                 {
-                    label: "Generate Requirement Slip"
+                    label: "Generate Requirement Slip",
+                    click: genRequirementSlip(mainWindow),
+                    accelerator: "Shift+F4" // Dev Time Shortcut
                 },
                 {type:"separator"},
                 {

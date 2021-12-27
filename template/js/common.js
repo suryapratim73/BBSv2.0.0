@@ -818,3 +818,23 @@ exports.appendToDL = async function (eventName,datalist){
     document.body.appendChild(datalist);
     return list;
 }
+
+exports.showDeleteBTN = function(e){
+    let target = e.target;
+    let bodyRow;
+    if(["INPUT","P"].includes(target.nodeName))
+        bodyRow = target.parentNode.parentNode;
+    else
+    if(target.nodeName==="DIV" && target.classList.contains("col"))
+        bodyRow = target.parentNode;
+    if(bodyRow){
+        removeAllElem(".body-row-options");
+        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true))
+        bodyRow.addEventListener("mouseleave",mouseoutHandler.bind(bodyRow));        
+    }
+}
+
+function mouseoutHandler(e){
+    this.querySelector(".body-row-options")?.remove();
+    this.removeEventListener("mouseout",arguments.callee);
+}

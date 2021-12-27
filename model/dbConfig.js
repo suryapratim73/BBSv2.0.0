@@ -413,9 +413,9 @@ const inPaymentSchema = {
     date:{
         type: DataTypes.DATE
     },
-    // moreInfo:{
-    //     type: DataTypes.JSON
-    // }
+    moreInfo:{
+        type: DataTypes.JSON
+    }
 }
 
 const returnRegister = {
@@ -458,6 +458,23 @@ const attendanceSchema = {
         type: DataTypes.JSON
     }
 }
+
+const requirementSchema = {
+    entryNo:{
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    itemList:{
+        type: DataTypes.JSON
+    },
+    header:{
+        type: DataTypes.JSON
+    },
+    status:{
+        type: DataTypes.TEXT,
+    }
+};
 
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
@@ -521,6 +538,10 @@ module.exports = {
         timestamps: false
     }),
     attendances: sequelize.define("attendances",attendanceSchema,{
+        freezeTableName: true,
+        timestamps: false
+    }),
+    requirement: sequelize.define("requirement",requirementSchema,{
         freezeTableName: true,
         timestamps: false
     })
