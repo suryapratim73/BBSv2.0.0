@@ -1,17 +1,35 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput, printModal, drawSpinner, renderPieChart, scrollSymSet } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph } = require("../js/common");
+const uuid = require("uuid");
+const { unitMap } = require("../../config/saleConfig.json");
 
 
 toggleDevTool(document);
 
-let customerList = [];
-let page2BTNS = document.querySelector("#form div:nth-child(1)");
-let currentPage = 0,selectedDiv,selectedCustomer;
-let canvas = document.querySelector("#canvas-container>canvas");
-let ctx = canvas.getContext("2d");
-let total=0;
-let colorCode = [];
-let spinner = drawSpinner(document);
+let customerList = [],
+    page2BTNS = document.querySelector("#form>div:nth-child(1)"),
+    selectedDiv,selectedCustomer,
+    canvas = document.querySelector("#canvas-container>canvas"),
+    ctx = canvas.getContext("2d"),
+    total=0,
+    colorCode = [],
+    spinner = drawSpinner(document),
+    itemList = [], stockList, timer,
+    bills,
+    ledgerEntries = [];
+
+
+async function initPage(){
+    stockList = await appendToDL("get-stocks",document.getElementById("stock-names"))
+    unitMap.forEach(obj=>{
+        let key = Object.keys(obj)[0];
+        let option = document.createElement("option");
+        option.value = key;
+        option.textContent = key;
+        document.getElementById("unit-dl").appendChild(option);
+    });
+}
+initPage();
 
 function rgbToHex(r, g, b){
     if (r > 255 || g > 255 || b > 255)
@@ -20,7 +38,6 @@ function rgbToHex(r, g, b){
 }
 
 document.querySelector("#canvas-container").addEventListener("click",function(e){
-    if(currentPage>0) return;
     ctx.restore();
     drawPieChart();
     let {x,y} = e;
@@ -100,7 +117,7 @@ function drawPieChart(){
     ctx.save();
 }
 
-ipcRenderer.on("customer-list",(e,{customerObj})=>{
+ipcRenderer.on("customer-list",(e,customerObj)=>{
     customerObj.forEach(_customerList=>{
         customerList.push(_customerList);
         const { name,balance,id,netPurchase } = _customerList;
@@ -124,61 +141,61 @@ ipcRenderer.on("customer-list",(e,{customerObj})=>{
     spinner.remove(window);
 });
 
+async function drawGraphs(id){
+    bills = await ipcRenderer.invoke("show-customer-bills",id);
+    bills
+    .reduce((acc,{billDate,billAmt})=>{
+        acc[0][0] += billAmt;
+        acc[0][1].push({date:billDate,amt:billAmt});
+        return acc;
+    },[[0 , []]])
+    .forEach(([total,objs])=>{
+        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#bill-graph","green","red");
+        canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
+    });
+    (await ipcRenderer.invoke("get-customer-out-payments",selectedCustomer.id))
+    .reduce((acc,{date,payment})=>{
+        acc[0][0] += payment;
+        acc[0][1].push({date,amt:payment});
+        return acc;
+    },[[0 , []]])
+    .forEach(([total,objs])=>{
+        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#payment-graph","yellow","green");
+        canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
+    });
+}
+
 async function loadLedgerTable(_name){
-    currentPage = 1;
+    [...document.querySelectorAll("#canvas-container,#chart-div>p")]
+    .forEach(elem=>{
+        elem.classList.add("hide");
+    });
+    let spinner = drawSpinner(document);
     selectedCustomer = customerList.find(({name})=>name===_name);
-    let { name,address,phones,gst,balance,id } = selectedCustomer;
-    page2BTNS.classList.remove("hide");
-    page2BTNS.dataset.id = id;
-    phones = JSON.parse(phones);
+    page2BTNS.dataset.id = selectedCustomer.id;
+    phones = JSON.parse(selectedCustomer.phones);
     this.classList.add("hide");
-    let ledgerDiv = document.createElement("div");
-    [...document.querySelectorAll(".table")].forEach(table=>table.remove());
-    [...document.querySelectorAll(".card")].forEach(card=>card.remove());
-    ledgerDiv.innerHTML = `
-        <h1>Ledger</h1>
-        <div class="head row">
-            <p data-name="date" class="col eq-space">Date</p>
-            <p data-name="billNo" class="col eq-space">Bill No</p>
-            <p data-name="billAmt" class="col eq-space">Bill Amt</p>
-            <p data-name="payment" class="col eq-space">Payment</p>
-            <p data-name="balance" class="col eq-space">Balance</p>
-        </div>
-        <div id="tbody"></div>
-    `;
-    ledgerDiv.className = "table";
-    ledgerDiv.id = "ledger-div";
+    let ledgerDiv = document.getElementById("ledger-div-template").content.cloneNode(true).querySelector("div");
     let sideDiv = document.getElementById("chart-div");
-    let customerDiv = document.createElement("div");
-    customerDiv.className = "card";
-    customerDiv.innerHTML = `
-        <div>
-            <p class="col-0">Name:</p>
-            <p class="col-1">${name}</p>
-        </div>
-        <div>
-            <p class="col-0">Address:</p>
-            <p class="col-1">${address}</p>
-        </div>
-        <div>
-            <p class="col-0">GST No:</p>
-            <p class="col-1">${gst}</p>
-        </div>
-        <div>
-            <p class="col-0">Phones:</p>
-            <div class="col-1">${phones.map((phone,index)=>{
+    sideDiv.classList.add("page2-sidebar");
+    let customerDiv = document.getElementById("card-template").content.cloneNode(true).querySelector("div");    
+    [...customerDiv.querySelectorAll(".col-1")]
+    .forEach(p=>{
+        if(p.dataset.colname!=="phones")
+            p.textContent = selectedCustomer[p.dataset.colname];
+        else
+            p.innerHTML = phones.map((phone,index)=>{
                 if(index<phones.length-1)
-                    return `<p>${phone},</p>`
+                    return `<p class="col-1">${phone},</p>`
                 else
-                    return `<p>${phone}</p>`
-            })}</div>
-        </div>
-        <div>
-            <p class="col-0">Net Due:</p>
-            <p class="col-1">${balance}</p>
-        </div>
-    `;
-    let ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",id);
+                    return `<p class="col-1">${phone}</p>`
+            }).reduce((acc,str)=>acc+str,"");
+    });
+    if(ledgerEntries.length===0)
+        ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",selectedCustomer.id);
+    
+    //Implement realtime Ledger update logic
+
     let tbody = ledgerDiv.querySelector("#tbody");
     ledgerEntries.forEach(obj=>{
         let {date,billNo,billAmt,tax,delivery,payments,balance,itemList,entryNo} = obj;
@@ -203,63 +220,83 @@ async function loadLedgerTable(_name){
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);
     sideDiv.appendChild(customerDiv);
-    let div = document.createElement("div");
-    div.id = "back-btn-div";
-    div.innerHTML = `
-        <button><</button>
-        <p>Back</p>
-    `;
-    div.addEventListener("click",resetPortal)
-    sideDiv.appendChild(div);
-    [...document.querySelectorAll("#chart-div>div#canvas-container,#chart-div>p")].forEach(elem=>{
-        elem.classList.add("hide");
+    
+    await drawGraphs(selectedCustomer.id);
+    [...document.querySelectorAll("#btn-container>button")]
+    .forEach(btn=>{
+        if(btn.dataset.view==="ledger")
+            btn.classList.add("hide");
+        else
+            btn.classList.remove("hide");
     });
-}
+    spinner.remove(window);
+} // WORK in Progress
 
 document.getElementById("customer-list").addEventListener("click",function(e){
     if(!e.target.classList.contains("customer-div")) return;
     loadLedgerTable.call(this,e.target.children[0].textContent);
     document.querySelector("#form>div:last-child").classList.add("hide");
     document.querySelector("#chart-div > p:nth-child(3)").classList.add("hide");
+    page2BTNS.classList.remove("hide");
 });
 
 function resetPortal(e){
-    if(currentPage===1){
-        document.querySelector("#back-btn-div").removeEventListener("click",arguments.callee);
-        [".card","#back-btn-div"].forEach(selector=>document.querySelector(selector).remove());
-        [...document.querySelectorAll(".table")].forEach(div=>div.remove());  
-        document.getElementById("customer-list").classList.remove("hide");
-        page2BTNS.classList.add("hide");
-        document.querySelector('[data-cmd="bills"]').classList.remove("hide");
-        document.querySelector('[data-cmd="filter"]')?.classList.add("hide");
-        document.querySelector("#form>div:last-child").classList.remove("hide");
-        currentPage = 0;
-        document.querySelector("#chart-div > p:nth-child(3)").classList.remove("hide");
-        [...document.querySelectorAll("#chart-div>div#canvas-container,#chart-div>p")].forEach(elem=>{
-            elem.classList.remove("hide");
-        });
-    }
-    else{
-        currentPage = 1;
-        document.getElementById("bill-table").classList.add("hide");
-        document.getElementById("ledger-div").classList.remove("hide");
-        let btnDiv = document.querySelector("#form>div:first-child");        
-        btnDiv.children[0].classList.add("hide");
-        btnDiv.children[1].classList.remove("hide");
-    }
+    document.querySelector("#back-btn-div")?.removeEventListener("click",arguments.callee);
+    removeAllElem("#page2-side-panel,.table");
+    document.getElementById("customer-list").classList.remove("hide");
+    page2BTNS.classList.add("hide");    
+    document.querySelector("#form>div:last-child").classList.remove("hide");
+    document.getElementById("canvas-container").classList.remove("hide");
+    [...document.querySelectorAll("#chart-div>p")].forEach(p=>p.classList.remove("hide"));
+    document.querySelector(".page2-sidebar").classList.remove("page2-sidebar");
 }
 
 function closeModal(){
-    document.querySelector(".modal").remove();
-    document.querySelector(".cover").remove();
+    _closeModal();
+    if(itemList.length>0)
+        itemList = [];
 }
 
-function addPayment(e){
+async function refreshGraphAndLedger(topLine,id){
+    let ledgerRow = document.querySelector("#ledger-div .body.row");
+    if(ledgerRow){
+        let row = document.createElement("div");
+        row.className = "body row";
+        row.innerHTML = `
+            <p class="col eq-space">${topLine.date.toLocaleDateString("en-GB")}</p>
+            <p class="col eq-space">${topLine.billNo}</p>
+            <p class="col eq-space">${Math.round(Number(topLine.billAmt)+Number(topLine.tax)+Number(topLine.deliveryCharge))}</p>
+            <p class="col eq-space">${topLine.payments}</p>
+            <p class="col eq-space">${topLine.balance}</p>
+        `;
+        ledgerRow.before(row);
+    }
+    await drawGraphs(id);
+}
+
+async function addPayment(e){
     e.preventDefault();
-    let payment = e.target.payment.value;
-    const { name,billno:billNo,id,billamt:billAmt } = e.target.dataset;
+    let payObj = Object.fromEntries(new FormData(e.target).entries());
+    const { name,billNo,id,billAmt,billDate } = e.target.dataset;
+    try{
+        let {lastBalance,netDue,topLine,payment} = await ipcRenderer.invoke("add-payment",name,billNo,payObj,id,billAmt);
+        let billRow = document.querySelector(`#bill-table .body.row[data-item-list='${id}_${billNo}_${billDate}']`);
+        if(billRow){
+            billRow.querySelector("p:nth-child(4)").textContent = payment;
+            billRow.querySelector("p:nth-child(5)").textContent = netDue;
+            billRow.dataset.payment = payment;
+            if(payObj.paymode==="cash" && netDue===0){
+                billRow.dataset.paymentStatus = "true";
+                billRow.querySelector("p:nth-child(5)").classList.remove("unpaid");
+                billRow.querySelector("p:nth-child(5)").classList.add("paid");
+            }
+        }
+        await refreshGraphAndLedger(topLine,id);
+    }
+    catch(err){
+        console.log(err);
+    }
     closeModal();
-    ipcRenderer.send("add-payment",name,billNo,payment,id,billAmt);
 }
 
 function utilCMD(e){
@@ -278,56 +315,21 @@ function utilCMD(e){
         if(oldPayment>=Math.round(billAmt)) return;
         let cover = document.createElement("div");
         cover.classList.add("cover");
-        let modal = document.createElement("div");
-        modal.classList.add("modal");
-        modal.id="add-payment";
-        modal.innerHTML = `
-            <form onsubmit="addPayment(event)" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
-                <div>
-                    <label for="payment">Enter the payment amount:</label>
-                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)" />
-                </div>
-                <div>
-                    <button type="submit">Add Payment</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
-        `;
+        let modal = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("div");
+        let form = modal.querySelector("form");
+        form.dataset.billAmt = billAmt;
+        form.dataset.id = id;
+        form.dataset.name = name;
+        form.dataset.billNo = billNo;
         document.body.appendChild(cover);
         document.body.appendChild(modal);
     }
 }
 
-ipcRenderer.on("payment-successful",(e,_name,balance,payment)=>{
-    let selectedCustomer = customerList.find(({name})=>name===_name);
-    selectedCustomer.balance = balance;
-    if(currentPage===1)
-        loadLedgerTable.call(document.getElementById("customer-list"),_name);
-    else{
-        selectedDiv.querySelector("p:nth-child(4)").textContent = payment;
-        let {billAmt} = selectedDiv.dataset;
-        let dueAmt = Math.round(Number(billAmt) - Number(payment));
-        let lastP = selectedDiv.querySelector("p:last-child");
-        lastP.textContent = dueAmt;
-        selectedDiv.dataset.payment = Number(payment);
-        let optionDiv = selectedDiv.parentNode.querySelector(".bill-option-div");
-        optionDiv.dataset.payment = payment;
-        if(dueAmt===0){
-            lastP.classList.remove("unpaid");
-            lastP.classList.add("paid");
-            selectedDiv.dataset.paymentStatus = "true";
-            optionDiv.querySelector("button:last-child").remove();
-        }
-        document.querySelector(".card>div:nth-last-child(1)>p:last-child").textContent = balance;
-    }
-})
-
-page2BTNS.addEventListener("click",async function(e){
-    if(e.target.dataset.cmd==="bills" && !document.getElementById("bill-table")){
-        let bills = await ipcRenderer.invoke("show-customer-bills",this.dataset.id);
-        document.querySelector(".table").classList.add("hide");
-        currentPage = 2;
-        let mainDiv = document.getElementById("main-section");
+async function billPageInit(){
+    document.querySelector("#ledger-div").classList.add("hide");    
+    let mainDiv = document.getElementById("main-section");
+    if(!document.getElementById("bill-table")){
         let billsDiv = document.createElement("div");
         billsDiv.dataset.id = this.dataset.id;
         billsDiv.classList.add("table");
@@ -349,6 +351,7 @@ page2BTNS.addEventListener("click",async function(e){
         let tbody = document.createElement("div");
         tbody.id = "tbody";
         billsDiv.appendChild(tbody);
+        document.getElementById("graph-container").classList.remove("hide");
         bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
             let row = document.createElement("div");
             row.innerHTML = `
@@ -366,57 +369,75 @@ page2BTNS.addEventListener("click",async function(e){
             row.dataset.billAmt = billAmt;
             row.dataset.payment = payment;
             tbody.appendChild(row);
+            return {billDate,billAmt}
         });
         mainDiv.appendChild(billsDiv);
         if(tbody.scrollHeight>tbody.clientHeight)
             scrollSymSet(tbody);
-        if(!document.getElementById("filter-btn")){
-            let filterBTN = document.createElement("button");
-            filterBTN.textContent = "Filter";
-            filterBTN.type = "button";
-            filterBTN.dataset.cmd = "filter";
-            filterBTN.id = "filter-btn";
-            let showBillsBTN = this.children[0];
-            showBillsBTN.classList.add("hide");
-            showBillsBTN.before(filterBTN);
-        }
-        else{
-            this.children[0].classList.remove("hide");
-            this.children[1].classList.add("hide");
-        }
     }
-    else
-    if(e.target.dataset.cmd==="bills" && document.getElementById("bill-table")){
-        document.getElementById("bill-table").classList.remove("hide");
+    else{
         document.getElementById("ledger-div").classList.add("hide");
-        let btnDiv = document.querySelector("#form>div:first-child");        
-        btnDiv.children[0].classList.remove("hide");
-        btnDiv.children[1].classList.add("hide");
-        currentPage = 2;
+        document.getElementById("bill-table").classList.remove("hide");
     }
+    [...document.querySelectorAll("#btn-container>button")]
+    .forEach(btn=>{
+        if(btn.dataset.view==="bills")
+            btn.classList.add("hide");
+        else
+            btn.classList.remove("hide");
+    });// Nav buttons
+}
+
+page2BTNS.addEventListener("click",async function(e){
+    if(e.target.dataset.cmd==="back") return;
+    if(e.target.dataset.cmd==="bills")
+        billPageInit.call(this);
     else
     if(e.target.dataset.cmd==="print-ledger")
         printModal("customer-ledger-dialog");
     else
-    if(e.target.dataset.cmd==="filter" && !document.getElementById("filter-option")){
-        let div = document.createElement("div");
-        div.id = "filter-option";
-        div.innerHTML = `
-            <div class="selected">
-                <button type="button" data-cmd="all" class="filter-btn">All</button>
-            </div>
-            <div>
-                <button type="button" data-cmd="unpaid" class="filter-btn">Unpaid</button>
-            </div>
-            <div>
-                <button type="button" data-cmd="paid" class="filter-btn">Paid</button>
-            </div>
-        `;
-        this.appendChild(div);
+    if(e.target.dataset.cmd==="filter")
+        document.getElementById("filter-option").classList.toggle("hide");
+    else
+    if(e.target.dataset.cmd==="ledger"){
+        [...document.querySelectorAll("#btn-container>button")]
+        .forEach(btn=>{
+            if(btn.dataset.view==="ledger")
+                btn.classList.add("hide");
+            else
+                btn.classList.remove("hide");
+        });
+        document.getElementById("ledger-div").classList.remove("hide");
+        document.getElementById("bill-table").classList.add("hide");
     }
     else
-    if(e.target.dataset.cmd==="filter" && document.getElementById("filter-option"))
-        document.getElementById("filter-option").classList.toggle("hide");
+    if(e.target.dataset.cmd==="update-profile"){
+        let updateForm = document.getElementById("update-profile-template").content.cloneNode(true).querySelector("form");
+        removeAllElem("#update-profile-modal");
+        let modal = createModal("update-profile-modal",false);
+        modal.appendChild(updateForm);
+        let custId = e.target.parentNode.dataset.id;
+        let selectedCustomer = customerList.find(obj=>obj.id===custId);
+        updateForm.dataset.id = custId;
+        [...modal.querySelectorAll("input")]
+        .forEach(input=>{
+            let colName = input.name;
+            if(colName==="email")
+                input.value = selectedCustomer.moreInfo.email;
+            else
+            if(colName!=="phones")
+                input.value = selectedCustomer[colName];
+            else
+                input.value = JSON.parse(selectedCustomer.phones)
+                .reduce((acc,num,index,self)=>{
+                    if(self.length===1 && index===0)
+                        acc += num;
+                    else
+                        acc += num + ", ";
+                    return acc;
+                },"");
+        });
+    }
     else{
         [...document.getElementById("filter-option").children].forEach(div=>div.classList.remove("selected"));
         let elem = e.target.nodeName!=="DIV"?e.target.parentNode:e.target;
@@ -431,9 +452,52 @@ page2BTNS.addEventListener("click",async function(e){
             else
                 div.classList.remove("hide");
         });
-        // e.target.parentNode.parentNode.classList.add("hide");
     }
-});
+}); // Ok Complete
+
+async function updateProfile(e){
+    e.preventDefault();
+    let custData = Object.fromEntries(new FormData(e.target).entries());
+    custData.phones = custData.phones.split(",").map(str=>str.trim());
+    selectedCustomer = {
+        ...selectedCustomer,
+        ...custData
+    };
+    selectedCustomer.moreInfo.email = custData.email;
+    Reflect.deleteProperty(selectedCustomer,"email");
+    [...e.target.querySelectorAll("input")].forEach(input=>input.setAttribute("disabled","disabled"));
+    [...document.querySelectorAll(".card p")]
+    .forEach(p=>{
+        if(p.dataset.colname && p.dataset.colname!=="phones")
+            p.textContent = custData[p.dataset.colname];
+        else
+            p.textContent = custData.phones.reduce((acc,num,index,self)=>{
+                if(self.length===1 || index===self.length-1)
+                    acc += num;
+                else
+                    acc += num + ", ";
+                return acc;
+            },"");
+    });
+    custData.id = selectedCustomer.id;
+    custData.phones = JSON.stringify(custData.phones);// Remove this line after db reset.
+    try{
+        await ipcRenderer.invoke("update-customer-profile",custData);
+    }
+    catch(err){
+        console.log(err);
+    }
+    closeModal();
+} // Need a check later
+
+function enableInputs(e){
+    let form = document.querySelector("#update-profile-modal form");
+    [...form.querySelectorAll("input")]
+    .forEach(input=>input.removeAttribute("disabled"));
+    if(e.target.nodeName==="BUTTON")
+        e.target.classList.add("hide");
+    form.querySelector("[type='submit']").classList.remove("hide");
+}
 
 document.body.addEventListener("click",(e)=>{
     document.getElementById("filter-option")?.classList.add("hide");
@@ -445,60 +509,65 @@ document.body.addEventListener("click",(e)=>{
     [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
 },true);
 
-function showBillOptions(e){
-    if(e.target.parentNode.className!="row body") return;
-    [...this.querySelectorAll(".bill-option-div")].forEach(div=>div.remove())
+async function showBillOptions(e){
     let bodyRow = e.target.parentNode;
-    selectedDiv = bodyRow;
-    const { itemList,billAmt,payment } = bodyRow.dataset;
-    let optionDiv = document.createElement("div");
-    optionDiv.className = "bill-option-div";
-    optionDiv.dataset.itemList = itemList;
-    optionDiv.dataset.billAmt = billAmt;
-    optionDiv.dataset.payment = payment;
-    optionDiv.innerHTML = `
-        <button data-cmd="open">Open</button>
-        <button data-cmd="print">Print</button>
-        ${bodyRow.dataset.paymentStatus==="false" && '<button data-cmd="pay">Add Payment</button>'}
-    `;
-    optionDiv.addEventListener("click",billUtils)
-    bodyRow.after(optionDiv);
+    if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) return;
+    let modal = createModal("bill-option-modal",true);
+    let modalContent = document.getElementById("bill-option-template").content.cloneNode(true).querySelector("#bill-option-content");
+    modal.appendChild(modalContent);
+    modalContent.dataset.billObj = JSON.stringify({...bodyRow.dataset});
+    let tbody = modalContent.querySelector("#tbody");
+    const { itemList,paymentStatus,billStatus } = bodyRow.dataset;
+    if(paymentStatus==="false")
+        modalContent.querySelector("[data-cmd='pay']").classList.remove("hide");
+    if(billStatus==="open")
+        modalContent.querySelector("[data-cmd='add-item']").classList.remove("hide");
+    let [ custId,billNo,billDate ] = itemList.split("_");
+    [...await ipcRenderer.invoke("get-bill-items-portal",custId,billNo,billDate)]
+    .forEach((obj,i)=>{
+        let row = document.getElementById("bill-body-row-template").content.cloneNode(true).querySelector("div");
+        row.querySelector(`[data-name="slNo"]`).textContent = i + 1;
+        for(let key in obj){
+            let p = row.querySelector(`[data-name='${key}']`);
+            if(p)
+                p.textContent = obj[key];
+        }
+        tbody.appendChild(row);
+    });
 }
 
 function billUtils(e){
     const {cmd} = e.target.dataset;
-    const {itemList,billAmt,payment} = e.target.parentNode.dataset;
-    let name = document.querySelector(".card>div:first-child>p:last-child").textContent;
+    const {itemList,billAmt,payment} = JSON.parse(document.getElementById("bill-option-content").dataset.billObj);
+    let name = selectedCustomer.name;
     let [id,billNo,billDate] = itemList.split("_");
+    if(cmd==="close") return;
     if(cmd==="open")
         ipcRenderer.send("open-ext",name,billDate,billNo);
     else if(cmd==="print")
         ipcRenderer.send("print",name,billDate,billNo);
+    else if(cmd==="add-item"){
+        document.getElementById("bill-option-content").classList.add("hide");
+        let modal = document.getElementById("bill-option-modal");
+        let div = document.getElementById("add-item-template").content.cloneNode(true).querySelector("div");
+        modal.appendChild(div);
+        modal.dataset.custId = id;
+        modal.dataset.billNo = billNo;
+        modal.dataset.billDate = billDate;
+    }
     else{
-        let cover = document.createElement("div");
-        cover.classList.add("cover");
-        let modal = document.createElement("div");
-        modal.classList.add("modal");
-        modal.id = "add-payment-modal";
-        modal.innerHTML = `
-            <form onsubmit="addPayment(event)" data-billamt="${billAmt}" data-id="${id}" data-name="${name}" data-billno="${billNo}">
-                <h1>Add Payment</h1>
-                <div>
-                    <p>The bill amount is:</p>
-                    <p class="highlight-1">${Math.round(billAmt - payment)}</p>
-                </div>
-                <div>
-                    <label for="payment">Enter payment amount: </label>
-                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                </div>
-                <div>
-                    <button type="submit">Add Payment</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
-        `;
-        document.body.appendChild(cover);
-        document.body.appendChild(modal);
+        document.getElementById("bill-option-content").classList.add("hide");
+        let modal = document.getElementById("bill-option-modal");
+        let addPaymentForm = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("form");
+        modal.appendChild(addPaymentForm);
+        addPaymentForm.dataset.billAmt = billAmt;
+        addPaymentForm.dataset.id = id;
+        addPaymentForm.dataset.name = name;
+        addPaymentForm.dataset.billNo = billNo;
+        addPaymentForm.dataset.billDate = billDate;
+        modal.querySelector(`.highlight-1`).textContent = Math.round(billAmt - payment);
+        let cashSegment = document.getElementById("cash-feild-template").content.cloneNode(true).querySelector("div");
+        modal.querySelector("#first-section").appendChild(cashSegment);
     }
 }
 
@@ -507,4 +576,149 @@ function handlePrint(e){
     let period = e.target["ledger-period"].value;
     ipcRenderer.send("print-ledger",selectedCustomer.id,period,2);
     document.querySelector('[data-name="cancel"]').click();
+}
+
+function selectionHandler(e){
+    if(e.target.dataset.name!=="name") return;
+    let input = e.target;
+    let bodyRow = input.parentNode.parentNode;
+    let rowNo = bodyRow.querySelector("p").textContent;
+    let rowId = uuid.v5(rowNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    let option = input.list.querySelector(`[data-name='${input.value}']`);
+    let obj = {...option.dataset};
+    let itemObj = itemList.find(obj=>obj.rowId===rowId);
+    for(let key in obj)
+        itemObj[key] = obj[key];
+    [...bodyRow.querySelectorAll("input")]
+    .forEach(input=>{
+        if(["qty","unit","amt","cgst","sgst","igst","name"].includes(input.dataset.name)) return;
+        input.value = roundOffTo2DecimalPlace(itemObj[input.dataset.name])
+    });
+}
+
+function calculateAmounts(e){
+    let bodyRow = e.target.parentNode.parentNode;
+    let qty = Number(bodyRow.querySelector(`[data-name='qty']`).value);
+    let rate = Number(bodyRow.querySelector(`[data-name='standardSellPrice']`).value);
+    let sgst = Number(bodyRow.querySelector(`[data-name='sgst']`).value);
+    let cgst = Number(bodyRow.querySelector(`[data-name='cgst']`).value);
+    let igst = Number(bodyRow.querySelector(`[data-name='igst']`).value);
+    if(qty && rate)
+        bodyRow.querySelector("p.amt").textContent = roundOffTo2DecimalPlace(rate * qty);
+    let tax = igst>0?igst:sgst+cgst;
+    if(qty && rate && tax)
+        bodyRow.querySelector("p.amt-with-tax").textContent = roundOffTo2DecimalPlace(rate * qty * (1 + (tax/100)));
+}
+
+function addRow(e){
+    let bodyRow = document.getElementById("body-row-template").content.cloneNode(true).querySelector(".body.row");
+    document.getElementById("add-item").before(bodyRow);
+    [...document.querySelectorAll("#bill-option-modal .page .body.row")]
+    .forEach((row,i)=>{
+        row.querySelector("p").textContent = i + 1;
+    });
+    let indexNo = bodyRow.querySelector("p").textContent;
+    itemList = itemList.filter(obj=>obj.rowId!==uuid.v5(indexNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8"));
+    itemList.push({rowId:uuid.v5(indexNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")});
+}
+
+function deleteRow(e){
+    if(e.target.nodeName==="BUTTON" && e.target.dataset.cmd==="DELETE"){
+        let bodyRow = e.target.parentNode.parentNode;
+        bodyRow.remove();
+        [...document.querySelectorAll("#add-item-modal .body.row")]
+        .forEach((row,i)=>{
+            row.querySelector("p").textContent = i+1;
+        });
+    }
+}
+
+function proceedToPage2(){
+    document.querySelector("#bill-option-modal .page1").classList.add("hide");
+    if(!document.querySelector("#bill-option-modal .page2"))
+        document.querySelector("#bill-option-modal").appendChild(document.getElementById("add-item-modal-page2-template").content.cloneNode(true));
+    else
+        document.querySelector("#bill-option-modal .page2").classList.remove("hide");
+}
+
+function back2page1(){
+    [...document.querySelectorAll("#bill-option-modal .page")]
+    .forEach((page,i)=>{
+        if(i+1===1)
+            page.classList.remove("hide");
+        else
+            page.classList.add("hide");
+    });
+}
+
+function addItem2Bill(){
+    let modal = document.querySelector("#bill-option-modal");
+    let {custId,billNo,billDate} = modal.dataset;
+    [...document.querySelectorAll("#bill-option-modal .page")]
+    .forEach((page,i)=>{
+        if(i==0){
+            [...page.querySelectorAll(".body.row")]
+            .forEach(row=>{
+                let rowNo = row.querySelector("p").textContent;
+                let rowId = uuid.v5(rowNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+                let itemObj = itemList.find(obj=>obj.rowId===rowId);
+                [...row.querySelectorAll("input")]
+                .forEach(input=>{
+                    itemObj[input.dataset.name] = input.value;
+                });
+                let selectedStock = stockList.find(obj=>obj.name===itemObj.name);
+                if(selectedStock)
+                    itemObj.type = selectedStock.type;
+            });
+        }
+        else{
+            [...page.querySelectorAll("input")]
+            .forEach(input=>{
+                if(input.checked){
+                    let newItemObj = {
+                        custId,
+                        billNo,
+                        billDate,
+                        billStatus:input.id,
+                        itemList
+                    };
+                    let total = Math.round(itemList.reduce((acc,{standardSellPrice,qty,cgst,sgst,igst})=>{
+                        let amt = Number(standardSellPrice) * Number(qty);
+                        let tax = Number(igst)>0 ? Number(igst) : Number(cgst) + Number(sgst);
+                        acc += amt * (1+tax/100);
+                        return acc;
+                    },0));
+                    let bodyRow = document.querySelector(`#bill-table [data-item-list='${custId}_${billNo}_${billDate}']`);
+                    let no1 = Number(bodyRow.querySelector("p:nth-child(3)").textContent);
+                    let no2 = Number(bodyRow.querySelector("p:nth-child(5)").textContent);
+                    bodyRow.querySelector("p:nth-child(3)").textContent = no1 + total;
+                    bodyRow.querySelector("p:nth-child(5)").textContent = no2 + total;
+                    bodyRow.dataset.billStatus = input.id;
+                    bodyRow.dataset.paymentStatus = "false";
+                    bodyRow.dataset.billAmt = no1 + total;
+                    bodyRow.querySelector("p:nth-child(5)").classList.remove("paid");
+                    bodyRow.querySelector("p:nth-child(5)").classList.add("unpaid");
+                    ipcRenderer.send("add-item-to-bill",newItemObj);
+                }
+            })
+        }
+    });
+}
+
+ipcRenderer.on("close-modal",async (e,topLine)=>{
+    await refreshGraphAndLedger(topLine,selectedCustomer.id)
+    _closeModal();
+});
+
+function showBillPage(){
+    removeAllElem("#bill-option-modal .page");
+    removeAllElem("#bill-option-modal form");
+    document.getElementById("bill-option-content").classList.remove("hide");
+}
+
+function setPayFeilds(e){
+    let payMode = e.target.value;
+    removeAllElem(".removable-section");
+    let paySegment = document.getElementById(`${payMode}-feild-template`).content.cloneNode(true).querySelector("div");
+    document.getElementById("first-section").appendChild(paySegment);
 }

@@ -22,21 +22,8 @@ let supplier = {},
 
 function clickOrFocusinHandler(e){
     removeAllElem(".body-row-options")
-    if(["P","INPUT"].includes(e.target.nodeName)){
+    if(["P","INPUT"].includes(e.target.nodeName))
         bodyRow = e.target.parentNode.parentNode;
-        let optionDiv = document.getElementById("item-options").content.cloneNode(true).querySelector("div");
-        bodyRow.after(optionDiv);
-        clearTimeout(timer);
-        timer = setTimeout(removeAllElem,5000,".body-row-options");
-        let unit = itemObj.unit && ((itemObj.unit).toLowerCase()==="bag" ? 1 : Number(itemObj.unit));
-        let rate = (itemObj.unit && itemObj.rate) && (itemObj.unit==="Bag" ? Number(itemObj.rate) : Number(itemObj.rate/unit));
-        if(unit && rate)
-            bodyRow.querySelector("div:nth-child(7)>p").textContent = roundOffTo2DecimalPlace(unit * rate);
-        let tax = ("sgst" && "cgst") in itemObj ? Number(itemObj.sgst)+Number(itemObj.cgst) : ("igst" in itemObj && Number(itemObj.igst)) ?? null;
-        tax/=100;
-        if(tax || tax===0)
-            bodyRow.querySelector("div:nth-child(11)>p").textContent = roundOffTo2DecimalPlace((1+tax)*rate*unit);
-    }
     else{
         if(e.target.dataset.cmd==="delete"){
             itemList = deleteRowCommon(bodyRow,itemList);
@@ -509,3 +496,18 @@ document.addEventListener("keydown",e=>{
     if(currentPage===3 && e.ctrlKey && e.key==="Delete")
         itemList = deleteRowCommon(bodyRow,itemList);
 });  
+
+function setAmtFeilds(e){
+    let bodyRow = e.target.parentNode.parentNode,
+        qty = bodyRow.querySelector(`[data-name="quantity"]`).value,
+        rate = bodyRow.querySelector(`[data-name="rate"]`).value,
+        cgst = bodyRow.querySelector(`[data-name="cgst"]`).value,
+        sgst = bodyRow.querySelector(`[data-name="sgst"]`).value,
+        igst = bodyRow.querySelector(`[data-name="igst"]`).value;
+    let tax = igst && Number(igst) ? Number(igst) : Number(cgst) + Number(sgst);
+    if(rate && qty)
+        bodyRow.querySelector(".amt-p").textContent = roundOffTo2DecimalPlace(Number(qty) * Number(rate));
+    if(rate && qty && tax)
+        bodyRow.querySelector(".net-amt-p").textContent = roundOffTo2DecimalPlace((Number(qty) * Number(rate))*(1+tax/100));
+
+}

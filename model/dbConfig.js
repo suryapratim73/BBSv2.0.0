@@ -152,7 +152,8 @@ const customerSchema = {
         type:DataTypes.TEXT
     },
     phones:{
-        type:DataTypes.TEXT
+        type:DataTypes.TEXT// Replace this line with the line below before next db reset
+        // type:DataTypes.JSON 
     },
     gst:{
         type:DataTypes.TEXT
@@ -354,6 +355,9 @@ const saleSchema = {
     },
     paymentStatus:{
         type:DataTypes.BOOLEAN
+    },
+    netDue:{
+        type:DataTypes.INTEGER
     },
     billItemTable:{
         type:DataTypes.TEXT,

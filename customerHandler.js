@@ -1,15 +1,16 @@
-const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
+const { ipcMain, shell, app, dialog, BrowserWindow, ipcRenderer } = require("electron");
 const { getLedgerModel, print, getBillModel, appLogger } = require("./common");
 const { createModal } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
-const { customerList } = require("./saleHandler");
+const { customerList,initCustomerList } = require("./saleHandler");
 const { People } = require("./common");
 
 
 const { stockList,queryStock } = require("./handleStock");
+const { roundOffTo2DecimalPlace } = require("./template/js/common");
 
 exports.customerPortal = mainWindow =>{
     return ()=>{
@@ -27,26 +28,29 @@ exports.customerPortal = mainWindow =>{
 }
 
 ipcMain.on("get-customer",async e=>{
-    let _customerObj = (await (await customer.sync()).findAll()).map(({dataValues})=>dataValues);
-    let customerObj = await _customerObj.reduce(async (acc,customerObj)=>{
-        let customerLedger = await getLedgerModel(customerObj.id,customerLedgerSchema);
+    if(customerList.length===0)
+        await initCustomerList();
+    let _customerList = customerList.reduce(async (acc,custObj)=>{
+        let customerLedger = await getLedgerModel(custObj.id,customerLedgerSchema);
         let {balance} = (await customerLedger.findOne({
             attributes:["balance"],
             order:[
                 ["entryNo","DESC"]
             ]
         })).dataValues;
-        customerObj.netPurchase = (await customerLedger.findOne({
+        let netPurchase = (await sale.findOne({
+            where:{
+                customerId:custObj.id
+            },
             attributes:[
                 [sequelize.fn("SUM",sequelize.col("billAmt")),"netPurchase"]
             ]
         })).dataValues.netPurchase;
-        customerObj.balance = balance;
         acc = await acc;
-        acc.push(customerObj)
-        return acc
+        acc.push({...custObj,balance,netPurchase});
+        return acc;
     },[]);
-    e.sender.send("customer-list",{customerObj});
+    e.sender.send("customer-list",await _customerList);
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
@@ -68,8 +72,10 @@ ipcMain.on("print",(e,name,billDate,billNo)=>{
     ipcMain.on("printObj",print.bind(path2pdf))
 });
 
-ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt)=>{
+ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    let {payment,paymode} = payObj;
+    payment = Number(payment);
     let {payment:oldPay} = (await (await sale.sync()).findOne({
         where:{
             [Op.and]:[
@@ -87,41 +93,45 @@ ipcMain.on("add-payment",async (e,name,billNo,payment,id,billAmt)=>{
         ]
     })))?.dataValues.balance ?? 0;
     lastBalance = Number(lastBalance);
-    let netDue = Math.round(billAmt - oldPay - Number(payment));
-    if(netDue<0) return dialog.showErrorBox("Pament greater than Bill Amount","Please re-enter the payment making sure the pament is less than the bill amount.")
-    Promise.all([
-        await sale.update({
-            payment:Math.round(oldPay+Number(payment)),
-            paymentStatus: netDue==0?true:false
-        },{
-            where:{
-                [Op.and]:[
-                    {customerId:id},
-                    {billNo}
-                ]
-            }
-        }),
-        (await customerLedger.sync()).create({
-            date:new Date(),
-            billNo,
-            payments:Number(payment),
-            balance:Math.round(lastBalance - Number(payment)),
-            paymentStatus: netDue==0?true:false
-        }),
-        (await inPayments.sync()).create({
-            id,
-            payment,
-            date:new Date(),
-            // moreInfo:{
-            //     billNo
-            // }
-        })
-    ])
-    .then(()=>{
-        e.sender.send("payment-successful",name,lastBalance-Number(payment) , Number(payment));
+    billAmt = Number(billAmt);
+    let netDue = Math.round(billAmt - oldPay - payment);
+    try{
+        Promise.all([
+            sale.update({
+                payment:Math.round(oldPay+payment),
+                paymentStatus:netDue===0 && paymode==="cash" ? true : false
+            },{
+                where:{
+                    [Op.and]:[
+                        {customerId:id},
+                        {billNo}
+                    ]
+                }
+            }),
+            (await customerLedger.sync()).create({
+                date:new Date(),
+                billNo,
+                payments:payment,
+                balance:Math.round(lastBalance - payment),
+            }),
+            (await inPayments.sync()).create({
+                id,
+                payment,
+                date:new Date(),
+                moreInfo:payObj
+            })
+        ]);
         appLogger("received payment",JSON.stringify({name,billNo,payment}));
-    })
-    .catch(console.log)
+        let topLine = (await (customerLedger.findOne({
+            order:[
+                ["entryNo","DESC"]
+            ]
+        }))).dataValues;
+        return {lastBalance:lastBalance-payment,payment:payment+oldPay,netDue,topLine};
+    }
+    catch(err){
+        return err;
+    }
 });
 
 ipcMain.handle("show-customer-bills",async (e,id)=>{
@@ -159,15 +169,15 @@ ipcMain.on("get-bill-items",async (e,id,billNo,billDate,mode)=>{
             attributes:["billDate"]
         })).dataValues.billDate;
     else
-    billDate = (await purchase.findOne({
-        where:{
-            [Op.and]:[
-                {supplierId:id},
-                {billNo}
-            ]
-        },
-        attributes:["billDate"]
-    })).dataValues.billDate;
+        billDate = (await purchase.findOne({
+            where:{
+                [Op.and]:[
+                    {supplierId:id},
+                    {billNo}
+                ]
+            },
+            attributes:["billDate"]
+        })).dataValues.billDate;
     billDate = (new Date(billDate)).toISOString().split("T")[0];
     let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
@@ -291,4 +301,137 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
         return (await (await customer.sync()).findOne({where:{id},attributes:["name"]})).dataValues;
     else
         return customerList.find(obj=>obj.id===id);
+});
+
+ipcMain.on("add-item-to-bill",async (e,newItemObj)=>{
+    let {custId:id,billNo,billStatus,itemList,billDate} = newItemObj;
+    billNo = Number(billNo);
+    let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
+    let {amt,amtWithTax} = itemList.reduce((acc,{qty,standardSellPrice,cgst,sgst,igst})=>{
+        standardSellPrice = Number(standardSellPrice);
+        qty = Number(qty);
+        let _tax = Number(igst)>0?Number(igst):Number(sgst) + Number(cgst);
+        acc.amt += qty * standardSellPrice;
+        acc.amtWithTax += roundOffTo2DecimalPlace(qty * standardSellPrice * (1+_tax/100));
+        return acc;
+    },{amt:0,amtWithTax:0});
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    let lastBalance = (await ((await customerLedger.sync()).findOne({
+        attributes:["balance"],
+        order:[
+            ["entryNo","DESC"]
+        ]
+    })))?.dataValues.balance ?? 0;
+    let {netDue,billAmt:lastAmt,tax:lastTax} = (await (await sale.sync()).findOne({
+        where:{
+            [Op.and]:[
+                {customerId:id},
+                {billNo}
+            ]
+        },
+        attributes:["netDue","billAmt","tax"]
+    })).dataValues;
+    Promise.all([
+        ...itemList.map(({name,hsn,type,qty:quantity,standardSellPrice,unit,cgst,sgst,igst})=>{
+            return billItemModel.create({
+                name,
+                type,
+                hsn,
+                quantity,
+                unit,
+                rate:Number(standardSellPrice),
+                tax: Number(igst)>0?Number(igst):Number(cgst)+Number(sgst)
+            });
+        }),
+        sale.update({
+            billAmt:lastAmt + amtWithTax,
+            tax:lastTax + amtWithTax - amt,
+            billStatus,
+            netDue,
+            paymentStatus:false
+        },{
+            where:{
+                billNo
+            }
+        }),
+        ...itemList.map(async ({qty,name})=>{
+            if(!name) return;
+            let selectedStock = await stock.findOne({
+                where:{
+                    name
+                }
+            });
+            selectedStock.reduceStock = qty;
+            return selectedStock.save();
+        }),
+        customerLedger.create({
+            billStatus,
+            date:billDate,
+            billNo,
+            billAmt:lastAmt + amtWithTax,
+            tax:amtWithTax-amt,
+            netDue,
+            itemList:`${id}_${billNo}_${billDate}`,
+            balance: Math.round(lastBalance +  amtWithTax)
+        })
+    ])
+    .then(async ()=>{
+        let msg = {
+            type: "info",
+            title: "Bill saved",
+            message: "Items added to the bill."
+        };
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        appLogger("sale",JSON.stringify({billNo,itemList}));
+        let topLine = (await (customerLedger.findOne({
+            order:[
+                ["entryNo","DESC"]
+            ]
+        }))).dataValues;
+        e.sender.send("close-modal",topLine);
+    })
+    .catch(console.log)
+});
+
+ipcMain.handle("get-bill-items-portal",async (e,id,billNo,billDate)=>{
+    let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
+    return (await billModel.findAll()).map(({dataValues})=>dataValues);
+});
+
+ipcMain.handle("get-customer-out-payments",async (e,id)=>{
+    return (await inPayments.findAll({
+        where:{
+            id
+        }
+    })).map(({dataValues})=>dataValues);
+});
+
+ipcMain.handle("update-customer-profile",async (e,custData)=>{
+    let selectedCustomer = customerList.find(obj=>obj.id===custData.id);
+    for(let key in custData){
+        if(key==="email")
+            selectedCustomer.moreInfo.email = custData.email;
+        else
+            selectedCustomer[key] = custData[key];
+    }
+    try{
+        await customer.update(selectedCustomer,{
+            where:{
+                id:selectedCustomer.id
+            }
+        });
+        let msg = {
+            type: "info",
+            title: "Customer Profile Updated",
+            message: "Customer profile updated successfully."
+        };
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        appLogger("customer-profile-update",JSON.stringify(selectedCustomer));
+        return "Updated!!"
+
+    }
+    catch(err){
+        console.log(err);
+        return err;
+    }
 });

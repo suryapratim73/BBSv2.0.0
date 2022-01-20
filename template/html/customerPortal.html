@@ -19,9 +19,24 @@
     <div id="right-div">
         <div id="searchbar">
             <div id="form">
-                <div class="hide">
-                    <button data-cmd="bills" type="button">Show Bills</button>
-                    <button data-cmd="print-ledger" type="button">Print Ledger</button>
+                <div class="hide" id="btn-container">
+                    <button data-cmd="bills" data-view="bills" id="show-bill-BTN" type="button">Show Bills</button>
+                    <button data-cmd="ledger" data-view="ledger" id="show-ledger-BTN" class="hide" type="button">Show Ledger</button>
+                    <button data-cmd="print-ledger" data-view="bills" id="print-ledger" type="button">Print Ledger</button>
+                    <button data-cmd="update-profile">Update Profile</button>
+                    <button data-cmd="back" onclick="resetPortal()">Back</button>
+                    <button data-cmd="filter" data-view="ledger" id="filter-btn" class="hide" type="button">Filter</button>
+                    <div id="filter-option" class="hide">
+                        <div class="selected">
+                            <button type="button" data-cmd="all" class="filter-btn">All</button>
+                        </div>
+                        <div>
+                            <button type="button" data-cmd="unpaid" class="filter-btn">Unpaid</button>
+                        </div>
+                        <div>
+                            <button type="button" data-cmd="paid" class="filter-btn">Paid</button>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <input type="text" name="searchText" placeholder="Search customer by any">
@@ -111,5 +126,291 @@
             </div>
         </div>
     </div>
+    <template id="ledger-div-template">
+        <div id="ledger-div" class="table">
+            <h1>Ledger</h1>
+            <div class="head row">
+                <p data-name="date" class="col eq-space">Date</p>
+                <p data-name="billNo" class="col eq-space">Bill No</p>
+                <p data-name="billAmt" class="col eq-space">Bill Amt</p>
+                <p data-name="payment" class="col eq-space">Payment</p>
+                <p data-name="balance" class="col eq-space">Balance</p>
+            </div>
+            <div id="tbody"></div>
+        </div>
+    </template>
+    <template id="card-template">
+        <div id="page2-side-panel">
+            <div class="card">
+                <p class="col-1" data-colname="name"></p>
+                <p class="col-1" data-colname="address"></p>
+                <p class="col-1" data-colname="gst"></p>
+                <div class="col-1" data-colname="phones"></div>
+            </div>
+            <div id="graph-container">
+                <canvas id="bill-graph"></canvas>
+                <canvas id="payment-graph"></canvas>
+            </div>
+        </div>
+    </template>
+    <template id="add-item-template">
+        <div class="page page1">
+            <div id="table">
+                <div class="row head">
+                    <div class="col eq-space"><p>Sl No.</p></div>
+                    <div class="col eq-space"><p>Particular</p></div>
+                    <div class="col eq-space"><p>HSN No</p></div>
+                    <div class="col eq-space"><p>Quantity</p></div>
+                    <div class="col eq-space"><p>Unit</p></div>
+                    <div class="col eq-space"><p>Rate</p></div>
+                    <div class="col eq-space"><p>Amount</p></div>
+                    <div class="col eq-space"><p>CGST</p></div>
+                    <div class="col eq-space"><p>SGST</p></div>
+                    <div class="col eq-space"><p>IGST</p></div>
+                    <div class="col eq-space"><p>Total</p></div>
+                </div>
+                <div id="tbody" class="hide-scrollbar" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                    <div class="row row-control-div" id="add-item">
+                        <button type="button" onclick="addRow(event)">+</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button onclick="proceedToPage2()">Add Items</button>
+                <button onclick="showBillPage()">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col eq-space"><p></p></div>
+            <div class="col eq-space"><input type="text" data-name="name" list="stock-names" /></div>
+            <div class="col eq-space"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col eq-space"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col eq-space"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col eq-space"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><p class="amt"></p></div>
+            <div class="col eq-space"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><p class="amt-with-tax"></p></div>
+        </div>
+    </template>
+    <template id="body-row-options-template">
+        <div class="body-row-options">
+            <button data-cmd="DELETE" type="button" tabindex="-1">Delete Row</button>
+        </div>
+    </template>
+    <template id="add-item-modal-page2-template">
+        <div id="add-item-page2" class="page page2">
+            <div>
+                <h2>Do you like to close the bill from future item addition?</h2>
+                <div>
+                    <label>Bill Status</label>
+                </div>
+                <div>
+                    <div>
+                        <label for="open">Open</label>
+                        <input type="radio" id="open" name="billStatus">
+                    </div>
+                    <div>
+                        <label for="close">Close</label>
+                        <input type="radio" id="close" name="billStatus">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button onclick="addItem2Bill()">Proceed</button>
+                <button onclick="back2page1()">Back</button>
+                <button onclick="showBillPage()">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="add-payment-template">
+        <form onsubmit="addPayment(event)">
+            <div id="first-section">
+                <h1>Add Payment</h1>
+                <div>
+                    <p>The bill amount is:</p>
+                    <p class="highlight-1"></p>
+                </div>
+                <div>
+                    <div>
+                        <label for="paymode">Payment Mode </label>
+                    </div>
+                    <div>
+                        <select name="paymode" id="paymode" onchange="setPayFeilds(event)">
+                            <option value="cash" selected>Cash</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="net">Net Banking</option>
+                        </select>                    
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Add Payment</button>
+                <button type="button" onclick="showBillPage()">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="cash-feild-template">
+        <div class="removable-section"  >
+            <div>
+                <label for="payment">Payment amount: </label>
+            </div>
+            <div>
+                <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+            </div>
+        </div>
+    </template>
+    <template id="cheque-feild-template">
+        <div class="removable-section">
+            <div>
+                <div>
+                    <label for="bankName">Bank Name: </label>
+                </div>
+                <div>
+                    <input type="text" name="bankName" id="bankName"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="bankBranch">Branch Name: </label>
+                </div>
+                <div>
+                    <input type="text" name="bankBranch" id="bankBranch"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="pay-dt">Cheque Date: </label>
+                </div>
+                <div>
+                    <input type="date" name="pay-dt" id="pay-dt"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="chkNo">Cheque Number: </label>
+                </div>
+                <div>
+                    <input type="text" name="chkNo" id="chkNo" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="payment">Payment amount: </label>
+                </div>
+                <div>
+                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="net-feild-template">
+        <div class="removable-section">
+            <div>
+                <div>
+                    <label for="bankName">Bank Name: </label>
+                </div>
+                <div>
+                    <input type="text" name="bankName" id="bankName"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="payment">Date: </label>
+                </div>
+                <div>
+                    <input type="date" name="pay-dt" id="pay-dt"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="bankTrnRef">Ref Number: </label>
+                </div>
+                <div>
+                    <input type="text" name="bankTrnRef" id="bankTrnRef" pattern="[^ ]"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="payment">Payment amount: </label>
+                </div>
+                <div>
+                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="bill-option-template">
+        <div id="bill-option-content">
+            <div class="table">
+                <div class="head row">
+                    <p class="col eq-space">Sl No.</p>
+                    <p class="col eq-space">Particular</p>
+                    <p class="col eq-space">Quantity</p>
+                    <p class="col eq-space">Unit</p>
+                    <p class="col eq-space">Rate</p>
+                </div>
+                <div id="tbody"></div>
+            </div>
+            <div id="bill-option-BTNs" onclick="billUtils(event)">
+                <button data-cmd="open">Open</button>
+                <button data-cmd="print">Print</button>
+                <button data-cmd="add-item" class="hide">Add Items</button>
+                <button data-cmd="pay" class="hide">Add Payment</button>
+                <button data-cmd="close" onclick="_closeModal()">Close</button>
+            </div>
+        </div>
+    </template>
+    <template id="bill-body-row-template">
+        <div class="body row">
+            <p class="col eq-space" data-name="slNo"></p>
+            <p class="col eq-space" data-name="name"></p>
+            <p class="col eq-space" data-name="quantity"></p>
+            <p class="col eq-space" data-name="unit"></p>
+            <p class="col eq-space" data-name="rate"></p>
+        </div>
+    </template>
+    <template id="data-modal-template">
+        <div class="data-modal">
+            <p></p>
+        </div>
+    </template>
+    <template id="update-profile-template">
+        <form onsubmit="updateProfile(event)">
+            <h2>Profile Update Form</h2>
+            <div>
+                <div><label for="name">Name</label></div>
+                <div><input name="name" disabled type="text"></div>
+            </div>
+            <div>
+                <div><label for="address">Address</label></div>
+                <div><input name="address" disabled type="text"></div>
+            </div>
+            <div>
+                <div><label for="phone">Phone</label></div>
+                <div><input name="phones" disabled type="text"></div>
+            </div>
+            <div>
+                <div><label for="email">Email</label></div>
+                <div><input name="email" disabled type="text"></div>
+            </div>
+            <div>
+                <div><label for="gst">GST</label></div>
+                <div><input name="gst" disabled type="text"></div>
+            </div>
+            <div>
+                <div>
+                    <button type="button" onclick="enableInputs(event)">Edit</button>
+                    <button type="submit" class="hide">Update</button>
+                    <button type="button" onclick="closeModal()">Close</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <datalist id="stock-names"></datalist>
+    <datalist id="unit-dl"></datalist>
 </body>
 </html>

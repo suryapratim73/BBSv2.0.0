@@ -543,6 +543,7 @@ function assignDeliveryOptions(e){
 }
 
 function updatePayStatus(e){
+    billMeta.paymentStatus = false;
     if(e)
         billMeta.paymentStatus = JSON.parse(e.target.value);
     if(billMeta.paymentStatus)

@@ -57,7 +57,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    const { 
+    let { 
         billStatus, 
         deliveryType,
         transportName="",
@@ -78,8 +78,12 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         paymentStatus 
     } = billMeta;
     closeFlag = true;
-    let netPayment = payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0;
-    let deliveryCharge = Number(transportCharge) + Number(coolieCharge);
+    let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
+    if(!netDue && paymentStatus===false)
+        netDue = Math.round(netAmt + netTax);
+    else
+        netDue = Math.round(netAmt + netTax - netPayment);
+    let deliveryCharge = Math.round(Number(transportCharge) + Number(coolieCharge));
     if(deliveryType!=="hand")
         freight.sync()
         .then(model=>
@@ -145,10 +149,10 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             billStatus,
             date:billDate,
             billNo,
-            billAmt:netAmt,
-            tax:netTax,
+            billAmt:Math.round(netAmt),
+            tax:Math.round(netTax),
             paymentStatus,
-            payments:netPayment,
+            payments:Math.round(netPayment),
             netDue,
             itemList:`${custId}_${billNo}_${billDate}`,
             delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge,coolieName,coolieCharge,coolieContact}:"hand",
@@ -163,7 +167,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             await item.save();
             let match = stockList.find(obj=>obj.id===id);
             match.quantity -= qty*multiplier;
-            match.specialPrice.push({
+            match.specialPrice?.push({
                 customerId:custId,
                 rate,
                 billDate,
@@ -181,10 +185,11 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             name,
             billNo,
             billDate,
-            billAmt:billMeta.netAmtTax+deliveryCharge,
-            tax:netTax,
-            payment:netPayment,
+            billAmt:Math.round(billMeta.netAmtTax+deliveryCharge),
+            tax:Math.round(netTax),
+            payment:Math.round(netPayment),
             paymentStatus,
+            netDue:Math.round(netDue),
             billItemTable:`${custId}_${billNo}_${billDate}`
         }),
         (await people.sync()).findOrCreate({

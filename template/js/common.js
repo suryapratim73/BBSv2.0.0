@@ -749,7 +749,7 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
     });
     removeAllElem(".data-modal");
     if(date.length>0){
-        let dataModal = document.getElementById("data-modal-template").content.cloneNode("true").querySelector("div");
+        let dataModal = document.getElementById("data-modal-template").content.cloneNode(true).querySelector("div");
         this.parentNode.appendChild(dataModal);
         dataModal.querySelector("p").textContent = `Date: ${date[0]}, ${key}: ${reducedObjs[date[0]].amt}`;
         if(clientX+8+dataModal.clientWidth<this.width)
