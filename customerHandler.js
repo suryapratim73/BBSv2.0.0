@@ -127,7 +127,14 @@ ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
                 ["entryNo","DESC"]
             ]
         }))).dataValues;
-        return {lastBalance:lastBalance-payment,payment:payment+oldPay,netDue,topLine};
+        let msg = {
+            type: "info",
+            title: "Payment Added",
+            message: "Customer payment registered successfully."
+        };
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        appLogger("customer-payment",JSON.stringify({billNo,payment}));
+        return {payment:payment+oldPay,netDue,topLine};
     }
     catch(err){
         return err;

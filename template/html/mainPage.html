@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../js/mainPage.js" defer></script>
+    <link rel="stylesheet" href="../css/mainPage.css">
+</head>
+<body>
+    <div id="nav-div" onclick="modeSwitcher(event)">
+        <div>
+            <h1>BBS<span>v2</span></h1>
+        </div>
+        <div>
+            <p data-cmd="overview">Overview</p>
+            <p data-cmd="sale">Sale</p>
+            <p data-cmd="purchase">Purchase</p>
+        </div>
+        <div>
+            <p data-cmd="settings">Settings</p>
+            <p data-cmd="help">Help</p>
+        </div>
+    </div>
+    <div id="main-div">
+        <div>
+            <h1>Welcome, Usha Hardware Stores</h1>
+            <div>
+                <div>
+                    <h2>Overview</h2>
+                    <div id="sale-purchase-btn-div">
+                        <button onclick="ipcRenderer.send('new-sale-purchase',1)">Create Sale</button>
+                        <button onclick="ipcRenderer.send('new-sale-purchase',2)">Register Purchase</button>
+                    </div>
+                </div>
+                <div id="mode-host">
+                    <!-- work in progress -->
+                </div>
+            </div>
+        </div>
+        <div id="right-div">
+            <div id="knob" onclick="expandOrCollapsePanel()"></div>
+            <div id="panel" class="collapse-panel" data-collapsed="true">
+                <div>
+                    <h2>Notifications</h2>
+                </div>
+                <div id="notification-div"></div>
+                <div class="btn-div">
+                    <button>Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <template id="overview-page-template">
+        <div id="overview-div" class="mode-content">
+            <div id="expired-bill-table-div">
+                <div class="table">
+                    <h3>Expired Bills</h3>
+                    <div class="row head">
+                        <div class="col eq-space"><p>Bill Number</p></div>
+                        <div class="col eq-space"><p>Bill Date</p></div>
+                        <div class="col eq-space"><p>Customer Name</p></div>
+                        <div class="col eq-space"><p>Bill Amount</p></div>
+                    </div>
+                    <div class="tbody hide-scrollbar">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <div id="stock-div" class="table">
+                        <h3>Stocks running low</h3>
+                        <div class="row head">
+                            <div class="col eq-space"><p>Name</p></div>
+                            <div class="col eq-space"><p>Quantity</p></div>
+                        </div>
+                        <div class="tbody hide-scrollbar">
+                        </div>
+                    </div>
+                </div>
+                <div id="scheduler-div">
+                    <div class="event-div">
+                        <div id="dt-div">
+                            <h1></h1>
+                            <p></p>
+                        </div>
+                    </div>
+                    <div>
+                        <button data-msg="Add New Event" class="hover right top">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="sale-page-template">
+        <div class="mode-content" id="sale-div">
+            <div>
+                <h3>Order Queues</h3>
+                <div id="order-queue-container" onclick="slideQueueCard(event)"></div>
+            </div>
+            <div>
+                <div id="sale-graph-div">
+                    <div>
+                        <h3>Sale chart</h3>
+                        <canvas id="sale-graph"></canvas>
+                    </div>
+                    <div>
+                        <label>Change chart period</label>
+                        <select onchange="updateChart(event,'#sale-graph')">
+                            <option value="year" data-mode="3">Year</option>
+                            <option value="month" data-mode="2">Month</option>
+                            <option value="day" data-mode="1" selected>Day</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="purchase-page-template">
+        <div id="purchase-div" class="mode-content">
+            <div id="current-purchase">
+                <div class="table">
+                    <h3>Today's purchases'</h3>
+                    <div class="row head">
+                        <div class="col eq-space"><p>Bill Number</p></div>
+                        <div class="col eq-space"><p>Bill Date</p></div>
+                        <div class="col eq-space"><p>Supplier Name</p></div>
+                        <div class="col eq-space"><p>Bill Amount</p></div>
+                    </div>
+                    <div class="tbody hide-scrollbar">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div id="purchase-graph-div">
+                    <div>
+                        <h3>Purchase Chart</h3>
+                        <canvas id="purchase-graph"></canvas>
+                    </div>
+                    <div><label>Change chart period</label>
+                        <select onchange="updateChart(event,'#purchase-graph')">
+                            <option value="year" data-mode="3">Year</option>
+                            <option value="month" data-mode="2">Month</option>
+                            <option value="day" data-mode="1" selected>Day</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="settings-page-template">
+        <div id="settings-div" class="mode-content">
+            <nav onclick="switchSettingsNav(event)">
+                <p data-mode="app-settings" class="selected">App</p>
+                <p data-mode="company-settings">Company</p>
+                <p data-mode="billing-settings">Billing</p>
+            </nav>
+            <main>
+                <h1>Settings</h1>
+                <div id="settings-container" oninput="saveSettings(event)">
+                    <div class="settings" data-mode="app-settings" id="app-settings">
+                        <h2>App Settings</h2>
+                    </div>
+                    <div class="settings hide" data-mode="company-settings" id="company-settings">
+                        <h2>Company settings</h2>
+                    </div>
+                    <div class="settings hide" data-mode="billing-settings" id="billing-settings">
+                        <h2>Bill settings</h2>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </template>
+    <template id="item-list-template">
+        <div class="item-obj">
+            <div>
+                <input type="checkbox">
+            </div>
+            <div>
+                <span data-colname="name"></span>
+                <span data-colname="quantity"></span>
+                <span data-colname="unit"></span>
+            </div>
+        </div>
+    </template>
+    <template id="order-queue-template">
+        <div class="oder-queue-div">
+            <div>
+                <div class="bill-header">
+                    <p>Bill Number: <span data-colname="billNo" class="highlight"></span></p>
+                    <p>Customer Name: <span data-colname="name" class="highlight"></span></p>
+                </div>
+                <button data-translate="translate-right">></button>
+            </div>
+            <div class="bill-item-div"></div>
+        </div>
+    </template>
+    <template id="sale-page-template"></template>
+    <template id="purchase-page-template"></template>
+    <template id="settings-page-template"></template>
+    <template id="help-page-template"></template>
+    <template id="data-modal-template">
+        <div class="data-modal">
+            <p></p>
+        </div>
+    </template>
+</body>
+</html>

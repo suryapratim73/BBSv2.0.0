@@ -1,0 +1,529 @@
+@import "../css/common.css";
+body{
+    grid-template: repeat(12,1fr)/repeat(12,1fr);
+    padding: 0;
+}
+#nav-div{
+    grid-column: 1/3;
+    grid-row: 1/-1;
+    background: rebeccapurple;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+#nav-div div{
+    flex: 1;
+}
+#nav-div div:first-child{
+    padding: 1rem 0.5rem;
+}
+#nav-div>div:first-child h1{
+    color: gold;
+    letter-spacing: 0.2rem;
+    font-weight: 200;
+    text-shadow: -1px 1px white;
+}
+#nav-div>div:first-child span{
+    font-size: 1rem;
+    color: white;
+    letter-spacing: 0.1rem;
+    text-shadow: unset;
+}
+#nav-div div:nth-child(2){
+    flex: 6;
+}
+#nav-div div p{
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    color: white;
+    font-size: 1.1rem;
+}
+#nav-div div p.selected{
+    color: purple;
+    font-size: 1.3rem;
+}
+h1{
+    color: black;
+    font-size: 2.5rem;
+    font-weight: 100;
+    font-family: sans-serif;
+}
+#main-div{
+    grid-column: 3/-1;
+    grid-row: 1/-1;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+}
+#main-div>div:first-child{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    justify-content: space-between;
+    height: 100%;
+    overflow: hidden;
+}
+#main-div>div:first-child>div{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#main-div>div:first-child>div>div:first-child{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#mode-host{
+    height: 90%;
+    overflow: hidden;
+}
+.mode-content{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    overflow: hidden;
+}
+#main-div>div:first-child>div>div:first-child h2{
+    color: black;
+    font-size: 2.5rem;
+    font-weight: 100;
+}
+.mode-content h3{
+    color: rgba(0,0,0,0.8);
+    font-weight: 100;
+}
+#overview-div{
+    gap: 1rem;
+}
+#overview-div>div:first-child{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#overview-div>div:last-child{
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-direction: column;
+    flex: 1;
+}
+#overview-div>div:last-child>div{
+    flex:1;
+}
+#overview-div>div:last-child>div:last-child{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 3rem;
+}
+#sale-purchase-btn-div>button{
+    padding: 0.5rem;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    box-shadow: 1px 1px 0px 1px grey;
+    text-shadow: 1px 1px black;
+    font-weight: 600;
+}
+#sale-purchase-btn-div>button:active{
+    box-shadow: none;
+}
+#sale-purchase-btn-div>button:first-child{
+    background: limegreen;
+    color: white;
+}
+#sale-purchase-btn-div>button:last-child{
+    background: orangered;
+    color: white;
+}
+#expired-bill-table-div{
+    flex: 3;
+}
+#expired-bill-table-div .table{
+    display: flex;
+}
+#expired-bill-table-div .tbody{
+    height: fit-content;
+    border-bottom: 1px solid black;
+    max-height: 100%;
+}
+#scheduler-div{
+    border-radius: 15px;
+    background: orangered;
+    transition: 200ms ease-in-out;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+#scheduler-div>div{
+    flex: 1;
+}
+#scheduler-div>div:first-child{
+    flex: 5;
+}
+#dt-div{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+}
+#dt-div>h1,#dt-div>p{
+    color: white;
+}
+#dt-div>h1{
+    flex: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5rem;
+}
+#dt-div>p{
+    flex: 1;
+    text-align: center;
+    font-size: 1.5rem;
+}
+#scheduler-div>div:last-child{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+#scheduler-div button{
+    font-size: 1.5rem;
+    color: orangered;
+    border: none;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+}
+button{
+    outline: none;
+}
+.body.row p{
+    color: black;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tbody{
+    height: fit-content;
+    border-bottom: 1px solid black;
+    max-height: 100%;
+}
+button.hover{
+    margin-left: auto;
+    position: relative;
+    color: orangered;
+    font-size: 2rem;
+    padding: 0 0.25rem;
+    background: white;
+    border: none;
+}
+.hover:hover{
+    box-shadow: 0px 0px 1px 1px grey;
+    padding: 0 0.25rem;
+    border-radius: 3px;
+    transition: box-shadow 0.5s linear;
+}
+#right-div{
+    height: 100%;
+    display: flex;
+    justify-content: stretch;
+    align-items: center;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+}
+#knob{
+    height: 5rem;
+    background: rebeccapurple;
+    border-radius: 15px 0 0 15px;
+    width: 2rem;
+    position: relative;
+    z-index: 2;
+}
+#knob::after{
+    width: 2rem;
+    height: 2rem;
+    position: absolute;
+    content: "";
+    top: 30%;
+    left: 50%;
+    transform: rotate(45deg);
+    z-index: 3;
+    background: inherit;
+}
+#knob::before{
+    width: 2rem;
+    height: 2rem;
+    position: absolute;
+    content: "";
+    top: 30%;
+    left: 40%;
+    transform: rotate(45deg);
+    background: white;
+    z-index: 2;
+}
+#knob.switch-arrow::before{
+    left: unset;
+    right: 25%;
+}
+#knob.switch-arrow::after{
+    left: unset;
+    right: 35%;
+}
+#panel{
+    height: 100%;
+    width: 0vw;
+    background: lavender;
+    transition: width 400ms ease-in-out;
+    overflow: hidden;
+    z-index: 5;
+    display: grid;
+    grid-template: repeat(12,1fr)/1fr;
+}
+#panel>div:first-child{
+    grid-row: 1/3;
+    display: flex;
+    align-items: flex-end;
+    box-shadow: 0px 1px 0px 1px grey;
+}
+#panel>div:first-child>h2{
+    padding: 0.5rem;
+    font-size: 2rem;
+    color: orangered;
+}
+#notification-div{
+    grid-row: 3/-2;
+}
+#panel>div:last-child{
+    grid-row: -2/-1;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.5rem;
+    align-items: center;
+}
+#panel>div:last-child>button{
+    padding: 0.5rem;
+}
+#sale-div>div:first-child{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+}
+#order-queue-container{
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+.oder-queue-div{
+    height: 95%;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0px 0px 0px 3px lightgrey;
+    border-radius: 15px;
+    margin-left: 0.25rem;
+    margin-bottom: 0.25rem;
+    z-index: -1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 1px solid black;
+    width: 95%;
+    transition: opacity 600ms ease;
+}
+.oder-queue-div>div:first-child{
+    height: fit-content;
+    display: flex;
+    padding: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid gray;
+}
+.oder-queue-div>div:first-child>button{
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    color: orangered;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.bill-header{
+    flex: 1;
+    padding: 0.5rem;
+}
+.bill-header>p{
+    margin: 0.5rem 0;
+}
+.oder-queue-div>div:last-child{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: auto;
+    padding: 0.75rem 0.5rem;
+}
+#sale-div>div:last-child,#purchase-div>div:last-child{
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0.5rem;
+    margin: 0 1rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+#sale-graph-div,#purchase-graph-div{
+    position: relative;
+    width: 80%;
+}
+#sale-graph-div>div:first-child,#purchase-graph-div>div:first-child{
+    margin-bottom: 2.5rem;
+    padding: 0.5rem;
+    box-shadow: 0px 0px 0px 1px black;
+    margin-top: 1rem;
+    border-radius: 15px;
+}
+#sale-graph-div>div:last-child,#purchase-graph-div>div:last-child{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+.item-obj{
+    padding: 0.5rem 0.25rem;
+    display: flex;
+    margin: 0.25rem 0;
+    box-shadow: 0px 0px 0px 1px grey;
+    border-radius: 5px;
+    align-items: center;
+}
+.item-obj>div{
+    display: flex;
+    align-items: center;
+}
+.item-obj>div:last-child{
+    padding: 0 0.25rem;
+    width: 100%;
+}
+.item-obj>div:last-child>span{
+    color: black;
+}
+.item-obj>div:last-child>span:first-child{
+    max-width: 5rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    word-break: break-all;
+}
+.item-obj>div:last-child>span:nth-child(2){
+    margin-left:0.25rem;
+}
+.item-obj>div:last-child>span:nth-child(2)::before{
+    content: "-";
+    color: orangered;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.visible-order{
+    display: flex;
+    z-index: 1;
+    opacity: 1;
+}
+.highlight{
+    font-size: 1rem !important;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.translate-right{
+    animation: translate-right 600ms linear forwards;
+}
+select,option{
+    color: black;
+    min-width: 5rem;
+}
+@keyframes translate-right{
+    from{
+        left: 0%;
+    }
+    to{
+        left: 100%;
+        z-index: -1;
+    }
+}
+#purchase-div>div:first-child{
+    flex: 3;
+}
+#main-div>div:first-child>div#settings-div{
+    flex-direction: row;
+}
+#settings-div>nav{
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2rem;
+    align-items: baseline;
+    padding: 3rem 0 0 0rem;
+    border-right: 1px solid gray;
+    margin: 2rem 0;
+}
+#settings-div>nav>p{
+    width: 100%;
+    padding: 0.5rem 1rem;
+}
+#settings-div>nav>p.selected{
+    font-weight: bolder;
+    font-size: 1.2rem;
+    position: relative;
+    background-image: linear-gradient(90deg, transparent, #66339985) !important;
+}
+#settings-div>nav>p.selected::after{
+    position: absolute;
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    border-top: 2px solid white;
+    border-right: 2px solid white;
+    right: 5px;
+    transform: rotate(45deg);
+    border-radius: 5px;
+}
+#settings-div>main{
+    flex: 5;
+    margin: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+#settings-div>main h1{
+    letter-spacing: 0.2rem;
+    border-bottom: 4px solid orangered;
+    width: fit-content;
+    padding-bottom: 0.5rem;
+}
+#settings-container{
+    width: 100%;
+    height: 100%;
+}
+.settings h2{
+    text-align: right;
+    border-bottom: 1px solid gray;
+    padding-bottom: 0.5rem;
+}
+#settings-container .settings{
+
+}

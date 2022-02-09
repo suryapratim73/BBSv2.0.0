@@ -177,7 +177,7 @@ ipcMain.on("update-attendace-registry",async (e,attenArr)=>{
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         let attenModal = getTargetWindow("Attendance-modal");
-        if(attenModal){
+        if(attenModal && typeof updateCloseFlag==="function"){
             updateCloseFlag();
             attenModal.close();
         }

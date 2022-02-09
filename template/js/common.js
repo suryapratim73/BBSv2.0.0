@@ -631,28 +631,28 @@ exports.scrollSymSet = function(elem){
     return mousedownTimer;
 }
 
-exports.retractHandler = function retractHandler(retractableDiv,mode="height",val1=0,val2){
+exports.retractHandler = function retractHandler(retractableDiv,mode="height",val1=0,val2,unit="px"){
     if(!val2)
         val2 = mode==="height" ? retractableDiv.scrollHeight : 0;
     if(retractableDiv.dataset.collapsed==="false"){
         requestAnimationFrame(()=>{
-            retractableDiv.style[mode] = val2 + "px";
+            retractableDiv.style[mode] = val2 + unit;
             requestAnimationFrame(()=>{
-                retractableDiv.style[mode] = val1 + "px";
+                retractableDiv.style[mode] = val1 + unit;
             })
         });
         retractableDiv.dataset.collapsed = "true";
     }
     else{
-        retractableDiv.style[mode] = val2 + "px";
+        retractableDiv.style[mode] = val2 + unit;
         retractableDiv.dataset.collapsed = "false";
     }
     
 }
 
-exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32}={}){
+exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32,mode=1}={}){
     let canvas =  document.querySelector(selector);
-    canvas.width = canvas.parentNode.clientWidth;
+    canvas.width = Math.round(0.95 * canvas.parentNode.clientWidth);
     canvas.height = 200;
     let ctx =  canvas.getContext("2d");
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -669,7 +669,12 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
             mnt--;
             obj.date = new Date(yr,mnt,dt);
         }
-        let date = obj.date.toLocaleDateString("en-GB");
+        let date = mode===1 ? obj.date.toLocaleDateString("en-GB"):obj.date;
+        if(mode===2)
+            date = date.toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ")[1];
+        else
+        if(mode===3)
+            date = date.toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ")[2];
         if(!acc[date])
             acc[date] = {amt: obj.amt};
         else

@@ -1,10 +1,16 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD } = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
-const { createModal, getMainWindow, getTargetWindow } = require('./createModal');
-const { attendances, people } = require('./model/dbConfig');
+const { createModal, getTargetWindow, getMainWindow } = require('./createModal');
+const { attendances, people, stock, sale, sequelize, purchase } = require('./model/dbConfig');
+const winManager = require("electron-window-state");
+const { Op } = require('sequelize');
+const { minStock,creditLimitDays } = require("./config/policy.json");
+const { addPurchase } = require("./handlePurchase");
+const { saleWindow } = require("./saleHandler");
+const { billItemSchema } = require('./model/dynamicSchemas');
 
 
 let closeFlag = false,
@@ -20,17 +26,40 @@ let closeFlag = false,
     contextIsolation:true
   };
 
+
+function updateCloseFlag(){
+  closeFlag=true;
+}
+
+exports.updateCloseFlag = updateCloseFlag;
+
 function createWindow () {
+  let {width,height:workAreaHeight} = screen.getPrimaryDisplay().workArea;
+  let {height} = screen.getPrimaryDisplay().size;
+  let winState = winManager({
+    defaultWidth: width,
+    defaultHeight:workAreaHeight,
+    path:path.resolve("./")
+  });
+  workAreaHeight -= (height - workAreaHeight);
   let windowOptions = {
-    width: 1200,
-    height: 650,
+    width: winState.width,
+    height: winState.height,
+    x:winState.x,
+    y:winState.y,
     minWidth:800,
     minHeight:600,
+    title:"BBSv2.0.0"
+  };
+  if(process.platform==="linux"){
+    windowOptions.resizable = true;
+    windowOptions.maximizable = true;
   }
-  const mainWindow = createModal(windowOptions,'localhost:5000',{maxWinCount:1,label:"Main",loadFile:false,protocol:"http://"});
+  const mainWindow = createModal(windowOptions,'./template/html/mainPage.html',{maxWinCount:1,label:"Main"});
   let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
   Menu.setApplicationMenu(menu);
   mainWindow.maximize();
+  winState.manage(mainWindow);
   return mainWindow;
 }
 
@@ -82,7 +111,9 @@ app.on("ready",async ()=>{
   let policyJsonSchema = {
     "noReturn":120,
     "gstRecurranceTerm":1,
-    "financialYearStartDate":"1/4"
+    "financialYearStartDate":"1/4",
+    "minStock":10,
+    "creditLimitDays":21
   };
   let saleConfigSchema = {
     "billNo": 31,
@@ -209,6 +240,66 @@ ipcMain.on("open-salary-modal",e=>{
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
     e.sender.send("attendance-registered");
   });
-})
+});
 
-exports.updateCloseFlag = ()=>{closeFlag=true};
+// Lander Page IPCs
+
+ipcMain.handle("get-overview-content",async ()=>{
+  let stocks = (await stock.findAll({
+    where:{
+      quantity: {
+        [Op.lte]: minStock
+      }
+    }
+  })).map(({dataValues})=>dataValues);
+  let unPaidBills = (await sale.findAll({
+    where:{
+      [Op.and]:[
+        {paymentStatus:false},
+        {
+          billDate: {
+            [Op.lte]:new Date(Date.now()-creditLimitDays*24*60*60*1000)
+          }
+        }
+      ]
+    }
+  })).map(({dataValues})=>dataValues);
+  return {unPaidBills,stocks};
+});
+
+ipcMain.on("new-sale-purchase",(e,mode)=>{
+  let mainWin = getMainWindow();
+  if(mode===1)
+    saleWindow(mainWin)();
+  else
+    addPurchase(mainWin)();
+});
+
+ipcMain.handle("get-sale-content",async ()=>{
+  let queuedBills = (await sale.findAll({
+    where:{
+      deliveryStatus:"queued"
+    },
+    attributes:[["billItemTable","tableName"],"name","billNo"]
+  })).map(({dataValues})=>dataValues);
+  let bills = await queuedBills.reduce(async (acc,{tableName,billNo,name},index)=>{
+    acc = await acc;
+    try{
+      let billItems = (await (await sequelize.define(tableName,billItemSchema,{
+        freezeTableName: true,
+        timestamps: false
+      })).findAll()).map(({dataValues})=>dataValues);
+      acc.push({billItems,name,billNo});
+    }
+    catch(err){
+      console.log(err);
+    }
+    return acc;
+  },[]);
+  let allBills = (await sale.findAll()).map(({dataValues})=>dataValues);
+  return {bills,allBills: allBills};
+});
+
+ipcMain.handle("get-purchase-content",async ()=>{
+  return (await purchase.findAll()).map(({dataValues})=>dataValues);
+});

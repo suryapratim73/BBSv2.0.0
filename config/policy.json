@@ -1,5 +1,7 @@
 {
     "noReturn":120,
     "gstRecurranceTerm":1,
-    "financialYearStartDate":"1/4"
+    "financialYearStartDate":"1/4",
+    "minStock":10,
+    "creditLimitDays":21
 }

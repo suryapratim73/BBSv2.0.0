@@ -140,12 +140,13 @@ module.exports = mainWindow=>{
                     click: genRequirementSlip(mainWindow),
                     accelerator: "Shift+F4" // Dev Time Shortcut
                 },
+                {
+                    label: "Event Scheduler",
+                    
+                },
                 {type:"separator"},
                 {
                     label: "BBS Remote"
-                },
-                {
-                    label: "BBS Connect"
                 }
             ]
         },// Tools menu
