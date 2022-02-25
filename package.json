@@ -9,10 +9,14 @@
   "author": "Surya",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.0.1",
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
+    "nodemailer": "^6.7.2",
     "pdfkit": "^0.12.1",
+    "qrcode": "^1.5.0",
     "sequelize": "^6.13.0",
+    "speakeasy": "^2.0.0",
     "sqlite3": "^5.0.2",
     "uuid": "^8.3.2"
   },

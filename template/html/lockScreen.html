@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBSv2.0.0</title>
+    <script src="../js/lockScreen.js" defer></script>
+    <link rel="stylesheet" href="../css/lockScreen.css">
+</head>
+<body>
+    <form onsubmit="unlockHandler(event,1)">
+        <h2>Welcome to BBS</h2>
+        <div>
+            <div><label for="name">Username</label></div>
+            <div><input type="text" autofocus name="name" id="name" required></div>
+        </div>
+        <div>
+            <div><label for="passwd">Password</label></div>
+            <div><input type="password" name="passwd" id="passwd" required></div>
+        </div>
+        <div>
+            <div><button type="submit">Next</button></div>
+        </div>
+    </form>   
+    <template id="six-digit-code-form-template">
+        <form onsubmit="unlockHandler(event,2)" id="two-factor-form">
+            <div>
+                <div><label for="code">Enter 6-digti code from authenticator app</label></div>
+                <div><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="_validateInput2(event)" name="code" id="code"></div>
+            </div>
+            <div>
+                <div><button type="submit">Verify</button></div>
+            </div>
+        </form>
+    </template> 
+    <template id="lock-div-template">
+        <div id="lock-div">
+            <h2>The page is locked.</h2>
+            <div>
+                <button onclick="lockHandler(event)">Unlock</button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

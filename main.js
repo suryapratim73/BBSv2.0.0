@@ -1,16 +1,17 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen } = require('electron');
-const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD } = require("./common");
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, protocol, session } = require('electron');
+const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User } = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
 const { createModal, getTargetWindow, getMainWindow } = require('./createModal');
-const { attendances, people, stock, sale, sequelize, purchase } = require('./model/dbConfig');
+const { attendances, people, stock, sale, sequelize, purchase, user } = require('./model/dbConfig');
 const winManager = require("electron-window-state");
 const { Op } = require('sequelize');
 const { minStock,creditLimitDays } = require("./config/policy.json");
-const { addPurchase } = require("./handlePurchase");
-const { saleWindow } = require("./saleHandler");
 const { billItemSchema } = require('./model/dynamicSchemas');
+const bcrypt = require("bcrypt");
+const uuid = require("uuid");
+const speakeasy = require("speakeasy");
 
 
 let closeFlag = false,
@@ -24,7 +25,8 @@ let closeFlag = false,
     },
     show:false,
     contextIsolation:true
-  };
+  },
+  currentUser;
 
 
 function updateCloseFlag(){
@@ -33,7 +35,7 @@ function updateCloseFlag(){
 
 exports.updateCloseFlag = updateCloseFlag;
 
-function createWindow () {
+async function createWindow () {
   let {width,height:workAreaHeight} = screen.getPrimaryDisplay().workArea;
   let {height} = screen.getPrimaryDisplay().size;
   let winState = winManager({
@@ -55,13 +57,51 @@ function createWindow () {
     windowOptions.resizable = true;
     windowOptions.maximizable = true;
   }
-  const mainWindow = createModal(windowOptions,'./template/html/mainPage.html',{maxWinCount:1,label:"Main"});
+  let userCount = (await user.findAll()).length;
+  let fileName = "lockScreen";
+  if(userCount===0){
+    fileName = "mainPage";
+    await user.create({
+      id: uuid.v5("admin","6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+      name: "admin",
+      passwd: await bcrypt.hash("admin",10),
+      role: "admin"
+    });
+  } // First start condition
+  let ses = session.fromPartition("persist:bbs_auth");
+  let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
+  if(authCookies.length>0){
+    let cookieObj = authCookies[0];
+    let _user = JSON.parse(cookieObj.value);
+    if(_user && cookieObj.expirationDate>Date.now()){
+      let { id,name,secret,role,session,sessionTime,usePasswd } = _user;
+      currentUser = new User(id,name,secret,role,session,sessionTime,usePasswd);
+      currentUser.login();
+      fileName = "mainPage";
+    }
+  }
+  const mainWindow = createModal(windowOptions,`./template/html/${fileName}.html`,{maxWinCount:1,label:"Main"});
   let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
   Menu.setApplicationMenu(menu);
   mainWindow.maximize();
   winState.manage(mainWindow);
+  mainWindow.webContents.on("did-finish-load",async ()=>{
+    if(currentUser){
+      let {id,name,role,usePasswd} = currentUser;
+      mainWindow.webContents.send("logged-in-user",{id,name,role,usePasswd});
+      imposeRestriction();
+    }
+    else
+      mainWindow.webContents.send("use-lock");
+  })
   return mainWindow;
 }
+
+ipcMain.handle("get-users", async ()=>{
+  return (await user.findAll({
+    attributes: ["name" , "id"]
+  })).map(({dataValues})=>dataValues);
+});
 
 // app.whenReady().then(createWindow);
 
@@ -85,9 +125,9 @@ app.on('window-all-closed', () => {
   // app.hide()
 });
 
-app.on('activate', () => {
+app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) 
-    createWindow();
+    await createWindow();
 });
 
 function takeAttendance(refWindow){
@@ -176,7 +216,7 @@ app.on("ready",async ()=>{
     });
   });
   // Adding tab switcher
-  let mainWindow = createWindow();
+  let mainWindow = await createWindow();
   let focussedWindow = BrowserWindow.getFocusedWindow()
   globalShortcut.register("CommandOrControl+Tab+Up",()=>{
     if(mainWindow){
@@ -242,6 +282,10 @@ ipcMain.on("open-salary-modal",e=>{
   });
 });
 
+exports.getCurrentLogin = function(){
+  return currentUser;
+}
+
 // Lander Page IPCs
 
 ipcMain.handle("get-overview-content",async ()=>{
@@ -268,11 +312,13 @@ ipcMain.handle("get-overview-content",async ()=>{
 });
 
 ipcMain.on("new-sale-purchase",(e,mode)=>{
-  let mainWin = getMainWindow();
-  if(mode===1)
-    saleWindow(mainWin)();
+  if(["all","admin","bill"].includes(currentUser.role) && mode===1)
+    Menu.getApplicationMenu().items[1].submenu.items[0].click();
   else
-    addPurchase(mainWin)();
+  if(["all","admin","purchase"].includes(currentUser.role) && mode===2)
+    Menu.getApplicationMenu().items[2].submenu.items[0].click();
+  else
+    e.sender.send("error","Insufficient permission");
 });
 
 ipcMain.handle("get-sale-content",async ()=>{
@@ -303,3 +349,297 @@ ipcMain.handle("get-sale-content",async ()=>{
 ipcMain.handle("get-purchase-content",async ()=>{
   return (await purchase.findAll()).map(({dataValues})=>dataValues);
 });
+
+ipcMain.handle("add-user", async (e,data)=>{
+  let encryptedPaswd = await bcrypt.hash(data.passwd,10);
+  let role = ["admin","all"].includes(currentUser.role) ? data.role : "bill";
+  try{
+    return user.findOrCreate({
+      where:{
+        id: uuid.v5(data.name,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+      },
+      defaults:{
+        id: uuid.v5(data.name,"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        name: data.name,
+        passwd: encryptedPaswd,
+        role
+      }
+    });
+  }
+  catch(err){
+    console.log(err);
+    return err;
+  }
+});
+
+ipcMain.handle("update-user",async (e,data)=>{
+  let encryptedPaswd = await bcrypt.hash(data.password,10);
+  let admin = (await user.findOne({
+    where:{
+      id: currentUser.id
+    }
+  })).dataValues;
+  data.role = data.name==="admin" ? "admin" : data.role;
+  let updateObj = {
+    passwd: encryptedPaswd
+  };
+  if(currentUser.name==="admin")
+    updateObj.role = data.role;
+  if(await bcrypt.compare(data["old-password"],admin.passwd))
+    return user.update(updateObj,{
+      where:{
+        id: data.id
+      }
+    });
+  else
+    throw new Error("Old pasword don't match.");
+});
+
+ipcMain.handle("get-image-path",()=>{
+  return dialog.showOpenDialog(getMainWindow(),{
+    filters:[{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
+  });
+});
+
+ipcMain.handle("update-wallpaper",async (e,{filePath,usePasswd})=>{
+  try{
+    if(filePath){
+      let data = fs.readFileSync(path.resolve(__dirname,"./config/policy.json"));
+      data = JSON.parse(data.toString());
+      data.wallpaper = filePath;
+      fs.writeFileSync(path.resolve(__dirname,"./config/policy.json"),JSON.stringify(data));
+    }
+    currentUser.usePasswd = usePasswd;
+    await createSession(Date.now() + currentUser.sessionTime - currentUser.lastLogin);
+    await user.update({usePasswd},{where:{id:currentUser.id}})
+  }
+  catch(err){
+    throw err;
+  }
+});
+
+ipcMain.handle("get-user-status",async (e,id)=>{
+  return (await user.findOne({
+    where:{
+      id
+    },
+    attributes: ["secret"]
+  })).dataValues.secret;
+});
+
+ipcMain.handle("generate-secret",async (e,id)=>{
+  const qrCode = require("qrcode");
+  let secret = speakeasy.generateSecret({name:"BBSv2",issuer:"codeMint.com"});
+  await user.update({
+    secret:secret.base32
+  },{
+    where:{
+      id
+    }
+  });
+  return qrCode.toDataURL(secret.otpauth_url);
+});
+
+ipcMain.handle("remove-secret",(e,id)=>{
+  return user.update({
+    secret:null
+  },{
+    where:{
+      id
+    }
+  })
+});
+
+async function createSession(time){
+  console.log("Creating session cookie.")
+  let cookie = { 
+    name:"bbs_auth",
+    value:JSON.stringify(currentUser),
+    url:"http://localhost",
+    expirationDate: Date.now() + time
+  };
+  let mainWin = getMainWindow();
+  let ses = mainWin.webContents.session;
+  await ses.cookies.remove("http://localhost","bbs_auth");
+  let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
+  if(authCookies.length===0){
+    await ses.cookies.set(cookie);
+    await ses.cookies.flushStore();
+    return ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
+  }
+  else
+    throw new Error("Failed to create cookie");
+}
+
+ipcMain.handle("create-login-session",async (e,{expiry})=>{
+  try{
+    await user.update({
+      session: true,
+      sessionTime: Number(expiry)*1000*60*60
+    },{
+      where:{ id:currentUser.id }
+    });
+    currentUser.session = true;
+    currentUser.sessionTime = Number(expiry)*1000*60*60;
+    await createSession(Number(expiry)*1000*60*60);
+  }
+  catch(err){
+    console.log(err)
+    return err;
+  }
+});
+
+ipcMain.handle("remove-auth-session",async ()=>{
+  let ses = getMainWindow().webContents.session;
+  try {
+    await user.update({
+      session: false
+    },{
+      where: { id: currentUser.id }
+    });
+    currentUser.session = false;
+    await ses.cookies.remove("http://localhost","bbs_auth");
+  }  
+  catch (error) {
+    console.log(error)
+    return error;
+  }
+});
+
+ipcMain.on("logout",async ()=>{
+  try{
+    let mainWin = getMainWindow();
+    let ses = mainWin.webContents.session;
+    let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
+    if(authCookies.length>0)
+      await ses.cookies.remove("http://localhost","bbs_auth");
+    else
+      console.log("Cookie don't exist");
+    currentUser.logout();
+    currentUser = null;
+    mainWin.loadFile("./template/html/lockScreen.html");
+  }
+  catch(err){
+    console.log(err)
+  }
+});
+
+function lock_unlockHelper(page,sig){
+  let mainWin = getMainWindow();
+  mainWin.loadFile(`./template/html/${page}.html`);
+  mainWin.webContents.on("did-finish-load",function(e){
+    try {
+      mainWin.webContents.removeListener("did-finish-load", arguments.callee);
+    } catch (error) {
+      console.log(error)
+    }
+    if(sig==="lock")
+      mainWin.webContents.send("lock",currentUser);
+  });
+}
+
+ipcMain.on("lock",()=>{
+  lock_unlockHelper("lockScreen","lock");
+});
+
+ipcMain.on("unlock",()=>{
+  lock_unlockHelper("mainPage","unlock");
+});
+
+ipcMain.handle("check-session-info",async ()=>{
+  let ses = getMainWindow().webContents.session;
+  return ses.cookies.get({name:"bbs_auth",url:"http://localhost"})
+});
+
+// Lock Screen ipcs
+
+ipcMain.handle("unlock-app",async (e,authData)=>{
+  let _user = await user.findOne({
+    where:{
+      name:authData.name
+    }
+  });
+  if(!_user)
+    throw new Error("No user");
+  let {passwd,id,name,role,secret,session,sessionTime,usePasswd} = _user.dataValues;
+  if(await bcrypt.compare(authData.passwd,passwd)){
+    currentUser = new User(id,name,secret,role,session,sessionTime,usePasswd);
+    if(secret)
+      return 1;
+    ipcMain.emit("app-login");
+    return 0;
+  }
+  else
+    return -1;
+});
+
+ipcMain.on("load-lander-page",()=>{
+  let mainPage = getMainWindow();
+  mainPage.loadFile("./template/html/mainPage.html")
+});
+
+ipcMain.handle("verify-code", async (e,{code})=>{
+  let res = speakeasy.totp.verify({
+    secret: currentUser.secret,
+    window:0,
+    token: code,
+    encoding:"base32"
+  });
+  if(res){
+    ipcMain.emit("app-login");
+    try{
+      await user.update({
+        lastLogin: currentUser.lastLogin
+      },{
+        where:{id:currentUser.id}
+      })
+    }
+    catch(err){
+      throw new Error(err)
+    }
+  }
+  return res;
+});
+
+ipcMain.on("app-login",async ()=>{
+  console.log({section: "App Login Handler"});
+  currentUser.login();
+  try{
+    if(currentUser.session)
+      await createSession(currentUser.sessionTime);
+    await user.update({
+      lastLogin: Date.now()
+    },{
+      where: { id: currentUser.id }
+    })
+  }
+  catch(err){
+    console.log(err);
+  }
+});
+
+function imposeRestriction(){
+  // This is how to restrict access to some user.
+  function blockHelper(menuList=[]){
+    menuList.forEach(({index,isEnabled})=>{
+      Menu.getApplicationMenu().items[index]
+      .submenu.items.forEach(item=>{item.enabled=isEnabled});
+    });
+  }
+
+  if(currentUser.role==="bill")
+    blockHelper([{index:1,isEnabled:true},{index:2,isEnabled:false}]);
+  else
+  if(currentUser.role==="purchase")
+    blockHelper([{index:2,isEnabled:true},{index:1,isEnabled:false}]);
+  else
+    Menu.getApplicationMenu().items.forEach(({submenu})=>{
+      submenu.items.forEach(item=>{
+        item.enabled = true;
+      });
+    });
+  blockHelper([
+    {index:4,isEnabled:false},
+    {index:5,isEnabled:false},
+  ]);
+}

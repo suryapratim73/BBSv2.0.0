@@ -167,14 +167,15 @@ form>div>div:last-child>button{
 .row{
     margin-bottom: 0.5rem;
 }
+.body-row-options{
+    position: absolute;
+    bottom: -100%;
+}
 .body-row-options>button{
     padding: 0.15rem 0.25rem;
 }
 .body-row-options>button:first-child{
     color: red;
-}
-.body-row-options>button:last-child{
-    color: blue;
 }
 .btn-container{
     display: flex;

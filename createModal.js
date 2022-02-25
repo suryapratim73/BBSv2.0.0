@@ -8,7 +8,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
   loadFile=true,
   protocol="file://",
   maxWinCount,
-  label
+  label,
+  partition="persist:bbs_auth"
 }={})=>{
   let modal;
   windowOptions = {
@@ -17,7 +18,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
       resizable:false,
       webPreferences: {
         nodeIntegration: true,
-        devTools:true
+        devTools:true,
+        partition
       },
       parent:BrowserWindow.getFocusedWindow(),
       contextIsolation:true,

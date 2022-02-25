@@ -187,3 +187,33 @@ exports.checkAuthority = async function(){
     // throw new Error("No permission"); 
     return true;
 }
+
+class User{
+    constructor(id,name,secret,role,session,sessionTime,usePasswd){
+        this.id = id;
+        this.name = name;
+        this.verify = false;
+        if(secret)
+            this.secret = secret;
+        this.role = role;
+        if(session){
+            this.session = session;
+            this.sessionTime = sessionTime;
+        }
+        else
+            this.session = false;
+        if(usePasswd)
+            this.usePasswd = usePasswd;
+    }
+    login(){
+        this.lastLogin = Date.now();
+        if(this.secret)
+            this.verify = true;
+    }
+    logout(){
+        this.lastLogout = Date.now();
+        this.verify = false;
+    }
+}
+
+exports.User = User;

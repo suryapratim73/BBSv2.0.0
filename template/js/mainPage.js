@@ -1,10 +1,10 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal } = require("../js/common");
+const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize } = require("../js/common");
 
 
 
 let currentMode = "overview",timer,reducedBills = [],reducedPurchases = [];
-let mode = 1;
+let mode = 1,loggedinUser;
 
 toggleDevTool(document);
 
@@ -12,6 +12,15 @@ async function initPage(){
     let spinner = drawSpinner(document);
     document.querySelector(`#nav-div [data-cmd='${currentMode}']`).classList.add("selected");
     await applyMode();
+    let userListDL = document.getElementById("user-list");
+    (await ipcRenderer.invoke("get-users"))
+    .forEach(user=>{
+        let option = document.createElement("option");
+        option.textContent = user.name;
+        option.dataset.id = user.id;
+        option.dataset.name = user.name;
+        userListDL.appendChild(option);
+    });
     spinner.remove(window);    
 }
 initPage();
@@ -132,12 +141,24 @@ async function purchasePageInit(){
 
 async function settingsPageInit(modeContent){
     document.querySelector("#main-div>div:first-child").appendChild(modeContent);
+    [...document.querySelectorAll(".settings-div>p")]
+    .forEach(p=>{
+        if(p.classList.contains(loggedinUser.role))
+            p.classList.add("hide");
+        else
+            p.classList.remove("hide");
+    })
 }
 
 async function applyMode(){
     let modeContent;
     if(!currentMode)
         currentMode = "overview";
+    if(currentMode==="logout")
+        return ipcRenderer.send("logout");
+    else
+    if(currentMode==="lock")
+        return ipcRenderer.send("lock");
     [...document.querySelectorAll("#main-div>div:first-child>*")]
     .forEach(elem=>{
         elem.classList.remove("hide")
@@ -246,6 +267,187 @@ function switchSettingsNav(e){
     })
 }
 
-async function saveSettings(e){
-    // work pending
+async function showForm(e,cmd,show){
+    if(e){
+        cmd = e.target.dataset.cmd;
+        show = e.target.dataset.show;
+    }
+    if(!cmd) return;
+    if(e && e.target.nodeName==="FORM" && e.type!=="submit") return console.log("Form");
+    let appSettingsDiv = document.getElementById("app-settings");
+    if(cmd!=="back"){
+        if(cmd==="enable-2-factor"){
+            let id = document.getElementById("name").dataset.id;
+            let dataURL = await ipcRenderer.invoke("generate-secret",id);
+            if(dataURL){
+                document.querySelector("#qrcode-div>img").src = dataURL;
+                document.getElementById("done-btn").removeAttribute("disabled");
+            }
+        }
+        else
+        if(cmd==="disable-2-factor"){
+            let id = document.getElementById("name").dataset.id;
+            let show = e.target.dataset.show;
+            await ipcRenderer.invoke("remove-secret",id);
+            showToastNotification("2-Factor Authentication disabled.",["animation-common","move-left","blue-toast-box"],"main");
+            showForm(null,"back",show);          
+        }
+        else
+        if(cmd==="toggle-session-preference"){
+            e.target.textContent = e.target.dataset.enable==="false" ? "Disable" : "Enable";
+            document.getElementById("session-management-div").classList.toggle("hide");
+            e.target.dataset.enable = !JSON.parse(e.target.dataset.enable);
+        }
+        else
+        if(cmd==="toggle-visibility"){
+            let input = e.target.previousSibling.previousSibling;
+            input.type = show==="false" ? "text" : "password";
+            e.target.textContent = show==="false" ? "Hide" : "Show";
+            e.target.dataset.show = !JSON.parse(show);
+        }
+        else{ // Settings with presets
+            let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
+            e.target.parentNode.classList.add("hide");
+            appSettingsDiv.appendChild(form);
+            form.querySelector("input")?.focus();
+            if(cmd==="session-management"){
+                try{
+                    let cookies = await ipcRenderer.invoke("check-session-info");
+                    if(cookies.length>0){
+                        let {session,sessionTime} = JSON.parse(cookies[0].value);
+                        if(session){
+                            let numHour = sessionTime/(60*60*1000);
+                            document.getElementById("session-btn").click();
+                            [...document.getElementById("expiry").querySelectorAll("option")]
+                            .forEach(option=>{
+                                if(Number(option.value)===numHour)
+                                    option.setAttribute("selected","selected");
+                                else
+                                    option.removeAttribute("selected");
+                            });
+                        }
+                    }
+                }
+                catch(err){
+                    return alert(err);
+                }
+            }
+            if(cmd==="update-user" && loggedinUser.name!=="admin")
+                document.getElementById("role-div").classList.add("hide");
+            else
+            if(cmd==="update-user" && loggedinUser.name==="admin")
+                document.getElementById("role-div").classList.remove("hide");
+            if(cmd==="add-user" && !["admin","all"].includes(loggedinUser.role))
+                document.getElementById("add-user-role-div").classList.add("hide");
+            else
+            if(cmd==="add-user" && ["admin","all"].includes(loggedinUser.role))
+                document.getElementById("add-user-role-div").classList.remove("hide");
+            if(cmd==="lock-screen"){
+                let cookies = await ipcRenderer.invoke("check-session-info");
+                if(cookies.length>0){
+                    loggedinUser.usePasswd = JSON.parse(cookies[0].value).usePasswd;
+                    [...document.querySelectorAll("#usePasswd>option")]
+                    .forEach(option=>{
+                        if(JSON.parse(option.value)==loggedinUser.usePasswd)
+                            option.setAttribute("selected","selected");
+                        else
+                            option.removeAttribute("selected");
+                    });
+                }
+            }
+        }
+    }
+    else
+    if(cmd==="back"){
+        let selectedSettings = document.getElementById(show);
+        selectedSettings.querySelector("form").remove();
+        selectedSettings.querySelector(".settings-div").classList.remove("hide");
+    }
 }
+
+async function saveSettings(e){
+    e.preventDefault();
+    let data = Object.fromEntries(new FormData(e.target).entries());
+    let {cmd,show} = e.target.dataset;
+    if(cmd==="update-user"){
+        if(data.password!==data["re-password"]){
+            document.getElementById("re-password").focus();
+            return alert("Password entered doesn't match.");
+        }
+        try{
+            let option = document.getElementById("name-2").list.querySelector(`[value="${data.name}"]`);
+            if(option)
+                data.id = option.dataset.id;
+            await ipcRenderer.invoke("update-user",data);
+            showToastNotification("User password updated",["animation-common","move-left","blue-toast-box"],"main");
+        }
+        catch(err){
+            alert(errorFormatter(err));
+        }
+    }
+    else
+    if(cmd==="lock-screen"){
+        try{
+            data.usePasswd = JSON.parse(data.usePasswd);
+            await ipcRenderer.invoke("update-wallpaper", data);
+            showToastNotification("Lock screen setting updated",["animation-common","move-left","blue-toast-box"],"main");
+        }
+        catch(err){
+            return alert(errorFormatter(err));
+        }
+    }
+    else
+    if(cmd==="add-user"){
+        if(data.name.toLowerCase().trim()==="admin") return alert("Cannot use a system reserved name as username.")
+        if(data.passwd !== data["re-passwd"]){
+            document.getElementById("re-passwd").focus()
+            return alert("Password entered doesn't match.")
+        }
+        await ipcRenderer.invoke("add-user", data);
+        showToastNotification("New user added successfully.",["animation-common","move-left","blue-toast-box"],"main");
+    }
+    else
+    if(cmd==="set-2-factor-auth")
+        showToastNotification("2-Factor Authentication enabled.",["animation-common","move-left","blue-toast-box"],"main");
+    else
+    if(cmd==="session-management"){// for repeated logins.
+        if(e.target.querySelector("button").dataset.enable==="true")
+            await ipcRenderer.invoke("create-login-session",data);
+        else{
+            console.log("removing session")
+            await ipcRenderer.invoke("remove-auth-session");
+        }
+        showToastNotification("Session settings updated.",["animation-common","move-left","blue-toast-box"],"main");
+    }
+    showForm(null,"back",show);
+}
+
+async function chooseFile(e){
+    let input = e.target.previousSibling.previousSibling;
+    let selectionObj = await ipcRenderer.invoke("get-image-path");
+    if(!selectionObj.canceled)
+        input.value = selectionObj.filePaths[0];
+}
+
+async function enableOrDisableQR(e){
+    let username = e.target.value;
+    let option = e.target.list.querySelector(`[data-name="${username}"]`);
+    let userId = option.dataset.id;
+    e.target.dataset.id = userId;
+    let secret = await ipcRenderer.invoke("get-user-status",userId);
+    let btn;
+    if(!secret)
+        btn = document.getElementById("enable-2-factor");
+    else
+        btn = document.getElementById("disable-2-factor")        ;
+    btn?.removeAttribute("disabled");
+}
+
+ipcRenderer.on("logged-in-user",(e,user)=>{
+    loggedinUser = user;
+    document.getElementById("gretings-header").textContent = `Welcome, ${capitalize(loggedinUser.name)}`;
+});
+
+ipcRenderer.on("error",(e,msg)=>{
+    return alert(msg);
+});

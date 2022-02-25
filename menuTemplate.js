@@ -1,4 +1,4 @@
-const { BrowserWindow } = require("electron");
+const { BrowserWindow, ipcMain } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
 const {displayStock,handleReturn} = require("./handleStock");
 const {getSuplierPortal,checkOutPayments} = require("./supplierHandler");
@@ -42,10 +42,12 @@ module.exports = mainWindow=>{
                 },
                 { type: "separator" },
                 {
-                    label: "Lock"
+                    label: "Lock",
+                    click: ()=>ipcMain.emit("lock")
                 },
                 {
-                    label: "Logout"
+                    label: "Logout",
+                    click: ()=>ipcMain.emit("logout")
                 },
                 { type: "separator" },
                 { role: "quit" }
@@ -56,7 +58,7 @@ module.exports = mainWindow=>{
             submenu:[
                 {
                     label:"Add Sale",
-                    accelerator:"Return",
+                    accelerator:"CommandOrControl+Return",
                     click:saleWindow()
                 },
                 {

@@ -480,6 +480,39 @@ const requirementSchema = {
     }
 };
 
+const userSchema = {
+    id:{
+        type: DataTypes.UUID,
+        primaryKey: true
+    },
+    name:{
+        type: DataTypes.TEXT
+    },
+    passwd:{
+        type: DataTypes.TEXT
+    },
+    role:{
+        type: DataTypes.TEXT
+    },
+    lastLogin:{
+        type: DataTypes.TIME
+    },
+    secret:{
+        type: DataTypes.TEXT
+    },
+    session:{
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    sessionTime:{
+        type: DataTypes.TIME
+    },
+    usePasswd:{
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    }
+}
+
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
         freezeTableName:false,
@@ -546,6 +579,10 @@ module.exports = {
         timestamps: false
     }),
     requirement: sequelize.define("requirement",requirementSchema,{
+        freezeTableName: true,
+        timestamps: false
+    }),
+    user: sequelize.define("user",userSchema,{
         freezeTableName: true,
         timestamps: false
     })

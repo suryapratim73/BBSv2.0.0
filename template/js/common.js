@@ -843,3 +843,7 @@ function mouseoutHandler(e){
     this.querySelector(".body-row-options")?.remove();
     this.removeEventListener("mouseout",arguments.callee);
 }
+
+exports.errorFormatter = function(err){
+    return err.message.match(/(?<=Error:).+/g).pop().trim();
+}

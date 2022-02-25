@@ -22,24 +22,27 @@ let supplier = {},
 
 function clickOrFocusinHandler(e){
     removeAllElem(".body-row-options")
-    if(["P","INPUT"].includes(e.target.nodeName))
+    if(["P","INPUT"].includes(e.target.nodeName)){
         bodyRow = e.target.parentNode.parentNode;
+        let bodyRowOpt = document.getElementById("item-options").content.cloneNode(true).querySelector("div");
+        bodyRow.appendChild(bodyRowOpt);
+    }
     else{
         if(e.target.dataset.cmd==="delete"){
             itemList = deleteRowCommon(bodyRow,itemList);
             return;
         }
-        else
-        if(e.target.dataset.cmd==="add-info"){
-            modal.classList.remove("hide");
-            modal.dataset.type = "page2";
-            cover.classList.remove("hide");
-            removeAllElem(".deletable");
-            let pInfo =  bodyRow.dataset.pInfo ? JSON.parse(bodyRow.dataset.pInfo) : {};
-            pInfo && !Object.keys(pInfo).some(key=>/type/i.test(key)) && setNewFeild("Type","");
-            for(let label in pInfo)
-                setNewFeild(label,pInfo[label]);
-        }
+        // else
+        // if(e.target.dataset.cmd==="add-info"){
+        //     modal.classList.remove("hide");
+        //     modal.dataset.type = "page2";
+        //     cover.classList.remove("hide");
+        //     removeAllElem(".deletable");
+        //     let pInfo =  bodyRow.dataset.pInfo ? JSON.parse(bodyRow.dataset.pInfo) : {};
+        //     pInfo && !Object.keys(pInfo).some(key=>/type/i.test(key)) && setNewFeild("Type","");
+        //     for(let label in pInfo)
+        //         setNewFeild(label,pInfo[label]);
+        // }
     }
     itemObj = itemList.find(obj=>bodyRow?.dataset?.uid==obj.uid) ?? {};
     let addRowBTN = document.querySelector(".body-row-options button:last-child");
@@ -102,83 +105,83 @@ function addRow(e){
     e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
 }
 
-function addFeild(e){
-    removeAllElem(".popup2");
-    modal.querySelector("form").classList.add("hide");
-    let popup2 = document.getElementById("new-feild-template").content.cloneNode(true).querySelector("form");
-    modal.appendChild(popup2);
-    [...document.querySelectorAll(".popup2 .feild>input")].forEach(input=>input.value="");
-    document.getElementById("value").dataset.type = "Number";
-    document.getElementById("value").dataset.subtype = "price";
-}
+// function addFeild(e){
+//     removeAllElem(".popup2");
+//     modal.querySelector("form").classList.add("hide");
+//     let popup2 = document.getElementById("new-feild-template").content.cloneNode(true).querySelector("form");
+//     modal.appendChild(popup2);
+//     [...document.querySelectorAll(".popup2 .feild>input")].forEach(input=>input.value="");
+//     document.getElementById("value").dataset.type = "Number";
+//     document.getElementById("value").dataset.subtype = "price";
+// }
 
-function removeFeild(e){
-    let btn = e.target;
-    let {label} = btn.dataset;
-    if(billMeta.moreInfo)
-        billMeta.moreInfo = billMeta?.moreInfo.filter(obj=>obj.label!==label);
-    Reflect.deleteProperty(itemObj.pInfo,label);
-    deletedProperty.push(label);
-    if(bodyRow)
-        bodyRow.dataset.pInfo = JSON.stringify(itemObj.pInfo);
-    btn.parentNode.remove();
-}
+// function removeFeild(e){
+//     let btn = e.target;
+//     let {label} = btn.dataset;
+//     if(billMeta.moreInfo)
+//         billMeta.moreInfo = billMeta?.moreInfo.filter(obj=>obj.label!==label);
+//     Reflect.deleteProperty(itemObj.pInfo,label);
+//     deletedProperty.push(label);
+//     if(bodyRow)
+//         bodyRow.dataset.pInfo = JSON.stringify(itemObj.pInfo);
+//     btn.parentNode.remove();
+// }
 
-function setNewFeild(label,value,kind="info"){//remove "kind" dependency
-    document.querySelector(`[data-feild="${label}"]`)?.remove();
-    let newFeild = document.createElement("div");
-    newFeild.className = "feild deletable";
-    newFeild.dataset.feild = label;
-    newFeild.innerHTML = `
-        <label for="${label}">${label}</label>
-        <input type="text" data-catagory="pInfo" data-kind="${kind}" required id="${label}" name="${label}" value="${value}">
-        <button type="button" data-label="${label}" onclick="removeFeild(event)">x</button>
-    `;
-    let btnFeild = document.querySelector("#purchase-page-modal .feild:last-child");
-    btnFeild.before(newFeild);
-    btnFeild.scrollIntoView();
-}
+// function setNewFeild(label,value,kind="info"){//remove "kind" dependency
+//     document.querySelector(`[data-feild="${label}"]`)?.remove();
+//     let newFeild = document.createElement("div");
+//     newFeild.className = "feild deletable";
+//     newFeild.dataset.feild = label;
+//     newFeild.innerHTML = `
+//         <label for="${label}">${label}</label>
+//         <input type="text" data-catagory="pInfo" data-kind="${kind}" required id="${label}" name="${label}" value="${value}">
+//         <button type="button" data-label="${label}" onclick="removeFeild(event)">x</button>
+//     `;
+//     let btnFeild = document.querySelector("#purchase-page-modal .feild:last-child");
+//     btnFeild.before(newFeild);
+//     btnFeild.scrollIntoView();
+// }
 
-function setFeild(e){
-    e.preventDefault();
-    closeModal(undefined,"popup2");
-    let { label,value } = e.target;
-    label = label.value;
-    value = value.value;
-    setNewFeild(label,value);
-}
+// function setFeild(e){
+//     e.preventDefault();
+//     closeModal(undefined,"popup2");
+//     let { label,value } = e.target;
+//     label = label.value;
+//     value = value.value;
+//     setNewFeild(label,value);
+// }
 
-function closeModal(e,popup){
-    let controller = popup ? popup : e.target.dataset.modal;
-    if(controller!="popup2"){
-        modal.classList.add("hide");
-        cover.classList.add("hide");
-    }
-    removeAllElem(".popup2");
-    modal.querySelector("form").classList.remove("hide");
-}
+// function closeModal(e,popup){
+//     let controller = popup ? popup : e.target.dataset.modal;
+//     if(controller!="popup2"){
+//         modal.classList.add("hide");
+//         cover.classList.add("hide");
+//     }
+//     removeAllElem(".popup2");
+//     modal.querySelector("form").classList.remove("hide");
+// }
 
-function addItem(e){
-    e.preventDefault();
-    closeModal(undefined,"NA")
-    if(e.target.parentNode.dataset.type==="page2"){
-        [...modal.querySelectorAll(".feild input")].forEach(input=>{
-            itemObj.pInfo[input.name] = input.value;
-        });
-        bodyRow.dataset.pInfo = JSON.stringify(itemObj.pInfo);
-        thirdPage.classList.remove("blur-pointer");
-    }
-    else{
-        billMeta.moreInfo = [];
-        [...modal.querySelectorAll(".feild input")].forEach(input=>{
-            let obj = {label:input.name,kind:input.dataset.kind,value:input.value};
-            billMeta.moreInfo.push(obj);
-        });
-        billMeta.moreInfo = billMeta.moreInfo.filter((val,index,self)=>(
-            index===self.findIndex(obj=>(obj.label===val.label && obj.kind===val.kind && obj.value===val.value))
-        ));
-    }
-}
+// function addItem(e){
+//     e.preventDefault();
+//     closeModal(undefined,"NA")
+//     if(e.target.parentNode.dataset.type==="page2"){
+//         [...modal.querySelectorAll(".feild input")].forEach(input=>{
+//             itemObj.pInfo[input.name] = input.value;
+//         });
+//         bodyRow.dataset.pInfo = JSON.stringify(itemObj.pInfo);
+//         thirdPage.classList.remove("blur-pointer");
+//     }
+//     else{
+//         billMeta.moreInfo = [];
+//         [...modal.querySelectorAll(".feild input")].forEach(input=>{
+//             let obj = {label:input.name,kind:input.dataset.kind,value:input.value};
+//             billMeta.moreInfo.push(obj);
+//         });
+//         billMeta.moreInfo = billMeta.moreInfo.filter((val,index,self)=>(
+//             index===self.findIndex(obj=>(obj.label===val.label && obj.kind===val.kind && obj.value===val.value))
+//         ));
+//     }
+// }
 
 function proceedHandler(e){
     if(e.type==="submit"){// Page 2 submit event.

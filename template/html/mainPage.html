@@ -20,11 +20,13 @@
         <div>
             <p data-cmd="settings">Settings</p>
             <p data-cmd="help">Help</p>
+            <p data-cmd="logout">Logout</p>
+            <p data-cmd="lock">Lock</p>
         </div>
     </div>
     <div id="main-div">
         <div>
-            <h1>Welcome, Usha Hardware Stores</h1>
+            <h1 id="gretings-header"></h1>
             <div>
                 <div>
                     <h2>Overview</h2>
@@ -155,11 +157,19 @@
                 <p data-mode="company-settings">Company</p>
                 <p data-mode="billing-settings">Billing</p>
             </nav>
-            <main>
+            <main id="main">
                 <h1>Settings</h1>
-                <div id="settings-container" oninput="saveSettings(event)">
+                <div id="settings-container" onclick="showForm(event)">
                     <div class="settings" data-mode="app-settings" id="app-settings">
                         <h2>App Settings</h2>
+                        <div class="settings-div">
+                            <p data-cmd="set-2-factor-auth" data-msg="Unlock using password and any authenticator app.">Set 2 factor authentication</p>
+                            <p class="bill purchase" data-cmd="enable-disable-sms-notification" data-msg="SMS notification helps you to notify customer about their due payment but will cost you some money per month based on your usage.">SMS Notification</p>
+                            <p class="bill purchase" data-cmd="lock-screen" data-msg="Change lock screen background.">Lock screen</p>
+                            <p class="bill purchase" data-cmd="add-user" data-msg="Add users of this software and assign role to them.">Add user</p>
+                            <p class="bill purchase" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
+                            <p data-cmd="session-management" data-msg="Configure lock behaviour and session persistence.">Session management</p>
+                        </div>
                     </div>
                     <div class="settings hide" data-mode="company-settings" id="company-settings">
                         <h2>Company settings</h2>
@@ -170,6 +180,168 @@
                 </div>
             </main>
         </div>
+    </template>
+    <template id="set-2-factor-auth-template">
+        <form onsubmit="saveSettings(event)" id="set-2-factor-auth-form" data-cmd="set-2-factor-auth" data-show="app-settings">
+            <div>
+                <div>
+                    <div><label for="name">Select user</label></div>
+                    <div><input type="text" onchange="enableOrDisableQR(event)" id="name" name="name" list="user-list"></div>
+                </div>
+                <div>
+                    <div>
+                        <button type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled>Enable 2-Factor Authentication</button>
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <button type="submit" id="done-btn" disabled>Done</button>
+                        <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+                        <button type="button" id="disable-2-factor" disabled data-cmd="disable-2-factor" data-show="app-settings">Disable 2-Factor Authentication</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div id="qrcode-div">
+                    <img>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="lock-screen-template">
+        <form onsubmit="saveSettings(event)" data-cmd="lock-screen" data-show="app-settings">
+            <div>
+                <div><label for="file-path">Choose a image file</label></div>
+                <div>
+                    <input type="text" name="filePath" id="file-path">
+                    <button type="button" onclick="chooseFile(event)">Choose</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="usePasswd">Use password</label></div>
+                <div>
+                    <select name="usePasswd" id="usePasswd">
+                        <option value="true">Yes</option>
+                        <option value="false" selected>No</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="add-user-template">
+        <form onsubmit="saveSettings(event)" data-cmd="add-user" data-show="app-settings">
+            <div>
+                <div><label for="name">Username</label></div>
+                <div><input type="text" name="name" id="name" required></div>
+            </div>
+            <div>
+                <div><label for="passwd">Password</label></div>
+                <div>
+                    <input type="password" name="passwd" id="password" required>
+                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="re-passwd">Confirm password</label></div>
+                <div>
+                    <input type="password" name="re-passwd" id="re-passwd" required>
+                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                </div>
+            </div>
+            <div id="add-user-role-div">
+                <div><label for="role"></label></div>
+                <div>
+                    <select name="role" id="role">
+                        <option value="all" selected>All</option>
+                        <option value="bill">Billing</option>
+                        <option value="purchase">Purchase</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Register</button>
+                    <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="session-management-template">
+        <form onsubmit="saveSettings(event)" data-cmd="session-management" data-show="app-settings">
+            <div>
+                <div>
+                    <label>App session</label>
+                    <button type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference">Enable</button>
+                </div>
+            </div>
+            <div class="hide" id="session-management-div">
+                <div>
+                    <div>
+                        <label for="expiry">Set session expiry</label>
+                    </div>
+                    <div>
+                        <select name="expiry" id="expiry">
+                            <option value="1" selected>1 Hour</option>
+                            <option value="3">3 Hours</option>
+                            <option value="5">5 Hours</option>
+                            <option value="8">8 Hours</option>
+                            <option value="24">1 Day</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Done</button>
+                <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="update-user-template">
+        <form onsubmit="saveSettings(event)" data-cmd="update-user" data-show="app-settings">
+            <div>
+                <div><label for="name">Select user</label></div>
+                <div><input type="text" id="name-2" name="name" list="user-list"></div>
+            </div>
+            <div>
+                <div><label for="old-password">Enter existing password</label></div>
+                <div>
+                    <input type="password" name="old-password" id="old-password">
+                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="password">Enter new password</label></div>
+                <div>
+                    <input type="password" name="password" id="password">
+                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="re-password">Re-enter password</label></div>
+                <div>
+                    <input type="password" name="re-password" id="re-password">
+                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                </div>
+            </div>
+            <div id="role-div">
+                <div><label for="role">Role</label></div>
+                <div>
+                    <select name="role" id="role">
+                        <option value="all" selected>All</option>
+                        <option value="bill">Billing</option>
+                        <option value="purchase">Purchase</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+            </div>
+        </form>
     </template>
     <template id="item-list-template">
         <div class="item-obj">
@@ -204,5 +376,6 @@
             <p></p>
         </div>
     </template>
+    <datalist id="user-list"></datalist>
 </body>
 </html>

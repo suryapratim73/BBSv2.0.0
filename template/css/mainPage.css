@@ -518,12 +518,77 @@ select,option{
 #settings-container{
     width: 100%;
     height: 100%;
+    overflow: hidden;
 }
 .settings h2{
     text-align: right;
     border-bottom: 1px solid gray;
     padding-bottom: 0.5rem;
 }
-#settings-container .settings{
-
+#settings-container form{
+    display: flex;
+    flex-direction: column;
+}
+#settings-container form>div{
+    margin: 0.5rem 0;
+}
+#settings-container form>div>div{
+    margin: 0.25rem 0;
+}
+#settings-container form input{
+    padding: 0.25rem;
+    width: 10rem;
+}
+#settings-container form button{
+    padding: 0.5rem;
+}
+.settings-div{
+    max-height: 100%;
+    overflow: auto;
+    padding: 0 0.25rem;
+}
+.settings-div p{
+    padding: 0.2rem 0.5rem;
+    margin: 0.5rem 0;
+    box-shadow: 0px 0px 0px 2px grey;
+    border-radius: 5px;
+    height: fit-content;
+    font-size: 1.5rem;
+}
+.settings-div p:hover{
+    color: orangered;
+    cursor: pointer;
+}
+.settings-div p:after{
+    content: attr(data-msg);
+    font-size: 0.9rem;
+    color: black;
+    display: block;
+}
+form#set-2-factor-auth-form{
+    flex-direction: row;
+}
+form#set-2-factor-auth-form>div{
+    margin: 0 0.5rem;
+    flex: 1;
+}
+form#set-2-factor-auth-form>div:first-child{
+    border-right: 1px solid black;
+}
+form#set-2-factor-auth-form>div:last-child{
+    padding: 0.5rem;
+}
+form#set-2-factor-auth-form>div>div{
+    margin: 1rem 0;
+}
+form#set-2-factor-auth-form button{
+    margin: 0.25rem 0;
+}
+#qrcode-div{
+    width: 100%;
+    height: 100%;
+}
+#qrcode-div>img{
+    width: 100%;
+    height: auto;
 }
