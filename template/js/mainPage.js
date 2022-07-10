@@ -277,8 +277,7 @@ async function showForm(e,cmd,show){
     let appSettingsDiv = document.getElementById("app-settings");
     if(cmd!=="back"){
         if(cmd==="enable-2-factor"){
-            let id = document.getElementById("name").dataset.id;
-            let dataURL = await ipcRenderer.invoke("generate-secret",id);
+            let dataURL = await ipcRenderer.invoke("generate-secret");
             if(dataURL){
                 document.querySelector("#qrcode-div>img").src = dataURL;
                 document.getElementById("done-btn").removeAttribute("disabled");
@@ -314,6 +313,7 @@ async function showForm(e,cmd,show){
                 try{
                     let cookies = await ipcRenderer.invoke("check-session-info");
                     if(cookies.length>0){
+                        console.log(cookies[0].expirationDate-Date.now())
                         let {session,sessionTime} = JSON.parse(cookies[0].value);
                         if(session){
                             let numHour = sessionTime/(60*60*1000);
@@ -407,8 +407,10 @@ async function saveSettings(e){
         showToastNotification("New user added successfully.",["animation-common","move-left","blue-toast-box"],"main");
     }
     else
-    if(cmd==="set-2-factor-auth")
+    if(cmd==="set-2-factor-auth"){
+        await ipcRenderer.invoke("save-secret-for-user");
         showToastNotification("2-Factor Authentication enabled.",["animation-common","move-left","blue-toast-box"],"main");
+    }
     else
     if(cmd==="session-management"){// for repeated logins.
         if(e.target.querySelector("button").dataset.enable==="true")

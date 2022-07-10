@@ -8,6 +8,7 @@ const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHa
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
+const { billDesignerWindow } = require("./main");
 
 
 module.exports = mainWindow=>{
@@ -143,7 +144,8 @@ module.exports = mainWindow=>{
                     accelerator: "Shift+F4" // Dev Time Shortcut
                 },
                 {
-                    label: "Event Scheduler",
+                    label: "Bill Layout Designer",
+                    click: billDesignerWindow(mainWindow)
                     
                 },
                 {type:"separator"},
@@ -171,17 +173,6 @@ module.exports = mainWindow=>{
                     label: "Register Services",
                     click: serviceRegistor(mainWindow),
                     accelerator: "F8"
-                },
-                { type: "separator" },
-                {
-                    label: "Lock/Unlock Admin",
-                    // click: function(e){
-                    //     e.menu.items.forEach(menu=>{
-                    //         if(menu.enabled===false)
-                    //             menu.enabled = true;
-                    //     });
-                    //     e.enabled = true;
-                    // }
                 }
             ]
         },// Admin menu

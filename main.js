@@ -86,15 +86,22 @@ async function createWindow () {
   mainWindow.maximize();
   winState.manage(mainWindow);
   mainWindow.webContents.on("did-finish-load",async ()=>{
-    if(currentUser){
+    if(currentUser){ // For session login
       let {id,name,role,usePasswd} = currentUser;
       mainWindow.webContents.send("logged-in-user",{id,name,role,usePasswd});
-      imposeRestriction();
+      if(!["admin","all"].includes(currentUser.role))
+        imposeRestriction();
     }
     else
       mainWindow.webContents.send("use-lock");
   })
   return mainWindow;
+}
+
+exports.billDesignerWindow = mainWindow => {
+  return ()=>{
+    mainWindow.loadFile("./template/html/billLayout.html");
+  }
 }
 
 ipcMain.handle("get-users", async ()=>{
@@ -173,6 +180,16 @@ app.on("ready",async ()=>{
     "margin": 10,
     "emblem": "Bhagawati Emblem.jpg"
   };
+  let appDefaultSchema = {
+    "a4":{
+      "width":595.28,
+      "height":841.89
+    },
+    "letter":{
+      "width":612,
+      "height":792
+    }
+  }
   //Initialize BBS
   fs.readFile(__dirname+"/config/saleConfig.json",(err,data)=>{
     if(err)
@@ -202,7 +219,15 @@ app.on("ready",async ()=>{
       //check for files
       if(!fs.existsSync(path.resolve(fPath))){
         if(type==="config"){
-          let schema = fileName==="policy.json"?policyJsonSchema:saleConfigSchema;
+          let schema;
+          if(fileName==="policy.json")
+            schema = policyJsonSchema;
+          else
+          if(fileName==="saleConfig.json")
+            schema = saleConfigSchema;
+          else
+          if(fileName==="appDefault.json")
+            schema = appDefaultSchema;
           fs.writeFile(path.resolve(fPath),JSON.stringify(schema),(err)=>{
             if(err) throw err;
           });
@@ -427,17 +452,21 @@ ipcMain.handle("get-user-status",async (e,id)=>{
   })).dataValues.secret;
 });
 
-ipcMain.handle("generate-secret",async (e,id)=>{
+ipcMain.handle("generate-secret",()=>{
   const qrCode = require("qrcode");
   let secret = speakeasy.generateSecret({name:"BBSv2",issuer:"codeMint.com"});
-  await user.update({
-    secret:secret.base32
+  currentUser.tempSecet = secret.base32;
+  return qrCode.toDataURL(secret.otpauth_url);
+});
+
+ipcMain.handle("save-secret-for-user",()=>{
+  return user.update({
+    secret:currentUser.tempSecet
   },{
     where:{
       id
     }
   });
-  return qrCode.toDataURL(secret.otpauth_url);
 });
 
 ipcMain.handle("remove-secret",(e,id)=>{
@@ -616,6 +645,9 @@ ipcMain.on("app-login",async ()=>{
   catch(err){
     console.log(err);
   }
+  finally{
+    imposeRestriction();
+  }
 });
 
 function imposeRestriction(){
@@ -626,14 +658,14 @@ function imposeRestriction(){
       .submenu.items.forEach(item=>{item.enabled=isEnabled});
     });
   }
-
+  
   if(currentUser.role==="bill")
     blockHelper([{index:1,isEnabled:true},{index:2,isEnabled:false}]);
   else
   if(currentUser.role==="purchase")
     blockHelper([{index:2,isEnabled:true},{index:1,isEnabled:false}]);
-  else
-    Menu.getApplicationMenu().items.forEach(({submenu})=>{
+  else // Case for role admin and all
+    return Menu.getApplicationMenu().items.forEach(({submenu})=>{
       submenu.items.forEach(item=>{
         item.enabled = true;
       });
@@ -643,3 +675,36 @@ function imposeRestriction(){
     {index:5,isEnabled:false},
   ]);
 }
+
+// Bill designer IPCs
+
+ipcMain.on("load-main-page",()=>{
+  let mainWindow = getMainWindow();
+  mainWindow.loadFile("./template/html/mainPage.html");
+});
+
+ipcMain.on("save-bill-template",async (e,page)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+  try{
+    let { canceled,filePath } = await dialog.showSaveDialog(win,{
+      message: "Save bill template",
+      defaultPath:app.getPath("documents"),
+      properties:["createDirectory"]
+    });
+    if(canceled) return 0;
+    if(!/.json$/.test(filePath))
+      filePath += ".json";
+    fs.writeFile(filePath,JSON.stringify(page),err=>{
+      if(err) return dialog.showErrorBox("File save error",err.message);
+      return dialog.showMessageBox(win,{
+        title:"Success",
+        message:"Successfully saved bill layout.",
+        type:"info"
+      });
+    });
+  }
+  catch(err){
+    dialog.showErrorBox("File save error",err.message)
+    return -1;
+  }
+});

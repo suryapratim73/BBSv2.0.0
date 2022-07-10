@@ -1,0 +1,177 @@
+@import "../css/common.css";
+:root{
+    --left_range:50%
+}
+body{
+    display: flex;
+    padding: unset;
+    background: gray;
+}
+aside{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: rebeccapurple;
+    padding: 0.5rem;
+    max-width: 40%;
+}
+aside>div:last-child{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+}
+aside>div:last-child>div{
+    align-items: stretch;
+    gap: 0.5rem;
+}
+aside>div>div{
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+}
+aside>div>div *{
+    flex: 1;
+}
+aside button{
+    background: transparent;
+    color: white;
+    padding: 0.75rem 0.25rem;
+    outline: none;
+}
+aside span{
+    font-size: 0.8rem;
+}
+aside input{
+    width: 100%;
+    height: 100%;
+    color: black;
+    max-width: 5rem;
+    min-height: 1rem;
+}
+aside select{
+    color: black;
+    max-width: 5rem;
+}
+p,label{
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+}
+h1{
+    color: black;
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%,-25%);
+    width: fit-content;
+}
+body>div{
+    flex: 4;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: auto;
+}
+main{
+    background-color: white;
+    position: relative;
+    overflow: hidden;
+}
+.new-elem{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    cursor: grab;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.selected{
+    border-color: green;
+}
+#selector{
+    position: absolute;
+    border: 1px dashed black;
+    resize: both;
+}
+#selector.show-msg::after{
+    content: attr(data-msg);
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: white;
+    background-color: gray;
+    padding: 0.15rem;
+    font-size: 0.75rem;
+}
+.adv-option-div>div{
+    display: flex;
+    margin: 0.5rem 0;
+    /* align-items: flex-start; */
+}
+.adv-option-div>div>div{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+option{
+    color: black;
+}
+.selected-btn{
+    box-shadow: inset 0 0 3px 1px yellow;
+}
+#coordinate-marker{
+    position: absolute;
+    top:50%;
+    left:50%;
+    transform: translate(-50%,-50%);
+}
+#coordinate-marker::after{
+    content: attr(data-msg);
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: white;
+    background-color: gray;
+    padding: 0.15rem;
+    font-size: 0.75rem;
+}
+.adj-pts,#helper-line{
+    position: absolute;
+    z-index: 11;
+}
+.hovered-over{
+    border: 1px solid cyan;
+}
+.alignment-line-over{
+    border: 1px solid green !important;
+}
+input[type="range"]{
+    position: relative;
+}
+input[type="range"]:hover::after,input[type="range"]:focus::after{
+    content: attr(data-msg);
+    z-index: 10;
+    position: absolute;
+    width: 2rem;
+    top:-200%;
+    left:var(--left_range);
+    display: flex;
+    justify-content: center;
+    background: white;
+    padding: 0.5rem 0.25rem;
+    border-radius: 5px;
+    font-size: 0.9rem;
+}
+button.fa-solid{
+    font-size: 0.6rem;
+}
+button.fa-solid.selected-btn-2{
+    color: yellow;
+}

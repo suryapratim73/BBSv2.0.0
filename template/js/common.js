@@ -847,3 +847,27 @@ function mouseoutHandler(e){
 exports.errorFormatter = function(err){
     return err.message.match(/(?<=Error:).+/g).pop().trim();
 }
+
+exports.throttle = function(cb,delay=1000){
+    let shouldWait = false;
+    let waitingArgs;
+    function throttleFunc(){
+        if(!waitingArgs)
+            shouldWait = false;
+        else{
+            cb(...waitingArgs);
+            waitingArgs = null;
+            setTimeout(throttleFunc,delay);
+        }
+    }
+    return (...args)=>{
+        if(shouldWait){
+            waitingArgs = args;
+            return;
+        }
+
+        cb(...args);
+        shouldWait = true;
+        setTimeout(throttleFunc,delay);
+    }
+}

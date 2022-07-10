@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Layout Designer</title>
+    <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
+    <link rel="stylesheet" href="../css/billLayout.css">
+    <script src="../js/billLayout.js" defer></script>
+</head>
+<body>
+    <aside onclick="btnCtrls(event)">
+        <div>
+            <div>
+                <button class="ctrl-btns" data-cmd="section">Section</button>
+                <button class="ctrl-btns" data-cmd="feild">Feild</button>
+            </div>
+            <div>
+                <button class="ctrl-btns" data-cmd="table">Table</button>
+                <button class="ctrl-btns" data-cmd="page">Page</button>
+            </div>
+            <div id="delete-btn-div" class="hide">
+                <button data-cmd="delete">Delete</button>
+            </div>
+            <div id="adv-options"></div>
+            <div id="adv-options-2"></div>
+        </div>
+        <div>
+            <div>
+                <button data-cmd="save-exit">Save & Exit</button>
+                <button data-cmd="exit">Exit</button>
+            </div>
+        </div>
+    </aside>
+    <div>
+        <main onmousedown="move(event)">
+            <h1 id="blanck-header">Start creating bill design</h1>
+        </main>
+    </div>
+    <template id="block-option-template">
+        <div class="adv-option-div" oninput="assignBlockOptions(event)">
+            <div>
+                <button data-cmd="new-section">Create section</button>
+            </div>
+            <div>
+                <p>Role</p>
+                <select data-cmd="section" data-name="role">
+                    <option value="head">Head</option>
+                    <option value="body">Body</option>
+                    <option value="footer">Footer</option>
+                    <option value="section" selected>Section</option>
+                </select>
+            </div>
+            <div>
+                <p>Name</p>
+                <input type="text" id="section-name" data-cmd="name">
+            </div>
+            <div>
+                <p>Apply border</p>
+                <select id="apply-border" data-cmd="apply-border">
+                    <option value="false">No</option>
+                    <option value="true" selected>Yes</option>
+                </select>
+            </div>
+            <div>
+                <button data-cmd="create-partition">Create Partition</button>
+                <button data-cmd="undo-partitions">Undo Partitions</button>
+            </div>
+            <div>
+                <button data-cmd="properties">More Properties</button>
+            </div>
+        </div>
+    </template>
+    <template id="block-option-2-template">
+        <div class="adv-option-div" oninput="partitionManager(event)">
+            <div>
+                <select data-cmd="partition-direction">
+                    <option value="col" selected>Column</option>
+                    <option value="row">Row</option>
+                </select>
+                <label>-wise partition</label>
+            </div>
+            <div>
+                <input type="range" data-msg="50" data-cmd="range" min="0" max="100" value="50">
+                <label> % of <span class="changable">width</span> from left</label>
+            </div>
+            <div>
+                <p>Line width</p>
+                <input value="1" data-cmd="lWidth" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <button data-cmd="save-partition">Create</button>
+                <button data-cmd="cancel-partition">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="block-option-3-template">
+        <div class="adv-option-div" oninput="assignBlockOptions(event)">
+            <div>
+                <p>Border width</p>
+            </div>
+            <div>
+            </div>
+            <input data-cmd="border-width" value="1" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+        </div>
+    </template>
+    <template id="block-option-4-template">
+        <div class="adv-option-div" oninput="assignBlockOptions(event)">
+            <div>
+                <label>% of width w.r.t parent</label>
+                <input type="range" data-msg="Not set" data-cmd="width" min="0" max="100" value="50">
+            </div>
+            <div>
+                <label>% of height w.r.t parent</label>
+                <input type="range" data-msg="Not set" data-cmd="height" min="0" max="100" value="50">
+            </div>
+            <div>
+                <button data-cmd="confirm-section-prop">Ok</button>
+                <button data-cmd="cancel-section-prop">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="feild-option-template">
+        <div class="adv-option-div" id="field-option-1" oninput="assignFeildOptions(event)">
+            <div>
+                <p>Feild Type</p>
+                <select data-cmd="type">
+                    <option value="string">Text</option>
+                    <option value="variable">Variable</option>
+                </select>
+            </div>
+            <div>
+                <p>Font Size</p>
+                <input type="text" value="16" data-cmd="fSize" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <p>Font Family</p>
+                <select data-cmd="fFamily">
+                    <option value="Arial" selected>Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="serif">Serif</option>
+                    <option value="sans-serif">Sans Serif</option>
+                </select>
+            </div>
+            <div onclick="assignFeildOptions(event)">
+                <p>Style</p>
+                <button data-cmd="bold" class="fa-solid fa-bold"></button>
+                <button data-cmd="italic" class="fa-solid fa-italic"></button>
+                <button data-cmd="underline" class="fa-solid fa-underline"></button>
+            </div>
+            <div class="hide" data-show="fWeight">
+                <p>Font Weight</p>
+                <select data-cmd="fWeight">
+                    <option value="normal">Normal</option>
+                    <option value="bold" selected>Bold</option>
+                    <option value="bolder">Bolder</option>
+                    <option value="lighter">Lighter</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="300">300</option>
+                    <option value="400">400</option>
+                    <option value="500">500</option>
+                    <option value="600">600</option>
+                    <option value="700">700</option>
+                    <option value="800">800</option>
+                    <option value="900">900</option>
+                </select>
+            </div>
+            <div class="hide" data-show="variable">
+                <p>Variable Type</p>
+                <select data-cmd="fType">
+                    <option value="date">Date</option>
+                    <option value="billNo">Bill Number</option>
+                    <option value="biller-name">Biller Name</option>
+                    <option value="biller-address">Biller Address</option>
+                    <option value="biller-gst">Biller GST</option>
+                    <option value="biller-phone">Biller Contact</option>
+                    <option value="biller-bank">Biller Bank</option>
+                    <option value="biller-ac">Biller A/C Number</option>
+                    <option value="biller-ac-branch">Biller A/C Branch</option>
+                    <option value="biller-ac-ifsc">Biller A/C IFSC</option>
+                    <option value="customer-name">Customer Name</option>
+                    <option value="customer-address">Customer Address</option>
+                    <option value="customer-gst">Customer GST</option>
+                    <option value="customer-phone">Customer Contact</option>
+                    <option value="pay-mode">Pay Mode</option>
+                    <option value="pay-date">Pay Date</option>
+                    <option value="bill-status">Bill Status</option>
+                    <option value="page-no">Page Number</option>
+                    <option value="gtotal">Grand Total</option>
+                    <option value="total">Total</option>
+                    <option value="net-tax">Net Tax</option>
+                    <option value="net-CGST">Net CGST</option>
+                    <option value="net-SGST">Net SGST</option>
+                    <option value="net-IGST">Net IGST</option>
+                    <option value="ro">Rounding off value</option>
+                    <option value="gtotal-words">Net Amount in words</option>
+                </select>
+            </div>
+            <div>
+                <label for="label">Feild label</label>
+                <input type="text" id="label" data-cmd="text">
+            </div>
+            <div>
+                <button data-cmd="create-feild" onclick="insertFeild()">Create</button>
+                <button onclick="cancelFeild()">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="table-option-template">
+        <div class="adv-option-div" oninput="tableDesignHelper(event)">
+            <div>
+                <p>TH Height</p>
+                <input type="text" data-cmd="thHeight" value="32" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <p>TH Font Size</p>
+                <input type="text" data-cmd="fSize" value="16" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <p>Row spacing</p>
+                <input type="text" data-cmd="rSpacing" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <p>Left Padding</p>
+                <input type="text" data-cmd="padding" value="10" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <div id="column-name-display"></div>
+            </div>
+            <div>
+                <button data-cmd="new-col">Add new column</button>
+                <button data-cmd="rem-table">Remove table</button>
+            </div>
+        </div>
+    </template>
+    <template id="table-2-option-template">
+        <div class="adv-option-div" oninput="tableDesignHelper(event)">
+            <div>
+                <p>Column label</p>
+                <input type="text" data-cmd="label">
+            </div>
+            <div>
+                <p>Column variable</p>
+                <select data-cmd="var">
+                    <option value="slno">Serial number</option>
+                    <option value="name">Particular</option>
+                    <option value="hsn">HSN Code</option>
+                    <option value="qty">Quantity</option>
+                    <option value="rate">Rate</option>
+                    <option value="CGST">CGST</option>
+                    <option value="SGST">SGST</option>
+                    <option value="IGST">IGST</option>
+                    <option value="amt">Amount</option>
+                    <option value="netAmt">Amount with tax</option>
+                </select>
+            </div>
+            <div>
+                <p>Column width</p>
+                <input type="range" id="table-col-width-input" data-msg="20%" style="--left_range:20%" min="0" max="100" value="20" placeholder="in %" data-cmd="width">
+            </div>
+            <div>
+                <input type="checkbox" id="sumup" data-cmd="sumup">
+                &nbsp;
+                <label for="sumup">Use remaining spaces</label>
+            </div>
+            <div>
+                <button data-cmd="new-col" data-dir="ok">Ok</button>
+                <button data-cmd="new-col" data-dir="cancel">Cancel</button>
+            </div>
+            <div>
+                <button data-cmd="rem-row" class="hide">Remove Row</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-option-template">
+        <div class="adv-option-div" oninput="pageSetup(event)">
+            <div>
+                <p>Page Size</p>
+                <select data-cmd="pageSize">
+                    <option value="a4" selected>A4</option>
+                    <option value="letter">Letter</option>
+                </select>
+            </div>
+            <div>
+                <p>Margin</p>
+                <select data-cmd="margin">
+                    <option value="0">None</option>
+                    <option value="margin-1">Fixed</option>
+                    <option value="margin-2">Custom</option>
+                </select>
+            </div>
+            <div>
+                <p>Draw page border?</p>
+                <select data-cmd="apply-border">
+                    <option value="true">Yes</option>
+                    <option value="false" selected>No</option>
+                </select>
+            </div>
+        </div>
+    </template>
+    <template id="margin-1-template">
+        <div class="adv-option-div" oninput="pageSetup(event)">
+            <p>Fixed margin</p>
+            <input type="text" value="0" data-cmd="margin-fixed" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+        </div>
+    </template>
+    <template id="margin-2-template">
+        <div class="adv-option-div" oninput="pageSetup(event)">
+            <p>Custom margin</p>
+            <div>
+                <div>
+                    <div>
+                        <label for="margin-top">Top margin</label>
+                        <input type="text" id="margin-top" value="0" data-cmd="margin-top" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                    <div>
+                        <label for="margin-bottom">Bottom margin</label>
+                        <input type="text" id="margin-bottom" placeholder="bottom margin" value="0" data-cmd="margin-bottom" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="margin-right">Right margin</label>
+                        <input type="text" id="margin-right" placeholder="right margin" value="0" data-cmd="margin-right" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                    <div>
+                        <label for="margin-left">Left margin</label>
+                        <input type="text" id="margin-left" placeholder="left margin" value="0" data-cmd="margin-left" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="border-size-template">
+        <div class="adv-option-div" oninput="pageSetup(event)">
+            <p>Border width</p>
+            <div>
+                <input type="text" id="draw-border" value="1" data-cmd="draw-border" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+        </div>
+    </template>
+</body>
+</html>
