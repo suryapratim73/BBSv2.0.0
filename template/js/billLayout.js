@@ -17,18 +17,15 @@ let page = {
         left:0,
         right:0
     },
-    head:{
-        child:[]
-    },
-    body:{
-        child:[]
-    },
-    footer:{
-        child:[]
-    },
+    head:{},
+    body:{},
+    footer:{},
     feilds:[],
+    sections:[],
     applyBorder:false,
-    border:1
+    border:1,
+    newDoc:true,
+    filePath:""
 };
 let advOptionDiv = document.getElementById("adv-options");
 let lastFocus,borderCanvas,actPointer = {};
@@ -38,32 +35,32 @@ let columnObj = {},feildObj = {}, partitionObj = {}, focusTimer;
 let midGuideTimer;
 
 
-function extractElem(obj){
-    return Object.keys(obj)
-        .map(key=>{
-            let { child=[] } = obj[key];
-            if(child.length>0)
-                child = extractElem(obj[key].child);
-            return obj[key];
-        })
-        .reduce((acc,obj)=>{
-            function iterator(obj){
-                if(obj instanceof Array){
-                    obj.map(function(obj){
-                        if(obj instanceof Object && "child" in obj && obj.child.length>0)
-                            iterator(obj.child)
-                        acc.push(obj)
-                    })
-                }
-            }
-            if(obj instanceof Object && "child" in obj && obj.child.length>0)
-                iterator(obj.child)
-            acc.push(obj);
-            return acc;
-        },[])
-        .filter(obj=>obj.elem!==undefined);
+// function extractElem(obj){
+//     return Object.keys(obj)
+//         .map(key=>{
+//             let { child=[] } = obj[key];
+//             if(child.length>0)
+//                 child = extractElem(obj[key].child);
+//             return obj[key];
+//         })
+//         .reduce((acc,obj)=>{
+//             function iterator(obj){
+//                 if(obj instanceof Array){
+//                     obj.map(function(obj){
+//                         if(obj instanceof Object && "child" in obj && obj.child.length>0)
+//                             iterator(obj.child)
+//                         acc.push(obj)
+//                     })
+//                 }
+//             }
+//             if(obj instanceof Object && "child" in obj && obj.child.length>0)
+//                 iterator(obj.child)
+//             acc.push(obj);
+//             return acc;
+//         },[])
+//         .filter(obj=>obj.elem!==undefined);
 
-}
+// }
 
 function init(){
     let {width,height} = appDefault[page.size];
@@ -88,6 +85,29 @@ function init(){
     borderCanvas.width = width_mainDiv;
     borderCanvas.height = height_mainDiv;
     mainDiv.appendChild(borderCanvas);
+    document.addEventListener("mouseover",e=>{
+        let { target } = e;
+        if(["I","P","LABEL"].includes(target.nodeName)){
+            if(target.nodeName==="I"){
+                target.style.position = "relative";
+                document.documentElement.style.setProperty("--top_range",-300+"%");
+            }
+            else{
+                target.parentNode.style.position = "relative";
+                document.documentElement.style.setProperty("--top_range",-200+"%");
+            }
+            let { left } = target.getBoundingClientRect();
+            document.documentElement.style.setProperty("--left_range",e.x - left+"%");
+            document.documentElement.style.setProperty("--popup-width","fit-content");
+            if(!target.dataset.msg && target.type!=="range")
+                document.documentElement.style.setProperty("--display","none");
+            else
+                document.documentElement.style.setProperty("--display","flex");
+        }
+        else
+        if(target.nodeName==="INPUT")
+            document.documentElement.style.setProperty("--display",`flex`);
+    });
 }
 init();
 
@@ -97,6 +117,7 @@ function dblClickHandler(e){
         return selectFeildCanv();
     let elem = [...document.elementsFromPoint(x,y)].filter(elem=>elem.classList.contains("new-elem")).reverse().pop();
     if(elem===selectedElem) return selectColumn(e);
+    if(!["new-elem","selector","coordinate-marker"].some(key=>new RegExp(key).test(e.target.className))) return;
     removeSelector();
     selectedElem = elem;
     let selector = createSelector(1);
@@ -107,91 +128,92 @@ function dblClickHandler(e){
 function mouseUpOnDocHelper(){
     moveFlag = true;
     shallResize = false;
-    if(!("role" in actPointer) && Object.keys(actPointer).length===0) return;
-    if(!selectedElem || !("role" in actPointer)) return;
-    if(actPointer.role!=="section"){
-        Object.keys(actPointer)
-        .forEach(key=>{
-            page[actPointer.role][key] = actPointer[key];
-        });
-        page[actPointer.role].path = "/" + actPointer.role;
-        selectedElem.dataset.path = "/" + actPointer.role;
-    }
-    else{// role=section
-        let currentObj = [];
-        if(!("path" in actPointer) || !selectedElem) return;
-        actPointer.path?.split("/")
-        .filter(str=>str!=="")
-        .forEach((key,i,self)=>{
-            if(self.length<=1) return;
-            if(i==0)
-                currentObj = page[key]?.child;
-            else
-            if(i<=self.length-2)
-                currentObj = currentObj.find(obj=>obj.name===key)?.child;
-        });
-        if(!currentObj.some?.(obj=>obj.name===actPointer.name))
-            currentObj.push({...actPointer});
-    }
+    // if((!("role" in actPointer) && Object.keys(actPointer).length===0) || !selectedElem || !("role" in actPointer) || actPointer.role!=="section") return;
+
+    // if(actPointer.role!=="section"){
+    //     Object.keys(actPointer)
+    //     .forEach(key=>{
+    //         page[actPointer.role][key] = actPointer[key];
+    //     });
+    //     page[actPointer.role].path = "/" + actPointer.role;
+    //     selectedElem.dataset.path = "/" + actPointer.role;
+    // }
+    // else{// role=section
+    //     let currentObj = [];
+    //     if(!("path" in actPointer) || !selectedElem) return;
+    //     actPointer.path?.split("/")
+    //     .filter(str=>str!=="")
+    //     .forEach((key,i,self)=>{
+    //         if(self.length<=1) return;
+    //         if(i==0)
+    //             currentObj = page[key]?.child;
+    //         else
+    //         if(i<=self.length-2)
+    //             currentObj = currentObj.find(obj=>obj.name===key)?.child;
+    //     });
+    //     if(!currentObj.some?.(obj=>obj.name===actPointer.name))
+    //         currentObj.push({...actPointer});
+    // }
 }
 
-function nestingHelper(elem){
-    if(["head","body","footer"].includes(actPointer.role)) return;
-    let elemProps = {...elem.dataset};
-    let {top:parentTop,left:parentLeft,bottom:parentBottom,right:parentRight} = elem.getBoundingClientRect();
-    let {top,left,bottom,right} = selectedElem.getBoundingClientRect();
-    if(!("path" in elemProps))
-        elemProps.path = elemProps.name || "";
-    if(left>=parentLeft && top>=parentTop && right<=parentRight && bottom<=parentBottom){
-        clearTimeout(hoverOverCSSTimer);
-        elem.classList.add("hovered-over");
-        hoverOverCSSTimer = setTimeout(()=>{
-            elem.classList.remove("hovered-over");
-        },2000);
-        actPointer.isNested = true;
-        actPointer.parentNode = elem;
-        actPointer.path = elemProps.path + "/" + actPointer.name;
-        selectedElem.dataset.path = elemProps.path + "/" + actPointer.name;
-        selectedElem.style.zIndex = Number(elem.style.zIndex) + 1;
-        if("child" in actPointer && typeof actPointer.child!=="object")
-            actPointer.child = JSON.parse(actPointer.child);
-    }
-    else{
-        actPointer.isNested = false;
-        selectedElem.dataset.isNested = false;
-        actPointer.parentNode = null;
-        actPointer.path = "/";
-        selectedElem.dataset.path = "/";
-        let currentObj = [];
-        elemProps.path.split("/")
-        .filter(str=>str!=="")
-        .forEach((key,i)=>{
-            if(i==0)
-                currentObj = page[key].child;
-            else
-                currentObj = currentObj.find(obj=>obj.name===key)?.child || [];
-            if(currentObj?.some?.(obj=>obj.name===actPointer.name)){
-                let selectedIndex = currentObj.findIndex((obj=>obj.name===actPointer.name));
-                if(selectedIndex>=0){
-                    currentObj.splice(selectedIndex,1);
-                }
-            }
-        });
-    }
-}
+// function nestingHelper(elem){
+//     if(["head","body","footer"].includes(actPointer.role)) return;
+//     let elemProps = {...elem.dataset};
+//     let {top:parentTop,left:parentLeft,bottom:parentBottom,right:parentRight} = elem.getBoundingClientRect();
+//     let {top,left,bottom,right} = selectedElem.getBoundingClientRect();
+//     if(!("path" in elemProps))
+//         elemProps.path = elemProps.name || "";
+//     if(left>=parentLeft && top>=parentTop && right<=parentRight && bottom<=parentBottom){
+//         clearTimeout(hoverOverCSSTimer);
+//         elem.classList.add("hovered-over");
+//         hoverOverCSSTimer = setTimeout(()=>{
+//             elem.classList.remove("hovered-over");
+//         },2000);
+//         actPointer.isNested = true;
+//         actPointer.parentNode = elem;
+//         actPointer.path = elemProps.path + "/" + actPointer.name;
+//         selectedElem.dataset.path = elemProps.path + "/" + actPointer.name;
+//         selectedElem.style.zIndex = Number(elem.style.zIndex) + 1;
+//         if("child" in actPointer && typeof actPointer.child!=="object")
+//             actPointer.child = JSON.parse(actPointer.child);
+//     }
+//     else{
+//         actPointer.isNested = false;
+//         selectedElem.dataset.isNested = false;
+//         actPointer.parentNode = null;
+//         actPointer.path = "/";
+//         selectedElem.dataset.path = "/";
+//         let currentObj = [];
+//         elemProps.path.split("/")
+//         .filter(str=>str!=="")
+//         .forEach((key,i)=>{
+//             if(i==0)
+//                 currentObj = page[key].child;
+//             else
+//                 currentObj = currentObj.find(obj=>obj.name===key)?.child || [];
+//             if(currentObj?.some?.(obj=>obj.name===actPointer.name)){
+//                 let selectedIndex = currentObj.findIndex((obj=>obj.name===actPointer.name));
+//                 if(selectedIndex>=0){
+//                     currentObj.splice(selectedIndex,1);
+//                 }
+//             }
+//         });
+//     }
+// }
 
 function createSection(){
     let section = document.createElement("canvas");
-    section.width = 160;
-    section.height = 160;
+    section.width = (actPointer?.width || 160);
+    section.height = (actPointer?.height || 160);
     let ctx = section.getContext("2d");
     ctx.strokeRect(0,0,section.width,section.height);
-    ctx.strokeStyle = "black";
     ctx.stroke();
     section.classList.add("new-elem");
     mainDiv.appendChild(section);
-    section.dataset.child = JSON.stringify([]);
     section.style.zIndex = 1;
+    section.dataset.id = uuid.v4();
+    page.sections.push({id:section.dataset.id,elem:section});
+    actPointer = page.sections.find(obj=>obj.id===section.dataset.id);
     return section;
 }
 
@@ -253,6 +275,7 @@ function drawAdjPoints(){
     removeAllElem(".adj-pts");
     let selector = document.getElementById("selector");
     if(!selector) return;
+    if(selectedElem.classList.contains("feild-elem")) return;
     let selectorPosObj = selector.getBoundingClientRect();
     [
         {top:"height",left:"width",factor1:0,factor2:0.5,tag:"top"},
@@ -374,17 +397,17 @@ function drawAssist(e){// Work in progress- draw x,y coordinate of mouse, resize
     }
 }
 
-function getSelection(){
-    let { selection } = showSelectorMarker();
-    if(selection && selection instanceof Array)
-        selection = selection.pop();
-    return selection;
-}
+// function getSelection(){
+//     let { selection } = showSelectorMarker();
+//     if(selection && selection instanceof Array)
+//         selection = selection.pop();
+//     return selection;
+// }
 
 function computeContraints(){
     if(!actPointer || Object.keys(actPointer).length===0) return {};
     let widthConstraints = 0, heightConstraints = 0;
-    if(["head","body","footer"].includes(actPointer.role)){
+    if(["head","body","footer"].includes(actPointer.role) || actPointer.parentNode===mainDiv){
         if(page.applyBorder){
             widthConstraints += page.border;
             heightConstraints += page.border;
@@ -403,8 +426,15 @@ function computeContraints(){
 }
 
 async function btnCtrls(e){
-    if(e.target.nodeName!=="BUTTON") return;
     let { cmd,dir="" } = e.target.dataset;
+    if(cmd==="change-input"){
+        let input = e.target.parentNode.querySelector("input");
+        if(input.getAttribute("type")==="range")
+            input.setAttribute("type","number");
+        else
+            input.setAttribute("type","range");
+    }
+    if(e.target.nodeName!=="BUTTON") return;
     selectedBTN = e.target;
     if(!cmd) return;
     let firstHeader = mainDiv.querySelector("#blanck-header");
@@ -443,7 +473,10 @@ async function btnCtrls(e){
         removeAllElem("#adv-options *,#adv-options-2 *");
         if(cmd==="new-section")
             removeSelector();
-        if((cmd==="section" && [...document.querySelectorAll(".new-elem")].length===0) || cmd==="new-section"){
+        let no_elems = [...document.querySelectorAll(".new-elem")]
+                        .filter(elem=>!elem.classList.contains("feild-elem"))
+        if((cmd==="section" && no_elems.length===0) || cmd==="new-section"){
+            actPointer = {};
             selectedElem = createSection();
             blockOnFocus();
         }
@@ -475,6 +508,7 @@ async function btnCtrls(e){
             feildObj.fStyle = "normal";
             feildObj.fFamily = "Arial";
             feildObj.text = "";
+            feildObj.fWidth = 50;
         }
         if(cmd==="table" && selectedElem){
             if(!("plan" in actPointer))
@@ -485,12 +519,26 @@ async function btnCtrls(e){
             actPointer.plan.padding = 10;
         }
     }
+    if(cmd==="exit")
+        return ipcRenderer.send("load-main-page");
+    else
+    if(cmd==="save-exit"){
+        let _page = elemRemoval(page);
+        ipcRenderer.send("save-bill-template",_page);
+    }
 
     if(!selectedElem) return;
 
     if(cmd==="delete"){// Debug required
+        if(selectedElem.classList.contains("feild-elem")){
+            page.feilds = page.feilds.filter(obj=>obj.id!==feildObj.id);
+            feildObj = {};
+        }
+        else{
+            actPointer = {};
+            removeSelector();
+        }
         selectedElem.remove();
-        removeSelector()
     }
     else
     if(cmd==="rem-table")
@@ -535,8 +583,10 @@ async function btnCtrls(e){
         let parentNode;
         if("parentNode" in actPointer)
             parentNode = actPointer.parentNode;
-        else
+        else{
             parentNode = mainDiv;
+            actPointer.parentNode = mainDiv;
+        }
         let { widthConstraints=0,heightConstraints=0 } = computeContraints();
         let { width,height } = parentNode.getBoundingClientRect();
         width -= widthConstraints;
@@ -573,14 +623,6 @@ async function btnCtrls(e){
         drawPartition();
         removeAllElem("#adv-options-2 .adv-option-div");
     }
-
-    if(cmd==="exit")
-        return ipcRenderer.send("load-main-page");
-    else
-    if(cmd==="save-exit"){
-        let _page = elemRemoval(page);
-        ipcRenderer.send("save-bill-template",_page);
-    }
     updateUI();
 }
 
@@ -606,7 +648,9 @@ function elemRemoval(obj){
 function blockOnFocus(){
     let secBTN = document.querySelector(`button[data-cmd="section"]`);
     if(!selectedElem.classList.contains("feild-elem"))
-        actPointer = getSelection() || {...selectedElem.dataset};
+        actPointer = [page.head,page.body,page.footer,...page.sections].find(obj=>obj.id===selectedElem.dataset.id);
+        // (Object.keys(actPointer).length===0 ? getSelection() : actPointer) || {}; //|| {...selectedElem.dataset};
+    showSelectorMarker();
     if(actPointer && typeof actPointer==="object"){
         actPointer.plan = !("plan" in actPointer) ? {} : actPointer.plan;
         if(!("role" in actPointer))
@@ -654,23 +698,20 @@ function blockOnFocus(){
 }
 
 function showSelectorMarker(selector){
-    let allElem = [...extractElem([page.head,page.body,page.footer]),actPointer];
-    return {
-        selection:allElem
-                .filter(({elem="",name=""})=>{
-                    if(elem=="" || name=="") return false;
-                    if(selector && elem===selectedElem){
-                        selector.classList.add("show-msg");
-                        selector.dataset["msg"] = name;
-                    }
-                    if(elem===selectedElem){
-                        return true;
-                    }
-                    else
-                        return false;
-                }),
-        allElem
-    }
+    return [page.head,page.body,page.footer,...page.sections]
+            .filter(({elem="",name=""})=>{
+                console.log(elem=="", name=="")
+                if(elem=="" || name=="") return false;
+                if(selector && elem===selectedElem){
+                    selector.classList.add("show-msg");
+                    selector.dataset["msg"] = name;
+                }
+                if(elem===selectedElem){
+                    return true;
+                }
+                else
+                    return false;
+            });
 }
 
 function unFocusElem(){
@@ -685,6 +726,7 @@ function unFocusElem(){
     if(lastFocus)
         lastFocus.style.zIndex = "2";
     updateUI();
+    actPointer = {};
 }
 
 function removeSelector(){
@@ -701,6 +743,7 @@ function createSelector(){
     // actPointer.plan = !("plan" in actPointer) ? {} : actPointer.plan;
     let selector = document.createElement("div");
     selector.id = "selector";
+    selector.className = "selector";
     observer.observe(selector);
     selector.style.zIndex = Number(selectedElem.style.zIndex) + 10;
     if(arguments.length>0){
@@ -725,21 +768,21 @@ function moveElemHelper(newX,newY){
     if((Math.sign(newX)<0 && newX<0 - 0.5*width) || newX>0.99*width_mainDiv) return;
     if((Math.sign(newY)<0 && newY<0 - 0.5*height) || newY>0.99*height_mainDiv) return;
     removeAllElem("#helper-line");
-    let children = typeof actPointer.child === "string" ? JSON.parse(actPointer.child) : actPointer.child;
-    if(children?.length>0){
-        children.forEach(function childIterator(obj){
-            if("child" in obj && obj.child.length>0){
-                let children = typeof obj.child === "string" ? JSON.parse(obj.child) : obj.child;
-                children.forEach(childIterator);
-            }
-            let { elem } = obj;
-            let { left,top } = elem.getBoundingClientRect();
-            let diffX = left - left_selectedElem;
-            let diffY = top - top_selectedElem;
-            elem.style.top = newY + diffY + "px";
-            elem.style.left = newX + diffX + "px";
-        });
-    }
+    // let children = typeof actPointer.child === "string" ? JSON.parse(actPointer.child) : actPointer.child;
+    // if(children?.length>0){
+    //     children.forEach(function childIterator(obj){
+    //         if("child" in obj && obj.child.length>0){
+    //             let children = typeof obj.child === "string" ? JSON.parse(obj.child) : obj.child;
+    //             children.forEach(childIterator);
+    //         }
+    //         let { elem } = obj;
+    //         let { left,top } = elem.getBoundingClientRect();
+    //         let diffX = left - left_selectedElem;
+    //         let diffY = top - top_selectedElem;
+    //         elem.style.top = newY + diffY + "px";
+    //         elem.style.left = newX + diffX + "px";
+    //     });
+    // }
     selectedElem.style.borderColor = "blue";
     selectedElem.style.top = newY + "px";
     selectedElem.style.left = newX + "px";
@@ -747,6 +790,7 @@ function moveElemHelper(newX,newY){
     selector.style.left = newX - 20 + "px";
     if(borderCanvas){
         let ctx = drawMargin();
+        ctx.save();
         ctx.beginPath();
         ctx.setLineDash([3,3]);
         ctx.strokeStyle = "green";// "#91ee83";
@@ -759,6 +803,7 @@ function moveElemHelper(newX,newY){
             ctx.lineTo(width_mainDiv,height_mainDiv/2);
         }
         ctx.stroke();
+        ctx.restore();
         clearTimeout(midGuideTimer);
         midGuideTimer = setTimeout(drawMargin,1000);
     }
@@ -774,13 +819,15 @@ function moveElemHelper(newX,newY){
     actPointer.y = newY;
     [...document.querySelectorAll(".new-elem")]
     .forEach(elem=>elem.classList.remove("hovered-over"));
-    let parentNode = [...document.elementsFromPoint(left_mainDiv + newX,top_mainDiv + newY)]
-    .filter(elem=>elem.classList.contains("new-elem")==true)
-    .filter(elem=>elem!==selectedElem)
-    .reverse()
-    .pop();
-    if(parentNode)
-        nestingHelper(parentNode);
+    // let parentNode = [...document.elementsFromPoint(left_mainDiv + newX,top_mainDiv + newY)]
+    // .filter(elem=>elem.classList.contains("new-elem")==true)
+    // .filter(elem=>elem!==selectedElem)
+    // .reverse()
+    // .pop();
+    // if(parentNode)
+    //     nestingHelper(parentNode);
+    // else
+    //     nestingHelper(mainDiv);
     drawAdjPoints();
 }
 
@@ -829,10 +876,14 @@ function drawHelperLine(mode,posObj){
 function move(e){
     if(e.target!==selectedElem)
         lastFocus = selectedElem;
-    if(e.target.nodeName==="CANVAS" && e.target.classList.contains("new-elem"))
+    if(e.target.nodeName==="CANVAS" && 
+    e.target.classList.contains("new-elem"))
         selectedElem = e.target;
     else
-    if((e.target.nodeName==="DIV" && e.target.id!=="selector") || !selectedElem || e.target.nodeName==="MAIN" || e.target.className==="")
+    if((e.target.nodeName==="DIV" && e.target.id!=="selector") || 
+    !selectedElem || 
+    e.target.nodeName==="MAIN" || 
+    e.target.className==="")
         return unFocusElem(e);
     if(!selectedElem) return;
     let { left:left_mainDiv,top:top_mainDiv,right:right_mainDiv,bottom:bottom_mainDiv } = mainDiv.getBoundingClientRect();
@@ -841,6 +892,7 @@ function move(e){
     let diffX = clientX - elemLeft;
     let diffY = clientY - elemTop;
     let selector = document.getElementById("selector");
+    actPointer = {};
     blockOnFocus();
     if(selectedElem.classList.contains("feild-elem"))
         selectFeildCanv(1);
@@ -908,6 +960,8 @@ function move(e){
         let { clientX,clientY } = e;
         let newX = clientX - left_mainDiv - diffX;
         let newY = clientY - top_mainDiv - diffY;
+        if(!selectedElem.classList.contains("feild-elem"))
+            actPointer = [page.head,page.body,page.footer,...page.sections].find(obj=>obj.id===selectedElem.dataset.id);
         moveElemHelper(newX,newY);
         drawFeilds(newX,newY);
     }
@@ -956,10 +1010,14 @@ function resizeNote(entries){
     if(actPointer && "role" in actPointer && ["head","body","footer"].includes(actPointer.role)){
         page[actPointer.role].width = width - 40;
         page[actPointer.role].height = height - 40;
+        selectedElem.dataset.width = width - 40;
+        selectedElem.dataset.height = height - 40;
     }
     else{
+        actPointer.width = width - 40;
+        actPointer.height = height - 40;
         selectedElem.dataset.width = width - 40;
-        selectedElem.dataset.width = height - 40;
+        selectedElem.dataset.height = height - 40;
     }
     let ctx = selectedElem?.getContext?.("2d");
     if(ctx){
@@ -979,6 +1037,7 @@ function drawMargin(){
     let { width,height } = mainDiv.getBoundingClientRect();
     ctx.clearRect(0,0,width,height);
     if(page.applyBorder!==true) return ctx;
+    ctx.beginPath();
     ctx.strokeStyle = "black";
     ctx.lineWidth = page.border;
     if(typeof page.margin === "object"){
@@ -1051,39 +1110,47 @@ function pageSetup(e){
         drawMargin();
     }
     updateUI();
-} // preliminary test complete
+} // preliminary test complete 
 
 function assignBlockOptions(e){
     let { cmd } = e.target.dataset;
     let { value:val } = e.target;
-    let allElem = extractElem([page.head,page.body,page.footer]);
-    // if(["head","body","footer"].every(key=>page[key].child.length===0) && !["head","body","footer"].includes(val)) return alert("Create Head,Body and Footer block.")
+    if(!selectedElem) return;
+    if(selectedElem.classList.contains("feild-elem")) return;
+    let allElem = [page.head,page.body,page.footer,...page.sections];
     if(["head","body","footer"].includes(val) && "elem" in page[val]) return alert(`Cannot create 2 or more ${val}`)
     if(cmd==="section" && ["head","body","footer"].includes(val)){
         document.getElementById("section-name").value = val;
         document.getElementById("section-name").setAttribute("disabled",true);
-        let selection = allElem.find((obj)=>obj.elem===selectedElem);
-        if(selection){// Overwritting last preference
-            page[selection.role].elem = null;
-            page[selection.role].name = null;
-            page[selection.role].isNested = null;
-            page[selection.role].role = null;
-        }
-        page[val].elem = selectedElem;
-        page[val].name = val;
-        page[val].role = val;
-        page[val].isNested = false;
-        page[val].width = 160;
-        page[val].height = 160;
-        page[val].parentNode = mainDiv;
+        // let selection = allElem.find((obj)=>obj.elem===selectedElem);
+        // if(selection){// Overwritting last preference
+        //     page[selection.role].elem = null;
+        //     page[selection.role].name = null;
+        //     page[selection.role].isNested = null;
+        //     page[selection.role].role = null;
+        // }
+        // page[val].elem = selectedElem;
+        // page[val].name = val;
+        // page[val].role = val;
+        // page[val].width = 160;
+        // page[val].height = 160;
+        // page[val].parentNode = mainDiv;
+        
         actPointer.parentNode = mainDiv;
         actPointer.role = val;
+        actPointer.name = val;
+        Object.keys(actPointer)
+        .forEach(key=>{
+            page[val][key] = actPointer[key];
+        });
+        page.sections = page.sections.filter(obj=>obj.id!==actPointer.id);
     }
-    if(cmd==="name"){
-        selectedElem.dataset.name = val;
-        selectedElem.dataset.width = 160;
-        selectedElem.dataset.height = 160;
+    else
+    if(cmd==="section" && !["head","body","footer"].includes(val)){
+        page.sections.push(actPointer);
     }
+    if(cmd==="name")
+        actPointer.name = val;
     else
     if(cmd==="apply-border"){
         if(actPointer){
@@ -1134,16 +1201,17 @@ function assignBlockOptions(e){
         let selector = document.getElementById("selector");
         let parentNode;
         if("parentNode" in actPointer)
-            parentNode = actPointer.parentNode;
+            parentNode = actPointer?.parentNode;
         else 
             parentNode = mainDiv;
-        let obj = parentNode.getBoundingClientRect();
-        let { widthConstraints=0,heightConstraints=0 } = computeContraints();
-        let constraint = cmd==="width" ? widthConstraints : heightConstraints;
-        if(selector){
-            selector.style[cmd] = 40 - constraint + val * obj[cmd] * 0.01 + "px";
+        if(parentNode && selector){
+            let obj = parentNode.getBoundingClientRect();
+            let { widthConstraints=0,heightConstraints=0 } = computeContraints();
+            let constraint = cmd==="width" ? widthConstraints : heightConstraints;
+            selector.style[cmd] = 40 - constraint + val * obj[cmd] * 0.01 - 10 + "px";
             e.target.dataset.msg = val+"%";
             actPointer[cmd] = val;
+            document.documentElement.style.setProperty("--left_range",val+"%");
         }
     }
     updateUI();
@@ -1232,7 +1300,7 @@ function selectColumn(e){
 }
 
 function drawTable(){
-    if(!selectedElem || !("cols" in actPointer.plan)) return;
+    if(!selectedElem || !("cols" in actPointer?.plan)) return;
     let { cols=[],padding=10,fSize=16,thHeight=32 } = actPointer.plan;
     if(cols.length===0) return;
     let netPercent = cols.reduce((acc,{width})=>acc+width,0);
@@ -1349,7 +1417,7 @@ function assignFeildOptions(e){
     else
     if(value==="string" && cmd==="type")
         varOptDiv.classList.add("hide");
-    if(cmd==="fSize")
+    if(["fSize","fWidth"].includes(cmd))
         feildObj[cmd] =  Number(value);
     else
     if(["bold","italic","underline"].includes(cmd)){
@@ -1363,13 +1431,25 @@ function assignFeildOptions(e){
 }
 
 function drawFeildText(feildObj){
-    let { fSize,text="",fType,type,elem,fFamily } = feildObj;
+    let { fSize,text="",fType,type,elem,fFamily,fWidth } = feildObj;
     let ctx = elem.getContext("2d");
+    let { left,top } = elem.getBoundingClientRect();
     ctx.fillStyle = "black";
     ctx.font = fSize + "px Arial";
     text = text+((type==="variable" && text!=="") ? ": " : "")+(fType ?? "");
-    elem.width = 1.25 * ctx.measureText(text).width;
-    elem.height = fSize + 16;
+    let width = 1.25 * ctx.measureText(text).width;
+    let height = fSize + 16;
+    let parentElem = document.elementsFromPoint(left,top).filter(_elem=>_elem.classList.contains("new-elem") && _elem!==elem)?.pop() || mainDiv;
+    let { width:parentWidth } = parentElem.getBoundingClientRect();
+    let widthConstraints = parentWidth*fWidth*0.01;
+    elem.style.zIndex = 100;
+    if(width>widthConstraints){
+        let multiplier = Math.ceil(width / widthConstraints);
+        width = widthConstraints;
+        height = multiplier * fSize + 16;
+    }
+    elem.width = width;
+    elem.height = height;
     let style = "";
     for(let key of ["bold","italic"]){ 
         if(!(key in feildObj)) continue;
@@ -1380,7 +1460,20 @@ function drawFeildText(feildObj){
         style = style.replace("bold",feildObj.fWeight);
     ctx.font = style + " " + fSize + "px " + fFamily;
     ctx.clearRect(0,0,elem.width,elem.height);
-    ctx.fillText(text,0,elem.height/2);
+    let line = "",initY=fSize;
+    let words = text.split(" ");
+    for(const [ index,word ] of words.entries()){
+        let testLine = line + word + " ";
+        let testLineWidth = ctx.measureText(testLine).width;
+        if(testLineWidth>widthConstraints){
+            ctx.fillText(line,0,initY);
+            line = word + " ";
+            initY += fSize + 8;
+        }
+        else
+            line = testLine;
+    }
+    ctx.fillText(line,0,initY);
     if("underline" in feildObj && feildObj.underline){
         ctx.moveTo(0,fSize+3);
         ctx.lineWidth = fSize * (/"bold"/.test(style) ? 0.16 : 0.08);
@@ -1390,19 +1483,23 @@ function drawFeildText(feildObj){
     ctx.fill();
 }// Add Styling
 
-function insertFeild(){
+function createFeildCanvas(){
     let { width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
-    let feildCanv = "elem" in feildObj ? feildObj.elem : document.createElement("canvas");
-    feildObj.id = "id" in feildObj ? feildObj.id : uuid.v4();
+    let feildCanv = document.createElement("canvas");
     if(!document.contains(feildObj?.elem)){
         mainDiv.appendChild(feildCanv);
-        feildCanv.style.left = width_mainDiv/2 + "px";
-        feildCanv.style.top = height_mainDiv/2 + "px";
+        feildCanv.style.left = (feildObj?.x || width_mainDiv/2) + "px";
+        feildCanv.style.top = (feildObj?.y || height_mainDiv/2) + "px";
         feildCanv.style.position = "absolute";
-        feildCanv.style.zIndex = 100;
-        feildCanv.dataset.id = feildObj.id;
+        feildCanv.dataset.id = "id" in feildObj ? feildObj.id : uuid.v4();
         feildCanv.className = "feild-elem new-elem";
     }
+    return feildCanv;
+}
+
+function insertFeild(){
+    feildObj.id = "id" in feildObj ? feildObj.id : uuid.v4();
+    let feildCanv = "elem" in feildObj ? feildObj.elem : createFeildCanvas();
     feildObj.elem = feildCanv;
     feildObj.zIndex = 100;
     drawFeildText(feildObj);
@@ -1422,3 +1519,69 @@ function cancelFeild(){
         feildObj = {};
     }
 }
+
+// File OPs IPCs
+ipcRenderer.on("new-template",async ()=>{
+    let sig = await ipcRenderer.invoke("new-template-response",elemRemoval(page));
+
+});
+
+function renderSection(){
+    let section = createSection();
+    section.style.left = actPointer.x + "px";
+    section.style.top = actPointer.y + "px";
+    let ctx = section.getContext("2d");
+    ctx.beginPath();
+    ctx.clearRect(0,0,section.width,section.height);
+    ctx.lineWidth = actPointer.border;
+    selectedElem = section;
+    if(actPointer.applyBorder)
+        ctx.strokeStyle = "black";
+    else
+        ctx.strokeStyle = "gray";
+    ctx.strokeRect(0,0,section.width,section.height);
+    ctx.stroke();
+    drawPartition();
+    drawTable();
+    // if("child" in actPointer)
+    //     actPointer.child?.forEach?.(obj=>{
+    //         obj.parentNode = section;
+    //         actPointer = obj;
+    //         let elem = renderSection();
+    //         obj.elem = elem;
+    //     });
+    return section;
+}
+
+ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
+    page = _page;
+    page.newDoc = false;
+    page.filePath = filePath;
+    removeAllElem(".new-elem,.selector");
+    borderCanvas.getContext("2d").clearRect(0,0,borderCanvas.width,borderCanvas.height);
+    mainDiv.querySelector("#blanck-header").classList.add("hide");
+    drawMargin();
+    page.feilds.forEach(_feildObj=>{
+        feildObj = _feildObj;
+        let elem = createFeildCanvas();
+        feildObj.elem = elem;
+        elem.dataset.id = feildObj.id;
+        drawFeildText(feildObj);
+    });
+    ["head","body","footer"]
+    .forEach(key=>{
+        if(Object.keys(page[key]).length>1){
+            actPointer = page[key];
+            let elem = renderSection();
+            page[key].elem = elem;
+            page[key].parentNode = mainDiv;
+        }
+    });
+    page.sections.forEach(sec=>{
+        actPointer = sec;
+        let elem = renderSection();
+        sec.elem = elem;
+        console.log(actPointer);
+    });
+    console.log(page)
+});

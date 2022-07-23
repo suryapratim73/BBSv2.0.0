@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, protocol, session } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, protocol, session, MenuItem } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User } = require("./common");
 const fs = require("fs");
 const path = require("path");
@@ -101,6 +101,47 @@ async function createWindow () {
 exports.billDesignerWindow = mainWindow => {
   return ()=>{
     mainWindow.loadFile("./template/html/billLayout.html");
+    let menu = Menu.getApplicationMenu();
+    menu.append(new MenuItem({
+      role:"fileMenu",
+      submenu:[
+        new MenuItem({
+          label:"New",
+          click: ()=>{
+            mainWindow.webContents.send("new-template");
+          }
+        }),
+        new MenuItem({
+          label:"Open",
+          click:async ()=>{
+            try{
+              let { canceled,filePaths } = await dialog.showOpenDialog({
+                defaultPath:app.getPath("documents"),
+                filters:[{name:"JSON Files",extensions:["json"]}]
+              });
+              if(canceled) return;
+              fs.readFile(filePaths[0],(err,data)=>{
+                if(err) throw err;
+                mainWindow.webContents.send("set-opened-file",JSON.parse(data.toString()),filePaths[0]);
+              });
+            }
+            catch(err){
+              console.log(err);
+            }
+          }
+        }),
+        new MenuItem({
+          label:"Save as"
+        }),
+        new MenuItem({
+          label:"Save & Exit",
+        })
+      ],
+      enabled:true,
+      visible:true,
+      label:"File"
+    }));
+    Menu.setApplicationMenu(menu);
   }
 }
 
@@ -683,14 +724,14 @@ ipcMain.on("load-main-page",()=>{
   mainWindow.loadFile("./template/html/mainPage.html");
 });
 
-ipcMain.on("save-bill-template",async (e,page)=>{
+ipcMain.on("save-bill-template",async (e,page,saveAs=false)=>{
   let win = BrowserWindow.fromId(e.frameId);
   try{
-    let { canceled,filePath } = await dialog.showSaveDialog(win,{
+    let { canceled,filePath } = (page.newDoc || saveAs) ? await dialog.showSaveDialog(win,{
       message: "Save bill template",
       defaultPath:app.getPath("documents"),
       properties:["createDirectory"]
-    });
+    }) : { canceled:false,filePath:page.filePath };
     if(canceled) return 0;
     if(!/.json$/.test(filePath))
       filePath += ".json";
@@ -707,4 +748,8 @@ ipcMain.on("save-bill-template",async (e,page)=>{
     dialog.showErrorBox("File save error",err.message)
     return -1;
   }
+});
+
+ipcMain.handle("new-template-response",(e,page)=>{
+  return true;
 });

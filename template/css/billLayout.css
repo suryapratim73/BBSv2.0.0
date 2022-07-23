@@ -1,6 +1,9 @@
 @import "../css/common.css";
 :root{
-    --left_range:50%
+    --left_range:50%;
+    --top_range:-200%;
+    --popup-width:2rem;
+    --display:flex;
 }
 body{
     display: flex;
@@ -117,7 +120,7 @@ main{
 }
 .adv-option-div>div>div{
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.5rem;
 }
 option{
@@ -155,19 +158,23 @@ option{
 input[type="range"]{
     position: relative;
 }
-input[type="range"]:hover::after,input[type="range"]:focus::after{
+input[type="range"]:hover::after,input[type="range"]:focus::after,
+i:hover::after,
+p:hover::after,
+label:hover::after{
     content: attr(data-msg);
     z-index: 10;
     position: absolute;
-    width: 2rem;
-    top:-200%;
+    width: var(--popup-width, 2rem);
+    top:var(--top_range);
     left:var(--left_range);
-    display: flex;
+    display: var(--display);
     justify-content: center;
     background: white;
     padding: 0.5rem 0.25rem;
     border-radius: 5px;
     font-size: 0.9rem;
+    color: black;
 }
 button.fa-solid{
     font-size: 0.6rem;

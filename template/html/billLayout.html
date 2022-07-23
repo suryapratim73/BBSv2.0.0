@@ -28,7 +28,7 @@
         </div>
         <div>
             <div>
-                <button data-cmd="save-exit">Save & Exit</button>
+                <button data-cmd="save-exit">Save</button>
                 <button data-cmd="exit">Exit</button>
             </div>
         </div>
@@ -44,7 +44,7 @@
                 <button data-cmd="new-section">Create section</button>
             </div>
             <div>
-                <p>Role</p>
+                <p data-msg="Define the role of the section.">Role</p>
                 <select data-cmd="section" data-name="role">
                     <option value="head">Head</option>
                     <option value="body">Body</option>
@@ -53,7 +53,7 @@
                 </select>
             </div>
             <div>
-                <p>Name</p>
+                <p data-msg="Set name of the section.">Name</p>
                 <input type="text" id="section-name" data-cmd="name">
             </div>
             <div>
@@ -100,20 +100,28 @@
             <div>
                 <p>Border width</p>
             </div>
-            <div>
-            </div>
             <input data-cmd="border-width" value="1" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
         </div>
     </template>
     <template id="block-option-4-template">
         <div class="adv-option-div" oninput="assignBlockOptions(event)">
             <div>
-                <label>% of width w.r.t parent</label>
-                <input type="range" data-msg="Not set" data-cmd="width" min="0" max="100" value="50">
+                <div>
+                    <label data-msg="Percentage of width w.r.t. Parent node.">% width</label>
+                </div>
+                <div>
+                    <input type="range" data-msg="Not set" data-cmd="width" min="0" max="100" value="50">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
             </div>
             <div>
-                <label>% of height w.r.t parent</label>
-                <input type="range" data-msg="Not set" data-cmd="height" min="0" max="100" value="50">
+                <div>
+                    <label data-msg="Percentage of width w.r.t. Parent node.">% height</label>
+                </div>
+                <div>
+                    <input type="range" data-msg="Not set" data-cmd="height" min="0" max="100" value="50">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
             </div>
             <div>
                 <button data-cmd="confirm-section-prop">Ok</button>
@@ -133,6 +141,13 @@
             <div>
                 <p>Font Size</p>
                 <input type="text" value="16" data-cmd="fSize" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+            <div>
+                <p>Feild Width in %</p>
+                <div>
+                    <input type="range" max="100" min="30" value="50" data-cmd="fWidth">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
             </div>
             <div>
                 <p>Font Family</p>
@@ -260,7 +275,10 @@
             </div>
             <div>
                 <p>Column width</p>
-                <input type="range" id="table-col-width-input" data-msg="20%" style="--left_range:20%" min="0" max="100" value="20" placeholder="in %" data-cmd="width">
+                <div>
+                    <input type="range" id="table-col-width-input" data-msg="20%" style="--left_range:20%" min="0" max="100" value="20" placeholder="in %" data-cmd="width">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
             </div>
             <div>
                 <input type="checkbox" id="sumup" data-cmd="sumup">
