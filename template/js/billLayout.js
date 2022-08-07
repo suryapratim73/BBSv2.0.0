@@ -8,64 +8,44 @@ toggleDevTool(document);
 let mainDiv = document.querySelector("main"),selectedElem;
 let observer = new ResizeObserver(resizeNote);
 let deleteBTNDiv = document.getElementById("delete-btn-div");
-let page = {
-    size:"a4",
-    applyMargin:false,
-    margin:{
-        top:0,
-        bottom:0,
-        left:0,
-        right:0
-    },
-    head:{},
-    body:{},
-    footer:{},
-    feilds:[],
-    sections:[],
-    applyBorder:false,
-    border:1,
-    newDoc:true,
-    filePath:""
-};
+let page = {};
 let advOptionDiv = document.getElementById("adv-options");
 let lastFocus,borderCanvas,actPointer = {};
 let selectedBTN,moveFlag = true,shallResize = false,selectedCTRLDot;
-let helperLineTimer,alignmentLineCSSTimer,hoverOverCSSTimer;
+let helperLineTimer,alignmentLineCSSTimer;
 let columnObj = {},feildObj = {}, partitionObj = {}, focusTimer;
 let midGuideTimer;
 
-
-// function extractElem(obj){
-//     return Object.keys(obj)
-//         .map(key=>{
-//             let { child=[] } = obj[key];
-//             if(child.length>0)
-//                 child = extractElem(obj[key].child);
-//             return obj[key];
-//         })
-//         .reduce((acc,obj)=>{
-//             function iterator(obj){
-//                 if(obj instanceof Array){
-//                     obj.map(function(obj){
-//                         if(obj instanceof Object && "child" in obj && obj.child.length>0)
-//                             iterator(obj.child)
-//                         acc.push(obj)
-//                     })
-//                 }
-//             }
-//             if(obj instanceof Object && "child" in obj && obj.child.length>0)
-//                 iterator(obj.child)
-//             acc.push(obj);
-//             return acc;
-//         },[])
-//         .filter(obj=>obj.elem!==undefined);
-
-// }
+function initPageObj(){
+    return {
+        size:"a4",
+        applyMargin:false,
+        margin:{
+            top:0,
+            bottom:0,
+            left:0,
+            right:0
+        },
+        head:{},
+        body:{},
+        footer:{},
+        feilds:[],
+        sections:[],
+        applyBorder:false,
+        border:1,
+        newDoc:true,
+        filePath:""
+    };
+}
 
 function init(){
+    page = initPageObj();
     let {width,height} = appDefault[page.size];
     mainDiv.style.width = width + "px";
     mainDiv.style.height = height + "px";
+    removeAllElem(".new-elem,canvas,.selector,#adv-options *,#adv-options-2 *");
+    [...document.querySelectorAll(".selected-btn")]
+    .forEach(btn=>btn.classList.remove("selected-btn"));
     let pageOpts = document.getElementById("page-option-template").content.cloneNode(true).querySelector("div");
     advOptionDiv.appendChild(pageOpts);
     document.querySelector(".ctrl-btns[data-cmd='page']").classList.add("selected-btn");
@@ -128,80 +108,9 @@ function dblClickHandler(e){
 function mouseUpOnDocHelper(){
     moveFlag = true;
     shallResize = false;
-    // if((!("role" in actPointer) && Object.keys(actPointer).length===0) || !selectedElem || !("role" in actPointer) || actPointer.role!=="section") return;
-
-    // if(actPointer.role!=="section"){
-    //     Object.keys(actPointer)
-    //     .forEach(key=>{
-    //         page[actPointer.role][key] = actPointer[key];
-    //     });
-    //     page[actPointer.role].path = "/" + actPointer.role;
-    //     selectedElem.dataset.path = "/" + actPointer.role;
-    // }
-    // else{// role=section
-    //     let currentObj = [];
-    //     if(!("path" in actPointer) || !selectedElem) return;
-    //     actPointer.path?.split("/")
-    //     .filter(str=>str!=="")
-    //     .forEach((key,i,self)=>{
-    //         if(self.length<=1) return;
-    //         if(i==0)
-    //             currentObj = page[key]?.child;
-    //         else
-    //         if(i<=self.length-2)
-    //             currentObj = currentObj.find(obj=>obj.name===key)?.child;
-    //     });
-    //     if(!currentObj.some?.(obj=>obj.name===actPointer.name))
-    //         currentObj.push({...actPointer});
-    // }
 }
 
-// function nestingHelper(elem){
-//     if(["head","body","footer"].includes(actPointer.role)) return;
-//     let elemProps = {...elem.dataset};
-//     let {top:parentTop,left:parentLeft,bottom:parentBottom,right:parentRight} = elem.getBoundingClientRect();
-//     let {top,left,bottom,right} = selectedElem.getBoundingClientRect();
-//     if(!("path" in elemProps))
-//         elemProps.path = elemProps.name || "";
-//     if(left>=parentLeft && top>=parentTop && right<=parentRight && bottom<=parentBottom){
-//         clearTimeout(hoverOverCSSTimer);
-//         elem.classList.add("hovered-over");
-//         hoverOverCSSTimer = setTimeout(()=>{
-//             elem.classList.remove("hovered-over");
-//         },2000);
-//         actPointer.isNested = true;
-//         actPointer.parentNode = elem;
-//         actPointer.path = elemProps.path + "/" + actPointer.name;
-//         selectedElem.dataset.path = elemProps.path + "/" + actPointer.name;
-//         selectedElem.style.zIndex = Number(elem.style.zIndex) + 1;
-//         if("child" in actPointer && typeof actPointer.child!=="object")
-//             actPointer.child = JSON.parse(actPointer.child);
-//     }
-//     else{
-//         actPointer.isNested = false;
-//         selectedElem.dataset.isNested = false;
-//         actPointer.parentNode = null;
-//         actPointer.path = "/";
-//         selectedElem.dataset.path = "/";
-//         let currentObj = [];
-//         elemProps.path.split("/")
-//         .filter(str=>str!=="")
-//         .forEach((key,i)=>{
-//             if(i==0)
-//                 currentObj = page[key].child;
-//             else
-//                 currentObj = currentObj.find(obj=>obj.name===key)?.child || [];
-//             if(currentObj?.some?.(obj=>obj.name===actPointer.name)){
-//                 let selectedIndex = currentObj.findIndex((obj=>obj.name===actPointer.name));
-//                 if(selectedIndex>=0){
-//                     currentObj.splice(selectedIndex,1);
-//                 }
-//             }
-//         });
-//     }
-// }
-
-function createSection(){
+function createSection(mode=1){
     let section = document.createElement("canvas");
     section.width = (actPointer?.width || 160);
     section.height = (actPointer?.height || 160);
@@ -212,8 +121,11 @@ function createSection(){
     mainDiv.appendChild(section);
     section.style.zIndex = 1;
     section.dataset.id = uuid.v4();
-    page.sections.push({id:section.dataset.id,elem:section});
-    actPointer = page.sections.find(obj=>obj.id===section.dataset.id);
+    if(mode===1){
+        page.sections.push({id:section.dataset.id,elem:section});
+        actPointer = page.sections.find(obj=>obj.id===section.dataset.id);
+    }
+    actPointer.id = section.dataset.id;
     return section;
 }
 
@@ -390,19 +302,7 @@ function drawAssist(e){// Work in progress- draw x,y coordinate of mouse, resize
             }
         });
     }
-    else{ // On resize or move
-        let { height,width } = mainDiv.getBoundingClientRect();
-        let { left,right,top,bottom } = selectedElem.getBoundingClientRect();
-
-    }
 }
-
-// function getSelection(){
-//     let { selection } = showSelectorMarker();
-//     if(selection && selection instanceof Array)
-//         selection = selection.pop();
-//     return selection;
-// }
 
 function computeContraints(){
     if(!actPointer || Object.keys(actPointer).length===0) return {};
@@ -513,10 +413,12 @@ async function btnCtrls(e){
         if(cmd==="table" && selectedElem){
             if(!("plan" in actPointer))
                 actPointer.plan = {};
-            actPointer.plan.thHeight = 32;
-            actPointer.plan.fSize = 16;
-            actPointer.plan.rSpacing = 8;
-            actPointer.plan.padding = 10;
+            [{key:"thHeight",val:32},{key:"fSize",val:16},{key:"rSpacing",val:8},{key:"padding",val:10}]
+            .forEach(({key,val})=>{
+                let value = key in actPointer.plan ? actPointer.plan[key] : val;
+                actPointer.plan[key] = value;
+                advOptionDiv.querySelector(`[data-cmd="${key}"]`).value = value;
+            });
         }
     }
     if(cmd==="exit")
@@ -617,7 +519,6 @@ async function btnCtrls(e){
         }
         removeAllElem("#adv-options-2 *");
     }
-
     if(["save-partition","cancel-partition"].includes(cmd)){
         partitionObj = {};
         drawPartition();
@@ -631,10 +532,10 @@ function elemRemoval(obj){
         let _obj = obj instanceof Array ? [...obj] : {...obj};
         return Object.keys(_obj)
             .reduce((acc,key)=>{
-                if(["elem","parentNode"].includes(key))
+                if(["elem","parentNode","id"].includes(key))
                     Reflect.deleteProperty(_obj,key);
                 else
-                if(typeof _obj[key]==="object")
+                if(typeof _obj[key]==="object" && Object.keys(_obj[key]).length>0)
                     acc[key] = elemRemoval(_obj[key]);
                 else
                     acc[key] = _obj[key];
@@ -649,9 +550,8 @@ function blockOnFocus(){
     let secBTN = document.querySelector(`button[data-cmd="section"]`);
     if(!selectedElem.classList.contains("feild-elem"))
         actPointer = [page.head,page.body,page.footer,...page.sections].find(obj=>obj.id===selectedElem.dataset.id);
-        // (Object.keys(actPointer).length===0 ? getSelection() : actPointer) || {}; //|| {...selectedElem.dataset};
     showSelectorMarker();
-    if(actPointer && typeof actPointer==="object"){
+    if(actPointer && typeof actPointer==="object" && "elem" in actPointer && !(actPointer.elem.classList.contains("image-placeholder"))){
         actPointer.plan = !("plan" in actPointer) ? {} : actPointer.plan;
         if(!("role" in actPointer))
             actPointer.role = "section";
@@ -689,10 +589,8 @@ function blockOnFocus(){
             .forEach(pt=>{
                 pt.setAttribute("mouseover-listener","false");
                 pt.removeEventListener("mouseover",mouseoverListenerOnCTRLPts);
-                // moveFlag = true;
             });
             removeAllElem("#coordinate-marker,.adj-pts");
-            // selector.removeEventListener("mouseleave",arguments.callee);
         });
     }
 }
@@ -700,7 +598,6 @@ function blockOnFocus(){
 function showSelectorMarker(selector){
     return [page.head,page.body,page.footer,...page.sections]
             .filter(({elem="",name=""})=>{
-                console.log(elem=="", name=="")
                 if(elem=="" || name=="") return false;
                 if(selector && elem===selectedElem){
                     selector.classList.add("show-msg");
@@ -727,6 +624,7 @@ function unFocusElem(){
         lastFocus.style.zIndex = "2";
     updateUI();
     actPointer = {};
+    removeAllElem("#adv-options *,#adv-options-2 *");
 }
 
 function removeSelector(){
@@ -739,8 +637,6 @@ function removeSelector(){
 }
 
 function createSelector(){
-    // actPointer = getSelection() || {...selectedElem.dataset};
-    // actPointer.plan = !("plan" in actPointer) ? {} : actPointer.plan;
     let selector = document.createElement("div");
     selector.id = "selector";
     selector.className = "selector";
@@ -761,28 +657,29 @@ function createSelector(){
 function moveElemHelper(newX,newY){
     if(!selectedElem) return;
     let selector = document.getElementById("selector");
-    let { left:left_mainDiv,top:top_mainDiv,width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
-    let { left:left_selectedElem, top:top_selectedElem ,width:elemWidth, height:elemHeight } = selectedElem.getBoundingClientRect();
+    let { width:width_mainDiv,height:height_mainDiv,top:top_mainDiv,left:left_mainDiv } = mainDiv.getBoundingClientRect();
+    let { width:elemWidth, height:elemHeight,left:left_selectedElem,top:top_selectedElem,bottom:bottom_selectedElem,right:right_selectedElem } = selectedElem.getBoundingClientRect();
     if(!moveFlag || !selector) return;
     let { width,height } = selector.getBoundingClientRect();
     if((Math.sign(newX)<0 && newX<0 - 0.5*width) || newX>0.99*width_mainDiv) return;
     if((Math.sign(newY)<0 && newY<0 - 0.5*height) || newY>0.99*height_mainDiv) return;
     removeAllElem("#helper-line");
-    // let children = typeof actPointer.child === "string" ? JSON.parse(actPointer.child) : actPointer.child;
-    // if(children?.length>0){
-    //     children.forEach(function childIterator(obj){
-    //         if("child" in obj && obj.child.length>0){
-    //             let children = typeof obj.child === "string" ? JSON.parse(obj.child) : obj.child;
-    //             children.forEach(childIterator);
-    //         }
-    //         let { elem } = obj;
-    //         let { left,top } = elem.getBoundingClientRect();
-    //         let diffX = left - left_selectedElem;
-    //         let diffY = top - top_selectedElem;
-    //         elem.style.top = newY + diffY + "px";
-    //         elem.style.left = newX + diffX + "px";
-    //     });
-    // }
+    let upFlag, leftFag;
+    let topVal = Number(selectedElem.style.top.split("px")[0]), leftVal = Number(selectedElem.style.left.split("px")[0]);
+    if(Math.sign(Math.round(topVal - newY)) > 0)
+        upFlag = 1;
+    else
+    if(Math.sign(Math.round(topVal - newY)) === 0)
+        upFlag = 0;
+    else
+        upFlag = -1;
+    if(Math.sign(Math.round(newX - leftVal)) > 0)
+        leftFag = 1;
+    else
+    if(Math.sign(Math.round(newX - leftVal)) === 0)
+        leftFag = 0;
+    else
+        leftFag = -1;
     selectedElem.style.borderColor = "blue";
     selectedElem.style.top = newY + "px";
     selectedElem.style.left = newX + "px";
@@ -805,7 +702,10 @@ function moveElemHelper(newX,newY){
         ctx.stroke();
         ctx.restore();
         clearTimeout(midGuideTimer);
-        midGuideTimer = setTimeout(drawMargin,1000);
+        midGuideTimer = setTimeout(()=>{
+            drawMargin();
+            removeAllElem(".gap-displavy");
+        },1000);
     }
     if(actPointer && "role" in actPointer && ["head","body","footer"].includes(actPointer.role)){
         page[actPointer.role].x = newX;
@@ -815,20 +715,99 @@ function moveElemHelper(newX,newY){
         selectedElem.dataset.x = newX;
         selectedElem.dataset.y = newY;
     }
-    actPointer.x = newX;
-    actPointer.y = newY;
+    if(actPointer){
+        actPointer.x = newX;
+        actPointer.y = newY;
+    }
     [...document.querySelectorAll(".new-elem")]
     .forEach(elem=>elem.classList.remove("hovered-over"));
-    // let parentNode = [...document.elementsFromPoint(left_mainDiv + newX,top_mainDiv + newY)]
-    // .filter(elem=>elem.classList.contains("new-elem")==true)
-    // .filter(elem=>elem!==selectedElem)
-    // .reverse()
-    // .pop();
-    // if(parentNode)
-    //     nestingHelper(parentNode);
-    // else
-    //     nestingHelper(mainDiv);
     drawAdjPoints();
+    removeAllElem(".gap-displavy");
+    function commonCodes({text,left,top,y1,y2,x1,x2,lineDir}){
+        let span = document.createElement("span");
+        document.body.appendChild(span);
+        span.className = "gap-displavy";
+        let ctx = borderCanvas.getContext("2d");
+        ctx.setLineDash([1,1]);
+        ctx.save();
+        ctx.clearRect(0,0,borderCanvas.width,borderCanvas.height);
+        if(page.applyBorder)
+            drawMargin();
+        ctx.beginPath();
+        span.textContent = text + " px";
+        span.style.left = left + "px";
+        span.style.top = top + "px";
+        if(lineDir==="horizontal"){
+            y1 -= top_mainDiv;
+            ctx.moveTo(0,y1);
+            ctx.lineTo(borderCanvas.width,y1);
+            y2 -= top_mainDiv;
+            ctx.moveTo(0,y2);
+            ctx.lineTo(borderCanvas.width,y2);
+        }
+        else{
+            x1 -= left_mainDiv;
+            ctx.moveTo(x1,0);
+            ctx.lineTo(x1,borderCanvas.height);
+            x2 -= left_mainDiv;
+            ctx.moveTo(x2,0);
+            ctx.lineTo(x2,borderCanvas.height);
+        }
+        ctx.restore();
+        ctx.stroke();
+    }
+    [page.body,page.head,page.footer,...page.feilds,...page.sections]
+    .forEach(obj=>{
+        if(!("elem" in obj) || obj.elem===selectedElem || (selectedElem.classList.contains("feild-elem") && !obj.elem.classList.contains("feild-elem"))) return;
+        let { left:elemLeft,top:elemTop,bottom:elemBottom,right:elemRight } = obj.elem.getBoundingClientRect();
+        if(upFlag>0 && leftFag===0 && Math.abs(top_selectedElem - elemBottom)<10 && Math.abs(left_selectedElem - elemLeft)<10){
+            let _obj = {
+                text: Math.round((top_selectedElem - elemBottom)*100)/100,
+                left: elemLeft,
+                top: (elemBottom+top_selectedElem)/2 - 7.2,
+                y1: elemBottom,
+                y2: top_selectedElem,
+                lineDir: "horizontal"
+            }
+            commonCodes(_obj);
+        }
+        else
+        if(upFlag<0 && leftFag===0 && Math.abs(bottom_selectedElem - elemTop)<10 && Math.abs(left_selectedElem - elemLeft)<10){
+            let _obj = {
+                text: Math.round((elemTop - bottom_selectedElem)*100)/100,
+                left: elemLeft,
+                top: (bottom_selectedElem+elemTop)/2 - 7.2,
+                y1: bottom_selectedElem,
+                y2: elemTop,
+                lineDir: "horizontal"
+            }
+            commonCodes(_obj);
+        }
+        else
+        if(upFlag===0 && leftFag>0 && Math.abs(right_selectedElem - elemLeft)<10 && Math.abs(top_selectedElem - elemTop)<10){
+            let _obj = {
+                text: Math.round((elemLeft - right_selectedElem)*100)/100,
+                left: (elemLeft+right_selectedElem)/2-7.2,
+                top: (elemBottom + elemTop)/2,
+                lineDir: "vertical",
+                x1: right_selectedElem,
+                x2: elemLeft
+            };
+            commonCodes(_obj);
+        }
+        else
+        if(upFlag===0 && leftFag<0 && Math.abs(left_selectedElem - elemRight)<10 && Math.abs(top_selectedElem - elemTop)<10){
+            let _obj = {
+                text: Math.round((left_selectedElem - elemRight)*100)/100,
+                left: (elemRight+left_selectedElem)/2 + 7.2 ,
+                top: (elemBottom + elemTop)/2,
+                lineDir: "vertical",
+                x1: left_selectedElem,
+                x2: elemRight
+            };
+            commonCodes(_obj);
+        }
+    });
 }
 
 function drawHelperLine(mode,posObj){
@@ -886,6 +865,9 @@ function move(e){
     e.target.className==="")
         return unFocusElem(e);
     if(!selectedElem) return;
+    removeAllElem("#adv-options *,#adv-options-2 *");
+    if(Object.keys(feildObj).length>2 && "elem" in feildObj && feildObj.elem!==selectedElem)
+        feildObj = {};
     let { left:left_mainDiv,top:top_mainDiv,right:right_mainDiv,bottom:bottom_mainDiv } = mainDiv.getBoundingClientRect();
     let { clientX,clientY } = e;
     let { left:elemLeft,top:elemTop,width:elemWidth,height:elemHeight } = selectedElem.getBoundingClientRect();
@@ -896,6 +878,28 @@ function move(e){
     blockOnFocus();
     if(selectedElem.classList.contains("feild-elem"))
         selectFeildCanv(1);
+    if(actPointer && "elem" in actPointer && !(actPointer.elem.classList.contains("image-placeholder"))){
+        let advOptDiv = document.getElementById("adv-options");
+        let advOpt = document.getElementById("block-option-template").content.cloneNode(true).querySelector("div");
+        advOptDiv.appendChild(advOpt);
+        [...advOpt.querySelectorAll("div")]
+        .forEach(div=>{
+            let input = div.querySelector("input,select")
+            if(input && input.nodeName==="INPUT")
+                input.value = actPointer[input.dataset.cmd];
+            else
+            if(input && input.nodeName==="SELECT"){
+                let option = input.querySelector(`option[value="${actPointer[input.dataset.cmd]}"]`);
+                if(option)
+                    option.setAttribute("selected",true);
+                else{
+                    option = input.querySelector(`option[value="${actPointer.role}"]`);
+                    option?.setAttribute("selected",true);
+                }
+                    
+            }
+        })
+    }
     deleteBTNDiv.classList.remove("hide");
     if(!document.getElementById("selector") || selectedElem!==lastFocus){
         if(document.getElementById("selector"))
@@ -927,7 +931,7 @@ function move(e){
                 selector.style.left = x - left_mainDiv + "px";
                 selector.style.width = width - diffX + "px";
                 selectedElem.style.left = x - left_mainDiv + 20 + "px";
-                drawHelperLine(1,{left:x - left_mainDiv + 20})
+                drawHelperLine(1,{left:x - left_mainDiv + 20});
             }
             else
             if(tag==="top" && checkConstraints(width,height - diffY)){
@@ -972,7 +976,6 @@ function move(e){
         selectedElem.style.cursor = "grab";
         this.removeEventListener("mousemove",moveElem);
         this.removeEventListener("mouseup",arguments.callee);
-        // drawTable();
     });
     drawFeilds();
     drawTable();
@@ -1007,7 +1010,8 @@ function resizeNote(entries){
     let { width = selectedElem.width,height = selectedElem.height,left,top } = selector.getBoundingClientRect();
     selectedElem.width = width - 40;
     selectedElem.height = height - 40;
-    if(actPointer && "role" in actPointer && ["head","body","footer"].includes(actPointer.role)){
+    if(!actPointer || !("role" in actPointer) || !selectedElem) return;
+    if(["head","body","footer"].includes(actPointer.role)){
         page[actPointer.role].width = width - 40;
         page[actPointer.role].height = height - 40;
         selectedElem.dataset.width = width - 40;
@@ -1117,26 +1121,10 @@ function assignBlockOptions(e){
     let { value:val } = e.target;
     if(!selectedElem) return;
     if(selectedElem.classList.contains("feild-elem")) return;
-    let allElem = [page.head,page.body,page.footer,...page.sections];
     if(["head","body","footer"].includes(val) && "elem" in page[val]) return alert(`Cannot create 2 or more ${val}`)
     if(cmd==="section" && ["head","body","footer"].includes(val)){
         document.getElementById("section-name").value = val;
-        document.getElementById("section-name").setAttribute("disabled",true);
-        // let selection = allElem.find((obj)=>obj.elem===selectedElem);
-        // if(selection){// Overwritting last preference
-        //     page[selection.role].elem = null;
-        //     page[selection.role].name = null;
-        //     page[selection.role].isNested = null;
-        //     page[selection.role].role = null;
-        // }
-        // page[val].elem = selectedElem;
-        // page[val].name = val;
-        // page[val].role = val;
-        // page[val].width = 160;
-        // page[val].height = 160;
-        // page[val].parentNode = mainDiv;
-        
-        actPointer.parentNode = mainDiv;
+        document.getElementById("section-name").setAttribute("disabled",true);actPointer.parentNode = mainDiv;
         actPointer.role = val;
         actPointer.name = val;
         Object.keys(actPointer)
@@ -1209,9 +1197,8 @@ function assignBlockOptions(e){
             let { widthConstraints=0,heightConstraints=0 } = computeContraints();
             let constraint = cmd==="width" ? widthConstraints : heightConstraints;
             selector.style[cmd] = 40 - constraint + val * obj[cmd] * 0.01 - 10 + "px";
-            e.target.dataset.msg = val+"%";
             actPointer[cmd] = val;
-            document.documentElement.style.setProperty("--left_range",val+"%");
+            commonFunc_range(e.target,val,"%");
         }
     }
     updateUI();
@@ -1243,10 +1230,8 @@ function partitionManager(e){
     }
     else
         partitionObj[cmd] = Number(value);
-    if(type==="range"){
-        document.documentElement.style.setProperty("--left_range",`${value}%`);
-        e.target.dataset.msg = value;
-    }
+    if(type==="range")
+        commonFunc_range(e.target,value);
     drawPartition();
 }
 
@@ -1277,7 +1262,7 @@ function drawPartition(){
 
 // Table Design Section
 function selectColumn(e){
-    if(actPointer.role!=="body") return;
+    if(!actPointer || actPointer.role!=="body") return;
     let { x } = e;
     let { left,width } = selectedElem.getBoundingClientRect();
     drawTable();
@@ -1300,7 +1285,7 @@ function selectColumn(e){
 }
 
 function drawTable(){
-    if(!selectedElem || !("cols" in actPointer?.plan)) return;
+    if(!actPointer || Object.keys((actPointer.plan ?? {})).length===0) return;
     let { cols=[],padding=10,fSize=16,thHeight=32 } = actPointer.plan;
     if(cols.length===0) return;
     let netPercent = cols.reduce((acc,{width})=>acc+width,0);
@@ -1328,6 +1313,16 @@ function drawTable(){
     ctx.fill();
 }
 
+function commonFunc_range(elem,value,msg="%"){
+    document.documentElement.style.setProperty("--left_range",`${value}%`);
+    elem.dataset.msg = value+msg;
+    elem.focus();
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(()=>{
+        elem.blur();
+    },2000);
+}
+
 function tableDesignHelper(e){
     if(!selectedElem) return alert("Select host section.");
     let { dataset:{cmd,type},value:val } = e.target;
@@ -1346,22 +1341,45 @@ function tableDesignHelper(e){
         columnObj.width = 100 - netPercent;
         alert("No more column can be added.");
     }
-    if(e.target.type==="range"){
-        e.target.style.setProperty("--left_range",`${val}%`);
-        e.target.dataset.msg = val+"%";
-        e.target.focus();
-        clearTimeout(focusTimer);
-        focusTimer = setTimeout(()=>{
-            e.target.blur();
-        },2000);
-    }
+    if(e.target.type==="range")
+        commonFunc_range(e.target,val);
     drawTable();
 }
 
 // Feild Assign Section
 
+function selectImgFeild(){
+    removeAllElem("#adv-options *");
+    let advOptDiv = document.getElementById("adv-options");
+    let advOpt = document.getElementById("img-opt-template").content.cloneNode(true).querySelector("div");
+    advOptDiv.appendChild(advOpt);
+    Object.keys(feildObj)
+    .forEach(key=>{
+        let input = advOptDiv.querySelector(`[data-cmd="${key}"]`);
+        if(input){
+            if(input.type==="range")
+                commonFunc_range(input,feildObj[key],"%");
+            if(input.type==="checkbox")
+                input.setAttribute("checked",feildObj[key])
+            else
+                input.value = feildObj[key];
+            if("applyAspectRatio" in feildObj && feildObj.applyAspectRatio){
+                advOptDiv.querySelector(`[data-cmd="applyAspectRatio"]`).setAttribute("checked",true);
+                advOptDiv.querySelector(`[data-show="applyAspectRatio"]`).classList.remove("hide");
+            }
+            else
+            if("applyAspectRatio" in feildObj && feildObj.applyAspectRatio===false){
+                advOptDiv.querySelector(`[data-cmd="applyAspectRatio"]`).removeAttribute("checked");
+                advOptDiv.querySelector(`[data-show="applyAspectRatio"]`).classList.add("hide");
+            }
+        }
+    });
+}
+
 function selectFeildCanv(mode=2){
     feildObj = page.feilds.find(obj=>obj.id===selectedElem.dataset.id);
+    if("elem" in feildObj && feildObj.elem.classList.contains("image-placeholder"))
+        return selectImgFeild();
     if(mode===2){
         removeAllElem("#adv-options *");
         let advOpt = document.getElementById("feild-option-template").content.cloneNode(true).querySelector("div");
@@ -1410,6 +1428,35 @@ function assignFeildOptions(e){
     let { value,dataset:{cmd} } = e.target;
     let advOpt = document.getElementById("field-option-1");
     let varOptDiv = advOpt.querySelector(`[data-show="variable"]`);
+    if(cmd==="type"){
+        [...advOpt.querySelectorAll("div")]
+        .forEach(elem=>{
+            if(elem.dataset.show==="fWeight") return;
+            elem.classList.remove("hide")
+        });
+        Object.keys(feildObj)
+        .forEach(key=>{
+            if(key==="type")
+                feildObj[key] = value;
+            else
+                Reflect.deleteProperty(feildObj,key);
+        });
+        ["bold","italic","underline"]
+        .forEach(key=>{
+            if((key in feildObj)){
+                feildObj[key] = false;
+                advOpt.querySelector(`button[data-cmd="${key}"]`).classList.remove("selected-btn-2");
+            }
+            if(key==="bold")
+                document.querySelector(`[data-show="fWeight"]`).classList.add("hide");
+        });
+        feildObj.fSize = 16;
+        feildObj.fWeight = "bold";
+        feildObj.fStyle = "normal";
+        feildObj.fFamily = "Arial";
+        feildObj.text = "";
+        feildObj.fWidth = 50;
+    }
     if(value==="variable" && cmd==="type"){
         varOptDiv.classList.remove("hide");
         feildObj.fType = "date";
@@ -1417,6 +1464,23 @@ function assignFeildOptions(e){
     else
     if(value==="string" && cmd==="type")
         varOptDiv.classList.add("hide");
+    else
+    if(value==="image" && cmd==="type"){
+        [...advOpt.querySelectorAll("div")]
+        .forEach((elem,i,self)=>{
+            if(i===0 || i===self.length-1) return;
+            elem.classList.add("hide");
+        });
+        Object.keys(feildObj)
+        .forEach(key=>{
+            if(key==="type")
+                feildObj[key] = value;
+            else
+                Reflect.deleteProperty(feildObj,key);
+        });
+        feildObj.imgWidth = 10;
+        feildObj.imgHeight = 10;
+    }
     if(["fSize","fWidth"].includes(cmd))
         feildObj[cmd] =  Number(value);
     else
@@ -1432,6 +1496,7 @@ function assignFeildOptions(e){
 
 function drawFeildText(feildObj){
     let { fSize,text="",fType,type,elem,fFamily,fWidth } = feildObj;
+    if(type==="image") return imageBox(feildObj)
     let ctx = elem.getContext("2d");
     let { left,top } = elem.getBoundingClientRect();
     ctx.fillStyle = "black";
@@ -1493,6 +1558,8 @@ function createFeildCanvas(){
         feildCanv.style.position = "absolute";
         feildCanv.dataset.id = "id" in feildObj ? feildObj.id : uuid.v4();
         feildCanv.className = "feild-elem new-elem";
+        if(feildObj.type==="image")
+            feildCanv.classList.add("image-placeholder");
     }
     return feildCanv;
 }
@@ -1506,7 +1573,12 @@ function insertFeild(){
     if(!(page.feilds.some(obj=>obj.id===feildObj.id)))
         page.feilds.push(feildObj);
     removeAllElem("#adv-options *,#adv-options-2 *");
-    feildObj = {};
+    if(feildObj.elem.classList.contains("image-placeholder")){
+        let advOpt = document.getElementById("img-opt-template").content.cloneNode(true).querySelector("div");
+        document.getElementById("adv-options").appendChild(advOpt);
+    }
+    else
+        feildObj = {};
     let selectedBTN = document.querySelector(".selected-btn");
     if(selectedBTN) selectedBTN.classList.remove("selected-btn");
 }
@@ -1523,11 +1595,18 @@ function cancelFeild(){
 // File OPs IPCs
 ipcRenderer.on("new-template",async ()=>{
     let sig = await ipcRenderer.invoke("new-template-response",elemRemoval(page));
+    if(!("response" in sig)) return console.error(sig);
+    let { response } = sig;
+    if(response===0){
+        let _page = elemRemoval(page);
+        ipcRenderer.send("save-bill-template",_page);
+    }
+    init();
 
 });
 
 function renderSection(){
-    let section = createSection();
+    let section = createSection(2);
     section.style.left = actPointer.x + "px";
     section.style.top = actPointer.y + "px";
     let ctx = section.getContext("2d");
@@ -1543,13 +1622,6 @@ function renderSection(){
     ctx.stroke();
     drawPartition();
     drawTable();
-    // if("child" in actPointer)
-    //     actPointer.child?.forEach?.(obj=>{
-    //         obj.parentNode = section;
-    //         actPointer = obj;
-    //         let elem = renderSection();
-    //         obj.elem = elem;
-    //     });
     return section;
 }
 
@@ -1565,7 +1637,7 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
         feildObj = _feildObj;
         let elem = createFeildCanvas();
         feildObj.elem = elem;
-        elem.dataset.id = feildObj.id;
+        feildObj.id = elem.dataset.id;
         drawFeildText(feildObj);
     });
     ["head","body","footer"]
@@ -1581,7 +1653,59 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
         actPointer = sec;
         let elem = renderSection();
         sec.elem = elem;
-        console.log(actPointer);
     });
-    console.log(page)
 });
+
+ipcRenderer.on("save-as",()=>{
+    let _page = elemRemoval(page);
+    ipcRenderer.send("save-bill-template",_page,true);
+});
+
+//Image or logo handler
+function imageBox(feildObj){
+    let { elem,imgWidth,imgHeight } = feildObj;
+    elem.classList.add("image-placeholder");
+    let { top,left } = elem.getBoundingClientRect();
+    let parentNode = [...document.elementsFromPoint(left,top)]
+                    .filter(elem=>elem.classList.contains("new-elem") && elem!==feildObj.elem).reverse().pop() ?? mainDiv;
+    let { width } = parentNode.getBoundingClientRect();
+    elem.width = imgWidth*width*0.01;
+    elem.height = imgHeight*width*0.01;
+    elem.style.zIndex = 100;
+    feildObj.zIndex = 100;
+    let ctx = elem.getContext("2d");
+    ctx.fillStyle = "#FF3939";
+    ctx.fillRect(0,0,elem.width,elem.height);
+    ctx.strokeText("_img",elem.width/2-ctx.measureText("_img").width/2,elem.height/2);
+    ctx.fill();
+}
+
+function imgOpts(e){
+    let { dataset:{cmd},value,type,checked } = e.target;
+    removeSelector();
+    if(type==="checkbox"){
+        feildObj.applyAspectRatio = checked;
+        feildObj.aspectRatio = "1:1";
+        document.querySelector(`#adv-options [data-show="applyAspectRatio"]`).className = !checked ? "hide" : "";
+    }
+    else
+    if(["imgWidth","imgHeight"].includes(cmd)){
+        if(type==="range")
+            commonFunc_range(e.target,value);
+        feildObj[cmd] = Math.round(Number(value));
+        let [ widthProportion, heightProportion ] = ("aspectRatio" in feildObj ? feildObj.aspectRatio : "1:1").split(":").map(str=>Number(str));
+        if(feildObj.applyAspectRatio && "imgWidth" in feildObj && cmd==="imgHeight"){
+            feildObj.imgWidth = Math.round((widthProportion/heightProportion) * feildObj.imgHeight);
+            document.querySelector(`.adv-option-div [data-cmd="imgWidth"]`).value = Math.round(feildObj.imgWidth);
+            document.querySelector(`.adv-option-div [data-cmd="imgWidth"]`).dataset.msg = Math.round(feildObj.imgWidth) + "%";
+        }
+        if(feildObj.applyAspectRatio && "imgHeight" in feildObj && cmd==="imgWidth"){
+            feildObj.imgHeight = Math.round((heightProportion/widthProportion) * feildObj.imgWidth);
+            document.querySelector(`.adv-option-div [data-cmd="imgHeight"]`).value = Math.round(feildObj.imgHeight);
+            document.querySelector(`.adv-option-div [data-cmd="imgHeight"]`).dataset.msg = Math.round(feildObj.imgHeight) + "%";
+        }
+        imageBox(feildObj);
+    }
+    else
+        feildObj[cmd] = value;
+}

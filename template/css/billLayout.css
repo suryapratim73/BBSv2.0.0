@@ -182,3 +182,14 @@ button.fa-solid{
 button.fa-solid.selected-btn-2{
     color: yellow;
 }
+.gap-displavy{
+    position: absolute;
+    width: fit-content;
+    z-index: 1000;
+    color: black;
+    font-size: 0.7rem;
+    padding: 0.5rem;
+    background: antiquewhite;
+    border-radius: 5px;
+    box-shadow: 1px 1px;
+}

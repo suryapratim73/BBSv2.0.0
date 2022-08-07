@@ -131,7 +131,8 @@ exports.billDesignerWindow = mainWindow => {
           }
         }),
         new MenuItem({
-          label:"Save as"
+          label:"Save as",
+          click: ()=>mainWindow.webContents.send("save-as")
         }),
         new MenuItem({
           label:"Save & Exit",
@@ -722,6 +723,12 @@ function imposeRestriction(){
 ipcMain.on("load-main-page",()=>{
   let mainWindow = getMainWindow();
   mainWindow.loadFile("./template/html/mainPage.html");
+  let menu = Menu.getApplicationMenu();
+  let fileMenuIndex = menu.items.findIndex(obj=>obj.label==="File");
+  if(fileMenuIndex>=0){
+    menu.items.splice(fileMenuIndex,1);
+    Menu.setApplicationMenu(Menu.buildFromTemplate(menu.items));
+  }
 });
 
 ipcMain.on("save-bill-template",async (e,page,saveAs=false)=>{
@@ -750,6 +757,18 @@ ipcMain.on("save-bill-template",async (e,page,saveAs=false)=>{
   }
 });
 
-ipcMain.handle("new-template-response",(e,page)=>{
-  return true;
+ipcMain.handle("new-template-response",async (e,page)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+  try{
+    return dialog.showMessageBox(win,{
+      type:"question",
+      message:"Do you like save changes for future use?",
+      title:"Save?",
+      detail:"Changes in document will be earesed unless you save. A new untittled document will be created.",
+      buttons:["Save","Don't save"]
+    });
+  }
+  catch(err){
+    return err;
+  }
 });

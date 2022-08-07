@@ -136,6 +136,7 @@
                 <select data-cmd="type">
                     <option value="string">Text</option>
                     <option value="variable">Variable</option>
+                    <option value="image">Image</option>
                 </select>
             </div>
             <div>
@@ -145,7 +146,7 @@
             <div>
                 <p>Feild Width in %</p>
                 <div>
-                    <input type="range" max="100" min="30" value="50" data-cmd="fWidth">
+                    <input type="range" max="100" min="30" value="50" data-msg="50%" data-cmd="fWidth">
                     <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
                 </div>
             </div>
@@ -213,6 +214,7 @@
                     <option value="net-IGST">Net IGST</option>
                     <option value="ro">Rounding off value</option>
                     <option value="gtotal-words">Net Amount in words</option>
+                    <option value="bill-copy">Bill copy</option>
                 </select>
             </div>
             <div>
@@ -265,6 +267,7 @@
                     <option value="name">Particular</option>
                     <option value="hsn">HSN Code</option>
                     <option value="qty">Quantity</option>
+                    <option value="unit">Unit</option>
                     <option value="rate">Rate</option>
                     <option value="CGST">CGST</option>
                     <option value="SGST">SGST</option>
@@ -358,6 +361,47 @@
             <p>Border width</p>
             <div>
                 <input type="text" id="draw-border" value="1" data-cmd="draw-border" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+            </div>
+        </div>
+    </template>
+    <template id="img-opt-template">
+        <div class="adv-option-div" oninput="imgOpts(event)">
+            <div>
+                <p>Image width</p>
+                <div>
+                    <input type="range" data-msg="10%" style="--left_range:20%" min="0" max="100" value="10" placeholder="in %" data-cmd="imgWidth">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
+            </div>
+            <div>
+                <p>Image height</p>
+                <div>
+                    <input type="range" data-msg="10%" style="--left_range:20%" min="0" max="100" value="10" placeholder="in %" data-cmd="imgHeight">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
+            </div>
+            <div>
+                <p>Maintain aspect ratio</p>
+                <div>
+                    <input type="checkbox" data-cmd="applyAspectRatio">
+                </div>
+            </div>
+            <div data-show="applyAspectRatio" class="hide">
+                <p>Aspect Ratio</p>
+                <div>
+                    <select data-cmd="aspectRatio">
+                        <option value="1:1" selected>1:1</option>
+                        <option value="3:2">3:2</option>
+                        <option value="4:3">4:3</option>
+                        <option value="16:9">16:9</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <p>Image Tag</p>
+                <div>
+                    <input type="text" data-cmd="imgTag">
+                </div>
             </div>
         </div>
     </template>
