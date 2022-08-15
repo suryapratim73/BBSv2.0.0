@@ -8,8 +8,14 @@ const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHa
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
-const { billDesignerWindow } = require("./main");
+const { billDesignerWindow, getCurrentLogin } = require("./main");
 
+
+function appStateComplianceEnforcement(funcName,...params){
+    let currentUser = getCurrentLogin();
+    if(!currentUser) return;
+    funcName(...params);
+}
 
 module.exports = mainWindow=>{
     return [
@@ -44,11 +50,11 @@ module.exports = mainWindow=>{
                 { type: "separator" },
                 {
                     label: "Lock",
-                    click: ()=>ipcMain.emit("lock")
+                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"lock")
                 },
                 {
                     label: "Logout",
-                    click: ()=>ipcMain.emit("logout")
+                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"logout")
                 },
                 { type: "separator" },
                 { role: "quit" }
@@ -60,12 +66,12 @@ module.exports = mainWindow=>{
                 {
                     label:"Add Sale",
                     accelerator:"CommandOrControl+Return",
-                    click:saleWindow()
+                    click: ()=>appStateComplianceEnforcement(saleWindow())
                 },
                 {
                     label:"Customer Portal",
                     accelerator: "F5",
-                    click: customerPortal(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(customerPortal(mainWindow))
                 }
             ]
         },// Sale menu
@@ -75,12 +81,12 @@ module.exports = mainWindow=>{
                 {
                     label:"Add Purchase",
                     accelerator:"Shift+Return",
-                    click: addPurchase(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(addPurchase(mainWindow))
                 },
                 {
                     label: "Get Details",
                     accelerator: "F4",
-                    click: getSuplierPortal(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(getSuplierPortal(mainWindow))
                 }
             ]
         },// Purchase menu
@@ -90,22 +96,22 @@ module.exports = mainWindow=>{
                 {
                     label: "View Stock",
                     accelerator: "F9",
-                    click: displayStock(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(displayStock(mainWindow))
                 },
                 {
                     label: "Check Payments",
                     accelerator: "F10",
-                    click: checkOutPayments(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(checkOutPayments(mainWindow))
                 },
                 {
                     label: "Check Purchases",
                     accelerator: "F11",
-                    click: showPurchase(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(showPurchase(mainWindow))
                 },
                 {
                     label:"Show Sales",
                     accelerator:"F12",
-                    click:showSales(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(showSales(mainWindow))
                 }
             ]
         },// Table menu
@@ -114,12 +120,12 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label: "GST Summary",
-                    click: createGSTSummaryWindow(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow)),
                     accelerator: "F2"
                 },
                 {
                     label: "Business Statistics",
-                    click: createBusinessStatPage(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow)),
                     accelerator: "F3"
                 },
                 {
@@ -128,24 +134,24 @@ module.exports = mainWindow=>{
                 {type:"separator"},
                 {
                     label: "Generate Road Challan",
-                    click: genRoadChallan(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(genRoadChallan(mainWindow))
                 },
                 {
                     label: "Generate Voucher",
-                    click: genVoucher(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(genVoucher(mainWindow))
                 },
                 {
                     label: "Generate Payment Receipt",
-                    click: genPayReceipt(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(genPayReceipt(mainWindow)),
                 },
                 {
                     label: "Generate Requirement Slip",
-                    click: genRequirementSlip(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow)),
                     accelerator: "Shift+F4" // Dev Time Shortcut
                 },
                 {
                     label: "Bill Layout Designer",
-                    click: billDesignerWindow(mainWindow)
+                    click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow))
                     
                 },
                 {type:"separator"},
@@ -159,19 +165,19 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label:"Stock Return Registor",
-                    click:handleReturn(),
+                    click: ()=>appStateComplianceEnforcement(handleReturn()),
                     accelerator: "F7"
                 },
                 { type: "separator" },
                 {
                     label: "Employee Portal",
-                    click: employeePortal(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(employeePortal(mainWindow)),
                     accelerator: "F6"
                     // enabled: false
                 },
                 {
                     label: "Register Services",
-                    click: serviceRegistor(mainWindow),
+                    click: ()=>appStateComplianceEnforcement(serviceRegistor(mainWindow)),
                     accelerator: "F8"
                 }
             ]

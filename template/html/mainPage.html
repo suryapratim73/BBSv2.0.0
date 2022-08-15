@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="../js/mainPage.js" defer></script>
+    <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
     <link rel="stylesheet" href="../css/mainPage.css">
 </head>
 <body>
@@ -35,7 +36,7 @@
                         <button onclick="ipcRenderer.send('new-sale-purchase',2)">Register Purchase</button>
                     </div>
                 </div>
-                <div id="mode-host">
+                <div id="mode-host" oncontextmenu="showContextMenu(event)">
                     <!-- work in progress -->
                 </div>
             </div>
@@ -90,6 +91,41 @@
                     <div>
                         <button data-msg="Add New Event" class="hover right top">+</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <template id="quick-host-template">
+        <div id="quick-host">
+            <div>
+                <button onclick="backAction(event)">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back
+                </button>
+            </div>
+            <div id="host"></div>
+        </div>
+    </template>
+    <template id="bill-display-template">
+        <div class="mode-content">
+            <div>
+                <div class="table">
+                    <div class="row head">
+                        <div class="col eq-space"><p>Sl. No.</p></div>
+                        <div class="col eq-space"><p>Particular</p></div>
+                        <div class="col eq-space"><p>Quantity</p></div>
+                        <div class="col eq-space"><p>Rate</p></div>
+                    </div>
+                    <div class="tbody hide-scrollbar">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div id="bil-meta">
+
+                </div>
+                <div id="customer-meta">
+
                 </div>
             </div>
         </div>
@@ -154,7 +190,7 @@
         <div id="settings-div" class="mode-content">
             <nav onclick="switchSettingsNav(event)">
                 <p data-mode="app-settings" class="selected">App</p>
-                <p data-mode="company-settings">Company</p>
+                <!-- <p data-mode="company-settings">Company</p> -->
                 <p data-mode="billing-settings">Billing</p>
             </nav>
             <main id="main">
@@ -163,19 +199,26 @@
                     <div class="settings" data-mode="app-settings" id="app-settings">
                         <h2>App Settings</h2>
                         <div class="settings-div">
-                            <p data-cmd="set-2-factor-auth" data-msg="Unlock using password and any authenticator app.">Set 2 factor authentication</p>
-                            <p class="bill purchase" data-cmd="enable-disable-sms-notification" data-msg="SMS notification helps you to notify customer about their due payment but will cost you some money per month based on your usage.">SMS Notification</p>
-                            <p class="bill purchase" data-cmd="lock-screen" data-msg="Change lock screen background.">Lock screen</p>
-                            <p class="bill purchase" data-cmd="add-user" data-msg="Add users of this software and assign role to them.">Add user</p>
-                            <p class="bill purchase" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
-                            <p data-cmd="session-management" data-msg="Configure lock behaviour and session persistence.">Session management</p>
+                            <p data-cmd="set-2-factor-auth" data-show="app-settings" data-msg="Unlock using password and any authenticator app.">Set 2 factor authentication</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="enable-disable-sms-notification" data-msg="SMS notification helps you to notify customer about their due payment but will cost you some money per month based on your usage.">SMS Notification</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="lock-screen" data-msg="Change lock screen background.">Lock screen</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="add-user" data-msg="Add users of this software and assign role to them.">Add user</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
+                            <p data-cmd="session-management" data-show="app-settings" data-msg="Configure lock behaviour and session persistence.">Session management</p>
                         </div>
                     </div>
                     <div class="settings hide" data-mode="company-settings" id="company-settings">
                         <h2>Company settings</h2>
+                        <div class="settings-div">
+                            <p></p>
+                        </div>
                     </div>
                     <div class="settings hide" data-mode="billing-settings" id="billing-settings">
                         <h2>Bill settings</h2>
+                        <div class="settings-div">
+                            <p data-cmd="company-profile" data-show="billing-settings" data-msg="Edit company profile.">Company profile</p>
+                            <p data-cmd="bill-template" data-show="billing-settings" data-msg="The selected bill template will be used for all bill printing.">Select bil template</p>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -363,9 +406,75 @@
             <div class="bill-item-div"></div>
         </div>
     </template>
-    <template id="sale-page-template"></template>
-    <template id="purchase-page-template"></template>
-    <template id="settings-page-template"></template>
+    <template id="bill-template-template">
+        <form onsubmit="saveSettings(event)" data-cmd="select-bill-template" data-show="billing-settings">
+            <div>
+                <div>
+                    <label for="applyTemplate">Choose template</label>
+                </div>
+                <div>
+                    <select name="applyTemplate" data-cmd="applyTemplate" data-target="choosefile" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                        <option value="false">Default</option>
+                        <option value="choosefile">Choose a file</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hide" data-show="choosefile">
+                <div>
+                    <label for="file">Select a file</label>
+                </div>
+                <div>
+                    <input type="text" name="file" id="file">
+                    <button type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})">Choose</button>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="company-profile-template">
+        <form onsubmit="saveSettings(event)" data-cmd="company-profile" data-show="billing-settings">
+            <h2>Edit your company details</h2>
+            <div>
+                <div>
+                    <label for="biller">Company Name</label>
+                </div>
+                <div>
+                    <input type="text" name="biller" id="biller">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="address">Company address</label>
+                </div>
+                <div>
+                    <input type="text" name="address" id="address">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="gst">Company GST</label>
+                </div>
+                <div>
+                    <input type="text" name="gst" id="gst">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="phones">Company phones</label>
+                </div>
+                <div>
+                    <input type="text" name="phones" id="phones">
+                </div>
+            </div>
+            <div>
+                <button type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
     <template id="help-page-template"></template>
     <template id="data-modal-template">
         <div class="data-modal">

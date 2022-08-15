@@ -4,7 +4,7 @@ const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph
 
 
 let currentMode = "overview",timer,reducedBills = [],reducedPurchases = [];
-let mode = 1,loggedinUser;
+let mode = 1,loggedinUser,compInfo,selectedBill,hiddenSection;
 
 toggleDevTool(document);
 
@@ -69,6 +69,7 @@ async function overviewPageInit(){
     let billTbody = document.querySelector("#expired-bill-table-div .tbody");
     unPaidBills.forEach(billObj=>{
         let div = document.createElement("div");
+        div.dataset.billObj = JSON.stringify(billObj);
         div.className = "body row";
         div.innerHTML = `
             <p class="col eq-space">${billObj.billNo}</p>
@@ -264,7 +265,7 @@ function switchSettingsNav(e){
             div.classList.add("hide");
         else
             div.classList.remove("hide");
-    })
+    });
 }
 
 async function showForm(e,cmd,show){
@@ -274,7 +275,7 @@ async function showForm(e,cmd,show){
     }
     if(!cmd) return;
     if(e && e.target.nodeName==="FORM" && e.type!=="submit") return console.log("Form");
-    let appSettingsDiv = document.getElementById("app-settings");
+    let spinner = drawSpinner(document);
     if(cmd!=="back"){
         if(cmd==="enable-2-factor"){
             let dataURL = await ipcRenderer.invoke("generate-secret");
@@ -307,7 +308,7 @@ async function showForm(e,cmd,show){
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
             e.target.parentNode.classList.add("hide");
-            appSettingsDiv.appendChild(form);
+            document.getElementById(`${show}`).appendChild(form);
             form.querySelector("input")?.focus();
             if(cmd==="session-management"){
                 try{
@@ -342,6 +343,38 @@ async function showForm(e,cmd,show){
             else
             if(cmd==="add-user" && ["admin","all"].includes(loggedinUser.role))
                 document.getElementById("add-user-role-div").classList.remove("hide");
+            else
+            if(cmd==="bill-template"){
+                compInfo = await ipcRenderer.invoke("get-company-info");
+                let { billTemplate:{ file,applyTemplate } } = compInfo;
+                if(applyTemplate){
+                    form.querySelector(`[name="applyTemplate"] option[value="${applyTemplate===true?'choosefile':'false'}"]`)
+                    .setAttribute("selected",true);
+                    form.querySelector(`[data-show="choosefile"]`).classList.remove("hide");
+                    form.querySelector(`#file`).value = file;
+                }
+            }
+            else
+            if(cmd==="company-profile"){
+                compInfo = await ipcRenderer.invoke("get-company-info");
+                ["biller","address","gst","phones"]
+                .forEach(key=>{
+                    let input = form.querySelector(`input[name="${key}"]`);
+                    if(!input) return;
+                    let text = key!=="phones" ? compInfo[key] : "";
+                    if(key==="phones")
+                        text = compInfo.phones.reduce((acc,val,index,self)=>{
+                            if(index===self.length-1)
+                                acc += val;
+                            else
+                                acc += val + ", ";
+                            return acc;
+                        },"");
+                    if(["gst","biller"].includes(key))
+                        input.setAttribute("disabled",true);
+                    input.value = text;
+                });
+            }
             if(cmd==="lock-screen"){
                 let cookies = await ipcRenderer.invoke("check-session-info");
                 if(cookies.length>0){
@@ -363,12 +396,20 @@ async function showForm(e,cmd,show){
         selectedSettings.querySelector("form").remove();
         selectedSettings.querySelector(".settings-div").classList.remove("hide");
     }
+    spinner.remove(window);
+}
+
+function showOrHideDiv(e){
+    let form = e.target.parentNode.parentNode.parentNode;
+    let hideableDiv = form.querySelector(`[data-show="${e.target.value}"],[data-show="${e.target.dataset.target}"]`);
+    if(!hideableDiv) return;
+    hideableDiv.classList.toggle("hide");
 }
 
 async function saveSettings(e){
     e.preventDefault();
     let data = Object.fromEntries(new FormData(e.target).entries());
-    let {cmd,show} = e.target.dataset;
+    let {dataset:{cmd,show}} = e.target;
     if(cmd==="update-user"){
         if(data.password!==data["re-password"]){
             document.getElementById("re-password").focus();
@@ -421,12 +462,22 @@ async function saveSettings(e){
         }
         showToastNotification("Session settings updated.",["animation-common","move-left","blue-toast-box"],"main");
     }
+    else
+    if(cmd==="select-bill-template"){
+        data.applyTemplate = data.applyTemplate === "choosefile" ? true : false;
+        ipcRenderer.send("company-profile-info",{billTemplate:data});
+    }
+    else
+    if(cmd==="company-profile"){
+        data.phones = data.phones.split(",").map(val=>Number(val.trim()));
+        ipcRenderer.send("company-profile-info",data);
+    }
     showForm(null,"back",show);
 }
 
-async function chooseFile(e){
+async function chooseFile(e,filterObj = {name: 'Images',extensions:['jpg', 'png', 'gif']}){
     let input = e.target.previousSibling.previousSibling;
-    let selectionObj = await ipcRenderer.invoke("get-image-path");
+    let selectionObj = await ipcRenderer.invoke("get-file-path",filterObj);
     if(!selectionObj.canceled)
         input.value = selectionObj.filePaths[0];
 }
@@ -453,3 +504,67 @@ ipcRenderer.on("logged-in-user",(e,user)=>{
 ipcRenderer.on("error",(e,msg)=>{
     return alert(msg);
 });
+
+// Context Menu
+function showContextMenu(e){
+    let elem = e.target;
+    let { x,y } = e;
+    let parentNode;
+    if(elem.classList.contains("col")){
+        parentNode = elem.parentNode;
+        selectedBill = JSON.parse(parentNode.dataset.billObj);
+        ipcRenderer.send("show-context-menu",{mode:"overview-table",x,y});
+    }
+}
+
+ipcRenderer.on("show-bill",async ()=>{
+    if(!selectedBill) return;
+    let spinner = drawSpinner(document);
+    hiddenSection = document.getElementById("overview-div");
+    let modeHost = document.getElementById("mode-host");
+    hiddenSection.classList.add("hide");
+    let { billItemTable } = selectedBill;
+    let quickHost = document.getElementById("quick-host-template").content.cloneNode(true).querySelector("div");
+    modeHost.appendChild(quickHost);
+    let mode = document.getElementById("bill-display-template").content.cloneNode(true).querySelector("div");
+    quickHost.querySelector("#host").appendChild(mode);
+    let [ id,billNo,billDate ] = billItemTable.split("_");
+    let billItems = await ipcRenderer.invoke("get-bill-items-2",id,billNo,billDate);
+    let tbody = mode.querySelector(".tbody");
+    billItems.forEach(({name,quantity,unit,rate},index)=>{
+        let div = document.createElement("div");
+        div.className = "body row";
+        div.innerHTML = `
+            <p class="col eq-space">${index+1}</p>
+            <p class="col eq-space">${name}</p>
+            <p class="col eq-space">${quantity+unit}</p>
+            <p class="col eq-space">${rate}</p>
+        `;
+        tbody.appendChild(div);
+    });
+    let billMetaDiv = mode.querySelector("#bil-meta");
+    [{key:"billNo",label:"Bill No."},{key:"billDate",label:"Bill Date"},{key:"billAmt",label:"Bill Amount"},{key:"netDue",label:"Net Due"},{key:"billStatus",label:"Bill Status"},{key:"deliveryStatus",label:"Order status"},{key:"paymentStatus",label:"Bill status"}]
+    .forEach(({key,label})=>{
+        let div = document.createElement("div");
+        let p = document.createElement("p");
+        p.textContent = label+":";
+        div.appendChild(p);
+        p = document.createElement("p");
+        if(key==="billDate")
+            p.textContent = billDate;
+        else
+        if(key==="paymentStatus")
+            p.textContent = selectedBill[key] ? "Paid" : "Due";
+        else
+            p.textContent = selectedBill[key];
+        div.appendChild(p);
+        billMetaDiv.appendChild(div);
+    })
+    spinner.remove(window);
+});
+
+//Back action
+function backAction(e){
+    removeAllElem("#quick-host");
+    hiddenSection.classList.remove("hide");
+}

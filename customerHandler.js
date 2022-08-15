@@ -164,7 +164,7 @@ ipcMain.on("get-customer-names",async e=>{
     e.sender.send("customer-names",customerNames);
 });
 
-ipcMain.on("get-bill-items",async (e,id,billNo,billDate,mode)=>{
+async function retreiveBillItems(id,billNo,billDate,mode){
     if(mode===1)
         billDate = (await sale.findOne({
             where:{
@@ -186,9 +186,18 @@ ipcMain.on("get-bill-items",async (e,id,billNo,billDate,mode)=>{
             attributes:["billDate"]
         })).dataValues.billDate;
     billDate = (new Date(billDate)).toISOString().split("T")[0];
-    let billModel = await getBillModel(id,billNo,billDate,billItemSchema);
+    return await getBillModel(id,billNo,billDate,billItemSchema);
+}
+
+ipcMain.on("get-bill-items",async (e,id,billNo,billDate,mode)=>{
+    let billModel = await retreiveBillItems(id,billNo,billDate,mode);
     e.sender.send("get-bill-items-response",(await billModel.findAll()).map(({dataValues})=>dataValues));
 });
+
+ipcMain.handle("get-bill-items-2",async (e,id,billNo,billDate)=>{
+    let billModel = await retreiveBillItems(id,billNo,billDate,1);
+    return (await billModel.findAll()).map(({dataValues})=>dataValues);
+})
 
 async function returnOps(id,itemList,billMeta,retDate,mode){
     let ledger = await getLedgerModel(id,customerLedgerSchema);

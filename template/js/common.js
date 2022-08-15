@@ -590,7 +590,7 @@ exports._searchHandler = function(e){
             if(diff>noReturn){
                 if(mode===1)
                     document.getElementById("billNo").setAttribute("disabled","disabled");
-                return alert("Return not possible");
+                // return alert("Return not possible");
             }
         }
         // console.log({diff,startDate,endDate});

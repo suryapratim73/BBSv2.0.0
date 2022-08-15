@@ -462,9 +462,9 @@ ipcMain.handle("update-user",async (e,data)=>{
     throw new Error("Old pasword don't match.");
 });
 
-ipcMain.handle("get-image-path",()=>{
+ipcMain.handle("get-file-path",(e,filterObj)=>{
   return dialog.showOpenDialog(getMainWindow(),{
-    filters:[{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
+    filters:[filterObj]
   });
 });
 
@@ -770,5 +770,71 @@ ipcMain.handle("new-template-response",async (e,page)=>{
   }
   catch(err){
     return err;
+  }
+});
+
+//Company profile IPCs
+ipcMain.on("company-profile-info",async (e,data)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+  let companyObj = await (new Promise((res,rej)=>{
+    fs.readFile("./config/saleConfig.json",(err,data)=>{
+      if(err) return rej(err);
+      res(JSON.parse(data.toString()))
+    });
+  }));
+  companyObj = {
+    ...companyObj,
+    ...data
+  }
+  fs.writeFile("./config/saleConfig.json",JSON.stringify(companyObj),err=>{
+    if(err) return dialog.showErrorBox("File save error",err.message);
+    return dialog.showMessageBox(win,{
+      title:"Success",
+      message:"Company profile updated.",
+      type:"info"
+    });
+  });
+});
+
+ipcMain.handle("get-company-info",()=>{
+  return new Promise((res,rej)=>{
+    fs.readFile("./config/saleConfig.json",(err,data)=>{
+      if(err) return rej(err);
+      res(JSON.parse(data.toString()))
+    });
+  });
+});
+
+// Context Menu
+ipcMain.on("show-context-menu",(e,{mode,x,y})=>{
+  let window = BrowserWindow.fromId(e.frameId);
+  if(mode==="overview-table"){
+    let contextMenuObj = [
+      {
+        "label":"View Bill",
+        click:()=>{
+          window.webContents.send("show-bill");
+        }
+      },
+      {
+        "label":"Add Payment",
+        click:()=>{}
+      },
+      {
+        "label":"Notify"
+      },
+      {
+        "label":"Print"
+      }
+    ];
+    let menu = Menu.buildFromTemplate(contextMenuObj);
+    menu.popup({
+      window,
+      x,
+      y,
+      callback:()=>{
+        console.log("Context menu closed");
+      }
+    });
   }
 });
