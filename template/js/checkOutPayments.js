@@ -6,13 +6,31 @@ let filter = document.querySelector("#filter");
 let filterBtn = document.querySelector("header button");
 let tbody = document.querySelector("#tbody");
 let rowNo = 1;
-let spinner = drawSpinner(document);
+let spinner = drawSpinner(document),isFilterDivHidden = true;
 
 toggleDevTool(document);
 
-filterBtn.addEventListener("click",()=>filter.classList.toggle("hide"));
+filterBtn.addEventListener("click",()=>{
+    if(isFilterDivHidden)
+        filter.classList.remove("hide");
+    else
+        filter.classList.add("hide");
+    isFilterDivHidden = !isFilterDivHidden;
+    console.log({isFilterDivHidden})
+});
 
-filter.addEventListener("click",filterSelector);
+filter.addEventListener("click",function(e){
+    isFilterDivHidden = !isFilterDivHidden;
+    filterSelector.call(this,e)
+});
+
+document.body.addEventListener("click",e=>{
+    if([filter,[...filter.querySelectorAll("button")],document.getElementById("filter-btn")].includes(e.target)) return;
+    if(!isFilterDivHidden){
+        filter.classList.add("hide");
+        isFilterDivHidden = !isFilterDivHidden;
+    }
+});
 
 ipcRenderer.send("get-out-payments");
 

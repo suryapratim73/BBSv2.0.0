@@ -451,3 +451,9 @@ ipcMain.handle("update-customer-profile",async (e,custData)=>{
         return err;
     }
 });
+
+ipcMain.handle("get-customer-details",async (e,id)=>{
+    if(customerList.length===0)
+        await initCustomerList();
+    return customerList.find(obj=>obj.id===id);
+});

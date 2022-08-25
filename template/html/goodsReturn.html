@@ -11,7 +11,7 @@
 <body>
     <div id="toggle" onclick="handleToggle(event)">
         <p data-section="customer">
-            <span class="highlight-2">Customer</span>
+            <span class="highlight">Customer</span>
         </p>
         <div class="slide">
             <div class="knob">
@@ -41,7 +41,7 @@
                 <label for="supp-billNo">Enter bill number</label>
                 <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="supp-billNo" />
             </div>
-            <div><button type="submit">Get Bill Items</button></div>
+            <div><button type="submit" class="main-ui-btn">Get Bill Items</button></div>
         </form>
     </div>
     <div id="customer-bill-div" class="ret-bill-div">
@@ -63,7 +63,7 @@
                 <label for="billNo">Enter bill number</label>
                 <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="billNo" />
             </div>
-            <div><button type="submit">Get Bill Items</button></div>
+            <div><button type="submit" class="main-ui-btn" >Get Bill Items</button></div>
         </form>
     </div>
     <div id="page-2" class="hide">

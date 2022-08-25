@@ -57,10 +57,10 @@
                 </div>
             </div>
             <div>
-                <button type="button" onclick="addNewFeild()" id="new-feild-btn">+</button>
+                <button type="button" class="main-ui-btn" onclick="addNewFeild()" id="new-feild-btn">+</button>
             </div>
             <div>
-                <button type="submit">Next</button>
+                <button type="submit" class="main-ui-btn">Next</button>
                 <button onclick="ipcRenderer.send('close','Road-Challan-Generator')">Cancel</button>
             </div>
         </form>
@@ -79,14 +79,14 @@
                 </div>
                 <div id="tbody" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" class="hide-scrollbar">
                     <div class="row">
-                        <button onclick="addRow(event)" id="add-new-row">+</button>
+                        <button onclick="addRow(event)" class="main-ui-btn" id="add-new-row">+</button>
                     </div>
                 </div>
             </div>
             <div>
                 <button onclick="ipcRenderer.send('close','Road-Challan-Generator')">Cancel</button>
                 <button onclick="showPage1()" id="back-to-page1">Back</button>
-                <button onclick="generateRoadChallan(event)" id="generate-challan">Generate</button>
+                <button onclick="generateRoadChallan(event)" class="main-ui-btn" id="generate-challan">Generate</button>
             </div>
         </div>
     </template>
@@ -102,7 +102,7 @@
             </div>
             <div>
                 <div>
-                    <button type="submit">Add</button>
+                    <button type="submit" class="main-ui-btn">Add</button>
                     <button type="button" onclick="showPage1()">Cancel</button>
                 </div>
             </div>

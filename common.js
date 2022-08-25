@@ -96,6 +96,9 @@ exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema
 
 function print({printObj,path2pdf}){
     const {printer,copies,paperSize,printOrientation} = printObj;
+    if(!path2pdf && typeof JSON.parse(JSON.stringify(this))==="string")
+        path2pdf = this.toString();
+    if(!path2pdf) return;
     if(process.platform==="linux" || process.platform==="darwin")
         printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
     else
@@ -115,6 +118,8 @@ function getStartDate(period){
 exports.getStartDate = getStartDate;
 
 ipcMain.on("printObj",print);
+
+exports.print = print
 
 ipcMain.on("print-ledger",async (e,id,period,mode)=>{
     let ledgerSchema = mode==1?supplierLedgerSchema:customerLedgerSchema;

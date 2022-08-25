@@ -451,7 +451,7 @@ async function selectStock(e){
 
 function assignOpt_Dl(arr,dl){
     dl = document.getElementById(dl);
-    ipcRenderer.send("test");
+    // ipcRenderer.send("test");
     arr.forEach(obj=>{
         let option = document.createElement("option");
         for(let key in obj)

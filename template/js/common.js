@@ -207,7 +207,7 @@ exports.printModal = function printModal(customId=""){
                     </select>
                 </div>
                 <div>
-                    <button type="submit">Print</button>
+                    <button type="submit" class="main-ui-btn">Print</button>
                     <button type="button" data-name="cancel">Cancel</button>
                 </div>
             </form>
@@ -431,6 +431,17 @@ exports.searchHandler = function(e,arr){
     let startDate,endDate;
     searchText.split(" ").forEach(word=>{
         if(word.length===0) return;
+        if(["paid","unpaid"].includes(word.toLowerCase())){
+            searchBy = {
+                feild:"paymentStatus",
+                dataFeild:"payment-status"
+            };
+            arr.forEach(obj=>{
+                if(obj.paymentStatus===(word==="paid"?true:false))
+                    matches.push(obj)
+            });
+        }
+        else
         if(!/\d+/.test(word) && !/[/]/g.test(word)){
             cmd = cmdMap.filter(({text})=>{
                 if(text.filter(prob=>{

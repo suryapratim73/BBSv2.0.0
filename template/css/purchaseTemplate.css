@@ -2,7 +2,6 @@
 body{
     height: 100vh;
     padding: 0;
-    /* overflow: hidden; */
     display: inherit;
 }
 .page{
@@ -17,9 +16,6 @@ form{
 }
 form h2,h2,p,input,option,select{
     color: black;
-}
-form span, form label, span{
-    color: red;
 }
 form>div{
     display: flex;
@@ -46,7 +42,6 @@ form>div>div:last-child{
 }
 form input{
     width: 100%;
-    color: blue;
     padding: 0.15rem 0.5rem;
     font-size: 1rem;
 }
@@ -55,15 +50,6 @@ form button,.btn-container>button{
     outline: none;
     border-radius: 3px;
     font-weight: 100;
-}
-form button:first-child,.btn-container>button:first-child{
-    color: red;
-    border-color: unset;
-    box-shadow: 1px 1px 1px 0, -1px -1px 3px 0 grey;
-}
-#more-feild-btn,form button:last-child,.btn-container>button:nth-child(2){
-    color: blue;
-    box-shadow: 1px 1px 1px 0px, -1px -1px 3px 0 grey;
     border-color: unset;
 }
 form>div>div:last-child>button{
@@ -90,9 +76,6 @@ form>div>div:last-child>button{
 }
 #table{
     height: fit-content;
-}
-.head p{
-    color: blue;
 }
 .col{
     border-color: black;
@@ -126,15 +109,6 @@ form>div>div:last-child>button{
 .modal{
     align-items: center;
 }
-/* .popup2{
-    width: 50%;
-    height: 100%;
-    display: flex;
-    box-shadow: 0 0 5px 0 grey;
-}
-.popup2 form{
-    width: 100%;
-} */
 #purchase-page-modal form>div:last-child{
     flex: 1;
 }
@@ -181,11 +155,6 @@ form>div>div:last-child>button{
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
-}
-.btn-container>button:last-child{
-    color: green;
-    box-shadow: 1px 1px 1px 0px, -1px -1px 3px 0 grey;
-    border-color: unset;
 }
 #page4>form{
     gap: 0.5rem;

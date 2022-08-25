@@ -96,20 +96,10 @@ button{
     outline: none;
     border-radius: 3px;
     font-weight: 100;
-    box-shadow: 1px 1px 1px 0, -1px -1px 3px 0 grey;
     border-color: unset;
-}
-footer button:nth-child(1){
-    color:red;
 }
 footer button:nth-child(2),.row1 button{
     color: black;
-}
-footer button:nth-child(3),footer button:nth-child(5){
-    color: blue;
-}
-footer button:nth-child(4){
-    color: green;
 }
 p,label,h1{
     color: black;

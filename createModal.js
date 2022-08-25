@@ -1,4 +1,5 @@
 const {BrowserWindow} = require("electron");
+const appPolicy = require("./config/appDefault.json")
 
 
 let windowList = [];
@@ -44,8 +45,11 @@ exports.createModal = (windowOptions={},pathToHTML,{
     modal = new BrowserWindow(windowOptions);
   if(modal){
     modal.removeMenu();
-    if(show)
+    if(show){
       modal.on("ready-to-show",modal.show);
+      if(modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.appPolicy)
+        modal.webContents.send("apply-theme",appPolicy.selectedTheme);
+    }
     if(loadFile)
       modal.loadFile(pathToHTML);
     else

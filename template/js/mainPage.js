@@ -1,4 +1,4 @@
-const { ipcRenderer } = require("electron");
+const { ipcRenderer,remote } = require("electron");
 const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize } = require("../js/common");
 
 
@@ -305,6 +305,30 @@ async function showForm(e,cmd,show){
             e.target.textContent = show==="false" ? "Hide" : "Show";
             e.target.dataset.show = !JSON.parse(show);
         }
+        else
+        if(cmd==="advance-theming"){
+            document.querySelector(".page1").classList.add("hide");
+            let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
+            document.getElementById(`${show}`).appendChild(form);
+            [...form.querySelectorAll("input[type='color']")]
+            .forEach(input=>{
+                if(input.name==="primary")
+                    input.value = "#663399";
+                else
+                if(input.name==="secondary")
+                    input.value = "#FFFFFF";
+                else
+                if(input.name==="shadow")
+                    input.value = "#808080";
+                else
+                    input.value = "#000000";
+            });
+        }
+        else
+        if(cmd==="back-page1"){
+            removeAllElem(".page2");
+            document.querySelector(".page1").classList.remove("hide");
+        }
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
             e.target.parentNode.classList.add("hide");
@@ -472,6 +496,11 @@ async function saveSettings(e){
         data.phones = data.phones.split(",").map(val=>Number(val.trim()));
         ipcRenderer.send("company-profile-info",data);
     }
+    else
+    if(cmd==="appearance-management"){
+        data.applyTheme = data.applyTheme === "true" ? true : false;
+        ipcRenderer.send("save-theme-setting",data);
+    }
     showForm(null,"back",show);
 }
 
@@ -559,7 +588,23 @@ ipcRenderer.on("show-bill",async ()=>{
             p.textContent = selectedBill[key];
         div.appendChild(p);
         billMetaDiv.appendChild(div);
-    })
+    });
+    let customerObj = await ipcRenderer.invoke("get-customer-details",selectedBill.customerId);
+    let customerMetaDiv = mode.querySelector("#customer-meta");
+    [{key:"name",label:"Name"},{key:"address",label:"Address"},{key:"gst",label:"GST"},{key:"phones",label:"Contact"},{key:"email",label:"Email"}]
+    .forEach(({key,label})=>{
+        let div = document.createElement("div");
+        let p = document.createElement("p");
+        p.textContent = label+":";
+        div.appendChild(p);
+        p = document.createElement("p");
+        if(key==="email")
+            p.textContent = customerObj.moreInfo?.email;
+        else
+            p.textContent = customerObj[key];
+        div.appendChild(p);
+        customerMetaDiv.appendChild(div);
+    });
     spinner.remove(window);
 });
 

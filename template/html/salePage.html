@@ -22,7 +22,7 @@
     <template id="page-1-template">
         <div>
             <div>
-                <label for="customer-name" class="red">Name: </label>
+                <label for="customer-name" class="highlight">Name: </label>
             </div>
             <div class="row1">
                 <input required type="text" spellcheck="false" name="customer-name" autofocus data-name="name" list="customer-names"/>
@@ -30,7 +30,7 @@
         </div>
         <div>
             <div>
-                <label for="customer-address" class="red">Address: </label>
+                <label for="customer-address" class="highlight">Address: </label>
             </div>
             <div class="row1">
                 <input required type="text" name="customer-address" data-name="address" />
@@ -38,7 +38,7 @@
         </div>
         <div>
             <div>
-                <label for="customer-phones" class="red">Phone:</label>
+                <label for="customer-phones" class="highlight">Phone:</label>
             </div>
             <div class="row1">
                 <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
@@ -47,7 +47,7 @@
         </div>
         <div>
             <div>
-                <label for="customer-email" class="red">Customer Email</label>
+                <label for="customer-email" class="highlight">Customer Email</label>
             </div>
             <div class="row1">
                 <input name="customer-email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
@@ -55,7 +55,7 @@
         </div>
         <div>
             <div>
-                <label for="customer-gst" class="red">GST Number</label>
+                <label for="customer-gst" class="highlight">GST Number</label>
             </div>
             <div class="row1">
                 <input name="customer-gst" type="text" data-name="gst" id="customer-gst" />
@@ -65,7 +65,7 @@
     <template id="page-2-template">
         <div>
             <div>
-                <label for="bill-date" class="red">Date: </label>
+                <label for="bill-date" class="highlight">Date: </label>
             </div>
             <div class="row1">
                 <input type="date" required name="bill-date" data-name="billDate"/>
@@ -73,7 +73,7 @@
         </div>
         <div>
             <div>
-                <label for="bill-number" class="red">Bill Number: </label>
+                <label for="bill-number" class="highlight">Bill Number: </label>
             </div>
             <div class="row1">
                 <input name="bill-number" required type="text" data-name="billNo" />
@@ -81,7 +81,7 @@
         </div>
         <div>
             <div>
-                <label class="red">Bill Status</label>
+                <label class="highlight">Bill Status</label>
             </div>
             <div class="row1">
                 <div class="radio-btn-div">
@@ -98,7 +98,7 @@
         </div>
         <div>
             <div>
-                <label for="delivery-mode" class="red">Delivery Mode: </label>
+                <label for="delivery-mode" class="highlight">Delivery Mode: </label>
             </div>
             <div class="row1">
                 <select name="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="delivery-mode">
@@ -115,7 +115,7 @@
         </div>
         <div>
             <div>
-                <label for="colley-required" class="red">Coolie Required? </label>
+                <label for="colley-required" class="highlight">Coolie Required? </label>
             </div>
             <div class="row1">
                 <select name="colley-required" onchange="assignDeliveryOptions(event)" required type="text" data-name="colley-required">
@@ -148,7 +148,7 @@
             </div>
             <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
                 <div class="row row-control-div" id="add-item">
-                    <button type="button" onclick="addRow(event)">+</button>
+                    <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
                 </div>
             </div>
         </div>
@@ -257,9 +257,9 @@
         <div id="btn-container">
             <button type="button" data-type="cancel" onclick="cancelAction()">Cancel</button>
             <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>
-            <button type="submit" data-type="proceed">Proceed</button>
-            <button type="button" data-type="print" onclick="showPrintDialog()">Print</button>
-            <button type="button" data-type="save" onclick="saveExit(event)">Save & Exit</button>
+            <button type="submit" data-type="proceed" class="main-ui-btn">Proceed</button>
+            <button type="button" data-type="print" class="main-ui-btn" onclick="showPrintDialog()">Print</button>
+            <button type="button" data-type="save" class="main-ui-btn" onclick="saveExit(event)">Save & Exit</button>
         </div>
     </template>
     <template id="body-row-template">
@@ -312,15 +312,15 @@
             <div id="bill-summary">
                 <div>
                     <p>Sold Qty:</p>
-                    <p class="red" data-name="netQty">0</p>
+                    <p class="highlight" data-name="netQty">0</p>
                 </div>
                 <div>
                     <p>Amt:</p>
-                    <p class="red" data-name="netAmt">0</p>
+                    <p class="highlight" data-name="netAmt">0</p>
                 </div>
                 <div>
                     <p>Amt with Tax:</p>
-                    <p class="red" data-name="netAmtTax">0</p>
+                    <p class="highlight" data-name="netAmtTax">0</p>
                 </div>
             </div>
         </div>
@@ -329,7 +329,7 @@
         <div class="retractable-div" data-collapsed="false">
             <div>
                 <div>
-                    <label for="transport-name" class="red">Transport Name: </label>
+                    <label for="transport-name" class="highlight">Transport Name: </label>
                 </div>
                 <div class="row1">
                     <input list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
@@ -337,7 +337,7 @@
             </div>
             <div>
                 <div>
-                    <label for="transport-address" class="red">Transport Address: </label>
+                    <label for="transport-address" class="highlight">Transport Address: </label>
                 </div>
                 <div class="row1">
                     <input name="transport-address" type="text" data-name="transportAddress" />
@@ -345,7 +345,7 @@
             </div>
             <div>
                 <div>
-                    <label for="transport-contact" class="red">Transport Contact: </label>
+                    <label for="transport-contact" class="highlight">Transport Contact: </label>
                 </div>
                 <div class="row1">
                     <input name="transport-contact" type="text" data-name="transportContact" />
@@ -353,7 +353,7 @@
             </div>
             <div>
                 <div>
-                    <label for="transport-charge" class="red">Transport Charge: </label>
+                    <label for="transport-charge" class="highlight">Transport Charge: </label>
                 </div>
                 <div class="row1">
                     <input name="transport-charge" placeholder="compulsory feild" required type="text" data-name="transportCharge" />
@@ -365,7 +365,7 @@
         <div class="retractable-div" data-collapsed="false">
             <div>
                 <div>
-                    <label for="coolie-name" class="red">Coolie Name: </label>
+                    <label for="coolie-name" class="highlight">Coolie Name: </label>
                 </div>
                 <div class="row1">
                     <input name="coolie-name" list="coolie-dl" placeholder="compulsory feild" required type="text" data-name="coolieName" />
@@ -373,7 +373,7 @@
             </div>
             <div>
                 <div>
-                    <label for="coolie-contact" class="red">Coolie Contact: </label>
+                    <label for="coolie-contact" class="highlight">Coolie Contact: </label>
                 </div>
                 <div class="row1">
                     <input name="coolie-contact" placeholder="compulsory feild" required type="text" data-name="coolieContact" />
@@ -381,7 +381,7 @@
             </div>
             <div>
                 <div>
-                    <label for="coolie-charge" class="red">Coolie Charge: </label>
+                    <label for="coolie-charge" class="highlight">Coolie Charge: </label>
                 </div>
                 <div class="row1">
                     <input name="coolie-charge" placeholder="compulsory feild" required type="text" data-name="coolieCharge" />

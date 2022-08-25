@@ -55,7 +55,6 @@ nav input, #feild-container input{
     flex: 1;
 }
 .page1-elem>div:nth-child(3)>button,.page2-elem button,.page3-elem button{
-    color: black;
     padding: 0.5rem;
 }
 .page2-elem,.page3-elem{

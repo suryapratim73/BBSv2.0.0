@@ -20,21 +20,21 @@
         <div id="searchbar">
             <div id="form">
                 <div class="hide" id="btn-container">
-                    <button data-cmd="bills" data-view="bills" id="show-bill-BTN" type="button">Show Bills</button>
-                    <button data-cmd="ledger" data-view="ledger" id="show-ledger-BTN" class="hide" type="button">Show Ledger</button>
-                    <button data-cmd="print-ledger" data-view="bills" id="print-ledger" type="button">Print Ledger</button>
-                    <button data-cmd="update-profile">Update Profile</button>
-                    <button data-cmd="back" onclick="resetPortal()">Back</button>
-                    <button data-cmd="filter" data-view="ledger" id="filter-btn" class="hide" type="button">Filter</button>
+                    <button data-cmd="bills" data-view="bills" id="show-bill-BTN" type="button" class="main-ui-btn">Show Bills</button>
+                    <button data-cmd="ledger" data-view="ledger" id="show-ledger-BTN" class="main-ui-btn hide" type="button">Show Ledger</button>
+                    <button data-cmd="print-ledger" data-view="bills" id="print-ledger" type="button" class="main-ui-btn">Print Ledger</button>
+                    <button data-cmd="update-profile" class="main-ui-btn">Update Profile</button>
+                    <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">Back</button>
+                    <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide" type="button">Filter</button>
                     <div id="filter-option" class="hide">
                         <div class="selected">
-                            <button type="button" data-cmd="all" class="filter-btn">All</button>
+                            <button type="button" data-cmd="all" class="main-ui-btn filter-btn">All</button>
                         </div>
                         <div>
-                            <button type="button" data-cmd="unpaid" class="filter-btn">Unpaid</button>
+                            <button type="button" data-cmd="unpaid" class="main-ui-btn filter-btn">Unpaid</button>
                         </div>
                         <div>
-                            <button type="button" data-cmd="paid" class="filter-btn">Paid</button>
+                            <button type="button" data-cmd="paid" class="main-ui-btn filter-btn">Paid</button>
                         </div>
                     </div>
                 </div>
@@ -126,6 +126,7 @@
             </div>
         </div>
     </div>
+    <!-- templates -->
     <template id="ledger-div-template">
         <div id="ledger-div" class="table">
             <h1>Ledger</h1>
@@ -356,10 +357,10 @@
                 <div id="tbody"></div>
             </div>
             <div id="bill-option-BTNs" onclick="billUtils(event)">
-                <button data-cmd="open">Open</button>
-                <button data-cmd="print">Print</button>
-                <button data-cmd="add-item" class="hide">Add Items</button>
-                <button data-cmd="pay" class="hide">Add Payment</button>
+                <button data-cmd="open" class="main-ui-btn">Open</button>
+                <button data-cmd="print" class="main-ui-btn">Print</button>
+                <button data-cmd="add-item" class="main-ui-btn hide">Add Items</button>
+                <button data-cmd="pay" class="main-ui-btn hide">Add Payment</button>
                 <button data-cmd="close" onclick="_closeModal()">Close</button>
             </div>
         </div>
@@ -403,13 +404,14 @@
             </div>
             <div>
                 <div>
-                    <button type="button" onclick="enableInputs(event)">Edit</button>
-                    <button type="submit" class="hide">Update</button>
+                    <button type="button" class="main-ui-btn" onclick="enableInputs(event)">Edit</button>
+                    <button type="submit" class="main-ui-btn hide">Update</button>
                     <button type="button" onclick="closeModal()">Close</button>
                 </div>
             </div>
         </form>
     </template>
+    <!-- datalists -->
     <datalist id="stock-names"></datalist>
     <datalist id="unit-dl"></datalist>
 </body>

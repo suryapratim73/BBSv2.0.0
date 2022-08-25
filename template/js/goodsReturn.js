@@ -79,8 +79,8 @@ function handleToggle(e){
     if(["dot","knob","slide","knob right-1rem"].includes(e.target.className)){
         let knob = document.querySelector(".knob");
         if(knob.classList.contains("right-1rem")){
-            document.querySelector("[data-section='customer']>span").classList.add("highlight-2");
-            document.querySelector("[data-section='supplier']>span").classList.remove("highlight-2");
+            document.querySelector("[data-section='customer']>span").classList.add("highlight");
+            document.querySelector("[data-section='supplier']>span").classList.remove("highlight");
             knob.classList.remove("right-1rem");
             document.getElementById("supplier-bill-div").classList.add("hide");
             document.getElementById("customer-bill-div").classList.remove("hide");
@@ -88,8 +88,8 @@ function handleToggle(e){
             initForm(mode);
         }
         else{
-            document.querySelector("[data-section='customer']>span").classList.remove("highlight-2");
-            document.querySelector("[data-section='supplier']>span").classList.add("highlight-2");
+            document.querySelector("[data-section='customer']>span").classList.remove("highlight");
+            document.querySelector("[data-section='supplier']>span").classList.add("highlight");
             knob.classList.add("right-1rem");
             document.getElementById("supplier-bill-div").classList.remove("hide");
             document.getElementById("customer-bill-div").classList.add("hide");

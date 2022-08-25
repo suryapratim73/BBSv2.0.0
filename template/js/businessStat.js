@@ -39,7 +39,6 @@ function reduceFunction(acc,{amt,date}){
 function applyDrawBarGraph({text,i,canvas,fillStyle,strokeStyle,arr}){
     let dayAmt = typeof arr[text]==="number"?arr[text]:0;
     let ht = Math.round(roundOffTo2DecimalPlace(dayAmt/arr.total)*150) ?? 0;
-    console.log({ht,total:arr.total,text})    
     drawBarGraph(getOptionObj({canvas,fillStyle,strokeStyle,i,text,fontSize:24,ht}));
 }
 

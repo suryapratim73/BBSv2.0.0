@@ -6,7 +6,7 @@ body{
 #nav-div{
     grid-column: 1/3;
     grid-row: 1/-1;
-    background: rebeccapurple;
+    background: var(--theme-primary);
     display: flex;
     flex-direction: column;
     justify-content: space-around;
@@ -23,30 +23,24 @@ body{
     font-weight: 200;
     text-shadow: -1px 1px white;
 }
-#nav-div>div:first-child span{
-    font-size: 1rem;
-    color: white;
-    letter-spacing: 0.1rem;
-    text-shadow: unset;
-}
 #nav-div div:nth-child(2){
     flex: 6;
 }
 #nav-div div p{
     padding: 0.5rem;
     margin: 0.5rem 0;
-    color: white;
+    color: var(--theme-secondary);
     font-size: 1.1rem;
 }
 #nav-div div p.selected{
-    color: purple;
+    color: var(--theme-primary);
     font-size: 1.3rem;
 }
 i{
-    color: black;
+    color: inherit;
 }
 h1{
-    color: black;
+    color: var(--theme-text-color);
     font-size: 2.5rem;
     font-weight: 100;
     font-family: sans-serif;
@@ -89,12 +83,12 @@ h1{
     overflow: hidden;
 }
 #main-div>div:first-child>div>div:first-child h2{
-    color: black;
+    color: var(--theme-text-color);
     font-size: 2.5rem;
     font-weight: 100;
 }
 .mode-content h3{
-    color: rgba(0,0,0,0.8);
+    color: var(--theme-text-color);
     font-weight: 100;
 }
 #overview-div{
@@ -136,12 +130,12 @@ h1{
     box-shadow: none;
 }
 #sale-purchase-btn-div>button:first-child{
-    background: limegreen;
-    color: white;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
 }
 #sale-purchase-btn-div>button:last-child{
-    background: orangered;
-    color: white;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
 }
 #expired-bill-table-div{
     flex: 3;
@@ -156,7 +150,7 @@ h1{
 }
 #scheduler-div{
     border-radius: 15px;
-    background: orangered;
+    background: var(--theme-primary);
     transition: 200ms ease-in-out;
     padding: 0.5rem;
     display: flex;
@@ -175,7 +169,7 @@ h1{
     height: 100%;
 }
 #dt-div>h1,#dt-div>p{
-    color: white;
+    color: var(--theme-text-color);
 }
 #dt-div>h1{
     flex: 3;
@@ -196,7 +190,7 @@ h1{
 }
 #scheduler-div button{
     font-size: 1.5rem;
-    color: orangered;
+    color: var(--theme-primary);
     border: none;
     width: 2rem;
     height: 2rem;
@@ -206,7 +200,7 @@ button{
     outline: none;
 }
 .body.row p{
-    color: black;
+    color: var(--theme-text-color);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -218,10 +212,10 @@ button{
 button.hover{
     margin-left: auto;
     position: relative;
-    color: orangered;
+    color: var(--theme-primary);
     font-size: 2rem;
     padding: 0 0.25rem;
-    background: white;
+    background: var(--theme-secondary);
     border: none;
 }
 .hover:hover{
@@ -243,7 +237,7 @@ button.hover{
 }
 #knob{
     height: 5rem;
-    background: rebeccapurple;
+    background: var(--theme-primary);
     border-radius: 15px 0 0 15px;
     width: 2rem;
     position: relative;
@@ -272,7 +266,7 @@ button.hover{
     top: 30%;
     left: 40%;
     transform: rotate(45deg);
-    background: white;
+    background: var(--theme-secondary);
     z-index: 2;
 }
 #knob.switch-arrow::before{
@@ -302,7 +296,7 @@ button.hover{
 #panel>div:first-child>h2{
     padding: 0.5rem;
     font-size: 2rem;
-    color: orangered;
+    color: var(--theme-primary);
 }
 #notification-div{
     grid-row: 3/-2;
@@ -362,7 +356,7 @@ button.hover{
     width: 2rem;
     height: 2rem;
     border-radius: 50%;
-    color: orangered;
+    color: var(--theme-primary);
     font-size: 1rem;
     font-weight: 600;
     display: flex;
@@ -427,7 +421,7 @@ button.hover{
     width: 100%;
 }
 .item-obj>div:last-child>span{
-    color: black;
+    color: var(--theme-text-color);
 }
 .item-obj>div:last-child>span:first-child{
     max-width: 5rem;
@@ -441,7 +435,7 @@ button.hover{
 }
 .item-obj>div:last-child>span:nth-child(2)::before{
     content: "-";
-    color: orangered;
+    color: var(--theme-primary);
     font-size: 1.25rem;
     font-weight: 600;
 }
@@ -459,7 +453,7 @@ button.hover{
     animation: translate-right 600ms linear forwards;
 }
 select,option{
-    color: black;
+    color: var(--theme-text-color);
     min-width: 5rem;
 }
 @keyframes translate-right{
@@ -495,7 +489,7 @@ select,option{
     font-weight: bolder;
     font-size: 1.2rem;
     position: relative;
-    background-image: linear-gradient(90deg, transparent, #66339985) !important;
+    background-image: linear-gradient(90deg, transparent, var(--theme-primary)) !important;
 }
 #settings-div>nav>p.selected::after{
     position: absolute;
@@ -518,7 +512,7 @@ select,option{
 }
 #settings-div>main h1{
     letter-spacing: 0.2rem;
-    border-bottom: 4px solid orangered;
+    border-bottom: 4px solid var(--theme-primary);
     width: fit-content;
     padding-bottom: 0.5rem;
 }
@@ -549,10 +543,14 @@ select,option{
 #settings-container form button{
     padding: 0.5rem;
 }
+.settings{
+    height: 100%;
+    overflow: hidden;
+}
 .settings-div{
-    max-height: 100%;
     overflow: auto;
     padding: 0 0.25rem;
+    height: 90%;
 }
 .settings-div p{
     padding: 0.2rem 0.5rem;
@@ -563,13 +561,13 @@ select,option{
     font-size: 1.5rem;
 }
 .settings-div p:hover{
-    color: orangered;
+    color: var(--theme-primary);
     cursor: pointer;
 }
 .settings-div p:after{
     content: attr(data-msg);
     font-size: 0.9rem;
-    color: black;
+    color: var(--theme-text-color);
     display: block;
 }
 form#set-2-factor-auth-form{
@@ -621,18 +619,31 @@ form#set-2-factor-auth-form button{
 }
 #host div.mode-content>div:last-child{
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
-#bil-meta{
+.side-divs{
     padding: 0.5rem;
-    background: rebeccapurple;
+    background: var(--theme-primary);
     margin: 0 0.5rem 0.5rem 0.5rem;
     border-radius: 5px;
 }
-#bil-meta>div{
+.side-divs>div{
     display: flex;
     justify-content: space-between;
 }
-#bil-meta p{
-    color: white;
+.side-divs p{
+    color: var(--theme-secondary);
     margin-bottom: 0.15rem;
+}
+.page2>div>div{
+    display: flex;
+    width: 40%;
+    gap: 0.25rem;
+}
+#adv-theme-page input[type="color"],#adv-theme-page input[type="checkbox"]{
+    width: 2rem;
+    height: 2rem;
+    margin-left: auto;
 }

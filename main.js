@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, protocol, session, MenuItem } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, MenuItem, session, nativeTheme } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User } = require("./common");
 const fs = require("fs");
 const path = require("path");
@@ -12,6 +12,7 @@ const { billItemSchema } = require('./model/dynamicSchemas');
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
+const appPolicy = require("./config/appDefault.json");
 
 
 let closeFlag = false,
@@ -94,7 +95,7 @@ async function createWindow () {
     }
     else
       mainWindow.webContents.send("use-lock");
-  })
+  });
   return mainWindow;
 }
 
@@ -818,7 +819,9 @@ ipcMain.on("show-context-menu",(e,{mode,x,y})=>{
       },
       {
         "label":"Add Payment",
-        click:()=>{}
+        click:()=>{
+          ipcMain.emit("toggle-theme")
+        }
       },
       {
         "label":"Notify"
@@ -838,3 +841,28 @@ ipcMain.on("show-context-menu",(e,{mode,x,y})=>{
     });
   }
 });
+
+//Theme IPC
+ipcMain.on("save-theme-setting",async (e,data)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+});
+
+if("useDarkTheme" in appPolicy && appPolicy.useDarkTheme){
+  if(process.platform==="win32"){
+    
+  }
+  else
+  if(process.platform==="darwin"){
+    
+  }
+  else
+  if(process.platform==="linux"){
+    setInterval(()=>{
+      nativeTheme.themeSource = "system";
+      if(nativeTheme.shouldUseDarkColors)
+        nativeTheme.themeSource = "dark";
+      else
+        nativeTheme.themeSource = "light";
+    },1500);
+  }
+} // Not programmed

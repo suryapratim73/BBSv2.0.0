@@ -24,7 +24,7 @@
             <div><input type="date" required id="date" name="date"></div>
         </div>
         <div id="btn-div">
-            <button type="button" onclick="newFeildForm(event)">+</button>
+            <button type="button" class="main-ui-btn" onclick="newFeildForm(event)">+</button>
         </div>
         <div>
             <div>
@@ -34,7 +34,7 @@
         </div>
         <div>
             <div>
-                <button type="submit">Next</button>
+                <button type="submit" class="main-ui-btn>Next</button>
                 <button type="button" onclick="ipcRenderer.send('close','Requirement-Slip-Generator')">Close</button>
             </div>
         </div>
@@ -57,7 +57,7 @@
             </div>
             <div>
                 <div>
-                    <button type="submit">Add</button>
+                    <button type="submit" class="main-ui-btn">Add</button>
                     <button type="button" onclick="backToPage1()">Cancel</button>
                 </div>
             </div>
@@ -76,7 +76,7 @@
                 </div>
                 <div id="tbody" onclick="deleteRow(event)" oninput="inputHandler(event)" onmouseover="showDeleteBTN(event)" onchange="inputChangeHandler(event)">
                     <div class="row row-control-div" id="add-item">
-                        <button onclick="addRow(event)">+</button>
+                        <button class="main-ui-btn" onclick="addRow(event)">+</button>
                     </div>
                 </div>
             </div>

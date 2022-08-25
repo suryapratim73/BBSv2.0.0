@@ -66,10 +66,10 @@ function clickOrFocusinHandler(e){
 }
 
 function stepDetail(){
-    if(currentStep===1) return `Add <span class="red">customer</span> detail`;
-    if(currentStep===2) return `Add <span class="red">bill</span> detail`;
-    if(currentStep===3) return `Add <span class="red">item</span> detail`;
-    if(currentStep===4) return `Add <span class="red">payment</span> detail`;
+    if(currentStep===1) return `Add <span class="highlight">customer</span> detail`;
+    if(currentStep===2) return `Add <span class="highlight">bill</span> detail`;
+    if(currentStep===3) return `Add <span class="highlight">item</span> detail`;
+    if(currentStep===4) return `Add <span class="highlight">payment</span> detail`;
 }
 
 function setFooter(){

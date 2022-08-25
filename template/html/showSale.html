@@ -11,28 +11,13 @@
 <body>
     <header>
         <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." oninput="searchHandler(event)">
-        <button data-cmd="toggle-filter-option">Filter</button>
+        <button data-cmd="toggle-filter-option" class="main-ui-btn">Filter</button>
         <div id="filter-options" class="hide">
-            <div data-cmd="paid" class="option">
-                <p data-cmd="paid">Paid</p>
-                <div data-cmd="paid" class="dot deselect"></div>
-            </div>
-            <div data-cmd="unpaid" class="option">
-                <p data-cmd="unpaid">Unpaid</p>
-                <div data-cmd="unpaid" class="dot deselect"></div>
-            </div>
-            <div data-cmd="open" class="option">
-                <p data-cmd="open">Open</p>
-                <div data-cmd="open" class="dot deselect"></div>
-            </div>
-            <div data-cmd="close" class="option">
-                <p data-cmd="close">Closed</p>
-                <div data-cmd="close" class="dot deselect"></div>
-            </div>
-            <div data-cmd="all" class="option">
-                <p data-cmd="all">All</p>
-                <div data-cmd="all" class="dot select"></div>
-            </div>
+            <p data-cmd="paid">Paid</p>
+            <p data-cmd="unpaid">Unpaid</p>
+            <p data-cmd="open">Open</p>
+            <p data-cmd="close">Closed</p>
+            <p data-cmd="all">All</p>
         </div>
     </header>
     <main>

@@ -9,37 +9,24 @@ let spinner = drawSpinner(document),saleList = [];
 
 header.addEventListener("click",function(e){
     const filterOptions = this.querySelector("#filter-options"),
-        bodyRows = [...document.querySelectorAll(".body.row")],
-        dots = [...document.querySelectorAll(".dot")];
+        bodyRows = [...document.querySelectorAll(".body.row")];
     if(e.target.dataset.cmd==="toggle-filter-option")
         filterOptions.classList.toggle("hide");
-    else
-    if(["paid","unpaid","open","close"].includes(e.target.dataset.cmd)){
-        bodyRows.forEach(bodyRow=>{
-            let {paymentStatus,billStatus} = bodyRow.dataset;
-            paymentStatus = paymentStatus===true?"paid":"unpaid";
-            bodyRow.classList.remove("hide");
-            if(![paymentStatus,billStatus].includes(e.target.dataset.cmd))
-                bodyRow.classList.add("hide");
-        });
+    else{
+        [...document.querySelectorAll(".selected")].forEach(p=>p.classList.remove("selected"));
+        e.target.classList.add("selected")
+        if(["paid","unpaid","open","close"].includes(e.target.dataset.cmd))
+            bodyRows.forEach(bodyRow=>{
+                let {paymentStatus,billStatus} = bodyRow.dataset;
+                paymentStatus = paymentStatus===true?"paid":"unpaid";
+                bodyRow.classList.remove("hide");
+                if(![paymentStatus,billStatus].includes(e.target.dataset.cmd))
+                    bodyRow.classList.add("hide");
+            });
+        else
+            bodyRows.forEach(row=>row.classList.remove("hide"));
     }
-    else
-    if(e.target.dataset.cmd==="all")
-        bodyRows.forEach(row=>row.classList.remove("hide"));
-    if(["paid","unpaid","open","close","all"].includes(e.target.dataset.cmd)){
-        dots.forEach(dot=>{
-            dot.classList.remove("select");
-            dot.classList.add("deselect");
-        });
-        if(e.target.classList.contains("option")){
-            e.target.querySelector(".dot").classList.add("select");
-            e.target.querySelector(".dot").classList.add("deselect");
-        }
-        else{
-            e.target.parentNode.querySelector(".dot").classList.add("select");
-            e.target.parentNode.querySelector(".dot").classList.remove("deselect");
-        }
-    }
+    
 });
 
 document.body.addEventListener("click",function(e){
@@ -110,6 +97,7 @@ ipcRenderer.on("get-sales-response",(e,sales)=>{
             defaultTbody.appendChild(div);
         }
     });
+    document.querySelector("#filter-options p:last-child").classList.add("selected");
     spinner.remove(window);
 });
 

@@ -22,20 +22,11 @@ nav button,nav input{
 nav input{
     width: 16rem;
     border-radius: 5px;
-    border: none;
-    box-shadow: inset -1px -1px 1px 0px black, -1px -1px 1px 0px grey;
-    outline: none;
 }
 main{
     grid-column: 1/-1;
     grid-row: 3/-1;
 }
-/* .page{
-
-}
-.tbody{
-
-} */
 .body.row .col{
     color: black;
 }
@@ -72,7 +63,6 @@ input{
     width: 100%;
     padding: 0.5rem;
     font-size: 1rem;
-    color: black;
 }
 button{
     padding: 0.5rem 0.25rem;
@@ -82,21 +72,10 @@ form>div:last-child button:first-child,
 .page2-elem > div:nth-child(1) > div:nth-child(7) > div > button:nth-child(2),
 .page2-elem > div:nth-child(1) > div:nth-child(7) > div > button:nth-child(1){
     margin-right: 0.5rem;
-    color: green;
-}
-form>div:last-child button:last-child,
-.page2-elem > div:nth-child(1) > div:nth-child(7) > div > button:nth-child(3){
-    color: red;
 }
 #more-feild-div{
     z-index: 2;
     align-items: center;
-}
-#more-feild-div div:nth-child(odd){
-    background: gray;
-}
-#more-feild-div div:nth-child(even) p,h2,p{
-    color: black;
 }
 .tbody{
     height: fit-content;
@@ -131,11 +110,5 @@ button.page2-elem{
 }
 .page2-elem>div:last-child{
     flex: 1;
-
-}
-.page2-elem>div:last-child>div:first-child{
-
-}
-.page2-elem>div:last-child>div:last-child{
 
 }

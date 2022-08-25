@@ -512,12 +512,13 @@ document.body.addEventListener("click",(e)=>{
 async function showBillOptions(e){
     let bodyRow = e.target.parentNode;
     if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) return;
-    let modal = createModal("bill-option-modal",true);
+    let modal = createModal("bill-option-modal");
     let modalContent = document.getElementById("bill-option-template").content.cloneNode(true).querySelector("#bill-option-content");
     modal.appendChild(modalContent);
     modalContent.dataset.billObj = JSON.stringify({...bodyRow.dataset});
     let tbody = modalContent.querySelector("#tbody");
     const { itemList,paymentStatus,billStatus } = bodyRow.dataset;
+    if(!itemList) return;
     if(paymentStatus==="false")
         modalContent.querySelector("[data-cmd='pay']").classList.remove("hide");
     if(billStatus==="open")
@@ -538,10 +539,10 @@ async function showBillOptions(e){
 
 function billUtils(e){
     const {cmd} = e.target.dataset;
-    const {itemList,billAmt,payment} = JSON.parse(document.getElementById("bill-option-content").dataset.billObj);
+    const {itemList,billAmt,payment} = JSON.parse(document.getElementById("bill-option-content")?.dataset.billObj) ?? {};
+    if(cmd==="close" || (!itemList || !billAmt || !payment)) return;
     let name = selectedCustomer.name;
     let [id,billNo,billDate] = itemList.split("_");
-    if(cmd==="close") return;
     if(cmd==="open")
         ipcRenderer.send("open-ext",name,billDate,billNo);
     else if(cmd==="print")

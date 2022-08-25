@@ -1,24 +1,13 @@
 @import "../css/common.css";
-body{
-    width: 100vw;
-    height: 100vh;
-    background: white;
-    position: relative;
-    display: flex;
-    overflow: auto;
-    flex-direction: column;
-    justify-content: center;
-}
 main{
     height: 100%;
 }
 .ret-bill-div{
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     flex-direction: column;
     width: 100%;
-    margin: 2rem 0;
+    grid-row: 3/-1;
+    grid-column: 1/-1;
 }
 .ret-bill-div>div{
     height: 100%;
@@ -28,29 +17,20 @@ main{
     padding: 0.5rem 1rem 0.5rem 0;
 }
 .ret-bill-div form{
-    background: white;
     padding: 0.5rem;
-    box-shadow: 10px 10px 10px 0px grey,
-                -1px -1px 3px 0px grey;
-    border-radius: 5px;
     flex: 1;
 }
 .ret-bill-div h1{
-    color: black;
     text-align: center;
     font-size: 1.5rem;
     font-weight: 200;
-    margin: 1rem 0;
-    flex:1;
 }
 .ret-bill-div form div{
     margin: 1rem 0;
 }
 .ret-bill-div form button{
-    color: green;
     font-size: 1rem;
     padding: 0.3rem 0.15rem;
-    border-radius: 3px;
     outline: none;
 }
 .ret-bill-div form input{
@@ -104,9 +84,6 @@ main{
     margin-top: 0.1rem;
     border-radius: 5px;
     box-shadow: inset 0 0 0 1px;
-}
-.dot{
-    background: darkred;
 }
 #toggle>p>span{
     color:  black

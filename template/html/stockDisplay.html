@@ -51,7 +51,7 @@
             </div>
             <div>
                 <button onclick="closeModal()">Close</button>
-                <button onclick="showUpdater()">Update Stock</button>
+                <button class="main-ui-btn" onclick="showUpdater()">Update Stock</button>
             </div>
         </div>
     </template>
@@ -64,7 +64,7 @@
         <div class="page2-elem">
             <div id="feild-container" onmouseover="showDeleteBTN(event)"></div>
             <div>
-                <button onclick="updateStock()">Update</button>
+                <button onclick="updateStock()" class="main-ui-btn">Update</button>
                 <button onclick="backToPage1()">Cancel</button>
                 <button onclick="showAddNewFeild()" data-msg="Add New Feild" class="hover right top">+</button>
             </div>
@@ -84,7 +84,7 @@
                 </div>
             </div>
             <div>
-                <button onclick="appendNewInfo()">Add</button>
+                <button class="main-ui-btn" onclick="appendNewInfo()">Add</button>
                 <button onclick="backToPage2()">Cancel</button>
             </div>
         </div>

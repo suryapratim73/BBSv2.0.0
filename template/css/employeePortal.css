@@ -11,7 +11,6 @@ nav input{
     border-radius: 5px;
     border: none;
     box-shadow: 0 0 3px 1px grey;
-    outline: none;
 }
 #new-employee-modal{
     display: flex;
@@ -38,12 +37,6 @@ nav input{
 }
 #new-employee-modal input{
     width: 100%;
-}
-#new-employee-modal button:first-child{
-    color: green;
-}
-#new-employee-modal button:last-child{
-    color: red;
 }
 input{
     padding: 0.25rem 0.15rem;

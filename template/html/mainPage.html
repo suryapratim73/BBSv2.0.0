@@ -11,7 +11,7 @@
 <body>
     <div id="nav-div" onclick="modeSwitcher(event)">
         <div>
-            <h1>BBS<span>v2</span></h1>
+            <h1>BBS</h1>
         </div>
         <div>
             <p data-cmd="overview">Overview</p>
@@ -98,7 +98,7 @@
     <template id="quick-host-template">
         <div id="quick-host">
             <div>
-                <button onclick="backAction(event)">
+                <button onclick="backAction(event)" class="main-ui-btn">
                     <i class="fa-solid fa-arrow-left"></i>
                     Back
                 </button>
@@ -121,12 +121,8 @@
                 </div>
             </div>
             <div>
-                <div id="bil-meta">
-
-                </div>
-                <div id="customer-meta">
-
-                </div>
+                <div id="bil-meta" class="side-divs"></div>
+                <div id="customer-meta" class="side-divs"></div>
             </div>
         </div>
     </template>
@@ -205,6 +201,8 @@
                             <p class="bill purchase" data-show="app-settings" data-cmd="add-user" data-msg="Add users of this software and assign role to them.">Add user</p>
                             <p class="bill purchase" data-show="app-settings" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
                             <p data-cmd="session-management" data-show="app-settings" data-msg="Configure lock behaviour and session persistence.">Session management</p>
+                            <p data-cmd="appearance-management" data-show="app-settings" data-msg="Configure app appearance and theming of BBS..">Appearance management</p>
+                            <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p>
                         </div>
                     </div>
                     <div class="settings hide" data-mode="company-settings" id="company-settings">
@@ -336,6 +334,94 @@
             <div>
                 <button type="submit">Done</button>
                 <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="appearance-management-template">
+        <form onsubmit="saveSettings(event)" class="page1" data-cmd="appearance-management" data-show="app-settings">
+            <div>
+                <div>
+                    <label for="apply-theme">Select theme</label>
+                </div>
+                <div>
+                    <select name="applyTheme" id="apply-theme" data-target="choosefile" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()">
+                        <option value="false">Default</option>
+                        <option value="true">Choose a file</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hide" data-show="choosefile">
+                <div>
+                    <label for="file">Select a file</label>
+                </div>
+                <div>
+                    <input type="text" name="file" id="file">
+                    <button type="button" onclick="chooseFile(event,{name: 'Theme File',extensions:['bbstheme']})">Choose</button>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="useDarkTheme">Use dark theme</label>
+                    <input type="checkbox" name="useDarkTheme" id="useDarkTheme">
+                </div>
+            </div>
+            <div>
+                <button type="button" data-show="app-settings" data-cmd="advance-theming">Advance theming options</button>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Save</button>
+                    <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="advance-theming-template">
+        <form onsubmit="saveSettings(event)" id="adv-theme-page" class="page2" data-cmd="adv-appearance-management">
+            <div>
+                <div>
+                    <label for="primary">Select primary color</label>
+                    <input type="color" name="primary" id="primary">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="secondary">Select secondary color</label>
+                    <input type="color" name="secondary" id="secondary">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="font">Select font color</label>
+                    <input type="color" name="font" id="font">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="shadow">Select shadow color</label>
+                    <input type="color" name="shadow" id="shadow">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="applyBackgroundImage">Apply background image</label>
+                    <input type="checkbox" data-target="choosefile" name="applyBackgroundImage" id="applyBackgroundImage" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()">
+                </div>
+            </div>
+            <div class="hide" data-show="choosefile">
+                <div>
+                    <label for="file">Select a file</label>
+                </div>
+                <div>
+                    <input type="text" name="file" id="file">
+                    <button type="button" onclick="chooseFile(event,{name: 'Image File',extensions:['svg','jpg','png']})">Choose</button>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <button type="submit">Save</button>
+                    <button type="button" data-cmd="back-page1" data-show="page1">Cancel</button>
+                </div>
             </div>
         </form>
     </template>

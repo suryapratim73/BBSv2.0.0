@@ -13,38 +13,38 @@
 <body>
     <div id="page1" class="page ">
         <form onsubmit="addSupplier(event)">
-            <h2>Add <span>Supplier</span> details</h2>
+            <h2>Add <span class="highlight">Supplier</span> details</h2>
             <div>
-                <div><label for="name">Name:</label></div>
+                <div><label for="name" class="highlight">Name:</label></div>
                 <div><input type="text" onchange="selectSupplier(event)" required autofocus placeholder="compulsory feild" name="name" id="name" list="suppliers-dl"/></div>
             </div>
             <div>
-                <div><label for="address">Address:</label></div>
+                <div><label for="address" class="highlight">Address:</label></div>
                 <div><input type="text" required placeholder="compulsory feild" name="address" id="address" /></div>
             </div>
             <div>
-                <div><label for="phones">Phones:</label></div>
+                <div><label for="phones" class="highlight">Phones:</label></div>
                 <div>
                     <input type="text" required placeholder="compulsory feild" data-type="Number" name="phones" id="phones" onkeypress="validateInput(event)"/>
-                    <button type="button" id="add-new-number" tabindex="-1" onclick="addNewNumber(event)">+</button>
+                    <button type="button" class="main-ui-btn" id="add-new-number" tabindex="-1" onclick="addNewNumber(event)">+</button>
                 </div>
             </div>
             <div>
-                <div><label for="email">Email:</label></div>
+                <div><label for="email" class="highlight">Email:</label></div>
                 <div><input type="text" name="email" placeholder="optional feild with value must be xyz@xyz.xyz format" id="email" pattern="\S+@\S+\.\S+" /></div>
             </div>
             <div>
-                <div><label for="gst">GST Number:</label></div>
+                <div><label for="gst" class="highlight">GST Number:</label></div>
                 <div><input type="text" placeholder="compulsory feild" required name="gst" id="gst" /></div>
             </div>
             <div>
                 <button type="button" data-cmd="cancel" onclick="proceedHandler(event)">Cancel</button>
-                <button type="submit">Proceed</button>
+                <button type="submit" class="main-ui-btn">Proceed</button>
             </div>
         </form>
     </div>
     <div id="page2" class="page hide">
-        <h2>Add <span>Bill Items</span></h2>
+        <h2>Add <span class="highlight">Bill </span>Items</h2>
         <div id="table">
             <div class="row head">
                 <div class="col sm"><p>Sl No.</p></div>
@@ -61,19 +61,19 @@
             </div>
             <div id="tbody" onchange="selectStock(event)" oninput="setAmtFeilds(event)">
                 <div class="row row-control-div" id="add-item">
-                    <button onclick="addRow(event)">+</button>
+                    <button onclick="addRow(event)" class="main-ui-btn">+</button>
                 </div>
             </div>
         </div>
         <div class="btn-container" onclick="proceedHandler(event)">
             <button data-cmd="cancel">Cancel</button>
             <button data-cmd="back">Back</button>
-            <button data-cmd="next">Proceed</button>
+            <button data-cmd="next" class="main-ui-btn">Proceed</button>
         </div>
     </div>
     <div id="page3" class="page hide">
         <form onsubmit="proceedHandler(event)">
-            <h2>Add Purchase <span>Bill Headers</span></h2>
+            <h2>Add Purchase <span>Bill</span>Headers</h2>
             <div>
                 <div><label for="billNo">Enter Bill NO:</label></div>
                 <div><input type="text" placeholder="Compulsory feild" required id="billNo" name="billNo"></div>
@@ -102,7 +102,7 @@
             <div class="btn-container"> 
                 <button type="button" onclick="proceedHandler(event)" data-cmd="cancel">Cancel</button>
                 <button type="button" onclick="proceedHandler(event)" data-cmd="back">Back</button>
-                <button type="submit" data-cmd="next">Proceed</button>
+                <button type="submit" class="main-ui-btn" data-cmd="next">Proceed</button>
             </div>
         </form>
     </div>
@@ -158,7 +158,7 @@
             <div class="btn-container" onclick="proceedHandler(event)">
                 <button type="button" data-cmd="cancel">Cancel</button>
                 <button type="button" data-cmd="back">Back</button>
-                <button type="submit">Save</button>
+                <button type="submit" class="main-ui-btn">Save</button>
             </div>
         </form>
     </div>
