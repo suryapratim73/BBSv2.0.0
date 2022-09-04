@@ -222,3 +222,15 @@ class User{
 }
 
 exports.User = User;
+
+exports.customEncoder = function(num,skip){
+    skip = skip % 2;
+    return (num+skip)<<1;
+}
+
+exports.customDecoder = function(num,skip){
+    skip = skip % 2;
+    if(skip>4)
+        skip = Math.abs(8 - skip);
+    return (num>>1)-skip;
+}

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, initSearchHandler, capitalize, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace, retractHandler} = require("../js/common.js");
+const {toggleDevTool,validateInput, initSearchHandler, capitalize, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace, retractHandler, applyTheme} = require("../js/common.js");
 toggleDevTool(document);
 
 let tbody = document.querySelector("#tbody"),timer,bodyRow;
@@ -27,6 +27,10 @@ async function initPage(){
         scrollSymSet(tbody);
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function searchHandler(e){
     let { searchText, bodyRows } = initSearchHandler(e);

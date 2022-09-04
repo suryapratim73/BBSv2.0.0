@@ -23,9 +23,6 @@ main{
 .row{
     justify-content: space-between;
 }
-.head p,p{
-    color: black;
-}
 .body.row[data-payment-status="false"]{
     color: red;
 }
@@ -42,7 +39,6 @@ main{
     width: 50%;
     left: 50%;
     border-radius: 5px 0 0 5px;
-    background: lightgray;
     padding: 0.3rem 0.5rem;
 }
 .modal>div{
@@ -61,7 +57,6 @@ main{
     display: flex;
     justify-content: space-between;
     padding: 0.3rem 0.15rem;
-    background: #f1f1f1;
     margin: 0.25rem;
     border-radius: 10px;
 }
@@ -78,7 +73,6 @@ main{
     grid-row: -1;
 }
 .modal button{
-    color: black;
     padding: 0.5rem;
     letter-spacing: 0.1rem;
 }

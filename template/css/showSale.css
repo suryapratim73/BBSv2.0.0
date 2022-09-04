@@ -1,14 +1,10 @@
 @import "../css/common.css";
-body{
-    background-color: white;
-    height: 100vh;
-}
 header{
     position: relative;
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    background: inherit;
+    background: var(--theme-secondary);
     grid-row: 1/2;
     grid-column: 1/-1;
 }
@@ -29,7 +25,7 @@ header button{
     right: 0;
     z-index: 2;
     background: var(--theme-primary);
-    box-shadow: 0px 1px 2px 0px black;
+    box-shadow: 0px 1px 2px 0px var(--theme-shadow-color);
 }
 #filter-options>p{
     border: none;
@@ -52,7 +48,7 @@ main{
     flex: 2;
     border-radius: 15px;
     padding: 0.5rem;
-    background: inherit;
+    background: var(--theme-secondary);
 }
 .head{
     background: inherit;
@@ -60,7 +56,6 @@ main{
 }
 .body.row>p{
     border-right: 1px solid;
-    color: black;
 }
 .row{
     padding: 0.25rem;
@@ -76,17 +71,13 @@ main{
 #emphasis-tables>.table{
     flex: 1;
     overflow-y: auto;
-    box-shadow: 1px 1px 5px 0px black;
+    box-shadow: 1px 1px 5px 0px var(--theme-primary);
     margin-bottom: 0.5rem;
 }
 .table-header{
     font-size: 1.2rem;
-    border-bottom: 2px solid black;
+    border-bottom: 2px solid ;
     padding-bottom: 0.25rem;
-    color: black;
-}
-.body.row:hover{
-    background: #f1f1f1;;
 }
 ::-webkit-scrollbar{
     display: none;

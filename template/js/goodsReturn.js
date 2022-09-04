@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, drawSpinner, _searchHandler:searchHandler} = require("../js/common");
+const {toggleDevTool,validateInput, drawSpinner, _searchHandler:searchHandler, applyTheme} = require("../js/common");
 const {noReturn} = require("../../config/policy.json");
 
 
@@ -59,6 +59,10 @@ async function initForm(mode){
     spinner.remove(window);
 }
 initForm(mode);
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function createOptions(name,id,dl){
     let option = document.createElement("option");

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool, filterSelector, scrollSymSet, drawSpinner} = require("../js/common");
+const {toggleDevTool, filterSelector, scrollSymSet, drawSpinner, applyTheme} = require("../js/common");
 
 
 let filter = document.querySelector("#filter");
@@ -56,3 +56,7 @@ ipcRenderer.on("show-out-payments",async (e,outPaymentList)=>{
         scrollSymSet(tbody);
     spinner.remove(window);
 });
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));

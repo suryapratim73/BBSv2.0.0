@@ -1,5 +1,5 @@
 const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, MenuItem, session, nativeTheme } = require('electron');
-const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User } = require("./common");
+const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User, customEncoder, customDecoder } = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -12,9 +12,9 @@ const { billItemSchema } = require('./model/dynamicSchemas');
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
-const appPolicy = require("./config/appDefault.json");
 
 
+let appPolicy = require("./config/appDefault.json");
 let closeFlag = false,
   windowOptions = {
     width: 600,
@@ -27,7 +27,7 @@ let closeFlag = false,
     show:false,
     contextIsolation:true
   },
-  currentUser;
+  currentUser,totpTimer,linuxThemeWatchTimer;
 
 
 function updateCloseFlag(){
@@ -224,14 +224,11 @@ app.on("ready",async ()=>{
     "emblem": "Bhagawati Emblem.jpg"
   };
   let appDefaultSchema = {
-    "a4":{
-      "width":595.28,
-      "height":841.89
-    },
-    "letter":{
-      "width":612,
-      "height":792
-    }
+    "a4": { "width": 595.28, "height": 841.89 },
+    "letter": { "width": 612, "height": 792 },
+    "applyTheme": false,
+    "file": "",
+    "useDarkTheme":false
   }
   //Initialize BBS
   fs.readFile(__dirname+"/config/saleConfig.json",(err,data)=>{
@@ -326,6 +323,10 @@ app.on("ready",async ()=>{
     if(thisMonthPayments.length>0)
       paySalary(mainWindow);
   }
+  // Initiating theme
+  if(process.platform==="linux")
+    setLinuxThemeObserver();
+  await initTheme();
 });
 
 ipcMain.on("take-attendance",e=>{
@@ -636,8 +637,20 @@ ipcMain.handle("unlock-app",async (e,authData)=>{
   let {passwd,id,name,role,secret,session,sessionTime,usePasswd} = _user.dataValues;
   if(await bcrypt.compare(authData.passwd,passwd)){
     currentUser = new User(id,name,secret,role,session,sessionTime,usePasswd);
-    if(secret)
+    if(secret){
+      function writeTOTP(){
+        process.stdout.cursorTo(0,4)
+        process.stdout.clearLine(0);
+        process.stdout.write(speakeasy.totp({
+          secret:secret,
+          encoding:"base32"
+        })+"\n");
+      }
+      writeTOTP()
+      clearInterval(totpTimer);
+      totpTimer = setInterval(writeTOTP,1000);
       return 1;
+    }
     ipcMain.emit("app-login");
     return 0;
   }
@@ -658,6 +671,7 @@ ipcMain.handle("verify-code", async (e,{code})=>{
     encoding:"base32"
   });
   if(res){
+    clearInterval(totpTimer);
     ipcMain.emit("app-login");
     try{
       await user.update({
@@ -676,6 +690,7 @@ ipcMain.handle("verify-code", async (e,{code})=>{
 ipcMain.on("app-login",async ()=>{
   console.log({section: "App Login Handler"});
   currentUser.login();
+  clearInterval(totpTimer);
   try{
     if(currentUser.session)
       await createSession(currentUser.sessionTime);
@@ -843,26 +858,120 @@ ipcMain.on("show-context-menu",(e,{mode,x,y})=>{
 });
 
 //Theme IPC
-ipcMain.on("save-theme-setting",async (e,data)=>{
-  let win = BrowserWindow.fromId(e.frameId);
+ipcMain.handle("get-theme",async e=>{
+  let { applyTheme=false } = appPolicy;
+  if(applyTheme) return false;
+  return defaultThemeData()
 });
 
-if("useDarkTheme" in appPolicy && appPolicy.useDarkTheme){
-  if(process.platform==="win32"){
-    
+ipcMain.handle("init-theme",initTheme);
+
+ipcMain.on("save-theme-setting",async (e,data)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+  appPolicy = {
+    ...appPolicy,
+    ...data
+  };
+  fs.writeFile("./config/appDefault.json",JSON.stringify(appPolicy),err=>{
+    if(err) throw err;
+    dialog.showMessageBox(win,{
+      title:"Success",
+      message:"Appearance setting saved.",
+      type:"info"
+    });
+    if(process.platform==="linux")
+      setLinuxThemeObserver();
+    initTheme();
+  });
+});
+
+ipcMain.on("save-theme",(e,themeObj)=>{
+  let win = BrowserWindow.fromId(e.frameId);
+  let path2File = path.resolve("lib/default.theme");
+  try{
+    let buffData = Buffer.from(Buffer.from(JSON.stringify(themeObj)).map(customEncoder));
+    fs.writeFile(path2File,buffData,(err)=>{
+      if(err) throw err;
+      // Apply saved theme
+      if("applyTheme" in appPolicy && appPolicy.applyTheme===false){
+        //Apply default theme.
+        dialog.showMessageBox(win,{
+          title:"Theme applied",
+          type: "info",
+          message: "Applied default theme."
+        });
+        if(process.platform==="linux")
+          setLinuxThemeObserver();
+        initTheme();
+      }
+    });
   }
-  else
-  if(process.platform==="darwin"){
-    
+  catch(err){
+    throw err;
   }
-  else
-  if(process.platform==="linux"){
-    setInterval(()=>{
+});
+
+function defaultThemeData(){
+  return (new Promise((res,rej)=>{
+    fs.readFile("./lib/default.theme",(err,data)=>{
+      if(err) rej(err);
+      let dataBuff = Buffer.from(data.map(customDecoder));
+      res(JSON.parse(dataBuff.toString()));
+    });
+  }));
+}
+
+ipcMain.handle("get-app-policy",e=>{
+  return new Promise((res,rej)=>{
+    fs.readFile("./config/appDefault.json",(err,data)=>{
+      if(err) rej(err);
+      res(JSON.parse(data.toString()))
+    });
+  })
+});
+
+function setLinuxThemeObserver(){
+  if(!("useDarkTheme" in appPolicy)) return;
+  if(appPolicy.useDarkTheme)
+    linuxThemeWatchTimer = setInterval(()=>{
       nativeTheme.themeSource = "system";
       if(nativeTheme.shouldUseDarkColors)
         nativeTheme.themeSource = "dark";
       else
         nativeTheme.themeSource = "light";
     },1500);
+  else
+    clearInterval(linuxThemeWatchTimer);
+}
+
+async function initTheme({shouldUpdate=false}={},e={}){
+  let win = "frameId" in e ? BrowserWindow?.fromId(e?.frameId) : getMainWindow();
+  let dataBuff = await defaultThemeData();
+  let themeObj = {
+    ...appPolicy,
+    ...dataBuff,
+    shouldUseDarkColors:nativeTheme.shouldUseDarkColors
   }
-} // Not programmed
+  win.webContents.send("apply-theme",themeObj);
+  if(shouldUpdate){
+    BrowserWindow.getAllWindows().forEach(_win=>{
+      if(_win!==win)
+        _win.webContents.send("apply-theme",themeObj);
+    })
+  }
+  return themeObj;
+}
+
+nativeTheme.addListener("updated",initTheme.bind(null,{shouldUpdate:true}));
+
+ipcMain.handle("get-svg",(e,filePath)=>{
+  return fs.readFileSync(filePath).toString();
+});
+
+// setInterval(()=>{
+//   nativeTheme.themeSource = "system";
+//   if(nativeTheme.shouldUseDarkColors)
+//     nativeTheme.themeSource = "dark";
+//   else
+//     nativeTheme.themeSource = "light";
+// },1500);// Remove later

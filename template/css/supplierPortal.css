@@ -3,7 +3,6 @@ body{
     height: 100vh;
     display: grid;
     grid-template: repeat(8,1fr)/1fr;
-    background-color: var(--theme-secondary);
 }
 nav{
     display: flex;
@@ -30,9 +29,6 @@ nav input{
 main{
     grid-row: 2/-1;
     grid-column: 1/-1;
-}
-.body.row p{
-    color: black;
 }
 .table{
     height: 95%;
@@ -94,23 +90,12 @@ main{
     align-items: center;
     gap: 0.5rem;
 }
-#add-payment-modal>form>div:first-child{
-    background: lightgreen;
-}
 #add-payment-modal>form>div:first-child>h2{
     width: 100%;
     text-align: center;
-    color: blue;
-    text-shadow: 1px 1px white;
 }
 .modal>form>div>div{
     flex: 1;
-}
-.modal label{
-    color: black;
-}
-.modal input,.modal select,.modal option{
-    color: black;
 }
 .modal button{
     height: fit-content;

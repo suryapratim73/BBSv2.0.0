@@ -15,7 +15,7 @@ aside{
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: rebeccapurple;
+    background: var(--theme-primary);
     padding: 0.5rem;
     max-width: 40%;
 }
@@ -37,8 +37,6 @@ aside>div>div *{
     flex: 1;
 }
 aside button{
-    background: transparent;
-    color: white;
     padding: 0.75rem 0.25rem;
     outline: none;
 }
@@ -53,17 +51,17 @@ aside input{
     min-height: 1rem;
 }
 aside select{
-    color: black;
     max-width: 5rem;
 }
 p,label{
-    color: white;
+    color: var(--theme-text-color);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.9rem;
     display: flex;
     align-items: center;
+    background: none;
 }
 h1{
     color: black;
@@ -97,6 +95,8 @@ main{
 }
 .selected{
     border-color: green;
+    background: unset;
+    color: unset;
 }
 #selector{
     position: absolute;
@@ -116,7 +116,6 @@ main{
 .adv-option-div>div{
     display: flex;
     margin: 0.5rem 0;
-    /* align-items: flex-start; */
 }
 .adv-option-div>div>div{
     display: flex;
@@ -127,7 +126,7 @@ option{
     color: black;
 }
 .selected-btn{
-    box-shadow: inset 0 0 3px 1px yellow;
+    box-shadow: inset 0 0 3px 1px var(--theme-primary);
 }
 #coordinate-marker{
     position: absolute;

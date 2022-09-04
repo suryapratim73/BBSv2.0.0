@@ -1,4 +1,4 @@
-const { toggleDevTool, drawSpinner } = require("../js/common");
+const { toggleDevTool, drawSpinner, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 
 
@@ -22,8 +22,12 @@ async function initPage(){
         cardDiv.dataset.id = empObj.id;
         main.appendChild(cardDiv);
     });
+    let themeObj = await ipcRenderer.invoke("init-theme");
+    applyTheme.call(document,null,themeObj);
 }
 initPage();
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function popCard(e){
     let target = e.target;

@@ -1,4 +1,4 @@
-const { toggleDevTool, appendToDL, validateInput, validateInput2 , removeAllElem, showDeleteBTN, makeKey } = require("../js/common");
+const { toggleDevTool, appendToDL, validateInput, validateInput2 , removeAllElem, showDeleteBTN, makeKey, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const { unitMap } = require("../../config/saleConfig.json");
 const { v5 } = require("uuid");
@@ -25,6 +25,10 @@ async function initPage(){
     document.getElementById("date").valueAsDate = new Date();
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function inputChangeHandler(e){
     let bodyRow = e.target.parentNode.parentNode;

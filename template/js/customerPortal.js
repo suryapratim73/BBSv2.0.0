@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme } = require("../js/common");
 const uuid = require("uuid");
 const { unitMap } = require("../../config/saleConfig.json");
 
@@ -30,6 +30,10 @@ async function initPage(){
     });
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function rgbToHex(r, g, b){
     if (r > 255 || g > 255 || b > 255)

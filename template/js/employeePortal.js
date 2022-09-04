@@ -1,4 +1,4 @@
-const { validateInput, validateInput2, toggleDevTool,createModal,closeModal,removeAllElem, drawSpinner, retractHandler, capitalize, makeKey, initSearchHandler, scrollSymSet } = require("../js/common");
+const { validateInput, validateInput2, toggleDevTool,createModal,closeModal,removeAllElem, drawSpinner, retractHandler, capitalize, makeKey, initSearchHandler, scrollSymSet, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const uuid = require("uuid");
 
@@ -46,6 +46,10 @@ async function initPage(){
     closeModal();
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 let bodyRow,updateFlag;
 

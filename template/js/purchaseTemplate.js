@@ -1,5 +1,5 @@
 const {ipcRenderer} = require("electron");
-const {toggleDevTool,validateInput,validateInput2,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon} = require("../js/common.js");
+const { toggleDevTool,validateInput,validateInput2,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon, applyTheme } = require("../js/common.js");
 const uuid = require("uuid");
 
 
@@ -104,6 +104,10 @@ function addRow(e){
     e.target.parentNode.before(clonedBodyRow);
     e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
 }
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 // function addFeild(e){
 //     removeAllElem(".popup2");

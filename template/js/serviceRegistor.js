@@ -1,4 +1,4 @@
-const { validateInput,toggleDevTool, scrollSymSet, drawSpinner, removeAllElem, createModal, closeModal } = require("../js/common");
+const { validateInput, toggleDevTool, scrollSymSet, drawSpinner, removeAllElem, createModal, closeModal, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const uuid = require("uuid");
 
@@ -37,6 +37,10 @@ async function init(){
     showOrHideNavBTN();
 }
 init();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function showPage(){
     [...document.querySelectorAll(".page")].forEach(page=>{

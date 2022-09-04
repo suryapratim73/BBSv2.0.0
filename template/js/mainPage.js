@@ -1,9 +1,21 @@
-const { ipcRenderer,remote } = require("electron");
-const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize } = require("../js/common");
+const { ipcRenderer } = require("electron");
+const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme } = require("../js/common");
 
 
-
-let currentMode = "overview",timer,reducedBills = [],reducedPurchases = [];
+let themeObj = {
+    applyTheme:false,
+    applyBackgroundImage:false,
+    primary: "#663399",
+    secondary: "#FFFFFF",
+    shadow: "#808080",
+    text: "#000000",
+    darkPrimary:"#bdb76b",
+    darkSecondary:"#1F1B24",
+    darkShadow:"#556b2f",
+    darkText:"#556b2f",
+    file:""
+};
+let currentMode = "overview",reducedBills = [],reducedPurchases = [];
 let mode = 1,loggedinUser,compInfo,selectedBill,hiddenSection;
 
 toggleDevTool(document);
@@ -21,6 +33,8 @@ async function initPage(){
         option.dataset.name = user.name;
         userListDL.appendChild(option);
     });
+    let themeObj = await ipcRenderer.invoke("init-theme");
+    applyTheme.call(document,null,themeObj);
     spinner.remove(window);    
 }
 initPage();
@@ -268,6 +282,20 @@ function switchSettingsNav(e){
     });
 }
 
+function initAdvThemePage(form,themeObj){
+    [...form.querySelectorAll("input[type='color']")]
+    .forEach(input=>{
+        input.value = themeObj[input.name];
+    });
+    if(themeObj.applyBackgroundImage){
+        form.querySelector(`input[name="applyBackgroundImage"]`).setAttribute("checked",true);
+        form.querySelector(`[data-show="choosefile"]`).classList.remove("hide");
+        form.querySelector("#file").value = themeObj.file;
+    }
+    if(themeObj.applyGradient)
+        form.querySelector(`input[name="applyGradient"]`).setAttribute("checked",true);
+}
+
 async function showForm(e,cmd,show){
     if(e){
         cmd = e.target.dataset.cmd;
@@ -310,19 +338,31 @@ async function showForm(e,cmd,show){
             document.querySelector(".page1").classList.add("hide");
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
             document.getElementById(`${show}`).appendChild(form);
-            [...form.querySelectorAll("input[type='color']")]
-            .forEach(input=>{
-                if(input.name==="primary")
-                    input.value = "#663399";
-                else
-                if(input.name==="secondary")
-                    input.value = "#FFFFFF";
-                else
-                if(input.name==="shadow")
-                    input.value = "#808080";
-                else
-                    input.value = "#000000";
-            });
+            let resp = await ipcRenderer.invoke("get-theme");
+            if(resp && typeof resp==="object")
+                themeObj = {
+                    ...themeObj,
+                    ...resp
+                };
+            initAdvThemePage(form,themeObj)
+        }
+        else
+        if(cmd==="reset-color"){
+            let form = e.target.parentNode.parentNode.parentNode;
+            themeObj = {
+                applyTheme:false,
+                applyBackgroundImage:false,
+                primary: "#663399",
+                secondary: "#FFFFFF",
+                shadow: "#808080",
+                text: "#000000",
+                darkPrimary:"#bdb76b",
+                darkSecondary:"#1F1B24",
+                darkShadow:"#556b2f",
+                darkText:"#556b2f",
+                file:""
+            };
+            initAdvThemePage(form,themeObj);
         }
         else
         if(cmd==="back-page1"){
@@ -412,6 +452,33 @@ async function showForm(e,cmd,show){
                     });
                 }
             }
+            if(cmd==="appearance-management"){
+                let appPolicy = await ipcRenderer.invoke("get-app-policy");
+                Object.keys(appPolicy)
+                .forEach(key=>{
+                    let feild = form.querySelector(`input[name="${key}"],select[name="${key}"]`);
+                    if(!feild) return;
+                    if(feild.nodeName==="SELECT"){
+                        let applyTheme = appPolicy.applyTheme ? "true" : "false";
+                        feild.querySelector(`option[value="${applyTheme}"]`)?.setAttribute("selected",true);
+                        if(applyTheme==="true")
+                            form.querySelector(`[data-cmd="advance-theming"]`).classList.add("hide");
+                        else
+                            form.querySelector(`[data-cmd="advance-theming"]`).classList.remove("hide");
+                    }
+                    else
+                    if(feild.nodeName==="INPUT" && key==="file"){
+                        let div = form.querySelector(`div[data-show="choosefile"]`);
+                        if(div && appPolicy.applyTheme){
+                            div.classList.remove("hide")
+                            feild.value = appPolicy.file;
+                        }
+                    }
+                    else
+                    if(feild.nodeName==="INPUT" && key==="useDarkTheme" && appPolicy.useDarkTheme)
+                        feild.setAttribute("checked",true)
+                });
+            }
         }
     }
     else
@@ -428,6 +495,11 @@ function showOrHideDiv(e){
     let hideableDiv = form.querySelector(`[data-show="${e.target.value}"],[data-show="${e.target.dataset.target}"]`);
     if(!hideableDiv) return;
     hideableDiv.classList.toggle("hide");
+    if(e.target.name==="applyTheme" && e.target.value==="true")
+        form.querySelector(`[data-cmd="advance-theming"]`).classList.add("hide");
+    else
+    if(e.target.name==="applyTheme" && e.target.value==="false")
+        form.querySelector(`[data-cmd="advance-theming"]`).classList.remove("hide");
 }
 
 async function saveSettings(e){
@@ -499,7 +571,15 @@ async function saveSettings(e){
     else
     if(cmd==="appearance-management"){
         data.applyTheme = data.applyTheme === "true" ? true : false;
+        data.useDarkTheme = e.target.querySelector(`input[type="checkbox"]`).checked;
         ipcRenderer.send("save-theme-setting",data);
+    }
+    else
+    if(cmd==="adv-appearance-management"){
+        data.applyBackgroundImage = e.target.querySelector(`input[name="applyBackgroundImage"]`).checked;
+        data.applyGradient = e.target.querySelector(`input[name="applyGradient"]`).checked;
+        ipcRenderer.send("save-theme",data);
+        return showForm(null,"back-page1",show);
     }
     showForm(null,"back",show);
 }
@@ -612,4 +692,11 @@ ipcRenderer.on("show-bill",async ()=>{
 function backAction(e){
     removeAllElem("#quick-host");
     hiddenSection.classList.remove("hide");
+}
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
+
+function revalidateInput(e){
+    if(Number(e.target.value)>Number(e.target.max))
+        e.target.value = e.target.max;
 }

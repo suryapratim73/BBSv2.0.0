@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, drawBarGraph, roundOffTo2DecimalPlace,drawSpinner,renderPieChart } = require("../js/common");
+const { toggleDevTool, drawBarGraph, roundOffTo2DecimalPlace,drawSpinner,renderPieChart, applyTheme } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -111,4 +111,8 @@ ipcRenderer.on("get-yearly-sale-purchase-response",(e,{sales,purchases,allSales,
     initCanvas("#debit-credit-chart",netAmts,["blue","red"])
     initCanvas("#sale-purchase-chart",allNetAmts,["green","purple"]);
     spinner.remove(window)    
-})
+});
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));

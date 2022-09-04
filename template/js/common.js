@@ -34,6 +34,7 @@ exports.validateInput2 = function(e){
     validateInput(e)
     if(e.defaultPrevented) return;
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
+    if(Number(e.target.value)>Number(e.target.max)) e.preventDefault();
 }
 class Supplier{
     constructor(name,id){
@@ -880,5 +881,78 @@ exports.throttle = function(cb,delay=1000){
         cb(...args);
         shouldWait = true;
         setTimeout(throttleFunc,delay);
+    }
+}
+
+exports.drawTimer = function drawTimer(ctx,width,self,time=30){
+    let sub = time - (new Date() / 1000) % time;
+    ctx.clearRect(0,0,width,width);
+    ctx.fillStyle = "white";
+    ctx.arc(width/2,width/2,width/2,0,2*Math.PI);
+    ctx.fill();
+    ctx.save();
+    ctx.fillStyle = "blue";
+    ctx.beginPath();
+    ctx.moveTo(width/2,width/2);
+    ctx.arc(width/2,width/2,width/2,1.5*Math.PI,((2 * (1-sub/30) + 1.5) * Math.PI),false);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    requestAnimationFrame(self.bind(null,ctx,width,self,time))
+}
+
+exports.applyTheme = async function(e,theme){
+    let themeObj = {
+        applyTheme:false,
+        applyBackgroundImage:false,
+        primary: "#663399",
+        secondary: "#FFFFFF",
+        shadow: "#808080",
+        text: "#000000",
+        darkPrimary:"#bdb76b",
+        darkSecondary:"#1F1B24",
+        darkShadow:"#556b2f",
+        darkText:"#556b2f",
+        file:""
+    };
+    theme = theme || themeObj;
+    let { shouldUseDarkColors=false,darkPrimary,darkSecondary,darkShadow,darkText,applyBackgroundImage,file,primary,secondary,shadow,text,applyGradient } = theme;
+    if(shouldUseDarkColors){
+        this.documentElement.style.setProperty("--theme-primary",darkPrimary);
+        this.documentElement.style.setProperty("--theme-secondary",darkSecondary);
+        this.documentElement.style.setProperty("--theme-text-color",darkText);
+        this.documentElement.style.setProperty("--theme-shadow-color",darkShadow);
+    }
+    else{
+        this.documentElement.style.setProperty("--theme-primary",primary);
+        this.documentElement.style.setProperty("--theme-secondary",secondary);
+        this.documentElement.style.setProperty("--theme-text-color",text);
+        this.documentElement.style.setProperty("--theme-shadow-color",shadow);
+    }
+    if(!applyBackgroundImage) return;
+    if(file.endsWith("svg")){
+        let svg = await ipcRenderer.invoke("get-svg",file);
+        svg = new DOMParser().parseFromString(svg,'text/html').body;
+        function traverseChild(node){
+            node.removeAttribute("fill");
+            if([...node.children].length>0)
+                [...node.children]
+                .forEach(child=>{
+                    child.removeAttribute("fill");
+                    if([...child.children].length>0)
+                        traverseChild(child)
+                });
+        }
+        traverseChild(svg.querySelector("svg"));
+        svg.querySelector("svg").style.fill = `${shouldUseDarkColors ? darkPrimary : primary}`;
+        svg = Buffer.from(svg.innerHTML).toString("base64");
+        let gradient = "";
+        if(applyGradient)
+            gradient = `linear-gradient(180deg,var(--theme-secondary) 80%,transparent),`;
+        this.body.style
+        .backgroundImage = `${gradient} url('data:image/svg+xml;base64,${svg}')`;
+    }
+    else{
+        this.body.style.backgroundImage = `url(${file})`;
     }
 }

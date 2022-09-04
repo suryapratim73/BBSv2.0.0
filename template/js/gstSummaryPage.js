@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,roundOffTo2DecimalPlace,drawBarGraph,drawSpinner } = require("../js/common");
+const { toggleDevTool,roundOffTo2DecimalPlace,drawBarGraph,drawSpinner, applyTheme } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -15,6 +15,10 @@ document.querySelector("#inGST-graph-div > h3").textContent += " " + fullYear + 
 document.querySelector("#outGST-graph-div > h3").textContent += " " + fullYear + "-" + (Number(String(fullYear).substr(2,2))+1);;
 
 let spinner = drawSpinner(document);
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 ipcRenderer.on("get-all-gst-current-month-response",(e,{inTax,outTax})=>{
     document.getElementById("net-gst").textContent = roundOffTo2DecimalPlace(inTax - outTax);

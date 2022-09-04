@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon} =  require("../js/common");
+const {toggleDevTool,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme } =  require("../js/common");
 const uuid = require("uuid");
 const { unitMap } = require("../../config/saleConfig.json");
 
@@ -44,8 +44,12 @@ async function init(){
     mainForm();
     setFooter();
     document.body.appendChild(unitDatalist);
+    let themeObj = await ipcRenderer.invoke("init-theme");
+    applyTheme.call(document,null,themeObj);
 }
 init();// Datalist linking and selection handler work
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function clickOrFocusinHandler(e){
     if(currentStep!==3) return;

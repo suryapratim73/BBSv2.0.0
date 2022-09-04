@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool } = require("../js/common");
+const { toggleDevTool, applyTheme } = require("../js/common");
 
 
 let printers = [],
@@ -44,6 +44,9 @@ function resetInput(event){
     }
 )();
 
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function printcmd(e){
     let printObj = {};

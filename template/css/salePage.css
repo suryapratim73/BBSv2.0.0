@@ -35,6 +35,7 @@ main{
     padding: 0.25rem;
     align-items: center;
     justify-content: space-between;
+    background: var(--theme-secondary);
 }
 .page>div>div{
     flex: 1;
@@ -98,11 +99,8 @@ button{
     font-weight: 100;
     border-color: unset;
 }
-footer button:nth-child(2),.row1 button{
-    color: black;
-}
 p,label,h1{
-    color: black;
+    background: unset;
 }
 ::placeholder{
     font-style: italic;

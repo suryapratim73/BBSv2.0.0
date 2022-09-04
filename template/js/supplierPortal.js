@@ -1,6 +1,6 @@
 const { ipcRenderer } = require("electron");
 const UUID = require("uuid");
-const { drawSpinner, closeModal, createModal, toggleDevTool, scrollSymSet, removeAllElem, drawLineGraph, validateInput, printModal, dataModal } = require("../js/common");
+const { drawSpinner, closeModal, createModal, toggleDevTool, scrollSymSet, removeAllElem, drawLineGraph, validateInput, printModal, dataModal, applyTheme } = require("../js/common");
 
 toggleDevTool(document);
 let suppliersTbody = document.querySelector("#all-suppliers .tbody"),
@@ -48,6 +48,10 @@ async function init(reload=false){
     }
 }
 init();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 async function page2Init(e){
     let bodyRow;

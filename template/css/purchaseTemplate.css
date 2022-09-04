@@ -15,7 +15,7 @@ form{
     justify-content: space-between;
 }
 form h2,h2,p,input,option,select{
-    color: black;
+    background: unset;
 }
 form>div{
     display: flex;
@@ -26,6 +26,7 @@ form>div{
     box-shadow: 0 0 5px 0px black;
     padding: 0.5rem;
     border-radius: 5px;
+    background: var(--theme-secondary);
 }
 form>div:last-child{
     all: unset;
@@ -199,6 +200,7 @@ form>div>div:last-child>button{
 }
 #summary-div p{
     font-size: 1.2rem;
+    background: unset;
 }
 #summary-div>div:last-child p{
     font-size: 1.3rem;

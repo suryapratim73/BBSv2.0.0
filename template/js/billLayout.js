@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle } = require("../js/common");
+const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme } = require("../js/common");
 const appDefault = require("../../config/appDefault.json");
 const uuid = require("uuid");
 
@@ -88,8 +88,11 @@ function init(){
         if(target.nodeName==="INPUT")
             document.documentElement.style.setProperty("--display",`flex`);
     });
+    ipcRenderer.invoke("init-theme");
 }
 init();
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function dblClickHandler(e){
     let { x,y } = e;

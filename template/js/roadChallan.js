@@ -1,4 +1,4 @@
-const { toggleDevTool, makeKey, showDeleteBTN , capitalize , validateInput, validateInput2, appendToDL, removeAllElem } = require("../js/common");
+const { toggleDevTool, makeKey, showDeleteBTN , capitalize , validateInput, validateInput2, appendToDL, removeAllElem, applyTheme } = require("../js/common");
 const { ipcRenderer, } = require("electron");
 const { unitMap } = require("../../config/saleConfig.json");
 
@@ -25,6 +25,10 @@ async function initPage(){
     appendToDL("get-customers",document.getElementById("consignee-list"));
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function mainPage(){
     [...document.querySelectorAll(".page")].forEach(page=>page.classList.add("hide"));

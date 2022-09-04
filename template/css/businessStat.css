@@ -1,9 +1,9 @@
 @import "../css/common.css";
 body{
-    height: max-content;
     display: flex;
     flex-direction: column;
     padding: 0.5rem;
+    overflow: auto;
 }
 h1,h3{
     color: black;
@@ -14,10 +14,6 @@ h1,h3{
 }
 .block>div:first-child>div{
     margin-left: 1rem;
-}
-#weekly-stat-div{
-    display: flex;
-    justify-content: space-between;
 }
 #weekly-stat-div>div:first-child{
     flex: 1;

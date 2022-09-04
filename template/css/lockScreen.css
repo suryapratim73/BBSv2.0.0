@@ -9,7 +9,7 @@ body{
 }
 form{
     height: 80%;
-    background: rebeccapurple;
+    background: var(--theme-primary);
     padding: 1rem;
     display: flex;
     flex-direction: column;
@@ -19,12 +19,12 @@ form{
     width: 15rem;
 }
 form h2,h2{
-    color: white;
     font-weight: 100;
     border-bottom: 1px solid orangered;
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
     width: 100%;
+    background-color: unset;
     text-align: center;
 }
 form>div{
@@ -35,7 +35,7 @@ form>div>div{
 }
 form label{
     font-size: 1.2rem;
-    color: white;
+    background-color: unset;
 }
 form input{
     padding: 0.25rem 0.5rem;
@@ -48,7 +48,12 @@ form button,button{
     outline: none;
 }
 #lock-div{
-    background: rebeccapurple;
+    background: var(--theme-primary);
     padding: 1rem;
     border-radius: 15px;
+}
+#two-factor-form>div:last-child{
+    display: flex;
+    justify-content: center;
+    width: 100%;
 }

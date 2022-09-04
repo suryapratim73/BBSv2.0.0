@@ -1,4 +1,4 @@
-const { toggleDevTool, appendToDL, drawSpinner, _searchHandler } = require("../js/common");
+const { toggleDevTool, appendToDL, drawSpinner, _searchHandler, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 
 
@@ -30,6 +30,10 @@ async function initPage(){
     spinner.remove(window);
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function initPayReceipt(e){
     let input = e.target;

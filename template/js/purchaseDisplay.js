@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-let { toggleDevTool,removeAllElem,searchHandler, scrollSymSet } = require("../js/common.js");
+let { toggleDevTool,removeAllElem,searchHandler, scrollSymSet, applyTheme } = require("../js/common.js");
 
 let tbody = document.querySelector("#tbody"),
     bodyRow,
@@ -28,6 +28,10 @@ toggleDevTool(document);
     if(tbody.clientHeight<tbody.scrollHeight)
         scrollSymSet(tbody);
 })();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 tbody.addEventListener("click",async function(e){
     bodyRow = e.target.parentNode;

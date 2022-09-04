@@ -1,4 +1,4 @@
-const {toggleDevTool,drawSpinner,searchHandler, scrollSymSet} = require("../js/common");
+const {toggleDevTool,drawSpinner,searchHandler, scrollSymSet, applyTheme} = require("../js/common");
 const {ipcRenderer} = require("electron");
 
 
@@ -100,6 +100,10 @@ ipcRenderer.on("get-sales-response",(e,sales)=>{
     document.querySelector("#filter-options p:last-child").classList.add("selected");
     spinner.remove(window);
 });
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function _searchHandler(e){
     searchHandler(e,saleList);

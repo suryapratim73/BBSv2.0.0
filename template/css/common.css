@@ -1,13 +1,15 @@
-*{
-    margin:0;
-    padding: 0;
-    box-sizing: border-box;
-    user-select: none;
+:root{
     --theme-primary: rebeccapurple;
     --theme-primary-lighter: rebeccapurple;
     --theme-secondary:white;
     --theme-text-color:black;
     --theme-shadow-color: grey;
+}
+*{
+    margin:0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
     color: var(--theme-text-color);
 }
 body{
@@ -29,6 +31,7 @@ main{
 }
 label,input,button,p,h2{
     color:var(--theme-text-color);
+    background-color: var(--theme-secondary);
 }
 .hide{
     display: none !important;
@@ -118,6 +121,7 @@ label,input,button,p,h2{
     align-items: center;
     justify-content: center;
     color: var(--theme-text-color);
+    background: var(--theme-secondary);
 }
 .head div{
     padding: 0.5rem;
@@ -319,7 +323,8 @@ label,input,button,p,h2{
     margin-bottom: 0.5rem;
     padding: 1rem;
     border-radius: 15px;
-    box-shadow: 0px 0px 8px 1px var(--theme-shadow-color);
+    box-shadow: 0px 0px 3px 1px var(--theme-shadow-color);
+    background: var(--theme-secondary);
 }
 .block>div{
     flex: 1;
@@ -674,14 +679,36 @@ input:focus{
     background: var(--theme-primary);
     color: var(--theme-secondary);
 }
-
+input[type="checkbox"]{
+    margin-right: 1rem;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+}
+input[type="checkbox"]:checked{
+    border-color: var(--theme-primary);
+    appearance: none;
+    position: relative;
+}
+input[type="checkbox"]:checked::before{
+    content: '\2713';
+    display: block;
+    text-align: center;
+    color: var(--theme-text-color);
+    position: absolute;
+    left: 0;
+    top: -35%;
+    font-size: 2.2rem;
+}
 
 
 
 
 @media (prefers-color-scheme: dark){
-    *{
-        --theme-primary: green;
-        --theme-secondary:white;
+    button{
+        background: var(--theme-secondary);
+        border-color: var(--theme-text-color);
+    }
+    select,input{
+        background-color: var(--theme-primary);
     }
 }

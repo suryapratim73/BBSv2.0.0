@@ -1,4 +1,4 @@
-const { toggleDevTool, validateInput, validateInput2, removeAllElem } = require("../js/common");
+const { toggleDevTool, validateInput, validateInput2, removeAllElem, applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 
 
@@ -9,8 +9,13 @@ let voucher = {};
 async function initPage(){
     document.getElementById("pay-date").valueAsDate = new Date();
     voucher['pay-mode'] = "cash";
+    initTheme();
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function createVoucher(e){
     e.preventDefault();

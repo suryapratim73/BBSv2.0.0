@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, drawSpinner, validateInput2, validateInput } = require("../js/common");
+const { toggleDevTool, drawSpinner, validateInput2, validateInput, applyTheme } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -42,6 +42,10 @@ async function initPage(){
     spinner.remove(window);
 }
 initPage();
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 function popCard(e){
     let target = e.target;

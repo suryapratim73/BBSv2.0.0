@@ -227,12 +227,12 @@
             <div>
                 <div>
                     <div>
-                        <button type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled>Enable 2-Factor Authentication</button>
+                        <button class="main-ui-btn" type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled>Enable 2-Factor Authentication</button>
                     </div>
                 </div>
                 <div>
                     <div>
-                        <button type="submit" id="done-btn" disabled>Done</button>
+                        <button type="submit" class="main-ui-btn" id="done-btn" disabled>Done</button>
                         <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
                         <button type="button" id="disable-2-factor" disabled data-cmd="disable-2-factor" data-show="app-settings">Disable 2-Factor Authentication</button>
                     </div>
@@ -251,7 +251,7 @@
                 <div><label for="file-path">Choose a image file</label></div>
                 <div>
                     <input type="text" name="filePath" id="file-path">
-                    <button type="button" onclick="chooseFile(event)">Choose</button>
+                    <button type="button" class="main-ui-btn" onclick="chooseFile(event)">Choose</button>
                 </div>
             </div>
             <div>
@@ -264,7 +264,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit">Save</button>
+                <button class="main-ui-btn type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
             </div>
         </form>
@@ -279,14 +279,14 @@
                 <div><label for="passwd">Password</label></div>
                 <div>
                     <input type="password" name="passwd" id="password" required>
-                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                    <button class="main-ui-btn" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
                 </div>
             </div>
             <div>
                 <div><label for="re-passwd">Confirm password</label></div>
                 <div>
                     <input type="password" name="re-passwd" id="re-passwd" required>
-                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                    <button class="main-ui-btn" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
                 </div>
             </div>
             <div id="add-user-role-div">
@@ -301,7 +301,7 @@
             </div>
             <div>
                 <div>
-                    <button type="submit">Register</button>
+                    <button class="main-ui-btn" type="submit">Register</button>
                     <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
                 </div>
             </div>
@@ -312,7 +312,7 @@
             <div>
                 <div>
                     <label>App session</label>
-                    <button type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference">Enable</button>
+                    <button class="main-ui-btn" type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference">Enable</button>
                 </div>
             </div>
             <div class="hide" id="session-management-div">
@@ -332,7 +332,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit">Done</button>
+                <button class="main-ui-btn type="submit">Done</button>
                 <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
             </div>
         </form>
@@ -356,7 +356,7 @@
                 </div>
                 <div>
                     <input type="text" name="file" id="file">
-                    <button type="button" onclick="chooseFile(event,{name: 'Theme File',extensions:['bbstheme']})">Choose</button>
+                    <button class="main-ui-btn type="button" onclick="chooseFile(event,{name: 'Theme File',extensions:['bbstheme']})">Choose</button>
                 </div>
             </div>
             <div>
@@ -366,11 +366,11 @@
                 </div>
             </div>
             <div>
-                <button type="button" data-show="app-settings" data-cmd="advance-theming">Advance theming options</button>
+                <button class="main-ui-btn" type="button" data-show="app-settings" data-cmd="advance-theming">Advance theming options</button>
             </div>
             <div>
                 <div>
-                    <button type="submit">Save</button>
+                    <button class="main-ui-btn" type="submit">Save</button>
                     <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
                 </div>
             </div>
@@ -380,26 +380,64 @@
         <form onsubmit="saveSettings(event)" id="adv-theme-page" class="page2" data-cmd="adv-appearance-management">
             <div>
                 <div>
-                    <label for="primary">Select primary color</label>
-                    <input type="color" name="primary" id="primary">
+                    <h2>Light Theme</h2>
+                    <div>
+                        <div>
+                            <label for="primary">Primary color</label>
+                            <input type="color" name="primary" id="primary">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="secondary">Secondary color</label>
+                            <input type="color" name="secondary" id="secondary">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="font">Font color</label>
+                            <input type="color" name="text" id="font">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="shadow">Shadow color</label>
+                            <input type="color" name="shadow" id="shadow">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h2>Dark Theme</h2>
+                    <div>
+                        <div>
+                            <label for="dark-primary">Primary color</label>
+                            <input type="color" name="darkPrimary" id="dark-primary">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="dark-secondary">Secondary color</label>
+                            <input type="color" name="darkSecondary" id="dark-secondary">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="dark-font">Font color</label>
+                            <input type="color" name="darkText" id="dark-font">
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <label for="dark-shadow">Shadow color</label>
+                            <input type="color" name="darkShadow" id="dark-shadow">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="secondary">Select secondary color</label>
-                    <input type="color" name="secondary" id="secondary">
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="font">Select font color</label>
-                    <input type="color" name="font" id="font">
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="shadow">Select shadow color</label>
-                    <input type="color" name="shadow" id="shadow">
+                    <label for="applyGradient">Apply gradient color</label>
+                    <input type="checkbox" name="applyGradient" id="applyGradient" onclick="event.stopPropagation()">
                 </div>
             </div>
             <div>
@@ -414,13 +452,14 @@
                 </div>
                 <div>
                     <input type="text" name="file" id="file">
-                    <button type="button" onclick="chooseFile(event,{name: 'Image File',extensions:['svg','jpg','png']})">Choose</button>
+                    <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'Image File',extensions:['svg','jpg','png']})">Choose</button>
                 </div>
             </div>
             <div>
                 <div>
-                    <button type="submit">Save</button>
+                    <button class="main-ui-btn" type="submit">Save</button>
                     <button type="button" data-cmd="back-page1" data-show="page1">Cancel</button>
+                    <button type="button" data-cmd="reset-color">Reset colors</button>
                 </div>
             </div>
         </form>
@@ -442,14 +481,14 @@
                 <div><label for="password">Enter new password</label></div>
                 <div>
                     <input type="password" name="password" id="password">
-                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                    <button class="main-ui-btn" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
                 </div>
             </div>
             <div>
                 <div><label for="re-password">Re-enter password</label></div>
                 <div>
                     <input type="password" name="re-password" id="re-password">
-                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
+                    <button class="main-ui-btn" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false">Show</button>
                 </div>
             </div>
             <div id="role-div">
@@ -463,7 +502,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit">Save</button>
+                <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
             </div>
         </form>
@@ -487,7 +526,7 @@
                     <p>Bill Number: <span data-colname="billNo" class="highlight"></span></p>
                     <p>Customer Name: <span data-colname="name" class="highlight"></span></p>
                 </div>
-                <button data-translate="translate-right">></button>
+                <button class="main-ui-btn" data-translate="translate-right">></button>
             </div>
             <div class="bill-item-div"></div>
         </div>
@@ -511,11 +550,11 @@
                 </div>
                 <div>
                     <input type="text" name="file" id="file">
-                    <button type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})">Choose</button>
+                    <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})">Choose</button>
                 </div>
             </div>
             <div>
-                <button type="submit">Save</button>
+                <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
             </div>
         </form>
@@ -556,7 +595,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit">Save</button>
+                <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
             </div>
         </form>

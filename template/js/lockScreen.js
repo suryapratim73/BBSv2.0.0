@@ -1,12 +1,18 @@
-const { toggleDevTool,validateInput,validateInput2, removeAllElem } = require("../js/common");
+const { toggleDevTool,validateInput,validateInput2, removeAllElem,drawTimer,applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const policyObj = require("../../config/policy.json");
 
 
 toggleDevTool(document);
-(()=>{
+
+let timer;
+
+ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
     document.body.style.backgroundImage =  `url('${policyObj.wallpaper ?? "../../images/default-wallpaper.jpg"}')`;
-})()
+});
+
+ipcRenderer.on("apply-theme",applyTheme.bind(document));
+
 
 async function unlockHandler(e,mode){
     e.preventDefault();
@@ -23,6 +29,13 @@ async function unlockHandler(e,mode){
                     let form2 = document.getElementById("six-digit-code-form-template").content.cloneNode(true).querySelector("form");
                     document.body.appendChild(form2);
                     form2.querySelector("input").focus();
+                    let timerCanv = form2.querySelector("#timer");
+                    let { width } = form2.getBoundingClientRect();
+                    width *= 0.75;
+                    timerCanv.width = width;
+                    timerCanv.height = width;
+                    let ctx = timerCanv.getContext("2d");
+                    drawTimer(ctx,width,drawTimer);
                 }
                 else
                     alert("Incorrect password!!")
