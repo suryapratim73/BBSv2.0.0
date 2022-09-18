@@ -585,7 +585,23 @@ module.exports = {
     user: sequelize.define("user",userSchema,{
         freezeTableName: true,
         timestamps: false
-    })
+    }),
+    schemas:{
+        supplier,
+        freight,
+        people,
+        customers:customerSchema,
+        stock:stockSchema,
+        purchase:purchaseSchema,
+        sale:saleSchema,
+        outPayments:outPaymentSchema,
+        inPayments:inPaymentSchema,
+        returnRegister,
+        service:serviceSchema,
+        attendances:attendanceSchema,
+        requirement:requirementSchema,
+        user:userSchema
+    }
 }
 
 // sequelize.sync({

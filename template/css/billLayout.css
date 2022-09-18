@@ -78,6 +78,7 @@ body>div{
     justify-content: center;
     align-items: flex-start;
     overflow: auto;
+    background: gray;
 }
 main{
     background-color: white;
@@ -179,7 +180,7 @@ button.fa-solid{
     font-size: 0.6rem;
 }
 button.fa-solid.selected-btn-2{
-    color: yellow;
+    color: var(--theme-primary);
 }
 .gap-displavy{
     position: absolute;

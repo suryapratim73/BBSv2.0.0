@@ -683,3 +683,9 @@ form#set-2-factor-auth-form button{
 #adv-theme-page > div:nth-child(4) > div:nth-child(2){
     flex-direction: row;
 }
+#backup-manager>div>div{
+    width: 50%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

@@ -34,7 +34,7 @@ exports.validateInput2 = function(e){
     validateInput(e)
     if(e.defaultPrevented) return;
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
-    if(Number(e.target.value)>Number(e.target.max)) e.preventDefault();
+    if(Number(e.target.hasAttribute("max") && e.target.value)>Number(e.target.max)) e.preventDefault();
 }
 class Supplier{
     constructor(name,id){

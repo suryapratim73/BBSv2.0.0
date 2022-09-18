@@ -4,16 +4,17 @@ const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
 const { createModal, getTargetWindow, getMainWindow } = require('./createModal');
-const { attendances, people, stock, sale, sequelize, purchase, user } = require('./model/dbConfig');
+const { attendances, people, stock, sale, sequelize, purchase, user, schemas } = require('./model/dbConfig');
 const winManager = require("electron-window-state");
-const { Op } = require('sequelize');
+const { Op,Sequelize } = require('sequelize');
 const { minStock,creditLimitDays } = require("./config/policy.json");
-const { billItemSchema } = require('./model/dynamicSchemas');
+const dynamicSchemas = require('./model/dynamicSchemas');
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 
 
+const { billItemSchema } = dynamicSchemas;
 let appPolicy = require("./config/appDefault.json");
 let closeFlag = false,
   windowOptions = {
@@ -975,3 +976,28 @@ ipcMain.handle("get-svg",(e,filePath)=>{
 //   else
 //     nativeTheme.themeSource = "light";
 // },1500);// Remove later
+
+// Backup manager
+ipcMain.handle("app-backup",async (e,data)=>{
+  let dirPath = await dialog.showSaveDialog({
+    message:"A backup directory will be created to host backup files.",
+    defaultPath:app.getPath("documents")
+  });
+  // Create backup path if not exist then perform backups
+  return;
+});
+
+
+// let backupDB = new Sequelize({
+//   dialect:"sqlite",
+//   storage:"./db/backup.db",
+// })
+
+// backupDB.authenticate()
+// .then(()=>{
+//   let models = Object.keys(sequelize.models);
+//   let fromSchemas = Object.keys(schemas);
+//   // models.forEach(async model=>{
+//   //   console.log(await sequelize.model(model).findAll())
+//   // });
+// });

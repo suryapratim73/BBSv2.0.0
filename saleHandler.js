@@ -77,6 +77,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         id="",
         paymentStatus 
     } = billMeta;
+    return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     closeFlag = true;
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
@@ -243,6 +244,7 @@ ipcMain.handle("get-customers",async ()=>{
 
 ipcMain.on("salepage-print-doc",async (e,billObj)=>{
     let path2pdf = await save_exist(e,billObj);
+    return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
     if(billStatus!=="open")
         switch(process.platform){

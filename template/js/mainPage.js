@@ -581,6 +581,17 @@ async function saveSettings(e){
         ipcRenderer.send("save-theme",data);
         return showForm(null,"back-page1",show);
     }
+    else
+    if(cmd==="backup-manager"){
+        data.items = [...e.target.querySelectorAll(".item")].filter(inp=>inp.checked).map(inp=>inp.name);
+        data.createZip = e.target.querySelector("#archieve").checked;
+        Object.keys(data)
+        .forEach(key=>{
+            if(!(["items","createZip","mode"].includes(key)))
+                Reflect.deleteProperty(data,key);
+        });
+        await ipcRenderer.invoke("app-backup",data);
+    }
     showForm(null,"back",show);
 }
 

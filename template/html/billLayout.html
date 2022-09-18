@@ -146,19 +146,16 @@
             <div>
                 <p>Feild Width in %</p>
                 <div>
-                    <input type="range" max="100" min="30" value="50" data-msg="50%" data-cmd="fWidth">
+                    <input type="range" max="100" min="10" value="50" data-msg="50%" data-cmd="fWidth">
                     <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
                 </div>
             </div>
             <div>
                 <p>Font Family</p>
                 <select data-cmd="fFamily">
-                    <option value="Arial" selected>Arial</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="serif">Serif</option>
-                    <option value="sans-serif">Sans Serif</option>
+                    <option value="Times-Roman" selected>Times Roman</option>
+                    <option value="Courier">Courier</option>
+                    <option value="Helvetica">Helvetica</option>
                 </select>
             </div>
             <div onclick="assignFeildOptions(event)">
@@ -166,24 +163,6 @@
                 <button data-cmd="bold" class="fa-solid fa-bold"></button>
                 <button data-cmd="italic" class="fa-solid fa-italic"></button>
                 <button data-cmd="underline" class="fa-solid fa-underline"></button>
-            </div>
-            <div class="hide" data-show="fWeight">
-                <p>Font Weight</p>
-                <select data-cmd="fWeight">
-                    <option value="normal">Normal</option>
-                    <option value="bold" selected>Bold</option>
-                    <option value="bolder">Bolder</option>
-                    <option value="lighter">Lighter</option>
-                    <option value="100">100</option>
-                    <option value="200">200</option>
-                    <option value="300">300</option>
-                    <option value="400">400</option>
-                    <option value="500">500</option>
-                    <option value="600">600</option>
-                    <option value="700">700</option>
-                    <option value="800">800</option>
-                    <option value="900">900</option>
-                </select>
             </div>
             <div class="hide" data-show="variable">
                 <p>Variable Type</p>
@@ -204,11 +183,12 @@
                     <option value="customer-phone">Customer Contact</option>
                     <option value="pay-mode">Pay Mode</option>
                     <option value="pay-date">Pay Date</option>
-                    <option value="bill-status">Bill Status</option>
+                    <option value="pay-status">Payment Status</option>
+                    <option value="billStatus">Bill Status</option>
                     <option value="page-no">Page Number</option>
-                    <option value="gtotal">Grand Total</option>
-                    <option value="total">Total</option>
-                    <option value="net-tax">Net Tax</option>
+                    <option value="netAmtTax">Grand Total</option>
+                    <option value="netAmt">Total</option>
+                    <option value="netTax">Net Tax</option>
                     <option value="net-CGST">Net CGST</option>
                     <option value="net-SGST">Net SGST</option>
                     <option value="net-IGST">Net IGST</option>
@@ -222,7 +202,7 @@
                 <input type="text" id="label" data-cmd="text">
             </div>
             <div>
-                <button data-cmd="create-feild" onclick="insertFeild()">Create</button>
+                <button data-cmd="create-feild" onclick="insertFeild()">Create/Save</button>
                 <button onclick="cancelFeild()">Cancel</button>
             </div>
         </div>
@@ -321,6 +301,14 @@
                     <option value="false" selected>No</option>
                 </select>
             </div>
+            <div>
+                <p>Default font</p>
+                <select data-cmd="fFamily">
+                    <option value="Times-Roman" selected>Times Roman</option>
+                    <option value="Courier">Courier</option>
+                    <option value="Helvetica">Helvetica</option>
+                </select>
+            </div>
         </div>
     </template>
     <template id="margin-1-template">
@@ -381,7 +369,7 @@
                 </div>
             </div>
             <div>
-                <p>Maintain aspect ratio</p>
+                <p>Aspect ratio</p>
                 <div>
                     <input type="checkbox" data-cmd="applyAspectRatio">
                 </div>
@@ -398,10 +386,20 @@
                 </div>
             </div>
             <div>
+                <p>Opacity</p>
+                <div>
+                    <input type="range" data-msg="100%" style="--left_range:100%" min="0" max="100" value="100" placeholder="in %" data-cmd="imgOpacity">
+                    <i class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                </div>
+            </div>
+            <div>
                 <p>Image Tag</p>
                 <div>
                     <input type="text" data-cmd="imgTag">
                 </div>
+            </div>
+            <div>
+                <button data-cmd="close">Save & Close</button>
             </div>
         </div>
     </template>

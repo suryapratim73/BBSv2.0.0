@@ -34,7 +34,8 @@ function initPageObj(){
         applyBorder:false,
         border:1,
         newDoc:true,
-        filePath:""
+        filePath:"",
+        fFamily:"Times-Roman"
     };
 }
 
@@ -223,44 +224,33 @@ function keydownListener(e){
     let { width:selectorWidth,height:selectorHeight } = selector.getBoundingClientRect();
     let { code,ctrlKey,shiftKey } = e;
     let diffX = left - left_mainDiv, diffY = top - top_mainDiv;
-    if(code==="ArrowRight"){
-        moveElemHelper(diffX+1,diffY);
-        e.preventDefault();
-    }
+    if(code==="ArrowRight")
+        diffX++;
     else
-    if(code==="ArrowLeft"){
-        moveElemHelper(diffX-1,diffY);
-        e.preventDefault();
-    }
+    if(code==="ArrowLeft")
+        diffX--;
     else
-    if(code==="ArrowUp"){
-        moveElemHelper(diffX,diffY-1);
-        e.preventDefault();
-    }
+    if(code==="ArrowUp")
+        diffY--;
     else
-    if(code==="ArrowDown"){
-        moveElemHelper(diffX,diffY+1);
-        e.preventDefault();
-    }
+    if(code==="ArrowDown")
+        diffY++;
     else
-    if(!shiftKey && ctrlKey && code==="NumpadAdd" && checkConstraints(selectorWidth + 1,selectorHeight)){
+    if(!shiftKey && ctrlKey && code==="NumpadAdd" && checkConstraints(selectorWidth + 1,selectorHeight))
         selector.style.width = selectorWidth + 1 + "px";
-        e.preventDefault();
-    }
     else
-    if(!shiftKey && ctrlKey && code==="NumpadSubtract" && checkConstraints(selectorWidth - 1,selectorHeight)){
+    if(!shiftKey && ctrlKey && code==="NumpadSubtract" && checkConstraints(selectorWidth - 1,selectorHeight))
         selector.style.width = selectorWidth - 1 + "px";
-        e.preventDefault();
-    }
     else
-    if(shiftKey && ctrlKey && code==="NumpadAdd" && checkConstraints(selectorWidth,selectorHeight + 1)){
+    if(shiftKey && ctrlKey && code==="NumpadAdd" && checkConstraints(selectorWidth,selectorHeight + 1))
         selector.style.height = selectorHeight + 1 + "px";
-        e.preventDefault();
-    }
     else
-    if(shiftKey && ctrlKey && code==="NumpadSubtract" && checkConstraints(selectorWidth,selectorHeight - 1)){
+    if(shiftKey && ctrlKey && code==="NumpadSubtract" && checkConstraints(selectorWidth,selectorHeight - 1))
         selector.style.height = selectorHeight - 1 + "px";
-        e.preventDefault();
+    if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown","NumpadAdd","NumpadSubtract"].includes(code)) e.preventDefault();
+    if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown"].includes(code)){
+        moveElemHelper(diffX,diffY);
+        drawFeilds(diffX,diffY);
     }
     drawAdjPoints();
 }
@@ -340,6 +330,7 @@ async function btnCtrls(e){
     if(e.target.nodeName!=="BUTTON") return;
     selectedBTN = e.target;
     if(!cmd) return;
+    if(cmd==="close") return removeAllElem("#adv-options *");
     let firstHeader = mainDiv.querySelector("#blanck-header");
     if(firstHeader)
         firstHeader.classList.add("hide");
@@ -401,15 +392,16 @@ async function btnCtrls(e){
         advOptionDiv.appendChild(opts);
         if(cmd==="feild"){
             feildObj = {};
-            if(selectedElem && selectedElem.classList.contains("feild-elem"))
+            if(selectedElem && selectedElem.classList.contains("feild-elem")){
                 unFocusElem();
+                opts = document.getElementById(`${cmd}-option-template`).content.cloneNode(true).querySelector("div");
+                advOptionDiv.appendChild(opts);
+            }
             if(!("feild" in actPointer))
                 actPointer.feild = [];
             feildObj.type = "string";
             feildObj.fSize = 16;
-            feildObj.fWeight = "bold";
-            feildObj.fStyle = "normal";
-            feildObj.fFamily = "Arial";
+            feildObj.fFamily = page.fFamily;
             feildObj.text = "";
             feildObj.fWidth = 50;
         }
@@ -468,7 +460,6 @@ async function btnCtrls(e){
         let advOptionDiv2 = document.getElementById("block-option-2-template").content.cloneNode(true).querySelector("div");
         document.getElementById("adv-options-2").appendChild(advOptionDiv2);
         if(!selectedElem) return alert("Select a section.");
-        partitionObj.target = selectedElem;
         partitionObj.direction = "col";
         partitionObj.range = 50;
         partitionObj.lWidth = 1;
@@ -726,16 +717,16 @@ function moveElemHelper(newX,newY){
     .forEach(elem=>elem.classList.remove("hovered-over"));
     drawAdjPoints();
     removeAllElem(".gap-displavy");
+    let ctx = borderCanvas.getContext("2d");
     function commonCodes({text,left,top,y1,y2,x1,x2,lineDir}){
         let span = document.createElement("span");
         document.body.appendChild(span);
         span.className = "gap-displavy";
-        let ctx = borderCanvas.getContext("2d");
-        ctx.setLineDash([1,1]);
-        ctx.save();
         ctx.clearRect(0,0,borderCanvas.width,borderCanvas.height);
         if(page.applyBorder)
             drawMargin();
+        ctx.save();
+        ctx.setLineDash([1,1]);
         ctx.beginPath();
         span.textContent = text + " px";
         span.style.left = left + "px";
@@ -756,9 +747,26 @@ function moveElemHelper(newX,newY){
             ctx.moveTo(x2,0);
             ctx.lineTo(x2,borderCanvas.height);
         }
-        ctx.restore();
         ctx.stroke();
+        ctx.restore();
+    } // Display gap between elements if they are close.
+    ctx.save();
+    ctx.setLineDash([1,1]);
+    if(Math.abs(upFlag)>0){// Horizontal guide lines
+        ctx.moveTo(0,Math.abs(top_selectedElem - top_mainDiv));
+        ctx.lineTo(borderCanvas.width, Math.abs(top_selectedElem - top_mainDiv));
+        ctx.moveTo(0,Math.abs(bottom_selectedElem - top_mainDiv));
+        ctx.lineTo(borderCanvas.width, Math.abs(bottom_selectedElem - top_mainDiv));
     }
+    else
+    if(Math.abs(leftFag)>0){// Vertical guide lines
+        ctx.moveTo(Math.abs(left_selectedElem - left_mainDiv),0);
+        ctx.lineTo(Math.abs(left_selectedElem - left_mainDiv),borderCanvas.height);
+        ctx.moveTo(Math.abs(right_selectedElem - left_mainDiv),0);
+        ctx.lineTo(Math.abs(right_selectedElem - left_mainDiv),borderCanvas.height);
+    }
+    ctx.stroke();
+    ctx.restore();
     [page.body,page.head,page.footer,...page.feilds,...page.sections]
     .forEach(obj=>{
         if(!("elem" in obj) || obj.elem===selectedElem || (selectedElem.classList.contains("feild-elem") && !obj.elem.classList.contains("feild-elem"))) return;
@@ -869,7 +877,7 @@ function move(e){
         return unFocusElem(e);
     if(!selectedElem) return;
     removeAllElem("#adv-options *,#adv-options-2 *");
-    if(Object.keys(feildObj).length>2 && "elem" in feildObj && feildObj.elem!==selectedElem)
+    if(feildObj && Object.keys(feildObj).length>2 && "elem" in feildObj && feildObj.elem!==selectedElem)
         feildObj = {};
     let { left:left_mainDiv,top:top_mainDiv,right:right_mainDiv,bottom:bottom_mainDiv } = mainDiv.getBoundingClientRect();
     let { clientX,clientY } = e;
@@ -1116,6 +1124,8 @@ function pageSetup(e){
         page.border = Number(val) || 1;
         drawMargin();
     }
+    else
+        page[cmd] = val;
     updateUI();
 } // preliminary test complete 
 
@@ -1226,7 +1236,6 @@ function createBodySections(){
 function partitionManager(e){
     if(!selectedElem) return;
     let { value,dataset:{cmd},type } = e.target;
-    partitionObj.target = selectedElem;
     if(cmd==="partition-direction"){
         document.querySelector(".changable").textContent = value=="row" ? "height" : "width";
         partitionObj.direction = value;
@@ -1294,7 +1303,7 @@ function drawTable(){
     let netPercent = cols.reduce((acc,{width})=>acc+width,0);
     if(netPercent>100) return alert("Net column widths cannot exceed width of it's host.");
     let ctx = selectedElem.getContext("2d");
-    ctx.font = fSize + "px Arial";
+    ctx.font = `bold ${fSize}px ${page.fFamily}`;
     ctx.clearRect(0,0,selectedElem.width,selectedElem.height);
     ctx.strokeStyle = "black";
     if(actPointer.applyBorder)
@@ -1318,6 +1327,7 @@ function drawTable(){
 
 function commonFunc_range(elem,value,msg="%"){
     document.documentElement.style.setProperty("--left_range",`${value}%`);
+    elem.style.removeProperty("--left_range")
     elem.dataset.msg = value+msg;
     elem.focus();
     clearTimeout(focusTimer);
@@ -1396,10 +1406,6 @@ function selectFeildCanv(mode=2){
                 advOpt.querySelector('[data-show="variable"]')?.classList.remove("hide");
                 advOpt.querySelector(`[data-show="variable"] option[value="${feildObj.fType}"]`)?.setAttribute("seleccted",true);
             }
-            if(key==="bold" && feildObj.bold && feildObj.fWeight!=="normal"){
-                advOpt.querySelector(`[data-show="fWeight"]`)?.classList.remove("hide");
-                advOpt.querySelector(`[data-show="fWeight"] option[value="${feildObj.fWeight}"]`)?.setAttribute("selected",true);
-            }
             if(key==="fFamily")
                 advOpt.querySelector(`[data-cmd="fFamily"] option[value="${feildObj.fFamily}"]`)?.setAttribute("selected",true);
             if(["bold","italic","underline"].includes(key) && feildObj[key])
@@ -1434,7 +1440,6 @@ function assignFeildOptions(e){
     if(cmd==="type"){
         [...advOpt.querySelectorAll("div")]
         .forEach(elem=>{
-            if(elem.dataset.show==="fWeight") return;
             elem.classList.remove("hide")
         });
         Object.keys(feildObj)
@@ -1450,13 +1455,9 @@ function assignFeildOptions(e){
                 feildObj[key] = false;
                 advOpt.querySelector(`button[data-cmd="${key}"]`).classList.remove("selected-btn-2");
             }
-            if(key==="bold")
-                document.querySelector(`[data-show="fWeight"]`).classList.add("hide");
         });
         feildObj.fSize = 16;
-        feildObj.fWeight = "bold";
-        feildObj.fStyle = "normal";
-        feildObj.fFamily = "Arial";
+        feildObj.fFamily = page.fFamily;
         feildObj.text = "";
         feildObj.fWidth = 50;
     }
@@ -1483,6 +1484,7 @@ function assignFeildOptions(e){
         });
         feildObj.imgWidth = 10;
         feildObj.imgHeight = 10;
+        feildObj.imgOpacity = 100;
     }
     if(["fSize","fWidth"].includes(cmd))
         feildObj[cmd] =  Number(value);
@@ -1490,11 +1492,11 @@ function assignFeildOptions(e){
     if(["bold","italic","underline"].includes(cmd)){
         feildObj[cmd] = cmd in feildObj ? !(feildObj[cmd]) : true;
         e.target.classList.toggle("selected-btn-2");
-        if(cmd==="bold")
-            document.querySelector(`[data-show="fWeight"]`).classList.toggle("hide");
     }
     else
         feildObj[cmd] = value;
+    if(e.target.type==="range")
+        commonFunc_range(e.target,value);
 }
 
 function drawFeildText(feildObj){
@@ -1503,7 +1505,7 @@ function drawFeildText(feildObj){
     let ctx = elem.getContext("2d");
     let { left,top } = elem.getBoundingClientRect();
     ctx.fillStyle = "black";
-    ctx.font = fSize + "px Arial";
+    ctx.font = fSize + "px " + page.fFamily;
     text = text+((type==="variable" && text!=="") ? ": " : "")+(fType ?? "");
     let width = 1.25 * ctx.measureText(text).width;
     let height = fSize + 16;
@@ -1511,21 +1513,20 @@ function drawFeildText(feildObj){
     let { width:parentWidth } = parentElem.getBoundingClientRect();
     let widthConstraints = parentWidth*fWidth*0.01;
     elem.style.zIndex = 100;
-    if(width>widthConstraints){
-        let multiplier = Math.ceil(width / widthConstraints);
-        width = widthConstraints;
-        height = multiplier * fSize + 16;
-    }
+    let multiplier = Math.ceil(width / widthConstraints);
+    width = widthConstraints;
+    height = multiplier * fSize + 16;
     elem.width = width;
     elem.height = height;
+    let selector = document.getElementById("selector");
+    if(selector)
+        selector.style.width = elem.width + 40 + "px";
     let style = "";
     for(let key of ["bold","italic"]){ 
         if(!(key in feildObj)) continue;
         if(key in feildObj && feildObj[key])
             style += key + " ";
     }
-    if(/bold/.test(style))
-        style = style.replace("bold",feildObj.fWeight);
     ctx.font = style + " " + fSize + "px " + fFamily;
     ctx.clearRect(0,0,elem.width,elem.height);
     let line = "",initY=fSize;
@@ -1545,11 +1546,12 @@ function drawFeildText(feildObj){
     if("underline" in feildObj && feildObj.underline){
         ctx.moveTo(0,fSize+3);
         ctx.lineWidth = fSize * (/"bold"/.test(style) ? 0.16 : 0.08);
-        ctx.lineTo(elem.width/1.15,fSize+3);
+        let textWidth = ctx.measureText(text).width;
+        ctx.lineTo(textWidth,fSize+3);
         ctx.stroke();
     }
     ctx.fill();
-}// Add Styling
+}
 
 function createFeildCanvas(){
     let { width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
@@ -1636,13 +1638,6 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
     borderCanvas.getContext("2d").clearRect(0,0,borderCanvas.width,borderCanvas.height);
     mainDiv.querySelector("#blanck-header").classList.add("hide");
     drawMargin();
-    page.feilds.forEach(_feildObj=>{
-        feildObj = _feildObj;
-        let elem = createFeildCanvas();
-        feildObj.elem = elem;
-        feildObj.id = elem.dataset.id;
-        drawFeildText(feildObj);
-    });
     ["head","body","footer"]
     .forEach(key=>{
         if(Object.keys(page[key]).length>1){
@@ -1656,6 +1651,13 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
         actPointer = sec;
         let elem = renderSection();
         sec.elem = elem;
+    });
+    page.feilds.forEach(_feildObj=>{
+        feildObj = _feildObj;
+        let elem = createFeildCanvas();
+        feildObj.elem = elem;
+        feildObj.id = elem.dataset.id;
+        drawFeildText(feildObj);
     });
 });
 
@@ -1677,7 +1679,7 @@ function imageBox(feildObj){
     elem.style.zIndex = 100;
     feildObj.zIndex = 100;
     let ctx = elem.getContext("2d");
-    ctx.fillStyle = "#FF3939";
+    ctx.fillStyle = "#FF3939" + Math.round(feildObj.imgOpacity*0.01*255).toString(16).toUpperCase();
     ctx.fillRect(0,0,elem.width,elem.height);
     ctx.strokeText("_img",elem.width/2-ctx.measureText("_img").width/2,elem.height/2);
     ctx.fill();
@@ -1692,7 +1694,7 @@ function imgOpts(e){
         document.querySelector(`#adv-options [data-show="applyAspectRatio"]`).className = !checked ? "hide" : "";
     }
     else
-    if(["imgWidth","imgHeight"].includes(cmd)){
+    if(["imgWidth","imgHeight","imgOpacity"].includes(cmd)){
         if(type==="range")
             commonFunc_range(e.target,value);
         feildObj[cmd] = Math.round(Number(value));

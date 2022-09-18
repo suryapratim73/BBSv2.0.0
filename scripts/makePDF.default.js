@@ -1,35 +1,51 @@
 const PDFDocument = require('pdfkit');
-const fs = require("fs")
-const { lib, margin, emblem, titleFontFamily } = require("../config/saleConfig.json")
-const { createHeader, createFooter, createBody } = require(`../lib/${lib}`);
+const fs = require("fs");
+const saleConfig = require("../config/saleConfig.json");
 const {app} = require("electron");
 const path = require("path");
-const { createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
+const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
 
 
-function initBillPDF({customer:{name},billMeta:{billDate,billNo}}){
-    const doc = new PDFDocument({
-       margin
-    });
+let { margin, emblem, titleFontFamily } = saleConfig;
+
+function initBillPDF({customer:{name},billMeta:{billDate,billNo}},template){
+    let docOpts = {
+        margin
+    }
+    if(template){
+        let { size,applyMargin,margin } = template;
+        if(applyMargin)
+            docOpts.margin = margin
+        else
+            docOpts.margin = 0;
+        docOpts.size = size;
+    }
+    const doc = new PDFDocument(docOpts);
     let pdfPath = app.getPath("documents");
     if(!fs.existsSync(pdfPath+"/Bills/"))
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
     doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}`)));
     pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}`);
-    return {doc,pdfPath}
+    return {doc,pdfPath};
 }
 
 exports.billPDF = function(billObj){
-    const {billMeta,customer,orderItems} = billObj
+    const {billMeta,customer,orderItems} = billObj;
+    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate && fs.existsSync(saleConfig.billTemplate.file)){
+        let { main } = require("../lib/execCustomTemplate");
+        let data = fs.readFileSync(saleConfig.billTemplate.file);
+        let template = JSON.parse(data.toString());
+        const {doc,pdfPath} = initBillPDF(billObj,template);    
+        return main(doc,pdfPath,billObj,template);
+    }
     const {doc,pdfPath} = initBillPDF(billObj);
-    let j,lastJ=0,lastI=0,lastK=0;
+    let j,lastJ=0,lastI=0;
     const {printObj:{captions}} = billMeta;
     let { height,margins:{bottom} } = doc.page;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;
-        k=lastK;
         if(i>lastI){
             lastI = i;
             doc.addPage();
