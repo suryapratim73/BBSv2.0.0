@@ -1,14 +1,14 @@
 const PDFDocument = require('pdfkit');
 const fs = require("fs");
-const saleConfig = require("../config/saleConfig.json");
 const {app} = require("electron");
 const path = require("path");
 const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
 
 
-let { margin, emblem, titleFontFamily } = saleConfig;
+let saleConfig = require("../config/saleConfig.json");
+let { titleFontFamily } = saleConfig;
 
-function initBillPDF({customer:{name},billMeta:{billDate,billNo}},template){
+function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template){
     let docOpts = {
         margin
     }
@@ -32,22 +32,25 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo}},template){
 
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj;
-    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate && fs.existsSync(saleConfig.billTemplate.file)){
+    saleConfig = JSON.parse(fs.readFileSync("/home/bhagawati/Code/BBSv2.0.0/config/saleConfig.json").toString())
+    let { margin, emblem } = saleConfig;
+    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
         let { main } = require("../lib/execCustomTemplate");
         let data = fs.readFileSync(saleConfig.billTemplate.file);
         let template = JSON.parse(data.toString());
         const {doc,pdfPath} = initBillPDF(billObj,template);    
         return main(doc,pdfPath,billObj,template);
     }
-    const {doc,pdfPath} = initBillPDF(billObj);
+    const {doc,pdfPath} = initBillPDF({...billObj,margin});
     let j,lastJ=0,lastI=0;
     const {printObj:{captions}} = billMeta;
-    let { height,margins:{bottom} } = doc.page;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;
         if(i>lastI){
             lastI = i;
+            j = 0;
+            lastJ = 0;
             doc.addPage();
         }
         doc.opacity(0.6)
@@ -66,10 +69,10 @@ exports.billPDF = function(billObj){
                 initialY+=40;
             else
                 initialY+=20;
-            if(initialY>height-2*bottom){
+            if(initialY>650 - 2*doc.currentLineHeight()){
                 doc.addPage();
                 i--;
-                lastJ = j;
+                lastJ = j+1;
                 continue loop1;
             }
         }
