@@ -10,6 +10,7 @@ body{
     display: flex;
     flex-direction: column;
     justify-content: space-around;
+    box-shadow: 1px 0px var(--theme-shadow-color);
 }
 #nav-div div{
     flex: 1;
@@ -688,4 +689,15 @@ form#set-2-factor-auth-form button{
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+form#registration{
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1rem;
+}
+#registration>div{
+    flex:1;
+}
+#registration>div:first-child>h2{
+    text-align: left;
 }

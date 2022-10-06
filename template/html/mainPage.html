@@ -204,6 +204,7 @@
                             <p data-cmd="appearance-management" data-show="app-settings" data-msg="Configure app appearance and theming of BBS..">Appearance management</p>
                             <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p>
                             <p class="bill purchase" data-cmd="backup-manager" data-show="app-settings" data-msg="Local or cloud based backup settings.">Backup manager</p>
+                            <p class="bill purchase" data-cmd="registration" data-show="app-settings" data-msg="App registration.">App registration</p>
                         </div>
                     </div>
                     <div class="settings hide" data-mode="company-settings" id="company-settings">
@@ -545,6 +546,29 @@
             <div>
                 <button class="main-ui-btn" type="submit">Create backup</button>
                 <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="registration-template">
+        <form onsubmit="saveSettings(event)" id="registration" data-cmd="registration" data-show="app-settings">
+            <div>
+                <h2 class="first-h2">Ready to subscribe?</h2>
+                <div>
+                    <div>
+                        <label for="gst">Enter your GST number</label>
+                    </div>
+                    <div>
+                        <input type="text" name="gst" id="gst">
+                    </div>
+                </div>
+                <div>
+                    <button class="main-ui-btn" type="submit">Register & Pay</button>
+                    <button type="button" data-cmd="back" data-show="app-settings">Cancel</button>
+                </div>
+            </div>
+            <div>
+                <h2 id="app-status">Your BBS is unregistered.</h2>
+                <p>Register your application to avail cloud based services such as backup, payment reminder and many more. </p>
             </div>
         </form>
     </template>

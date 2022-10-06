@@ -479,6 +479,17 @@ async function showForm(e,cmd,show){
                         feild.setAttribute("checked",true)
                 });
             }
+            if(cmd==="registration"){
+                let gst = await ipcRenderer.invoke("app-registration-info");
+                if(gst){
+                    form.gst.value = gst;
+                    form.gst.setAttribute("disabled",true);
+                }
+                else{
+                    form.querySelector("div:first-child>div:first-child").classList.add("hide");
+                    form.querySelector("button[type='submit']").setAttribute("disabled",true);
+                }
+            }
         }
     }
     else
@@ -592,6 +603,9 @@ async function saveSettings(e){
         });
         await ipcRenderer.invoke("app-backup",data);
     }
+    else
+    if(cmd==="registration")
+        ipcRenderer.send("app-registration",e.target.gst.value);
     showForm(null,"back",show);
 }
 
@@ -711,3 +725,15 @@ function revalidateInput(e){
     if(Number(e.target.value)>Number(e.target.max))
         e.target.value = e.target.max;
 }
+
+ipcRenderer.on("check-for-update",async (e,UPDATE_REST,appVersion)=>{
+    try{
+        if(navigator.onLine){
+            appVersion = (await (await fetch(UPDATE_REST+"version")).json()).version;
+        }
+        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion});
+    }
+    catch(err){
+        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,err});
+    }
+});

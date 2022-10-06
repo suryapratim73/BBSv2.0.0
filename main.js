@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, MenuItem, session, nativeTheme } = require('electron');
+require("dotenv").config();
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, MenuItem, session, nativeTheme, autoUpdater } = require('electron');
 const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User, customEncoder, customDecoder } = require("./common");
 const fs = require("fs");
 const path = require("path");
@@ -723,12 +724,15 @@ function imposeRestriction(){
   else
   if(currentUser.role==="purchase")
     blockHelper([{index:2,isEnabled:true},{index:1,isEnabled:false}]);
-  else // Case for role admin and all
+  else {// Case for role admin and all
+    // Checking for update
+    checkForUpdates();
     return Menu.getApplicationMenu().items.forEach(({submenu})=>{
       submenu.items.forEach(item=>{
         item.enabled = true;
       });
     });
+  }
   blockHelper([
     {index:4,isEnabled:false},
     {index:5,isEnabled:false},
@@ -985,8 +989,7 @@ ipcMain.handle("app-backup",async (e,data)=>{
   });
   // Create backup path if not exist then perform backups
   return;
-});
-
+});// Not complete
 
 // let backupDB = new Sequelize({
 //   dialect:"sqlite",
@@ -1001,3 +1004,102 @@ ipcMain.handle("app-backup",async (e,data)=>{
 //   //   console.log(await sequelize.model(model).findAll())
 //   // });
 // });
+
+// App registration
+ipcMain.handle("app-registration-info",e=>{
+  let saleConfig = JSON.parse(fs.readFileSync("./config/saleConfig.json").toString());
+  return saleConfig.gst;
+});
+
+ipcMain.on("app-registration",async (e,gst)=>{
+  let windowOptions = {
+    webPreferences:{
+      nodeIntegration: false,
+      preload:__dirname+"/registrationPreload.js"
+    }
+  }
+  createModal(windowOptions,"./template/html/registration.html",{
+    label:"registration-window",
+    maxWinCount:1,
+    cb:function(){
+      this.webContents.send("call-register-link",gst);
+    }
+  });
+});
+
+//App update logic
+async function checkForUpdates(){
+  let { UPDATE_URL,UPDATE_REST } = process.env;
+  let mainWin = getMainWindow();
+  if(!["admin","all"].includes(currentUser.role))
+  {
+    return dialog.showMessageBox(mainWin,{
+      title: "Unauthorized",
+      message: "Only Admin and user with role 'all' can check for update."
+    });
+  }
+  console.log("Checking for update");
+  // app.getVersion();
+  let {isOnline,appVersion,err} = await new Promise((res)=>{
+    mainWin.webContents.send("check-for-update",UPDATE_REST,app.getVersion());
+    ipcMain.on("check-for-update-response",(e,{isOnline=false,appVersion,err})=>{
+      res({isOnline,appVersion,err});
+    });
+  });
+  if(err){
+    // Logic for error Handling
+  }
+  if(isOnline===false) 
+    return dialog.showMessageBox(mainWin,{
+      title: "No Connection",
+      message: "Failed to connect to update server."
+    });
+  // Parse and santize appVersion
+  if(appVersion && typeof appVersion==="string" && new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)){
+    let [major,minor,bugFix] = app.getVersion().split(".");
+    let [_major,_minor,_bugFix] = appVersion.split(".");
+    let message;
+    if(Number(_major)>Number(major))
+      message = "A new version of BBS is available for download.";
+    if(Number(_minor)>Number(minor))
+      message = "A minor feature update is available for download.";
+    if(Number(_bugFix)>Number(bugFix))
+      message = "Bug fix available for download.";
+    message += ` Please visit ${UPDATE_REST}/changelogs for more details.`;
+    let {response} = await dialog.showMessageBox(mainWin,{
+      title: "Update available for download",
+      message,
+      buttons: ["Later","Update"]
+    });
+    if(response===0) return;
+    if(process.platform==="darwin"){
+      UPDATE_URL += "mac/";
+      
+    }
+    else
+    if(process.platform==="win32"){
+  
+    }
+    else
+    if(process.platform==="linux"){
+      console.log("update for linux")
+    }
+  }
+}
+
+autoUpdater.on("update-available",()=>{
+  const dialogOpts = {
+    type: 'info',
+    buttons: ['Cancel', 'Download'],
+    title: 'Application Update',
+    detail: 'A new version of BBS is ready for download.'
+  };
+
+  dialog.showMessageBox(dialogOpts, (response) => {
+    if (response === 0) { 
+      
+    }
+  });
+});
+
+module.exports.checkForUpdates = checkForUpdates;

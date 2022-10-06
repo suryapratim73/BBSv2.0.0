@@ -12,18 +12,17 @@
     "bcrypt": "^5.0.1",
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
-    "nodemailer": "^6.7.2",
     "pdfkit": "^0.12.1",
     "qrcode": "^1.5.0",
     "sequelize": "^6.13.0",
     "speakeasy": "^2.0.0",
-    "sqlite3": "^5.0.2",
+    "sqlite3": "^5.1.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "electron": "^11.5.0",
     "foreman": "^3.0.1",
-    "nodemon": "^2.0.7"
+    "nodemon": "^2.0.20"
   },
   "browserslist": {
     "production": [
@@ -36,5 +35,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "publish": [
+    {
+      "provider": "generic",
+      "url": "http://<Your server IP>:5080/"
+    }
+  ]
 }

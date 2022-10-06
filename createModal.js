@@ -10,7 +10,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
   protocol="file://",
   maxWinCount,
   label,
-  partition="persist:bbs_auth"
+  partition="persist:bbs_auth",
+  cb
 }={})=>{
   let modal;
   windowOptions = {
@@ -45,11 +46,14 @@ exports.createModal = (windowOptions={},pathToHTML,{
     modal = new BrowserWindow(windowOptions);
   if(modal){
     modal.removeMenu();
-    if(show){
-      modal.on("ready-to-show",modal.show);
-      if(modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.appPolicy)
-        modal.webContents.send("apply-theme",appPolicy.selectedTheme);
-    }
+    modal.on("ready-to-show",function(){
+      if(show)
+        modal.show();
+      if(cb && typeof cb==="function")
+        cb.call(modal);
+    });
+    if(show && modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.appPolicy)
+      modal.webContents.send("apply-theme",appPolicy.selectedTheme);
     if(loadFile)
       modal.loadFile(pathToHTML);
     else
