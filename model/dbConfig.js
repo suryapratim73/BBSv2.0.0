@@ -1,30 +1,40 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
 const fs = require("fs");
 let {getLoggerFD} = require("../common");
+const { app } = require("electron");
+const path = require("path");
 const {exec} = require("child_process");
 
 
 //Example of how to run sudo command using child process but limited buffer.
-// let proc = exec("echo 'bhagawati9971' | sudo -S ls /root",(err,stdout,stderr)=>{
+// let proc = exec("echo 'sysPassword' | sudo -S ls /root",(err,stdout,stderr)=>{
 //     if(err) throw err;
 //     if(stderr) throw stderr;
 //     console.log(stdout)
 // });
 
+let appPath,tempStr="",timer;
+if(process.env.APP_ENV==="DEV")
+    appPath = __dirname;
+else
+    appPath = app.getPath("appData")+"/BBS";
 const sequelize = new Sequelize({
     dialect:"sqlite",
-    storage:"./db/usha.db",
+    storage:path.resolve(appPath,"./db/bbs.db"),
     logging:function(...msg){
-        let loggerFD = getLoggerFD?.("dbLogs.txt");
-        if(!getLoggerFD)
-            setTimeout(()=>{
-                getLoggerFD = require("../common").getLoggerFD;
-                loggerFD = getLoggerFD?.("dbLogs.txt");
-                appendToFile(loggerFD,msg[0]);
-            },10)
-        if(loggerFD)
+        if(global.shouldWait)
+            tempStr += msg[0] + "\n";
+        else
+        if(global.shouldWait===false && tempStr){
+            let loggerFD = getLoggerFD?.("dbLogs.txt");
+            appendToFile(loggerFD,tempStr+msg[0]);
+            console.log("Appending temStr")
+            tempStr = undefined;
+        }
+        else{
+            let loggerFD = getLoggerFD?.("dbLogs.txt");
             appendToFile(loggerFD,msg[0]);
-        // console.log(msg[0])
+        }
     },
     transactionType:"IMMEDIATE"
 });
@@ -54,7 +64,7 @@ async function appendToFile(fd,data){
 
 sequelize.authenticate()
 .then(()=>{
-    console.log("Connected to sqlite db")
+    console.log("Connected to sqlite db");
 })
 .catch((err)=>{
     console.error(err)

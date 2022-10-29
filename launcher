@@ -1,0 +1,2 @@
+#!/bin/bash
+$(nohup /opt/Bigbyte\ Business\ Service/bbs $@ > /dev/null 2>&1 & disown)

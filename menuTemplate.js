@@ -1,4 +1,5 @@
-const { BrowserWindow, ipcMain } = require("electron");
+require("./common")
+const { BrowserWindow, ipcMain, dialog, app } = require("electron");
 const {addPurchase,showPurchase} = require("./handlePurchase");
 const {displayStock,handleReturn} = require("./handleStock");
 const {getSuplierPortal,checkOutPayments} = require("./supplierHandler");
@@ -23,11 +24,16 @@ module.exports = mainWindow=>{
             label:"BBS",
             submenu: [
                 {
-                    label: "Settings",
-                    accelerator: "Shift+F1"
+                    label: "About BBS",
+                    click: ()=>dialog.showMessageBox({
+                        title:"Bigbyte Business Solution",
+                        message:`We provide you a software that meet all your business needs at affordable cost. You are currently using BBS version ${app.getVersion()}`,
+                        buttons:["Ok"]
+                    })
                 },
                 {
-                    label: "Backup and Restore"
+                    label: "Check for update",
+                    click: ()=>checkForUpdates()
                 },
                 {
                     label: "Help",
@@ -39,14 +45,6 @@ module.exports = mainWindow=>{
                             label: "Open BBS Official Website"
                         }
                     ]
-                },
-                { type: "separator" },
-                {
-                    label: "About"
-                },
-                {
-                    label: "Check for update",
-                    click: ()=>checkForUpdates()
                 },
                 { type: "separator" },
                 {

@@ -1,9 +1,9 @@
-const {BrowserWindow} = require("electron");
-const appPolicy = require("./config/appDefault.json")
+const {BrowserWindow, dialog} = require("electron");
+const path = require("path");
+const fs = require("fs");
 
 
 let windowList = [];
-
 exports.createModal = (windowOptions={},pathToHTML,{
   show=true,
   loadFile=true,
@@ -14,6 +14,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
   cb
 }={})=>{
   let modal;
+  let { getAppPolicyPath } = require("./common");
   windowOptions = {
       width: 400,
       height: 450,
@@ -29,7 +30,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
       show:false,
       modal:false,
       ...windowOptions
-  }
+  };
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   if(maxWinCount){
     if(windowList.filter(obj=>obj.label===label).length<maxWinCount){
       modal = new BrowserWindow(windowOptions);
@@ -52,10 +54,15 @@ exports.createModal = (windowOptions={},pathToHTML,{
       if(cb && typeof cb==="function")
         cb.call(modal);
     });
-    if(show && modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.appPolicy)
+    if(show && modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.applyTheme)
       modal.webContents.send("apply-theme",appPolicy.selectedTheme);
-    if(loadFile)
-      modal.loadFile(pathToHTML);
+    if(loadFile){
+      // dialog.showMessageBox({
+      //   title:"HTML File Path",
+      //   message:path.join(__dirname,pathToHTML)
+      // })
+      modal.loadFile(path.join(__dirname,pathToHTML));
+    }
     else
       modal.loadURL(protocol+pathToHTML);
     return modal;

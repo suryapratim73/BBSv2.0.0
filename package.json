@@ -1,14 +1,17 @@
 {
-  "name": "bbsv2.0.0",
-  "version": "2.0.0",
+  "name": "bbs",
+  "version": "2.1.9",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
-    "bbsDev": "nodemon --ignore 'config/*.json' --ignore '*.json' --exec electron ."
+    "bbsDev": "nodemon --ignore 'config/*.json' --ignore '*.json' --exec electron .",
+    "build": "electron-builder -l",
+    "build-publish": "electron-builder -l && node ./build/afterPackTasks.js"
   },
-  "author": "Surya",
+  "author": "Surya Pratim Paul <surya.shilpi22@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.1.3",
     "bcrypt": "^5.0.1",
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
@@ -21,7 +24,7 @@
   },
   "devDependencies": {
     "electron": "^11.5.0",
-    "foreman": "^3.0.1",
+    "electron-builder": "^23.3.3",
     "nodemon": "^2.0.20"
   },
   "browserslist": {
@@ -36,10 +39,39 @@
       "last 1 safari version"
     ]
   },
-  "publish": [
-    {
-      "provider": "generic",
-      "url": "http://<Your server IP>:5080/"
-    }
-  ]
+  "build": {
+    "appId": "com.mbtccodemint.bbs",
+    "productName": "Bigbyte Business Service",
+    "executableName": "BBS",
+    "copyright": "Copyright © year Codemint",
+    "linux": {
+      "target": "deb",
+      "category": "Office",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "http://localhost:3030/os/linux/"
+        }
+      ]
+    },
+    "deb":{
+      "fpm":["--after-upgrade=updator.sh"]
+    },
+    "compression": "store",
+    "files": [
+      "!test.js",
+      "!todo",
+      "!window-state.json",
+      "!electron-builder.env",
+      "!.gitignore",
+      "!private",
+      "!logs",
+      "!ext",
+      "!db/",
+      "!config",
+      "!.vscode"
+    ],
+    "asar":false,
+    "afterPack":"./scripts/afterPack.js"
+  }
 }

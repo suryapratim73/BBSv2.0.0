@@ -1,6 +1,6 @@
 const { sequelize } = require("./model/dbConfig");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
-const { dialog, ipcMain, BrowserWindow } = require("electron");
+const { dialog, ipcMain, BrowserWindow, app } = require("electron");
 const { ledgerPDF } = require("./scripts/makePDF.default");
 const { customer,supplier } = require("./model/dbConfig");
 const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSchemas");
@@ -59,16 +59,22 @@ class BillNoGenerator{
 }
 
 class FileHandler{
-    constructor(fPath,rPath){
-        this.fPath = fPath;
+    constructor(rPath){
         this.rPath = rPath;
-        if(!fs.existsSync(path.resolve(__dirname,this.fPath,this.rPath)))
-            fs.mkdir(path.resolve(__dirname,this.fPath,this.rPath),(err)=>{
-                if(err)
-                    throw err;
-                console.log("log directory created!")
-            });
-        this.fd = fs.openSync(path.resolve(__dirname,this.fPath),"a+");
+        this.rootPath = "";
+        if(process.env.APP_ENV==="DEV")
+            this.rootPath = __dirname;
+        else
+            this.rootPath = app.getPath("appData")+"/BBS";
+        try{
+            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath)))
+                fs.mkdirSync(path.resolve(this.rootPath,this.rPath,"../"),{recursive:true});
+            this.fd = fs.openSync(path.resolve(this.rootPath,this.rPath),"a+");
+        }
+        catch(err){
+            console.log(err);
+            dialog.showErrorBox("File creation error",err.message);
+        }
     }
 }
 
@@ -153,24 +159,27 @@ exports.getLastBillNo = function(){
 }
 
 exports.loggerFH = function(fileName){
-    let fh = new FileHandler(`./logs/${fileName}`,"../");
+    let fh = new FileHandler(`./logs/${fileName}`);
     loggerFH.push({[fileName]:fh});
     return fh;
 }
 
 exports.getLoggerFD = function(...arg){
+    if(loggerFH.length===0) return;
     if(arg.length===0)
-        return loggerFH.map(obj=>Object.values(obj)[0].fd);
+        return loggerFH.map(obj=>Object.values(obj)[0]?.fd);
     else
-        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])?.[arg[0]].fd;
+        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])?.[arg[0]]?.fd;
 }
 
 exports.appLogger = function(...lines){
-    let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))["appLogs.txt"].fd;
-    let lineToAppend = lines.reduce((str,line)=>(str+line+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
-    fs.appendFile(appLoggerFD,lineToAppend,err=>{
-        if(err) throw err;
-    })
+    let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))?.["appLogs.txt"].fd;
+    let lineToAppend = lines.reduce((str,line)=>(str+JSON.stringify(line)+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
+    // console.log(lines[0]);
+    if(appLoggerFD)
+        fs.appendFile(appLoggerFD,lineToAppend,err=>{
+            if(err) throw err;
+        });
 }
 
 class People{
@@ -234,3 +243,29 @@ exports.customDecoder = function(num,skip){
         skip = Math.abs(8 - skip);
     return (num>>1)-skip;
 }
+
+function policyPathCommmon(relPath){
+    let policyPath = __dirname; 
+    if(process.env.APP_ENV==="DEV")
+        policyPath = __dirname;
+    else
+        policyPath = app.getPath("appData")+"/BBS";
+    policyPath = path.resolve(policyPath,relPath);
+    // dialog.showMessageBox({
+    //     title:"Path to JSON",
+    //     message:policyPath
+    // })
+    return policyPath;
+}
+
+exports.getAppPolicyPath = function(relPath="./config/appDefault.json"){
+    return policyPathCommmon(relPath);
+};
+
+exports.getUserPolicyPath = function(relPath="./config/policy.json"){
+    return policyPathCommmon(relPath);
+};
+
+exports.getsaleConfigPolicyPath = function(relPath="./config/saleConfig.json"){
+    return policyPathCommmon(relPath);
+};

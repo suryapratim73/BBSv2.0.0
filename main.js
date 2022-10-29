@@ -1,218 +1,357 @@
-require("dotenv").config();
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, dialog, screen, MenuItem, session, nativeTheme, autoUpdater } = require('electron');
-const { billNoCounter, getLastBillNo, loggerFH, getLoggerFD, User, customEncoder, customDecoder } = require("./common");
+global.shouldWait = true;
+require("dotenv").config({path:__dirname+"/.env"});
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  globalShortcut,
+  ipcMain,
+  dialog,
+  screen,
+  MenuItem,
+  session,
+  nativeTheme,
+  autoUpdater,
+} = require("electron");
+const {
+  billNoCounter,
+  getLastBillNo,
+  loggerFH,
+  getLoggerFD,
+  User,
+  customEncoder,
+  customDecoder,
+  getAppPolicyPath,
+  getsaleConfigPolicyPath,
+  getUserPolicyPath,
+  appLogger,
+} = require("./common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
-const { createModal, getTargetWindow, getMainWindow } = require('./createModal');
-const { attendances, people, stock, sale, sequelize, purchase, user, schemas } = require('./model/dbConfig');
+let {
+  createModal,
+  getTargetWindow,
+  getMainWindow,
+} = require("./createModal");
+const {
+  attendances,
+  people,
+  stock,
+  sale,
+  sequelize,
+  purchase,
+  user,
+  schemas,
+} = require("./model/dbConfig");
 const winManager = require("electron-window-state");
-const { Op,Sequelize } = require('sequelize');
-const { minStock,creditLimitDays } = require("./config/policy.json");
-const dynamicSchemas = require('./model/dynamicSchemas');
+const { Op, Sequelize } = require("sequelize");
+const dynamicSchemas = require("./model/dynamicSchemas");
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
-
+const axios = require("axios");
+const { spawn } = require("child_process");
 
 const { billItemSchema } = dynamicSchemas;
-let appPolicy = require("./config/appDefault.json");
 let closeFlag = false,
   windowOptions = {
     width: 600,
     height: 400,
-    resizable:false,
+    resizable: false,
     webPreferences: {
       nodeIntegration: true,
-      devTools:true
+      devTools: true,
     },
-    show:false,
-    contextIsolation:true
+    show: false,
+    contextIsolation: true,
   },
-  currentUser,totpTimer,linuxThemeWatchTimer;
+  currentUser,
+  totpTimer,
+  linuxThemeWatchTimer,
+  firstBoot = false;
 
-
-function updateCloseFlag(){
-  closeFlag=true;
+function updateCloseFlag() {
+  closeFlag = true;
 }
 
 exports.updateCloseFlag = updateCloseFlag;
 
-async function createWindow () {
-  let {width,height:workAreaHeight} = screen.getPrimaryDisplay().workArea;
-  let {height} = screen.getPrimaryDisplay().size;
+async function createWindow() {
+  let { width, height: workAreaHeight } = screen.getPrimaryDisplay().workArea;
+  let { height } = screen.getPrimaryDisplay().size;
   let winState = winManager({
     defaultWidth: width,
-    defaultHeight:workAreaHeight,
-    path:path.resolve("./")
+    defaultHeight: workAreaHeight,
+    path: path.resolve("./"),
   });
-  workAreaHeight -= (height - workAreaHeight);
+  workAreaHeight -= height - workAreaHeight;
   let windowOptions = {
     width: winState.width,
     height: winState.height,
-    x:winState.x,
-    y:winState.y,
-    minWidth:800,
-    minHeight:600,
-    title:"BBSv2.0.0"
+    x: winState.x,
+    y: winState.y,
+    minWidth: 800,
+    minHeight: 600,
+    title: "BBSv2.0.0",
   };
-  if(process.platform==="linux"){
+  if (process.platform === "linux") {
     windowOptions.resizable = true;
     windowOptions.maximizable = true;
   }
-  let userCount = (await user.findAll()).length;
   let fileName = "lockScreen";
-  if(userCount===0){
-    fileName = "mainPage";
-    await user.create({
-      id: uuid.v5("admin","6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
-      name: "admin",
-      passwd: await bcrypt.hash("admin",10),
-      role: "admin"
-    });
-  } // First start condition
-  let ses = session.fromPartition("persist:bbs_auth");
-  let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
-  if(authCookies.length>0){
-    let cookieObj = authCookies[0];
-    let _user = JSON.parse(cookieObj.value);
-    if(_user && cookieObj.expirationDate>Date.now()){
-      let { id,name,secret,role,session,sessionTime,usePasswd } = _user;
-      currentUser = new User(id,name,secret,role,session,sessionTime,usePasswd);
-      currentUser.login();
+  try{
+    let userCount = (await user.findAll()).length;
+    if (userCount === 0) {
       fileName = "mainPage";
+      await user.create({
+        id: uuid.v5("admin", "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        name: "admin",
+        passwd: await bcrypt.hash("admin", 10),
+        role: "admin",
+      });
+    } // First start condition
+    let ses = session.fromPartition("persist:bbs_auth");
+    let authCookies = await ses.cookies.get({
+      name: "bbs_auth",
+      url: "http://localhost",
+    });
+    if (authCookies.length > 0) {
+      let cookieObj = authCookies[0];
+      let _user = JSON.parse(cookieObj.value);
+      if (_user && cookieObj.expirationDate > Date.now()) {
+        let { id, name, secret, role, session, sessionTime, usePasswd } = _user;
+        currentUser = new User(
+          id,
+          name,
+          secret,
+          role,
+          session,
+          sessionTime,
+          usePasswd
+        );
+        currentUser.login();
+        fileName = "mainPage";
+      }
     }
+    // firstBoot = true;
+    // const mainWindow = createModal(
+    //   windowOptions,
+    //   `./template/html/firstBoot.html`,
+    //   { maxWinCount: 1, label: "Main",show:true,
+    //     cb:function(){
+    //       this.webContents.send("first-launch");
+    //     } 
+    //   }
+    // );
+    const mainWindow = createModal(
+      windowOptions,
+      `./template/html/${fileName}.html`,
+      { maxWinCount: 1, label: "Main" }
+    );
+    let strtMsg = process.argv.find(str=>str.startsWith("msg="));
+    if(strtMsg && typeof strtMsg==="string")
+      mainWindow.once("focus",()=>{
+        strtMsg=strtMsg.split("=").pop();
+        dialog.showMessageBox({
+          title:"Info",
+          message:strtMsg,
+          buttons:["Ok"]
+        });
+        spawn("rm -r ~/.config/BBS/*.deb",{
+          shell:true,
+          stdio:["pipe","pipe","pipe"]
+        }).stdio.every(stream=>{
+          stream.on("data",(data)=>{
+            appLogger({
+              message:data,
+              title:"STDIO"
+            })
+          });
+        })
+      });
+    let menu = Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
+    Menu.setApplicationMenu(menu);
+    mainWindow.maximize();
+    winState.manage(mainWindow);
+    mainWindow.webContents.on("did-finish-load", async () => {
+      if (currentUser) {
+        // For session login
+        let { id, name, role, usePasswd } = currentUser;
+        mainWindow.webContents.send("logged-in-user", {
+          id,
+          name,
+          role,
+          usePasswd,
+        });
+        if (!["admin", "all"].includes(currentUser.role)) imposeRestriction();
+      } else mainWindow.webContents.send("use-lock");
+    });
+    return mainWindow;
   }
-  const mainWindow = createModal(windowOptions,`./template/html/${fileName}.html`,{maxWinCount:1,label:"Main"});
-  let menu=Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
-  Menu.setApplicationMenu(menu);
-  mainWindow.maximize();
-  winState.manage(mainWindow);
-  mainWindow.webContents.on("did-finish-load",async ()=>{
-    if(currentUser){ // For session login
-      let {id,name,role,usePasswd} = currentUser;
-      mainWindow.webContents.send("logged-in-user",{id,name,role,usePasswd});
-      if(!["admin","all"].includes(currentUser.role))
-        imposeRestriction();
+  catch(err){
+    if("name" in err && err.name==="SequelizeDatabaseError"){
+      firstBoot = true;
+      let appConfig = fs.readFileSync (getAppPolicyPath())
+      const mainWindow = createModal(
+        windowOptions,
+        `./template/html/firstBoot.html`,
+        { maxWinCount: 1, label: "Main", show: true,
+          cb:function(){
+            let hasBackup = JSON.parse(appConfig.toString())?.hasBackup || false;
+            if(!hasBackup)
+              this.webContents.send("first-launch");
+          }
+        }
+      );
+      await sequelize.sync({
+        force:true,
+        alter:true
+      }).catch(console.warn);
+      appLogger({message:"Database initialized."});
+      return mainWindow;
     }
     else
-      mainWindow.webContents.send("use-lock");
-  });
-  return mainWindow;
-}
-
-exports.billDesignerWindow = mainWindow => {
-  return ()=>{
-    mainWindow.loadFile("./template/html/billLayout.html");
-    let menu = Menu.getApplicationMenu();
-    menu.append(new MenuItem({
-      role:"fileMenu",
-      submenu:[
-        new MenuItem({
-          label:"New",
-          click: ()=>{
-            mainWindow.webContents.send("new-template");
-          }
-        }),
-        new MenuItem({
-          label:"Open",
-          click:async ()=>{
-            try{
-              let { canceled,filePaths } = await dialog.showOpenDialog({
-                defaultPath:app.getPath("documents"),
-                filters:[{name:"JSON Files",extensions:["json"]}]
-              });
-              if(canceled) return;
-              fs.readFile(filePaths[0],(err,data)=>{
-                if(err) throw err;
-                mainWindow.webContents.send("set-opened-file",JSON.parse(data.toString()),filePaths[0]);
-              });
-            }
-            catch(err){
-              console.log(err);
-            }
-          }
-        }),
-        new MenuItem({
-          label:"Save as",
-          click: ()=>mainWindow.webContents.send("save-as")
-        }),
-        new MenuItem({
-          label:"Save & Exit",
-        })
-      ],
-      enabled:true,
-      visible:true,
-      label:"File"
-    }));
-    Menu.setApplicationMenu(menu);
+      appLogger({
+        title:"Error",
+        message:String(err)
+      });
   }
 }
 
-ipcMain.handle("get-users", async ()=>{
-  return (await user.findAll({
-    attributes: ["name" , "id"]
-  })).map(({dataValues})=>dataValues);
+exports.billDesignerWindow = (mainWindow) => {
+  return () => {
+    mainWindow.loadFile("./template/html/billLayout.html");
+    let menu = Menu.getApplicationMenu();
+    menu.append(
+      new MenuItem({
+        role: "fileMenu",
+        submenu: [
+          new MenuItem({
+            label: "New",
+            click: () => {
+              mainWindow.webContents.send("new-template");
+            },
+          }),
+          new MenuItem({
+            label: "Open",
+            click: async () => {
+              try {
+                let { canceled, filePaths } = await dialog.showOpenDialog({
+                  defaultPath: app.getPath("documents"),
+                  filters: [{ name: "JSON Files", extensions: ["json"] }],
+                });
+                if (canceled) return;
+                fs.readFile(filePaths[0], (err, data) => {
+                  if (err) throw err;
+                  mainWindow.webContents.send(
+                    "set-opened-file",
+                    JSON.parse(data.toString()),
+                    filePaths[0]
+                  );
+                });
+              } catch (err) {
+                appLogger({title:"Error",message:err});
+              }
+            },
+          }),
+          new MenuItem({
+            label: "Save as",
+            click: () => mainWindow.webContents.send("save-as"),
+          }),
+          new MenuItem({
+            label: "Save & Exit",
+          }),
+        ],
+        enabled: true,
+        visible: true,
+        label: "File",
+      })
+    );
+    Menu.setApplicationMenu(menu);
+  };
+};
+
+ipcMain.handle("get-users", async () => {
+  return (
+    await user.findAll({
+      attributes: ["name", "id"],
+    })
+  ).map(({ dataValues }) => dataValues);
 });
 
 // app.whenReady().then(createWindow);
 
-app.on("quit",()=>{
-  let rawData = fs.readFileSync(__dirname+"/config/saleConfig.json").toString();
-  let saleConfig=rawData!==""?JSON.parse(rawData):{};
+app.on("quit", () => {
+  let rawData = fs
+    .readFileSync(getsaleConfigPolicyPath())
+    .toString();
+  let saleConfig = rawData !== "" ? JSON.parse(rawData) : {};
   saleConfig.billNo = getLastBillNo();
-  fs.writeFileSync(__dirname+"/config/saleConfig.json",JSON.stringify(saleConfig));
+  fs.writeFileSync(
+    getsaleConfigPolicyPath(),
+    JSON.stringify(saleConfig)
+  );
   let fds = getLoggerFD();
-  fds.forEach(fd=>{
-    fs.close(fd,err=>{
-      if(err) throw err;
+  appLogger({title:"Log FDs",message:fds});
+  if(fds.length>0)
+    fds.forEach((fd) => {
+      if(typeof fd ==="number")
+        fs.close(fd, (err) => {
+          if (err) throw err;
+        });
     });
-  });
   globalShortcut.unregister("CommandOrControl+N");
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin')
-    app.quit();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
   // app.hide()
 });
 
-app.on('activate', async () => {
-  if (BrowserWindow.getAllWindows().length === 0) 
-    await createWindow();
+app.on("activate", async () => {
+  if (BrowserWindow.getAllWindows().length === 0) await createWindow();
 });
 
-function takeAttendance(refWindow){
+function takeAttendance(refWindow) {
+  if(!["all","admin"].includes(currentUser?.roles || "")) return;
   windowOptions.parent = refWindow;
   closeFlag = false;
-  let win = createModal(windowOptions,"template/html/attendaceModal.html",{maxWinCount:1,label:"Attendance-modal"});
-  win.on("close",(e)=>{
-    if(closeFlag==false){
+  let win = createModal(windowOptions, "./template/html/attendaceModal.html", {
+    maxWinCount: 1,
+    label: "Attendance-modal",
+  });
+  win.on("close", (e) => {
+    if (closeFlag == false) {
       e.preventDefault();
       e.sender.send("update-attendance-close");
     }
   });
 }
 
-function paySalary(refWindow){
+function paySalary(refWindow) {
   windowOptions.parent = refWindow;
-  createModal(windowOptions,"template/html/salaryPaymentModal.html",{maxWinCount:1,label:"Salary-Modal"});
+  createModal(windowOptions, "./template/html/salaryPaymentModal.html", {
+    maxWinCount: 1,
+    label: "Salary-Modal",
+  });
 }
 
-app.on("ready",async ()=>{
+app.on("ready", async () => {
   let policyJsonSchema = {
-    "noReturn":120,
-    "gstRecurranceTerm":1,
-    "financialYearStartDate":"1/4",
-    "minStock":10,
-    "creditLimitDays":21
+    "noReturn": 120,
+    "gstRecurranceTerm": 1,
+    "financialYearStartDate": "1/4",
+    "minStock": 10,
+    "creditLimitDays": 21,
+    "wallpaper": ""
   };
   let saleConfigSchema = {
-    "billNo": 31,
-    "biller": "Usha HardWare Store",
-    "address": "70, N.S. Road, Kolkata-700001, West Bengal, India",
-    "gst": "12ad",
-    "phones": ["9143133196", "9038825247"],
+    "billNo": 32,
+    "biller": "",
+    "address": "",
+    "gst": "",
+    "phones": [],
     "scriptFile": "makePDF.default",
     "lib": "buildPage.default",
     "borderRect": [10, 22, 590, 750],
@@ -223,756 +362,853 @@ app.on("ready",async ()=>{
     "defaultFontSize": 10,
     "headingFontSize": 12,
     "margin": 10,
-    "emblem": "Bhagawati Emblem.jpg"
+    "emblem": "",
+    "unitMap": [{ "Kg": 1 }, { "Bag": 50 }, { "Bundle": 5 }, { "Piece": 1 }],
+    "billTemplate": {
+      "applyTemplate": false,
+      "file": ""
+    },
+    "bankDetails": {}
   };
   let appDefaultSchema = {
     "a4": { "width": 595.28, "height": 841.89 },
     "letter": { "width": 612, "height": 792 },
     "applyTheme": false,
     "file": "",
-    "useDarkTheme":false
-  }
-  //Initialize BBS
-  fs.readFile(__dirname+"/config/saleConfig.json",(err,data)=>{
-    if(err)
-      return console.error(err);
-    const {billNo} = JSON.parse(data);
-    billNoCounter(billNo);
-  });
+    "useDarkTheme": false
+  };
+  //Initialize BBS..
   //Initialize logger file
-  loggerFH("dbLogs.txt");
-  loggerFH("appLogs.txt");
   //Check for required files and directories
   let fileList = [];
   let readInterface = readLine.createInterface({
-    input:fs.createReadStream("fileList"),
-    output:process.stdout,
-    terminal:false
+    input: fs.createReadStream(__dirname + "/fileList"),
+    output: process.stdout,
+    terminal: false,
   });
-  readInterface.on("line",line=>fileList.push(JSON.parse(line)));
-  readInterface.on("close",()=>{
-    fileList.forEach(({fPath,fileName,type,dir})=>{
-      //check for dir
-      if(!fs.existsSync(path.resolve(__dirname,dir)))
-        fs.mkdir(path.resolve(__dirname,dir),(err)=>{
-          if(err) throw err;
-          console.log("Directory created")
-        });
-      //check for files
-      if(!fs.existsSync(path.resolve(fPath))){
-        if(type==="config"){
-          let schema;
-          if(fileName==="policy.json")
-            schema = policyJsonSchema;
-          else
-          if(fileName==="saleConfig.json")
-            schema = saleConfigSchema;
-          else
-          if(fileName==="appDefault.json")
-            schema = appDefaultSchema;
-          fs.writeFile(path.resolve(fPath),JSON.stringify(schema),(err)=>{
-            if(err) throw err;
+  appLogger({APP_ENV:process.env.APP_ENV})
+  readInterface.on("line", (line) => fileList.push(JSON.parse(line)));
+  readInterface.on("close",async () => {
+    try {
+      await Promise.all(
+        fileList.map(async ({ fPath, fileName, type, dir }) => {
+          //check for dir
+          return new Promise((res,rej)=>{
+            let rootPath;
+            if(process.env.APP_ENV==="DEV")
+              rootPath = __dirname;
+            else
+              rootPath = app.getPath("appData")+"/BBS";
+            if (!fs.existsSync(path.resolve(rootPath, dir)))
+              fs.mkdir(path.resolve(rootPath, dir), (err) => {
+                if (err) rej(err);
+                appLogger({title:"Directory created",message:path.resolve(rootPath, dir)});
+                res(true)
+              });
+            //check for files
+            if (!fs.existsSync(path.resolve(rootPath, fPath))) {
+              if (type === "config") {
+                let schema;
+                if (fileName === "policy.json") schema = policyJsonSchema;
+                else if (fileName === "saleConfig.json") schema = saleConfigSchema;
+                else if (fileName === "appDefault.json") schema = appDefaultSchema;
+                fs.writeFile(path.resolve(rootPath,fPath), JSON.stringify(schema), (err) => {
+                  if (err) rej(err);
+                  appLogger({title:"File created",message:path.resolve(rootPath,fPath)});
+                  res(true);
+                });
+              } // Specify condition for otherfile types for later versions
+            }
+            res(true);
           });
+        })
+      ).catch(err=>{
+        appLogger({title:"Error",message:err});
+      });
+      appLogger({message:"Filelist check complate"});
+      fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
+        if (err) return console.error(err);
+        const { billNo } = JSON.parse(data);
+        billNoCounter(billNo);
+      });
+      if(process.env.APP_ENV!=="DEV" && !fs.existsSync(app.getPath("appData")+"/BBS"))
+        fs.mkdirSync(app.getPath("appData")+"/BBS",{recursive:true});
+      loggerFH("dbLogs.txt");
+      loggerFH("appLogs.txt");
+      global.shouldWait = false;
+      // Adding tab switcher
+      let mainWindow = await createWindow();
+      let focussedWindow = BrowserWindow.getFocusedWindow();
+      globalShortcut.register("CommandOrControl+Tab+Up", () => {
+        if (mainWindow) {
+          let brWindows = BrowserWindow.getAllWindows();
+          brWindows = brWindows.filter((win) => win !== mainWindow);
+          let index = brWindows.indexOf(focussedWindow);
+          index = index === -1 ? 0 : index;
+          if (index === brWindows.length - 1) index = 0;
+          else index++;
+          focussedWindow = brWindows?.[index];
+          focussedWindow?.focus();
         }
-        else
-        if(type==="db")
-          fs.writeFile(path.resolve(fPath),undefined,{flag:"a"},(err)=>{
-            if(err) throw err;
-          });
+      });
+      if(firstBoot) return;
+      // Taking attendance
+      let todaysAttendance = (
+        await attendances.findOne({
+          where: {
+            date: new Date().toDateString(),
+          },
+          attributes: ["attendees"],
+        })
+      )?.dataValues;
+      let attendees = todaysAttendance?.attendees ?? [];
+      if (attendees.length > 0)
+        attendees = attendees.filter(({ presence }) => presence === 0);
+      if (
+        mainWindow &&
+        (!todaysAttendance || (todaysAttendance && attendees.length > 0))
+      )
+        takeAttendance(mainWindow);
+      if (new Date().getDate() > 1) {
+        let payHistory = (
+          await people.findAll({
+            attributes: ["moreInfo"],
+          })
+        ).map(({ dataValues }) => dataValues.moreInfo);
+        let thisMonthPayments = payHistory.filter((obj) => {
+          const { payHistory, salary } = obj;
+          let thisMonthPayment =
+            payHistory?.filter(
+              ({ date }) => new Date(date).getMonth() === new Date().getMonth()
+            )?.[0]?.payment ?? 0;
+          if (thisMonthPayment < Number(salary)) return true;
+        });
+        if (thisMonthPayments.length > 0) paySalary(mainWindow);
       }
-    });
-  });
-  // Adding tab switcher
-  let mainWindow = await createWindow();
-  let focussedWindow = BrowserWindow.getFocusedWindow()
-  globalShortcut.register("CommandOrControl+Tab+Up",()=>{
-    if(mainWindow){
-      let brWindows = BrowserWindow.getAllWindows();
-      brWindows = brWindows.filter(win=>win!==mainWindow);
-      let index = brWindows.indexOf(focussedWindow);
-      index = index===-1?0:index;
-      if(index===brWindows.length-1)
-        index = 0;
-      else
-        index++;
-      focussedWindow = brWindows?.[index];
-      focussedWindow?.focus();
+      // Initiating theme
+      if (process.platform === "linux") setLinuxThemeObserver();
+      await initTheme();
+    } catch (err) {
+      appLogger({ title: "Error", message: err });
     }
   });
-  // Taking attendance
-  let todaysAttendance = (await attendances.findOne({
-    where:{
-      date:new Date().toDateString()
-    },
-    attributes:["attendees"]
-  }))?.dataValues;
-  let attendees = todaysAttendance?.attendees ?? [];
-  if(attendees.length>0)
-    attendees = attendees.filter(({presence})=>presence===0);
-  if(mainWindow && (!todaysAttendance || (todaysAttendance && attendees.length>0)))
-    takeAttendance(mainWindow);
-  if(new Date().getDate()>1){
-    let payHistory = (await people.findAll({
-      attributes: ["moreInfo"]
-    }))
-    .map(({dataValues})=>dataValues.moreInfo)
-    let thisMonthPayments = payHistory.filter((obj)=>{
-      const {payHistory,salary} = obj;
-      let thisMonthPayment = payHistory?.filter(({date})=>(new Date(date).getMonth()===new Date().getMonth()))?.[0]?.payment ?? 0;
-      if(thisMonthPayment<Number(salary))
-        return true;
-    });
-    if(thisMonthPayments.length>0)
-      paySalary(mainWindow);
-  }
-  // Initiating theme
-  if(process.platform==="linux")
-    setLinuxThemeObserver();
-  await initTheme();
 });
 
-ipcMain.on("take-attendance",e=>{
-  let refWin = getTargetWindow("Employee-Page")
-  takeAttendance(refWin);
-  ipcMain.on("attendance-registered",()=>{
-    e.sender.send("attendance-registered")
-  })
-});
-
-ipcMain.on("open-salary-modal",e=>{
+ipcMain.on("take-attendance", (e) => {
   let refWin = getTargetWindow("Employee-Page");
-  paySalary(refWin);
-  ipcMain.on("Salary-Modal",()=>{
-    let msg = {
-      type: "info",
-      title: "Salary registered",
-      message: "Salary registered successfully."
-    }
-    dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+  takeAttendance(refWin);
+  ipcMain.on("attendance-registered", () => {
     e.sender.send("attendance-registered");
   });
 });
 
-exports.getCurrentLogin = function(){
+ipcMain.on("open-salary-modal", (e) => {
+  let refWin = getTargetWindow("Employee-Page");
+  paySalary(refWin);
+  ipcMain.on("Salary-Modal", () => {
+    let msg = {
+      type: "info",
+      title: "Salary registered",
+      message: "Salary registered successfully.",
+    };
+    dialog.showMessageBox(BrowserWindow.getFocusedWindow(), msg);
+    e.sender.send("attendance-registered");
+  });
+});
+
+exports.getCurrentLogin = function () {
   return currentUser;
-}
+};
 
 // Lander Page IPCs
 
-ipcMain.handle("get-overview-content",async ()=>{
-  let stocks = (await stock.findAll({
-    where:{
-      quantity: {
-        [Op.lte]: minStock
-      }
-    }
-  })).map(({dataValues})=>dataValues);
-  let unPaidBills = (await sale.findAll({
-    where:{
-      [Op.and]:[
-        {paymentStatus:false},
-        {
-          billDate: {
-            [Op.lte]:new Date(Date.now()-creditLimitDays*24*60*60*1000)
-          }
-        }
-      ]
-    }
-  })).map(({dataValues})=>dataValues);
-  return {unPaidBills,stocks};
-});
-
-ipcMain.on("new-sale-purchase",(e,mode)=>{
-  if(["all","admin","bill"].includes(currentUser.role) && mode===1)
-    Menu.getApplicationMenu().items[1].submenu.items[0].click();
-  else
-  if(["all","admin","purchase"].includes(currentUser.role) && mode===2)
-    Menu.getApplicationMenu().items[2].submenu.items[0].click();
-  else
-    e.sender.send("error","Insufficient permission");
-});
-
-ipcMain.handle("get-sale-content",async ()=>{
-  let queuedBills = (await sale.findAll({
-    where:{
-      deliveryStatus:"queued"
-    },
-    attributes:[["billItemTable","tableName"],"name","billNo"]
-  })).map(({dataValues})=>dataValues);
-  let bills = await queuedBills.reduce(async (acc,{tableName,billNo,name},index)=>{
-    acc = await acc;
-    try{
-      let billItems = (await (await sequelize.define(tableName,billItemSchema,{
-        freezeTableName: true,
-        timestamps: false
-      })).findAll()).map(({dataValues})=>dataValues);
-      acc.push({billItems,name,billNo});
-    }
-    catch(err){
-      console.log(err);
-    }
-    return acc;
-  },[]);
-  let allBills = (await sale.findAll()).map(({dataValues})=>dataValues);
-  return {bills,allBills: allBills};
-});
-
-ipcMain.handle("get-purchase-content",async ()=>{
-  return (await purchase.findAll()).map(({dataValues})=>dataValues);
-});
-
-ipcMain.handle("add-user", async (e,data)=>{
-  let encryptedPaswd = await bcrypt.hash(data.passwd,10);
-  let role = ["admin","all"].includes(currentUser.role) ? data.role : "bill";
-  try{
-    return user.findOrCreate({
-      where:{
-        id: uuid.v5(data.name,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+ipcMain.handle("get-overview-content", async () => {
+  let { minStock,creditLimitDays } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  let stocks = (
+    await stock.findAll({
+      where: {
+        quantity: {
+          [Op.lte]: minStock,
+        },
       },
-      defaults:{
-        id: uuid.v5(data.name,"6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+    })
+  ).map(({ dataValues }) => dataValues);
+  let unPaidBills = (
+    await sale.findAll({
+      where: {
+        [Op.and]: [
+          { paymentStatus: false },
+          {
+            billDate: {
+              [Op.lte]: new Date(
+                Date.now() - creditLimitDays * 24 * 60 * 60 * 1000
+              ),
+            },
+          },
+        ],
+      },
+    })
+  ).map(({ dataValues }) => dataValues);
+  return { unPaidBills, stocks };
+});
+
+ipcMain.on("new-sale-purchase", (e, mode) => {
+  if (["all", "admin", "bill"].includes(currentUser.role) && mode === 1)
+    Menu.getApplicationMenu().items[1].submenu.items[0].click();
+  else if (
+    ["all", "admin", "purchase"].includes(currentUser.role) &&
+    mode === 2
+  )
+    Menu.getApplicationMenu().items[2].submenu.items[0].click();
+  else e.sender.send("error", "Insufficient permission");
+});
+
+ipcMain.handle("get-sale-content", async () => {
+  let queuedBills = (
+    await sale.findAll({
+      where: {
+        deliveryStatus: "queued",
+      },
+      attributes: [["billItemTable", "tableName"], "name", "billNo"],
+    })
+  ).map(({ dataValues }) => dataValues);
+  let bills = await queuedBills.reduce(
+    async (acc, { tableName, billNo, name }, index) => {
+      acc = await acc;
+      try {
+        let billItems = (
+          await (
+            await sequelize.define(tableName, billItemSchema, {
+              freezeTableName: true,
+              timestamps: false,
+            })
+          ).findAll()
+        ).map(({ dataValues }) => dataValues);
+        acc.push({ billItems, name, billNo });
+      } catch (err) {
+        appLogger({title:"Error",message:err});
+      }
+      return acc;
+    },
+    []
+  );
+  let allBills = (await sale.findAll()).map(({ dataValues }) => dataValues);
+  return { bills, allBills: allBills };
+});
+
+ipcMain.handle("get-purchase-content", async () => {
+  return (await purchase.findAll()).map(({ dataValues }) => dataValues);
+});
+
+ipcMain.handle("add-user", async (e, data) => {
+  let encryptedPaswd = await bcrypt.hash(data.passwd, 10);
+  let role = ["admin", "all"].includes(currentUser.role) ? data.role : "bill";
+  try {
+    return user.findOrCreate({
+      where: {
+        id: uuid.v5(data.name, "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+      },
+      defaults: {
+        id: uuid.v5(data.name, "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
         name: data.name,
         passwd: encryptedPaswd,
-        role
-      }
+        role,
+      },
     });
-  }
-  catch(err){
-    console.log(err);
+  } catch (err) {
+    appLogger({title:"Error",message:err})
     return err;
   }
 });
 
-ipcMain.handle("update-user",async (e,data)=>{
-  let encryptedPaswd = await bcrypt.hash(data.password,10);
-  let admin = (await user.findOne({
-    where:{
-      id: currentUser.id
-    }
-  })).dataValues;
-  data.role = data.name==="admin" ? "admin" : data.role;
+ipcMain.handle("update-user", async (e, data) => {
+  let encryptedPaswd = await bcrypt.hash(data.password, 10);
+  let admin = (
+    await user.findOne({
+      where: {
+        id: currentUser.id,
+      },
+    })
+  ).dataValues;
+  data.role = data.name === "admin" ? "admin" : data.role;
   let updateObj = {
-    passwd: encryptedPaswd
+    passwd: encryptedPaswd,
   };
-  if(currentUser.name==="admin")
-    updateObj.role = data.role;
-  if(await bcrypt.compare(data["old-password"],admin.passwd))
-    return user.update(updateObj,{
-      where:{
-        id: data.id
-      }
+  if (currentUser.name === "admin") updateObj.role = data.role;
+  if (await bcrypt.compare(data["old-password"], admin.passwd))
+    return user.update(updateObj, {
+      where: {
+        id: data.id,
+      },
     });
-  else
-    throw new Error("Old pasword don't match.");
+  else throw new Error("Old pasword don't match.");
 });
 
-ipcMain.handle("get-file-path",(e,filterObj)=>{
-  return dialog.showOpenDialog(getMainWindow(),{
-    filters:[filterObj]
+ipcMain.handle("get-file-path", (e, filterObj) => {
+  return dialog.showOpenDialog(getMainWindow(), {
+    filters: [filterObj],
   });
 });
 
-ipcMain.handle("update-wallpaper",async (e,{filePath,usePasswd})=>{
-  try{
-    if(filePath){
-      let data = fs.readFileSync(path.resolve(__dirname,"./config/policy.json"));
+ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd }) => {
+  try {
+    if (filePath) {
+      let data = fs.readFileSync(
+        path.resolve(getUserPolicyPath())
+      );
       data = JSON.parse(data.toString());
       data.wallpaper = filePath;
-      fs.writeFileSync(path.resolve(__dirname,"./config/policy.json"),JSON.stringify(data));
+      fs.writeFileSync(
+        getUserPolicyPath(),
+        JSON.stringify(data)
+      );
     }
     currentUser.usePasswd = usePasswd;
-    await createSession(Date.now() + currentUser.sessionTime - currentUser.lastLogin);
-    await user.update({usePasswd},{where:{id:currentUser.id}})
-  }
-  catch(err){
+    await createSession(
+      Date.now() + currentUser.sessionTime - currentUser.lastLogin
+    );
+    await user.update({ usePasswd }, { where: { id: currentUser.id } });
+  } catch (err) {
     throw err;
   }
 });
 
-ipcMain.handle("get-user-status",async (e,id)=>{
-  return (await user.findOne({
-    where:{
-      id
-    },
-    attributes: ["secret"]
-  })).dataValues.secret;
+ipcMain.handle("get-user-status", async (e, id) => {
+  return (
+    await user.findOne({
+      where: {
+        id,
+      },
+      attributes: ["secret"],
+    })
+  ).dataValues.secret;
 });
 
-ipcMain.handle("generate-secret",()=>{
+ipcMain.handle("generate-secret", () => {
   const qrCode = require("qrcode");
-  let secret = speakeasy.generateSecret({name:"BBSv2",issuer:"codeMint.com"});
+  let secret = speakeasy.generateSecret({
+    name: "BBSv2",
+    issuer: "codeMint.com",
+  });
   currentUser.tempSecet = secret.base32;
   return qrCode.toDataURL(secret.otpauth_url);
 });
 
-ipcMain.handle("save-secret-for-user",()=>{
-  return user.update({
-    secret:currentUser.tempSecet
-  },{
-    where:{
-      id
+ipcMain.handle("save-secret-for-user", () => {
+  return user.update(
+    {
+      secret: currentUser.tempSecet,
+    },
+    {
+      where: {
+        id,
+      },
     }
-  });
+  );
 });
 
-ipcMain.handle("remove-secret",(e,id)=>{
-  return user.update({
-    secret:null
-  },{
-    where:{
-      id
+ipcMain.handle("remove-secret", (e, id) => {
+  return user.update(
+    {
+      secret: null,
+    },
+    {
+      where: {
+        id,
+      },
     }
-  })
+  );
 });
 
-async function createSession(time){
-  console.log("Creating session cookie.")
-  let cookie = { 
-    name:"bbs_auth",
-    value:JSON.stringify(currentUser),
-    url:"http://localhost",
-    expirationDate: Date.now() + time
+async function createSession(time) {
+  appLogger({message:"Creating session cookie."});
+  let cookie = {
+    name: "bbs_auth",
+    value: JSON.stringify(currentUser),
+    url: "http://localhost",
+    expirationDate: Date.now() + time,
   };
   let mainWin = getMainWindow();
   let ses = mainWin.webContents.session;
-  await ses.cookies.remove("http://localhost","bbs_auth");
-  let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
-  if(authCookies.length===0){
+  await ses.cookies.remove("http://localhost", "bbs_auth");
+  let authCookies = await ses.cookies.get({
+    name: "bbs_auth",
+    url: "http://localhost",
+  });
+  if (authCookies.length === 0) {
     await ses.cookies.set(cookie);
     await ses.cookies.flushStore();
-    return ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
-  }
-  else
-    throw new Error("Failed to create cookie");
+    return ses.cookies.get({ name: "bbs_auth", url: "http://localhost" });
+  } else throw new Error("Failed to create cookie");
 }
 
-ipcMain.handle("create-login-session",async (e,{expiry})=>{
-  try{
-    await user.update({
-      session: true,
-      sessionTime: Number(expiry)*1000*60*60
-    },{
-      where:{ id:currentUser.id }
-    });
+ipcMain.handle("create-login-session", async (e, { expiry }) => {
+  try {
+    await user.update(
+      {
+        session: true,
+        sessionTime: Number(expiry) * 1000 * 60 * 60,
+      },
+      {
+        where: { id: currentUser.id },
+      }
+    );
     currentUser.session = true;
-    currentUser.sessionTime = Number(expiry)*1000*60*60;
-    await createSession(Number(expiry)*1000*60*60);
-  }
-  catch(err){
-    console.log(err)
+    currentUser.sessionTime = Number(expiry) * 1000 * 60 * 60;
+    await createSession(Number(expiry) * 1000 * 60 * 60);
+  } catch (err) {
+    appLogger({title:"Error",message:err});
     return err;
   }
 });
 
-ipcMain.handle("remove-auth-session",async ()=>{
+ipcMain.handle("remove-auth-session", async () => {
   let ses = getMainWindow().webContents.session;
   try {
-    await user.update({
-      session: false
-    },{
-      where: { id: currentUser.id }
-    });
+    await user.update(
+      {
+        session: false,
+      },
+      {
+        where: { id: currentUser.id },
+      }
+    );
     currentUser.session = false;
-    await ses.cookies.remove("http://localhost","bbs_auth");
-  }  
-  catch (error) {
-    console.log(error)
+    await ses.cookies.remove("http://localhost", "bbs_auth");
+  } catch (err) {
+    appLogger({title:"Error",message:err});
     return error;
   }
 });
 
-ipcMain.on("logout",async ()=>{
-  try{
+ipcMain.on("logout", async () => {
+  try {
     let mainWin = getMainWindow();
     let ses = mainWin.webContents.session;
-    let authCookies = await ses.cookies.get({name:"bbs_auth",url:"http://localhost"});
-    if(authCookies.length>0)
-      await ses.cookies.remove("http://localhost","bbs_auth");
-    else
-      console.log("Cookie don't exist");
+    let authCookies = await ses.cookies.get({
+      name: "bbs_auth",
+      url: "http://localhost",
+    });
+    if (authCookies.length > 0)
+      await ses.cookies.remove("http://localhost", "bbs_auth");
+    else appLogger({message:"Cookie don't exist"});
     currentUser.logout();
     currentUser = null;
     mainWin.loadFile("./template/html/lockScreen.html");
-  }
-  catch(err){
-    console.log(err)
+  } catch (err) {
+    appLogger({title:"Error",message:err});
   }
 });
 
-function lock_unlockHelper(page,sig){
+function lock_unlockHelper(page, sig) {
   let mainWin = getMainWindow();
   mainWin.loadFile(`./template/html/${page}.html`);
-  mainWin.webContents.on("did-finish-load",function(e){
+  mainWin.webContents.on("did-finish-load", function (e) {
     try {
       mainWin.webContents.removeListener("did-finish-load", arguments.callee);
-    } catch (error) {
-      console.log(error)
+    } catch (err) {
+      appLogger({title:"Error",message:err});
     }
-    if(sig==="lock")
-      mainWin.webContents.send("lock",currentUser);
+    if (sig === "lock") mainWin.webContents.send("lock", currentUser);
   });
 }
 
-ipcMain.on("lock",()=>{
-  lock_unlockHelper("lockScreen","lock");
+ipcMain.on("lock", () => {
+  lock_unlockHelper("lockScreen", "lock");
 });
 
-ipcMain.on("unlock",()=>{
-  lock_unlockHelper("mainPage","unlock");
+ipcMain.on("unlock", () => {
+  lock_unlockHelper("mainPage", "unlock");
 });
 
-ipcMain.handle("check-session-info",async ()=>{
+ipcMain.handle("check-session-info", async () => {
   let ses = getMainWindow().webContents.session;
-  return ses.cookies.get({name:"bbs_auth",url:"http://localhost"})
+  return ses.cookies.get({ name: "bbs_auth", url: "http://localhost" });
 });
 
 // Lock Screen ipcs
 
-ipcMain.handle("unlock-app",async (e,authData)=>{
+ipcMain.handle("unlock-app", async (e, authData) => {
   let _user = await user.findOne({
-    where:{
-      name:authData.name
-    }
+    where: {
+      name: authData.name,
+    },
   });
-  if(!_user)
-    throw new Error("No user");
-  let {passwd,id,name,role,secret,session,sessionTime,usePasswd} = _user.dataValues;
-  if(await bcrypt.compare(authData.passwd,passwd)){
-    currentUser = new User(id,name,secret,role,session,sessionTime,usePasswd);
-    if(secret){
-      function writeTOTP(){
-        process.stdout.cursorTo(0,4)
+  if (!_user) throw new Error("No user");
+  let { passwd, id, name, role, secret, session, sessionTime, usePasswd } =
+    _user.dataValues;
+  if (await bcrypt.compare(authData.passwd, passwd)) {
+    currentUser = new User(
+      id,
+      name,
+      secret,
+      role,
+      session,
+      sessionTime,
+      usePasswd
+    );
+    if (secret) {
+      function writeTOTP() {
+        process.stdout.cursorTo(0, 4);
         process.stdout.clearLine(0);
-        process.stdout.write(speakeasy.totp({
-          secret:secret,
-          encoding:"base32"
-        })+"\n");
+        process.stdout.write(
+          speakeasy.totp({
+            secret: secret,
+            encoding: "base32",
+          }) + "\n"
+        );
       }
-      writeTOTP()
+      writeTOTP();
       clearInterval(totpTimer);
-      totpTimer = setInterval(writeTOTP,1000);
+      totpTimer = setInterval(writeTOTP, 1000);
       return 1;
     }
     ipcMain.emit("app-login");
     return 0;
-  }
-  else
-    return -1;
+  } else return -1;
 });
 
-ipcMain.on("load-lander-page",()=>{
+ipcMain.on("load-lander-page", () => {
   let mainPage = getMainWindow();
-  mainPage.loadFile("./template/html/mainPage.html")
+  mainPage.loadFile("./template/html/mainPage.html");
 });
 
-ipcMain.handle("verify-code", async (e,{code})=>{
+ipcMain.handle("verify-code", async (e, { code }) => {
   let res = speakeasy.totp.verify({
     secret: currentUser.secret,
-    window:0,
+    window: 0,
     token: code,
-    encoding:"base32"
+    encoding: "base32",
   });
-  if(res){
+  if (res) {
     clearInterval(totpTimer);
     ipcMain.emit("app-login");
-    try{
-      await user.update({
-        lastLogin: currentUser.lastLogin
-      },{
-        where:{id:currentUser.id}
-      })
-    }
-    catch(err){
-      throw new Error(err)
+    try {
+      await user.update(
+        {
+          lastLogin: currentUser.lastLogin,
+        },
+        {
+          where: { id: currentUser.id },
+        }
+      );
+    } catch (err) {
+      throw new Error(err);
     }
   }
   return res;
 });
 
-ipcMain.on("app-login",async ()=>{
-  console.log({section: "App Login Handler"});
+ipcMain.on("app-login", async () => {
+  appLogger({ message: "App Login Handler" });
   currentUser.login();
   clearInterval(totpTimer);
-  try{
-    if(currentUser.session)
-      await createSession(currentUser.sessionTime);
-    await user.update({
-      lastLogin: Date.now()
-    },{
-      where: { id: currentUser.id }
-    })
-  }
-  catch(err){
-    console.log(err);
-  }
-  finally{
+  try {
+    if (currentUser.session) await createSession(currentUser.sessionTime);
+    await user.update(
+      {
+        lastLogin: Date.now(),
+      },
+      {
+        where: { id: currentUser.id },
+      }
+    );
+  } catch (err) {
+    appLogger({title:"Error",message:err});
+  } finally {
     imposeRestriction();
   }
 });
 
-function imposeRestriction(){
+function imposeRestriction() {
   // This is how to restrict access to some user.
-  function blockHelper(menuList=[]){
-    menuList.forEach(({index,isEnabled})=>{
-      Menu.getApplicationMenu().items[index]
-      .submenu.items.forEach(item=>{item.enabled=isEnabled});
+  function blockHelper(menuList = []) {
+    menuList.forEach(({ index, isEnabled }) => {
+      Menu.getApplicationMenu().items[index].submenu.items.forEach((item) => {
+        item.enabled = isEnabled;
+      });
     });
   }
-  
-  if(currentUser.role==="bill")
-    blockHelper([{index:1,isEnabled:true},{index:2,isEnabled:false}]);
-  else
-  if(currentUser.role==="purchase")
-    blockHelper([{index:2,isEnabled:true},{index:1,isEnabled:false}]);
-  else {// Case for role admin and all
+
+  if (currentUser.role === "bill")
+    blockHelper([
+      { index: 1, isEnabled: true },
+      { index: 2, isEnabled: false },
+    ]);
+  else if (currentUser.role === "purchase")
+    blockHelper([
+      { index: 2, isEnabled: true },
+      { index: 1, isEnabled: false },
+    ]);
+  else {
+    // Case for role admin and all
     // Checking for update
     checkForUpdates();
-    return Menu.getApplicationMenu().items.forEach(({submenu})=>{
-      submenu.items.forEach(item=>{
+    return Menu.getApplicationMenu().items.forEach(({ submenu }) => {
+      submenu.items.forEach((item) => {
         item.enabled = true;
       });
     });
   }
   blockHelper([
-    {index:4,isEnabled:false},
-    {index:5,isEnabled:false},
+    { index: 4, isEnabled: false },
+    { index: 5, isEnabled: false },
   ]);
 }
 
 // Bill designer IPCs
 
-ipcMain.on("load-main-page",()=>{
+ipcMain.on("load-main-page", () => {
   let mainWindow = getMainWindow();
   mainWindow.loadFile("./template/html/mainPage.html");
   let menu = Menu.getApplicationMenu();
-  let fileMenuIndex = menu.items.findIndex(obj=>obj.label==="File");
-  if(fileMenuIndex>=0){
-    menu.items.splice(fileMenuIndex,1);
+  let fileMenuIndex = menu.items.findIndex((obj) => obj.label === "File");
+  if (fileMenuIndex >= 0) {
+    menu.items.splice(fileMenuIndex, 1);
     Menu.setApplicationMenu(Menu.buildFromTemplate(menu.items));
   }
 });
 
-ipcMain.on("save-bill-template",async (e,page,saveAs=false)=>{
+ipcMain.on("save-bill-template", async (e, page, saveAs = false) => {
   let win = BrowserWindow.fromId(e.frameId);
-  try{
-    let { canceled,filePath } = (page.newDoc || saveAs) ? await dialog.showSaveDialog(win,{
-      message: "Save bill template",
-      defaultPath:app.getPath("documents"),
-      properties:["createDirectory"]
-    }) : { canceled:false,filePath:page.filePath };
-    if(canceled) return 0;
-    if(!/.json$/.test(filePath))
-      filePath += ".json";
-    fs.writeFile(filePath,JSON.stringify(page),err=>{
-      if(err) return dialog.showErrorBox("File save error",err.message);
-      return dialog.showMessageBox(win,{
-        title:"Success",
-        message:"Successfully saved bill layout.",
-        type:"info"
+  try {
+    let { canceled, filePath } =
+      page.newDoc || saveAs
+        ? await dialog.showSaveDialog(win, {
+            message: "Save bill template",
+            defaultPath: app.getPath("documents"),
+            properties: ["createDirectory"],
+          })
+        : { canceled: false, filePath: page.filePath };
+    if (canceled) return 0;
+    if (!/.json$/.test(filePath)) filePath += ".json";
+    fs.writeFile(filePath, JSON.stringify(page), (err) => {
+      if (err) return dialog.showErrorBox("File save error", err.message);
+      return dialog.showMessageBox(win, {
+        title: "Success",
+        message: "Successfully saved bill layout.",
+        type: "info",
       });
     });
-  }
-  catch(err){
-    dialog.showErrorBox("File save error",err.message)
+  } catch (err) {
+    dialog.showErrorBox("File save error", err.message);
     return -1;
   }
 });
 
-ipcMain.handle("new-template-response",async (e,page)=>{
+ipcMain.handle("new-template-response", async (e, page) => {
   let win = BrowserWindow.fromId(e.frameId);
-  try{
-    return dialog.showMessageBox(win,{
-      type:"question",
-      message:"Do you like save changes for future use?",
-      title:"Save?",
-      detail:"Changes in document will be earesed unless you save. A new untittled document will be created.",
-      buttons:["Save","Don't save"]
+  try {
+    return dialog.showMessageBox(win, {
+      type: "question",
+      message: "Do you like save changes for future use?",
+      title: "Save?",
+      detail:
+        "Changes in document will be earesed unless you save. A new untittled document will be created.",
+      buttons: ["Save", "Don't save"],
     });
-  }
-  catch(err){
+  } catch (err) {
     return err;
   }
 });
 
 //Company profile IPCs
-ipcMain.on("company-profile-info",async (e,data)=>{
+ipcMain.on("company-profile-info", async (e, data) => {
   let win = BrowserWindow.fromId(e.frameId);
-  let companyObj = await (new Promise((res,rej)=>{
-    fs.readFile("./config/saleConfig.json",(err,data)=>{
-      if(err) return rej(err);
-      res(JSON.parse(data.toString()))
-    });
-  }));
-  companyObj = {
-    ...companyObj,
-    ...data
-  }
-  fs.writeFile("./config/saleConfig.json",JSON.stringify(companyObj),err=>{
-    if(err) return dialog.showErrorBox("File save error",err.message);
-    return dialog.showMessageBox(win,{
-      title:"Success",
-      message:"Company profile updated.",
-      type:"info"
+  let companyObj = await new Promise((res, rej) => {
+    fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
+      if (err) return rej(err);
+      res(JSON.parse(data.toString()));
     });
   });
+  companyObj = {
+    ...companyObj,
+    ...data,
+  };
+  fs.writeFile(
+    getsaleConfigPolicyPath(),
+    JSON.stringify(companyObj),
+    (err) => {
+      if (err) return dialog.showErrorBox("File save error", err.message);
+      return dialog.showMessageBox(win, {
+        title: "Success",
+        message: "Company profile updated.",
+        type: "info",
+      });
+    }
+  );
 });
 
-ipcMain.handle("get-company-info",()=>{
-  return new Promise((res,rej)=>{
-    fs.readFile("./config/saleConfig.json",(err,data)=>{
-      if(err) return rej(err);
-      res(JSON.parse(data.toString()))
+ipcMain.handle("get-company-info", () => {
+  return new Promise((res, rej) => {
+    fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
+      if (err) return rej(err);
+      res(JSON.parse(data.toString()));
     });
   });
 });
 
 // Context Menu
-ipcMain.on("show-context-menu",(e,{mode,x,y})=>{
+ipcMain.on("show-context-menu", (e, { mode, x, y }) => {
   let window = BrowserWindow.fromId(e.frameId);
-  if(mode==="overview-table"){
+  if (mode === "overview-table") {
     let contextMenuObj = [
       {
-        "label":"View Bill",
-        click:()=>{
+        label: "View Bill",
+        click: () => {
           window.webContents.send("show-bill");
-        }
+        },
       },
       {
-        "label":"Add Payment",
-        click:()=>{
-          ipcMain.emit("toggle-theme")
-        }
+        label: "Add Payment",
+        click: () => {
+          ipcMain.emit("toggle-theme");
+        },
       },
       {
-        "label":"Notify"
+        label: "Notify",
       },
       {
-        "label":"Print"
-      }
+        label: "Print",
+      },
     ];
     let menu = Menu.buildFromTemplate(contextMenuObj);
     menu.popup({
       window,
       x,
       y,
-      callback:()=>{
+      callback: () => {
         console.log("Context menu closed");
-      }
+      },
     });
   }
 });
 
 //Theme IPC
-ipcMain.handle("get-theme",async e=>{
-  let { applyTheme=false } = appPolicy;
-  if(applyTheme) return false;
-  return defaultThemeData()
+ipcMain.handle("get-theme", async (e) => {
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  let { applyTheme = false } = appPolicy;
+  if (applyTheme) return false;
+  return defaultThemeData();
 });
 
-ipcMain.handle("init-theme",initTheme);
+ipcMain.handle("init-theme", initTheme);
 
-ipcMain.on("save-theme-setting",async (e,data)=>{
+ipcMain.on("save-theme-setting", async (e, data) => {
   let win = BrowserWindow.fromId(e.frameId);
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   appPolicy = {
     ...appPolicy,
-    ...data
+    ...data,
   };
-  fs.writeFile("./config/appDefault.json",JSON.stringify(appPolicy),err=>{
-    if(err) throw err;
-    dialog.showMessageBox(win,{
-      title:"Success",
-      message:"Appearance setting saved.",
-      type:"info"
-    });
-    if(process.platform==="linux")
-      setLinuxThemeObserver();
-    initTheme();
-  });
+  fs.writeFile(
+    getAppPolicyPath(),
+    JSON.stringify(appPolicy),
+    (err) => {
+      if (err) throw err;
+      dialog.showMessageBox(win, {
+        title: "Success",
+        message: "Appearance setting saved.",
+        type: "info",
+      });
+      if (process.platform === "linux") setLinuxThemeObserver();
+      initTheme();
+    }
+  );
 });
 
-ipcMain.on("save-theme",(e,themeObj)=>{
+ipcMain.on("save-theme", (e, themeObj) => {
   let win = BrowserWindow.fromId(e.frameId);
-  let path2File = path.resolve("lib/default.theme");
-  try{
-    let buffData = Buffer.from(Buffer.from(JSON.stringify(themeObj)).map(customEncoder));
-    fs.writeFile(path2File,buffData,(err)=>{
-      if(err) throw err;
+  let path2File = path.resolve(__dirname, "lib/default.theme");
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  try {
+    let buffData = Buffer.from(
+      Buffer.from(JSON.stringify(themeObj)).map(customEncoder)
+    );
+    fs.writeFile(path2File, buffData, (err) => {
+      if (err) throw err;
       // Apply saved theme
-      if("applyTheme" in appPolicy && appPolicy.applyTheme===false){
+      if ("applyTheme" in appPolicy && appPolicy.applyTheme === false) {
         //Apply default theme.
-        dialog.showMessageBox(win,{
-          title:"Theme applied",
+        dialog.showMessageBox(win, {
+          title: "Theme applied",
           type: "info",
-          message: "Applied default theme."
+          message: "Applied default theme.",
         });
-        if(process.platform==="linux")
-          setLinuxThemeObserver();
+        if (process.platform === "linux") setLinuxThemeObserver();
         initTheme();
       }
     });
-  }
-  catch(err){
+  } catch (err) {
     throw err;
   }
 });
 
-function defaultThemeData(){
-  return (new Promise((res,rej)=>{
-    fs.readFile("./lib/default.theme",(err,data)=>{
-      if(err) rej(err);
+function defaultThemeData() {
+  return new Promise((res, rej) => {
+    fs.readFile(__dirname + "/lib/default.theme", (err, data) => {
+      if (err) rej(err);
       let dataBuff = Buffer.from(data.map(customDecoder));
       res(JSON.parse(dataBuff.toString()));
     });
-  }));
+  });
 }
 
-ipcMain.handle("get-app-policy",e=>{
-  return new Promise((res,rej)=>{
-    fs.readFile("./config/appDefault.json",(err,data)=>{
-      if(err) rej(err);
-      res(JSON.parse(data.toString()))
+ipcMain.handle("get-app-policy", (e) => {
+  return new Promise((res, rej) => {
+    fs.readFile(getAppPolicyPath(), (err, data) => {
+      if (err) rej(err);
+      res(JSON.parse(data.toString()));
     });
-  })
+  });
 });
 
-function setLinuxThemeObserver(){
-  if(!("useDarkTheme" in appPolicy)) return;
-  if(appPolicy.useDarkTheme)
-    linuxThemeWatchTimer = setInterval(()=>{
+function setLinuxThemeObserver() {
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  if (!("useDarkTheme" in appPolicy)) return;
+  if (appPolicy.useDarkTheme)
+    linuxThemeWatchTimer = setInterval(() => {
       nativeTheme.themeSource = "system";
-      if(nativeTheme.shouldUseDarkColors)
-        nativeTheme.themeSource = "dark";
-      else
-        nativeTheme.themeSource = "light";
-    },1500);
-  else
-    clearInterval(linuxThemeWatchTimer);
+      if (nativeTheme.shouldUseDarkColors) nativeTheme.themeSource = "dark";
+      else nativeTheme.themeSource = "light";
+    }, 1500);
+  else clearInterval(linuxThemeWatchTimer);
 }
 
-async function initTheme({shouldUpdate=false}={},e={}){
-  let win = "frameId" in e ? BrowserWindow?.fromId(e?.frameId) : getMainWindow();
+async function initTheme({ shouldUpdate = false } = {}, e = {}) {
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  let win =
+    "frameId" in e ? BrowserWindow?.fromId(e?.frameId) : getMainWindow();
   let dataBuff = await defaultThemeData();
   let themeObj = {
     ...appPolicy,
     ...dataBuff,
-    shouldUseDarkColors:nativeTheme.shouldUseDarkColors
-  }
-  win.webContents.send("apply-theme",themeObj);
-  if(shouldUpdate){
-    BrowserWindow.getAllWindows().forEach(_win=>{
-      if(_win!==win)
-        _win.webContents.send("apply-theme",themeObj);
-    })
+    shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+  };
+  win.webContents.send("apply-theme", themeObj);
+  if (shouldUpdate) {
+    BrowserWindow.getAllWindows().forEach((_win) => {
+      if (_win !== win) _win.webContents.send("apply-theme", themeObj);
+    });
   }
   return themeObj;
 }
 
-nativeTheme.addListener("updated",initTheme.bind(null,{shouldUpdate:true}));
+nativeTheme.addListener(
+  "updated",
+  initTheme.bind(null, { shouldUpdate: true })
+);
 
-ipcMain.handle("get-svg",(e,filePath)=>{
+ipcMain.handle("get-svg", (e, filePath) => {
   return fs.readFileSync(filePath).toString();
 });
 
+ipcMain.handle("get-policy",()=>{
+  let path2policy = getUserPolicyPath();
+  return JSON.parse(fs.readFileSync(path2policy).toString());
+});
+
+// App Backup Section
 // setInterval(()=>{
 //   nativeTheme.themeSource = "system";
 //   if(nativeTheme.shouldUseDarkColors)
@@ -982,14 +1218,14 @@ ipcMain.handle("get-svg",(e,filePath)=>{
 // },1500);// Remove later
 
 // Backup manager
-ipcMain.handle("app-backup",async (e,data)=>{
+ipcMain.handle("app-backup", async (e, data) => {
   let dirPath = await dialog.showSaveDialog({
-    message:"A backup directory will be created to host backup files.",
-    defaultPath:app.getPath("documents")
+    message: "A backup directory will be created to host backup files.",
+    defaultPath: app.getPath("documents"),
   });
   // Create backup path if not exist then perform backups
   return;
-});// Not complete
+}); // Not complete
 
 // let backupDB = new Sequelize({
 //   dialect:"sqlite",
@@ -1006,100 +1242,220 @@ ipcMain.handle("app-backup",async (e,data)=>{
 // });
 
 // App registration
-ipcMain.handle("app-registration-info",e=>{
-  let saleConfig = JSON.parse(fs.readFileSync("./config/saleConfig.json").toString());
+ipcMain.handle("app-registration-info", (e) => {
+  let saleConfig = JSON.parse(
+    fs.readFileSync(getsaleConfigPolicyPath()).toString()
+  );
   return saleConfig.gst;
 });
 
-ipcMain.on("app-registration",async (e,gst)=>{
+ipcMain.on("app-registration", async (e, gst) => {
   let windowOptions = {
-    webPreferences:{
+    webPreferences: {
       nodeIntegration: false,
-      preload:__dirname+"/registrationPreload.js"
-    }
-  }
-  createModal(windowOptions,"./template/html/registration.html",{
-    label:"registration-window",
-    maxWinCount:1,
-    cb:function(){
-      this.webContents.send("call-register-link",gst);
-    }
+      preload: __dirname + "/registrationPreload.js",
+    },
+  };
+  createModal(windowOptions, "./template/html/registration.html", {
+    label: "registration-window",
+    maxWinCount: 1,
+    cb: function () {
+      this.webContents.send("call-register-link", gst);
+    },
   });
 });
 
 //App update logic
-async function checkForUpdates(){
-  let { UPDATE_URL,UPDATE_REST } = process.env;
-  let mainWin = getMainWindow();
-  if(!["admin","all"].includes(currentUser.role))
-  {
-    return dialog.showMessageBox(mainWin,{
-      title: "Unauthorized",
-      message: "Only Admin and user with role 'all' can check for update."
-    });
+async function updateCommon(){
+  let data = {
+    path2file:app.getPath("appData")+`/BBS/bbs_${this}_amd64.deb`,
+    time:Date.now(),
+    updateDownloaded:true,
+    versionDownloaded:this,
+    installMoment:"now",
+    updateComplete:false,
+    platform:process.platform
   }
-  console.log("Checking for update");
-  // app.getVersion();
-  let {isOnline,appVersion,err} = await new Promise((res)=>{
-    mainWin.webContents.send("check-for-update",UPDATE_REST,app.getVersion());
-    ipcMain.on("check-for-update-response",(e,{isOnline=false,appVersion,err})=>{
-      res({isOnline,appVersion,err});
-    });
+  let resp = await dialog.showMessageBox({
+    title:"Download complete",
+    message:"Update download complete, do you want to install now?",
+    buttons:["Install Now","Later"]
   });
-  if(err){
-    // Logic for error Handling
+  if(resp.response===1)
+    data.installMoment = "later";
+  if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
+    appLogger({
+      message:"Trying to install update."
+    });
+    app.quit();
+    let updator = spawn(`./updator.sh -u ${this}`,{
+      cwd:__dirname,
+      shell:true
+    });
+    updator.stderr.on("data",data=>{
+      appLogger({
+        title:"Error",
+        message:data
+      });
+    });
+    updator.stdout.on("data",data=>{
+      appLogger({
+        title:"Msg from updator",
+        message:data
+      })
+    });
+    updator.on("error",err=>{
+      appLogger({
+        title:"Spawn Error",
+        message:err
+      })
+    });
+    updator.on("exit",(code,signal)=>{
+      appLogger({
+        title:"Exit Event of updator",
+        message:JSON.stringify({code,signal})
+      });
+    });
   }
-  if(isOnline===false) 
-    return dialog.showMessageBox(mainWin,{
+}
+
+function downloadUpdate(appVersion){
+  let fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
+  appLogger({
+    message:"Downloading update"
+  });
+  axios.get(process.env.UPDATE_REST+`download/linux/bbs_${appVersion}_amd64.deb`,{
+    responseType:"stream"
+  })
+  .then(resp=>{
+    if(resp.ok) appLogger({message:"Response received from server"})
+    return new Promise((res,rej)=>{
+      resp.data.pipe(fileWriter);
+      fileWriter.on("error",(err)=>{
+        rej(err);
+        fileWriter.close();
+      });
+      fileWriter.on("close",()=>{
+        res(true);
+      });
+    });
+  })
+  .then(updateCommon.bind(appVersion))
+  .catch(err=>{
+    console.error("Error",err);
+    appLogger({
+      title:"Error",
+      message:err.message
+    })
+  });
+}
+
+async function checkForUpdates() {
+  let { UPDATE_REST } = process.env;
+  let mainWin = getMainWindow();
+  if (!["admin", "all"].includes(currentUser.role)) {
+    return dialog.showMessageBox(mainWin, {
+      title: "Unauthorized",
+      message: "Only Admin and user with role 'all' can check for update.",
+    });
+  }
+  appLogger({message:"Checking for update"});
+  let { isOnline, appVersion, err } = await new Promise((res) => {
+    mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
+    ipcMain.on(
+      "check-for-update-response",
+      (e, { isOnline = false, appVersion, err }) => {
+        res({ isOnline, appVersion, err });
+      }
+    );
+  });
+  if (err) {
+    // Logic for error Handling
+    appLogger({
+      title:"Error",
+      message:err.message
+    })
+  }
+  if (isOnline === false)
+    return dialog.showMessageBox(mainWin, {
       title: "No Connection",
-      message: "Failed to connect to update server."
+      message: "Failed to connect to update server.",
     });
   // Parse and santize appVersion
-  if(appVersion && typeof appVersion==="string" && new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)){
-    let [major,minor,bugFix] = app.getVersion().split(".");
-    let [_major,_minor,_bugFix] = appVersion.split(".");
+  if (
+    appVersion &&
+    typeof appVersion === "string" &&
+    new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)
+  ) {
+    let [major, minor, bugFix] = app.getVersion().split(".");
+    let [_major, _minor, _bugFix] = appVersion.split(".");
     let message;
-    if(Number(_major)>Number(major))
+    if (Number(_major) > Number(major))
       message = "A new version of BBS is available for download.";
-    if(Number(_minor)>Number(minor))
+    if (Number(_minor) > Number(minor))
       message = "A minor feature update is available for download.";
-    if(Number(_bugFix)>Number(bugFix))
+    if (Number(_bugFix) > Number(bugFix))
       message = "Bug fix available for download.";
     message += ` Please visit ${UPDATE_REST}/changelogs for more details.`;
-    let {response} = await dialog.showMessageBox(mainWin,{
+    appLogger({
+      major,_major,minor,_minor,bugFix,_bugFix,
+      cond1:Number(_major) === Number(major),
+      cond2:Number(_minor) === Number(minor),
+      cond3:Number(_bugFix) === Number(bugFix)
+    });
+    if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix))
+      return dialog.showMessageBox({
+        title:"No new update",
+        message: "Application is at latest release version"
+      });// App is already updated.
+    let { response } = await dialog.showMessageBox(mainWin, {
       title: "Update available for download",
       message,
-      buttons: ["Later","Update"]
+      buttons: ["Download", "Cancel"],
     });
-    if(response===0) return;
-    if(process.platform==="darwin"){
+    if (response === 1) return;
+    // If app is not already updated.
+    if (process.platform === "darwin") {
       UPDATE_URL += "mac/";
-      
-    }
-    else
-    if(process.platform==="win32"){
-  
-    }
-    else
-    if(process.platform==="linux"){
-      console.log("update for linux")
+    } else if (process.platform === "win32") {
+    } else if (process.platform === "linux") {
+      try{
+        let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());
+        if(updtConf.updateDownloaded && updtConf.versionDownloaded!==appVersion){
+          // Older version of app setup exist. So deleting and downloading latest.
+          fs.rmSync(updtConf.path2file);
+          return downloadUpdate(appVersion);
+        }
+        if(updtConf.updateDownloaded){
+          appLogger({ message: "Update is already downloaded." })
+          updateCommon.call(appVersion);
+        }
+        else{
+          //Downloading update as it is not downloaded
+          downloadUpdate(appVersion);
+        }
+      }
+      catch(err){
+        appLogger({
+          title:"Error",
+          message:err.message
+        });
+        downloadUpdate(appVersion);
+      }
     }
   }
 }
 
-autoUpdater.on("update-available",()=>{
-  const dialogOpts = {
-    type: 'info',
-    buttons: ['Cancel', 'Download'],
-    title: 'Application Update',
-    detail: 'A new version of BBS is ready for download.'
-  };
+// autoUpdater.on("update-available", () => {
+//   appLogger({message:"Starting install"});
+//   autoUpdater.quitAndInstall();
+// });
 
-  dialog.showMessageBox(dialogOpts, (response) => {
-    if (response === 0) { 
-      
-    }
-  });
-});
+// autoUpdater.on("error",(err)=>{
+//   appLogger({
+//     title:"Error",
+//     message:String(err)
+//   })
+// })
 
 module.exports.checkForUpdates = checkForUpdates;

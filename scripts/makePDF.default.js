@@ -5,9 +5,6 @@ const path = require("path");
 const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
 
 
-let saleConfig = require("../config/saleConfig.json");
-let { titleFontFamily } = saleConfig;
-
 function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template){
     let docOpts = {
         margin
@@ -32,7 +29,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
 
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj;
-    saleConfig = JSON.parse(fs.readFileSync("/home/bhagawati/Code/BBSv2.0.0/config/saleConfig.json").toString())
+    let saleConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname,"../config/saleConfig.json")).toString());
     let { margin, emblem } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
         let { main } = require("../lib/execCustomTemplate");
@@ -56,7 +53,7 @@ exports.billPDF = function(billObj){
         doc.opacity(0.6)
         .image(path.join(__dirname,`../ext/${emblem}`),250,290,{scale:0.7})
         .opacity(1)
-        .font(titleFontFamily)
+        .font(saleConfig.titleFontFamily)
         .text(captions[i],{
             align:'right'
          })
@@ -84,9 +81,10 @@ exports.billPDF = function(billObj){
 exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate){
     const doc = new PDFDocument({margin});
     let path2pdf = app.getPath("temp"),initY;
+    let saleConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname,"../config/saleConfig.json")).toString());
     doc.pipe(fs.createWriteStream(path.join(path2pdf,"ledger")));
     doc.fontSize(12)
-    .font(titleFontFamily);
+    .font(saleConfig.titleFontFamily);
     let {_x,_y} = createLedgerHead(doc,{name,address,phones,gst,startDate})
     initY=_y;
     let {factor} = createLedgerBody(doc,_x,_y);

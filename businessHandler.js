@@ -2,10 +2,9 @@ const { ipcMain } = require("electron");
 const { createModal } = require("./createModal");
 const { sequelize, sale, purchase, outPayments, inPayments } = require("./model/dbConfig");
 const { supplierLedgerSchema,customerLedgerSchema } = require("./model/dynamicSchemas");
-const { getLedgerModel } = require("./common");
+const { getLedgerModel, getUserPolicyPath } = require("./common");
 const { Op } = require("sequelize");
-const { gstRecurranceTerm,financialYearStartDate } = require("./config/policy.json");
-
+const fs = require("fs");
 
 let windowOptions = {
     width: 800,
@@ -48,6 +47,7 @@ async function calcNetTax(table,startDate,endDate){
 }
 
 ipcMain.on("get-all-gst-current-month",async e=>{
+    let financialYearStartDate = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString()).financialYearStartDate;
     let startDate = new Date(),endDate = new Date();
     let [dt,mnth] = financialYearStartDate.split("/");
     let financialYearCommissionDt = new Date();
@@ -86,6 +86,7 @@ async function getPeriodicSalePurchase(table,where,attributes){
 
 ipcMain.on("get-total-sale-purchase",async (e,period)=>{
     let startDate;
+    let financialYearStartDate = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString()).financialYearStartDate;
     if(period===7)
         startDate = new Date(Date.now()-(period+(new Date()).getHours()/24)*24*60*60*1000);
     else{

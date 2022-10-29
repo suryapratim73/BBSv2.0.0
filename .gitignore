@@ -1,10 +1,13 @@
 node_modules/
-.env
+*.env
 dump
 db/
 test.js
 ext/
 todo
 logs/
-
+private/
+build/
+dist/
 *.txt
+build.js

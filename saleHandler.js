@@ -2,13 +2,11 @@ const { ipcMain, dialog } = require("electron");
 const { createModal } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getsaleConfigPolicyPath } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
-const { scriptFile } = require("./config/saleConfig.json");
-const { billPDF } = require(`./scripts/${scriptFile}`);
 const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
-const { unitMap } = require("./config/saleConfig.json");
 const { stockList } = require("./handleStock");
+const fs = require("fs");
 
 
 let closeFlag = false,
@@ -77,6 +75,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         id="",
         paymentStatus 
     } = billMeta;
+    let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    const { billPDF } = require("./scripts/makePDF.default");
     return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     closeFlag = true;
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);

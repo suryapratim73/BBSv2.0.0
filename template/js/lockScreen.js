@@ -1,17 +1,21 @@
 const { toggleDevTool,validateInput,validateInput2, removeAllElem,drawTimer,applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
-const policyObj = require("../../config/policy.json");
 
 
 toggleDevTool(document);
 
-let timer;
 
-ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
-    document.body.style.backgroundImage =  `url('${policyObj.wallpaper ?? "../../images/default-wallpaper.jpg"}')`;
+ipcRenderer.invoke("get-policy")
+.then(policyObj=>{
+    if("wallpaper" in policyObj && policyObj.wallpaper!=="")
+        document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
+    else
+        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
 });
+// ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
+// });
 
-ipcRenderer.on("apply-theme",applyTheme.bind(document));
+// ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
 
 async function unlockHandler(e,mode){
