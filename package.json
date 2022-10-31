@@ -1,12 +1,11 @@
 {
   "name": "bbs",
-  "version": "2.1.9",
+  "version": "2.1.10",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
     "bbsDev": "nodemon --ignore 'config/*.json' --ignore '*.json' --exec electron .",
-    "build": "electron-builder -l",
-    "build-publish": "electron-builder -l && node ./build/afterPackTasks.js"
+    "build": "electron-builder -l --publish always"
   },
   "author": "Surya Pratim Paul <surya.shilpi22@gmail.com>",
   "license": "ISC",
@@ -50,7 +49,8 @@
       "publish": [
         {
           "provider": "generic",
-          "url": "http://localhost:3030/os/linux/"
+          "url": "http://127.0.0.1:3030/os/linux/",
+          "publishAutoUpdate": true
         }
       ]
     },
@@ -72,6 +72,6 @@
       "!.vscode"
     ],
     "asar":false,
-    "afterPack":"./scripts/afterPack.js"
+    "afterPack":"scripts/afterpack.js"
   }
 }
