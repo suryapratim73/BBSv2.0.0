@@ -73,5 +73,6 @@
     ],
     "asar":false,
     "afterPack":"scripts/afterpack.js"
-  }
+  },
+  "homepage": "https://github.com/suryapratim73/BBSv2.0.0.git"
 }
