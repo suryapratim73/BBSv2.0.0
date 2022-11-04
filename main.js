@@ -1446,10 +1446,14 @@ async function checkForUpdates() {
   }
 }
 
-// autoUpdater.on("update-available", () => {
-//   appLogger({message:"Starting install"});
-//   autoUpdater.quitAndInstall();
-// });
+autoUpdater.on("update-available", () => {
+  appLogger({message:"Starting install"});
+  dialog.showMessageBox({
+    title:"Update available --auto",
+    message:"Testing auto-updator on generic server."
+  })
+  // autoUpdater.quitAndInstall();
+});
 
 // autoUpdater.on("error",(err)=>{
 //   appLogger({
