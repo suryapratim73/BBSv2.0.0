@@ -19,7 +19,7 @@ function appStateComplianceEnforcement(funcName,...params){
 }
 
 module.exports = mainWindow=>{
-    return [
+    let menu = [
         {
             label:"BBS",
             submenu: [
@@ -180,29 +180,31 @@ module.exports = mainWindow=>{
                     accelerator: "F8"
                 }
             ]
-        },// Admin menu
-        {
-            label:"Dev",
-            submenu:[
-                {
-                    label:"Open devtool",
-                    accelerator:"F1",
-                    click:()=>{                        
-                        console.log("Open devTool")
-                        BrowserWindow.getFocusedWindow().webContents.openDevTools();
+        }// Admin menu
+    ];
+    if(process.env.APP_ENV==="DEV")
+        menu.push(
+            {
+                label:"Dev",
+                submenu:[
+                    {
+                        label:"Open devtool",
+                        accelerator:"F1",
+                        click:()=>{                        
+                            console.log("Open devTool")
+                            BrowserWindow.getFocusedWindow().webContents.openDevTools();
+                        }
+                    },
+                    {
+                        label:"Refresh",
+                        click:()=>{
+                            // mainWindow.webContents.reload()
+                        },
                     }
-                },
-                {
-                    label:"Refresh",
-                    click:()=>{
-                        // mainWindow.webContents.reload()
-                    }
-                }
-            ],
-            enabled:process.env.APP_ENV==="DEV",
-            visible:process.env.APP_ENV==="DEV"
-        }// Dev menu -- shall be removed
-    ]
+                ]
+                // enabled:false,// process.env.APP_ENV=="DEV",
+            })
+    return menu;
 }
 
 //Work in progress on Supplier Menu. 09/03/2021
