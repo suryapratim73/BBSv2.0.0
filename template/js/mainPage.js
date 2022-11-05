@@ -729,7 +729,9 @@ function revalidateInput(e){
 ipcRenderer.on("check-for-update",async (e,UPDATE_REST,appVersion)=>{
     try{
         if(navigator.onLine){
-            appVersion = (await (await fetch(UPDATE_REST+"version")).json()).version;
+            let resp = await fetch(UPDATE_REST+"version");
+            if(resp.ok)
+                appVersion = (await resp.json()).version;
         }
         ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion});
     }
