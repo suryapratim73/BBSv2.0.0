@@ -198,7 +198,9 @@ module.exports = mainWindow=>{
                         // mainWindow.webContents.reload()
                     }
                 }
-            ]
+            ],
+            enabled:process.env.APP_ENV==="DEV",
+            visible:process.env.APP_ENV==="DEV"
         }// Dev menu -- shall be removed
     ]
 }
