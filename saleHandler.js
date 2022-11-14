@@ -251,7 +251,7 @@ ipcMain.on("salepage-print-doc",async (e,billObj)=>{
             case "linux":
                 return printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
             case "win32":
-                return printOnWindows(path2pdf);
+                return printOnWindows(path2pdf,printer,copies,paperSize);
             case "darwin":
                 return printOnLinuxOrMac(path2pdf,printer,copies);
             default:

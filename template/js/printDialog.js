@@ -15,7 +15,8 @@ function resetInput(event){
 
 (
     async function(){
-        const {stdout,os} = await ipcRenderer.invoke("get-printers");
+        const resp = await ipcRenderer.invoke("get-printers");
+        const {stdout,os="win32"} = resp;
         if(["linux","mac"].includes(os)){
             printers = stdout.split("\n")
                                     .map(text=>{
@@ -31,6 +32,15 @@ function resetInput(event){
                                         return obj;
                                     })
                                     .filter(obj=>obj!==undefined)
+        }
+        else{
+            printers = resp.map(obj=>{
+                let {description,displayName,isDefault,name,status} = obj;
+                return {
+                    printerName: displayName,
+                    status
+                }
+            });
         }
         printers.forEach(({printerName,status},i)=>{
             let option = document.createElement("option");

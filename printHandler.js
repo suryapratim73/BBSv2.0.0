@@ -1,42 +1,24 @@
 const { exec } = require("child_process");
-const { ipcMain,dialog,BrowserWindow } = require("electron");
-const { createModal } = require("./createModal");
+const { ipcMain,dialog,BrowserWindow, app } = require("electron");
+const { createModal, getMainWindow } = require("./createModal");
 const fs = require("fs");
 const { setTimeout } = require("timers");
+const path = require("path");
 
 
 let modal,pageFit;
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
-    if(!path2pdf) return;
+    if(!path2pdf && fs.existsSync(path2pdf)) return;
     let cmd = `lp -d ${printer} -n ${copies} ${pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
-    let timer;
-    if(fs.existsSync(path2pdf))
-        exec(cmd,(err,stdout)=>{
-            if(err){
-                console.warn({err});
-                timer = setTimeout(printOnLinuxOrMac,1000,path2pdf,printer,copies,paperSize,printOrientation)
-            }
-            clearTimeout(timer);
-            let msg = {
-                type: "info",
-                title: "Document on print",
-                message: stdout
-            }
-            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-            BrowserWindow.getFocusedWindow().webContents.send("print-done");
-        });
+    execCMD(cmd)
 }
 
-exports.printOnWindows = function(path2pdf){
-    exec(
-        'ptp ' + path2pdf, {
-            windowsHide: true
-        }, (e) => {
-            if (e) {
-                throw e;
-            }
-        });
+exports.printOnWindows = function(path2pdf,printer,copies,paperSize){
+    if(!path2pdf && fs.existsSync(path2pdf)) return;
+    let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
+    let cmd = `${path2SumatraPDF} -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" ${path2pdf} -silent`;
+    execCMD(cmd)
 }
 
 function checkPrintersOnLinuxOrMac(os){
@@ -48,6 +30,24 @@ function checkPrintersOnLinuxOrMac(os){
     });
 }
 
+function execCMD(cmd){
+    let timer;
+    exec(cmd,(err,stdout)=>{
+        if(err){
+            console.warn({err});
+            timer = setTimeout(printOnLinuxOrMac,1000,path2pdf,printer,copies,paperSize,printOrientation)
+        }
+        clearTimeout(timer);
+        let msg = {
+            type: "info",
+            title: "Document on print",
+            message: stdout
+        }
+        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        BrowserWindow.getFocusedWindow().webContents.send("print-done");
+    });
+}
+
 ipcMain.handle("get-printers",()=>{
     switch(process.platform){
         case "linux":
@@ -55,7 +55,7 @@ ipcMain.handle("get-printers",()=>{
         case "darwin":
             return checkPrintersOnLinuxOrMac("mac");
         default:
-            return Promise.reject({err:"OS unsupported"});
+            return getMainWindow().webContents.getPrinters()
     }
 });
 

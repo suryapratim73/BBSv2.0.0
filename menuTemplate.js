@@ -198,7 +198,7 @@ module.exports = mainWindow=>{
                     {
                         label:"Refresh",
                         click:()=>{
-                            // mainWindow.webContents.reload()
+                            mainWindow.webContents.reload()
                         },
                     }
                 ]

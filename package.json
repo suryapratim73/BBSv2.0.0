@@ -54,8 +54,10 @@
         }
       ]
     },
-    "deb":{
-      "fpm":["--after-upgrade=updator.sh"]
+    "deb": {
+      "fpm": [
+        "--after-upgrade=updator.sh"
+      ]
     },
     "compression": "store",
     "files": [
@@ -71,8 +73,8 @@
       "!config",
       "!.vscode"
     ],
-    "asar":false,
-    "afterPack":"scripts/afterpack.js"
+    "asar": false,
+    "afterPack": "scripts/afterpack.js"
   },
   "homepage": "http://192.168.0.104:/home/git/BBS.git"
 }

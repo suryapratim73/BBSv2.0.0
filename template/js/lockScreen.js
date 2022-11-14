@@ -1,5 +1,6 @@
 const { toggleDevTool,validateInput,validateInput2, removeAllElem,drawTimer,applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
+const path = require("path");
 
 
 toggleDevTool(document);
@@ -8,9 +9,9 @@ toggleDevTool(document);
 ipcRenderer.invoke("get-policy")
 .then(policyObj=>{
     if("wallpaper" in policyObj && policyObj.wallpaper!=="")
-        document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
+        document.body.style.backgroundImage =  `url("${(path.relative(__dirname,policyObj.wallpaper)).replaceAll(path.sep,path.sep+path.sep)}")`;
     else
-        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
+        document.body.style.backgroundImage =  `url(${path.relative(__dirname,"../../images/default-wallpaper.jpg").replaceAll(path.sep,path.sep+path.sep)})`;
 });
 // ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
 // });

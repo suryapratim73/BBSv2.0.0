@@ -22,8 +22,8 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     if(!fs.existsSync(pdfPath+"/Bills/"))
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
-    doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}`)));
-    pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}`);
+    doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}.pdf`)));
+    pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}.pdf`);
     return {doc,pdfPath};
 }
 
@@ -50,9 +50,10 @@ exports.billPDF = function(billObj){
             lastJ = 0;
             doc.addPage();
         }
-        doc.opacity(0.6)
-        .image(path.join(__dirname,`../ext/${emblem}`),250,290,{scale:0.7})
-        .opacity(1)
+        if(emblem!=="")
+            doc.opacity(0.6)
+            .image(path.join(__dirname,`../ext/${emblem}`),250,290,{scale:0.7});
+        doc.opacity(1)
         .font(saleConfig.titleFontFamily)
         .text(captions[i],{
             align:'right'

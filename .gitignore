@@ -11,3 +11,4 @@ build/
 dist/
 *.txt
 build.js
+nodemonConfig.json

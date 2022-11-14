@@ -95,9 +95,10 @@ async function createWindow() {
     minHeight: 600,
     title: "BBSv2.0.0",
   };
+  windowOptions.resizable = true;
+  windowOptions.maximizable = true;
   if (process.platform === "linux") {
-    windowOptions.resizable = true;
-    windowOptions.maximizable = true;
+    
   }
   let fileName = "lockScreen";
   try{
@@ -1200,6 +1201,7 @@ nativeTheme.addListener(
 );
 
 ipcMain.handle("get-svg", (e, filePath) => {
+  console.log({filePath})
   return fs.readFileSync(filePath).toString();
 });
 

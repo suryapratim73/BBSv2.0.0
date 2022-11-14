@@ -1,8 +1,1 @@
-{
-  "noReturn": 120,
-  "gstRecurranceTerm": 1,
-  "financialYearStartDate": "1/4",
-  "minStock": 10,
-  "creditLimitDays": 21,
-  "wallpaper": "/home/bhagawati/Downloads/default-wallpaper.jpg"
-}
+{"noReturn":120,"gstRecurranceTerm":1,"financialYearStartDate":"1/4","minStock":10,"creditLimitDays":21,"wallpaper":"C:\\Users\\Surya\\Code\\BBSv2.0.0\\ext\\wallpaper.jpg"}
