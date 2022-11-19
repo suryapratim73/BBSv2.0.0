@@ -63,17 +63,9 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "nsis-web"
+        "nsis"
       ],
-      "publisherName": "Codemint",
-      "publish": [
-        {
-          "provider": "generic",
-          "url": "http://192.168.0.104:3030/os/linux/",
-          "publishAutoUpdate": true
-        }
-      ]
+      "publisherName": "Codemint"
     },
     "nsis": {
       "oneClick": false,
