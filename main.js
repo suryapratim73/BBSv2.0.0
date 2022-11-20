@@ -51,7 +51,7 @@ const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
-const { spawn } = require("child_process");
+const { spawn,execFile } = require("child_process");
 
 const { billItemSchema } = dynamicSchemas;
 let closeFlag = false,
@@ -1270,13 +1270,14 @@ ipcMain.on("app-registration", async (e, gst) => {
 //App update logic
 async function updateCommon(){
   let data = {
-    path2file:app.getPath("appData")+`/BBS/bbs_${this}_amd64.deb`,
+    path2file:app.getPath("appData")+`/BBS/${this.fileName}`,
     time:Date.now(),
     updateDownloaded:true,
-    versionDownloaded:this,
+    versionDownloaded:this.version,
     installMoment:"now",
     updateComplete:false,
-    platform:process.platform
+    platform:process.platform,
+    fileName:this.fileName
   }
   let resp = await dialog.showMessageBox({
     title:"Download complete",
@@ -1319,14 +1320,43 @@ async function updateCommon(){
       });
     });
   }
+  else
+  if(data.installMoment==="now" && process.platform==="win32"){
+    execFile(data.path2file,function(err,stdout){
+      if(err)
+        return  appLogger({
+          title:"Error",
+          message:String(err)
+        });
+      appLogger({
+        title: "STDOUT",
+        message:stdout
+      })
+    });
+  }
 }
 
 function downloadUpdate(appVersion){
-  let fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
   appLogger({
     message:"Downloading update"
   });
-  axios.get(process.env.UPDATE_REST+`download/linux/bbs_${appVersion}_amd64.deb`,{
+  let fileWriter, downloadURL,fileName;
+  if(process.platform==="linux"){
+    fileName = `bbs_${appVersion}_amd64.deb`;
+    fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
+    downloadURL = process.env.UPDATE_REST+`download/linux/bbs_${appVersion}_amd64.deb`;
+  }
+  else
+  if(process.platform==="win32"){
+    fileName = `bbs_${appVersion}_setup.exe`;
+    fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_setup.exe`);
+    downloadURL = process.env.UPDATE_REST+`download/win/`;
+  }
+  else
+  if(process.platform==="darwin"){
+    // mac case
+  }
+  axios.get(downloadURL,{
     responseType:"stream"
   })
   .then(resp=>{
@@ -1342,7 +1372,7 @@ function downloadUpdate(appVersion){
       });
     });
   })
-  .then(updateCommon.bind(appVersion))
+  .then(updateCommon.bind({fileName,version:appVersion}))
   .catch(err=>{
     console.error("Error",err);
     appLogger({
@@ -1417,33 +1447,30 @@ async function checkForUpdates() {
     });
     if (response === 1) return;
     // If app is not already updated.
-    if (process.platform === "darwin") {
-      UPDATE_URL += "mac/";
-    } else if (process.platform === "win32") {
-    } else if (process.platform === "linux") {
-      try{
-        let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());
-        if(updtConf.updateDownloaded && updtConf.versionDownloaded!==appVersion){
-          // Older version of app setup exist. So deleting and downloading latest.
-          fs.rmSync(updtConf.path2file);
-          return downloadUpdate(appVersion);
-        }
-        if(updtConf.updateDownloaded){
-          appLogger({ message: "Update is already downloaded." })
-          updateCommon.call(appVersion);
-        }
-        else{
-          //Downloading update as it is not downloaded
-          downloadUpdate(appVersion);
-        }
+    try{
+      let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());
+      if(updtConf.updateDownloaded && updtConf.versionDownloaded!==appVersion && fs.existsSync(updtConf.path2file)){
+        // Older version of app setup exist. So deleting and downloading latest.
+        fs.rmSync(updtConf.path2file);
+        return downloadUpdate(appVersion);
       }
-      catch(err){
-        appLogger({
-          title:"Error",
-          message:err.message
-        });
+      else
+      if(updtConf.updateDownloaded && updtConf.versionDownloaded===appVersion && fs.existsSync(updtConf.path2file)){
+        // Update already downloaded and ready for install
+        appLogger({ message: "Update is already downloaded." })
+        updateCommon.call({version:appVersion,fileName:updtConf.fileName});
+      }
+      else{
+        //Downloading update as it is not downloaded
         downloadUpdate(appVersion);
       }
+    }
+    catch(err){
+      appLogger({
+        title:"Error",
+        message:err.message
+      });
+      downloadUpdate(appVersion);
     }
   }
 }
