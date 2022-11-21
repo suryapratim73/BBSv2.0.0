@@ -46,7 +46,15 @@
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
     "linux": {
-      "target": "deb",
+      "target": [
+        {
+          "target":"deb",
+          "arch":[
+            "ia32",
+            "x64"
+          ]
+        }
+      ],
       "category": "Office",
       "publish": [
         {
@@ -63,7 +71,13 @@
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target":"nsis",
+          "arch":[
+            "ia32",
+            "x64"
+          ]
+        }
       ],
       "publisherName": "Codemint"
     },
