@@ -1322,6 +1322,7 @@ async function updateCommon(){
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
+    app.quit();
     execFile(data.path2file,function(err,stdout){
       if(err)
         return  appLogger({
