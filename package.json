@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.2.22",
+  "version": "2.2.30",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -81,9 +81,8 @@
       "publisherName": "Codemint"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
       "runAfterFinish": true,
       "shortcutName": "BBS"
     },

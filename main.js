@@ -1279,17 +1279,28 @@ async function updateCommon(){
     platform:process.platform,
     fileName:this.fileName
   }
+  try{
+    fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(data))
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err)
+    })
+  }
   let resp = await dialog.showMessageBox({
     title:"Download complete",
     message:"Update download complete, do you want to install now?",
     buttons:["Install Now","Later"]
   });
-  if(resp.response===1)
+  if(resp.response===1){
     data.installMoment = "later";
+    return;
+  }
+  appLogger({
+    message:"Trying to install update."
+  });
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
-    appLogger({
-      message:"Trying to install update."
-    });
     app.quit();
     let updator = spawn(`./updator.sh -u ${this}`,{
       cwd:__dirname,
@@ -1323,15 +1334,25 @@ async function updateCommon(){
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     app.quit();
-    execFile(data.path2file,function(err,stdout){
-      if(err)
-        return  appLogger({
-          title:"Error",
-          message:String(err)
-        });
+    // Try to figure out how to detach execFile, also auto launch BBS after update.
+    appLogger({
+      title:"Spawned path",
+      message:path.resolve(data.path2file)
+    })
+    let spawnedFileProc = spawn(path.resolve(data.path2file),{
+      cwd:__dirname,
+      shell:true
+    });
+    spawnedFileProc.on("exit",(code,signal)=>{
       appLogger({
-        title: "STDOUT",
-        message:stdout
+        title:"Launch restart script",
+        message:JSON.stringify({code,signal})
+      })
+    });
+    spawnedFileProc.on("message",(msg)=>{
+      appLogger({
+        title:"File proc message",
+        message:msg
       })
     });
   }
