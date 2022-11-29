@@ -8,15 +8,166 @@
     <link rel="stylesheet" href="../css/firstBoot.css">
     <script src="../js/firstBoot.js" defer></script>
 </head>
-<body onclick="clickHandler(event)">
-    <template id="introductory-template">
-        <div id="introductory">
+<body>
+    <form onsubmit="submitHandler(event)" onclick="submitHandler(event)" data-cmd="page-2">
+        <div>
+            <h2>Welcome to BBS</h2>
+            <p>Please fill out your basic company details while we prepare BBS for first launch.</p>
+        </div>
+        <div id="mode-host"></div>
+    </form>
+    <template id="page-1-template">
+        <div id="page-1" class="page">
+            <h2>Fill out your basic company details</h2>
+            <p>*Please note if GST number is provided then it cannot be changed later.</p>
             <div>
-                <h2>Welcome to BBS</h2>
-                <p>Please fill out your basic company details while we prepare BBS for first launch.</p>
+                <div>
+                    <label for="name">Name *</label>
+                </div>
+                <div>
+                    <input required type="text" name="name" id="name">
+                </div>
             </div>
             <div>
-                <button data-cmd="page-2">Continue</button>
+                <div>
+                    <label for="address">Address *</label>
+                </div>
+                <div>
+                    <input required type="text" name="address" id="address">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="gst">GST</label>
+                </div>
+                <div>
+                    <input type="text" name="gst" id="gst">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="email">Email</label>
+                </div>
+                <div>
+                    <input type="email" name="email" id="email">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="phones">Contact Number *</label>
+                </div>
+                <div>
+                    <input required type="tel" name="phones" id="phones">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="website">Website</label>
+                </div>
+                <div>
+                    <input type="url" name="website" id="website">
+                </div>
+            </div>
+            <div>
+                <button type="submit" onclick="event.stopPropagation();">Continue</button>
+                <button type="button" data-cmd="skip">Skip</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-2-template">
+        <div id="page-2" class="page">
+            <h2>Fill out your company's last financial year records</h2>
+            <p>*You may skip now and this informations can be filled later</p>
+            <div>
+                <div>
+                    <label for="finYear">Financial year start month</label>
+                </div>
+                <div>
+                    <select name="finYear" required id="finYear">
+                        <option value="1">January</option>
+                        <option value="4">April</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="resetBillNo">Reset Bill number at the begining of each financial year?</label>
+                </div>
+                <div>
+                    <select name="resetBillNo" required id="resetBillNo">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="lastClose">Last year closing stock</label>
+                </div>
+                <div>
+                    <input type="text" required name="lastClose" id="lastClose">
+                </div>
+            </div>
+            <div>
+                <button type="submit" onclick="event.stopPropagation()">Continue</button>
+                <button type="button" data-cmd="page-1">Back</button>
+                <button type="button" data-cmd="skip">Skip</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-3-template">
+        <div id="page-3" class="page">
+            <h2>Create or Update user</h2>
+            <div>
+                <divv>
+                    <label for="useer">Select user</label>
+                </divv>
+                <divv>
+                    <input type="text" name="user" liist="user-list">
+                </divv>
+            </div>
+            <div>
+                <div>
+                    <label for="password">Set password</label>
+                </div>
+                <div>
+                    <input type="password" name="password" id="password">
+                </div>
+            </div>
+            <div>
+                <button type="submit" onclick="event.stopPropagation()">Continue</button>
+                <button type="button" data-cmd="page-2">Back</button>
+                <button type="button" data-cmd="skip">Skip</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-4-template">
+        <div id="page-4" class="page">
+            <h2>Personalize BBS</h2>
+            <div>
+                <div>
+                    <label for="lock-wallpaper">Pick lock screen wallpaper</label>
+                </div>
+                <div>
+                    <input type="file" name="lock-wallpaper" id="lock-wallpaper">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="theme-pref">Theme preference</label>
+                </div>
+                <div>
+                    <select name="theme-pref" id="theme-pref">
+                        <option value="system">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button type="submit" onclick="event.stopPropagation()">Continue</button>
+                <button type="button" data-cmd="page-3">Back</button>
+                <button type="button" data-cmd="skip">Skip</button>
             </div>
         </div>
     </template>

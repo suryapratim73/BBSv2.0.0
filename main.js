@@ -135,21 +135,21 @@ async function createWindow() {
         fileName = "mainPage";
       }
     }
-    // firstBoot = true;
-    // const mainWindow = createModal(
-    //   windowOptions,
-    //   `./template/html/firstBoot.html`,
-    //   { maxWinCount: 1, label: "Main",show:true,
-    //     cb:function(){
-    //       this.webContents.send("first-launch");
-    //     } 
-    //   }
-    // );
+    firstBoot = true;
     const mainWindow = createModal(
       windowOptions,
-      `./template/html/${fileName}.html`,
-      { maxWinCount: 1, label: "Main" }
+      `./template/html/firstBoot.html`,
+      { maxWinCount: 1, label: "Main",show:true,
+        cb:function(){
+          this.webContents.send("first-launch");
+        } 
+      }
     );
+    // const mainWindow = createModal(
+    //   windowOptions,
+    //   `./template/html/${fileName}.html`,
+    //   { maxWinCount: 1, label: "Main" }
+    // );
     let strtMsg = process.argv.find(str=>str.startsWith("msg="));
     if(strtMsg && typeof strtMsg==="string")
       mainWindow.once("focus",()=>{
@@ -1222,7 +1222,7 @@ ipcMain.handle("get-policy",()=>{
 // Backup manager
 ipcMain.handle("app-backup", async (e, data) => {
   let dirPath = await dialog.showSaveDialog({
-    message: "A backup directory will be created to host backup files.",
+    message: "A backup directory will be created to store backup files.",
     defaultPath: app.getPath("documents"),
   });
   // Create backup path if not exist then perform backups
@@ -1265,10 +1265,10 @@ ipcMain.on("app-registration", async (e, gst) => {
       this.webContents.send("call-register-link", gst);
     },
   });
-});
+});// Incomplete
 
 //App update logic
-async function updateCommon(){
+async function updateCommon(){//This need a relook
   let data = {
     path2file:app.getPath("appData")+`/BBS/${this.fileName}`,
     time:Date.now(),
@@ -1334,7 +1334,7 @@ async function updateCommon(){
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     app.quit();
-    // Try to figure out how to detach execFile, also auto launch BBS after update.
+    // Try to run a bash or some shell script to update BBS
     appLogger({
       title:"Spawned path",
       message:path.resolve(data.path2file)

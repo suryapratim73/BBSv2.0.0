@@ -3,19 +3,41 @@ const { ipcRenderer } = require("electron");
 
 
 toggleDevTool(document);
+let modeHost = document.getElementById("mode-host");
 
-function handleForm(e){
-    let form = e.target;
-    
-}
-
-function clickHandler(e){
-    let { target:{dataset:{cmd}} } = e;
-    console.log({cmd});
+function submitHandler(e){
+    e.preventDefault();
+    let allowedNodeNames = ["BUTTON","FORM"];
+    let { target:{dataset:{cmd},nodeName},type } = e;
+    if(!allowedNodeNames.includes(nodeName)) return;
+    if(cmd.startsWith("page")){
+        let pageNo = Number(cmd.split("-")[1]);
+        let page = [...document.querySelectorAll("#mode-host .page")]
+        .map(page=>{
+            if(page.id!==cmd)
+                page.classList.add("hide");
+            else{
+                page.classList.remove("hide");
+                return page;
+            }
+        }).filter(page=>page!==undefined);
+        if(page.length===0){
+            let content = document.getElementById(cmd+"-template").content.cloneNode(true).querySelector("div");
+            modeHost.appendChild(content);
+        }
+        if(type==="submit"){
+            pageNo += pageNo<4 ? 1 : 0;
+            e.target.dataset.cmd = `page-${pageNo}`;    
+        }
+        else{
+            pageNo = Number(cmd.split("-")[1])+1;
+            e.target.form.dataset.cmd = `page-${pageNo}`;
+        }
+    }
 }
 
 ipcRenderer.on("first-launch",()=>{
     console.log("first-launch")
-    let introductoryDiv = document.getElementById("introductory-template").content.cloneNode(true).querySelector("div");
-    document.body.appendChild(introductoryDiv);
+    let introductoryDiv = document.getElementById("page-1-template").content.cloneNode(true).querySelector("div");
+    modeHost.appendChild(introductoryDiv);
 });
