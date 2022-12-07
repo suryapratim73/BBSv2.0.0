@@ -1,9 +1,22 @@
 const { toggleDevTool } = require("../js/common");
 const { ipcRenderer } = require("electron");
+const fs = require("fs");
 
 
 toggleDevTool(document);
 let modeHost = document.getElementById("mode-host");
+
+ipcRenderer.invoke("get-policy")
+.then(policyObj=>{
+    if("wallpaper" in policyObj && policyObj.wallpaper!==""){
+        if(fs.existsSync(policyObj.wallpaper))
+            document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
+        else
+            document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;    
+    }
+    else
+        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
+});
 
 function submitHandler(e){
     e.preventDefault();

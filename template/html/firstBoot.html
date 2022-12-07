@@ -9,11 +9,11 @@
     <script src="../js/firstBoot.js" defer></script>
 </head>
 <body>
+    <div>
+        <h1>Welcome to BBS</h1>
+        <p>Please fill out your basic company details while we prepare BBS for first launch.</p>
+    </div>
     <form onsubmit="submitHandler(event)" onclick="submitHandler(event)" data-cmd="page-2">
-        <div>
-            <h2>Welcome to BBS</h2>
-            <p>Please fill out your basic company details while we prepare BBS for first launch.</p>
-        </div>
         <div id="mode-host"></div>
     </form>
     <template id="page-1-template">
@@ -102,10 +102,42 @@
             </div>
             <div>
                 <div>
-                    <label for="lastClose">Last year closing stock</label>
+                    <label for="closingStock">Last year closing stock</label>
                 </div>
                 <div>
-                    <input type="text" required name="lastClose" id="lastClose">
+                    <input type="text" name="closingStock" id="closingStock">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="grossCredit">Net Gross Credit</label>
+                </div>
+                <div>
+                    <input type="text" name="grossCredit" id="grossCredit">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="grossDebt">Net Gross Debt</label>
+                </div>
+                <div>
+                    <input type="text" name="grossDebt" id="grossDebt">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="advNetIncome">Net Advance Income</label>
+                </div>
+                <div>
+                    <input type="text" name="advNetIncome" id="advNetIncome">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="advNetExpence">Net Advance Expence</label>
+                </div>
+                <div>
+                    <input type="text" name="advNetExpence" id="advNetExpence">
                 </div>
             </div>
             <div>
@@ -145,12 +177,8 @@
         <div id="page-4" class="page">
             <h2>Personalize BBS</h2>
             <div>
-                <div>
-                    <label for="lock-wallpaper">Pick lock screen wallpaper</label>
-                </div>
-                <div>
-                    <input type="file" name="lock-wallpaper" id="lock-wallpaper">
-                </div>
+                <input type="text" name="filePath" id="file-path">
+                <button type="button" class="main-ui-btn" onclick="chooseFile(event)">Choose</button>
             </div>
             <div>
                 <div>

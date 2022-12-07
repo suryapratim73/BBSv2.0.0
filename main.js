@@ -1302,7 +1302,7 @@ async function updateCommon(){//This need a relook
   });
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     app.quit();
-    let updator = spawn(`./updator.sh -u ${this}`,{
+    let updator = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
       shell:true
     });

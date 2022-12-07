@@ -9,9 +9,9 @@ toggleDevTool(document);
 ipcRenderer.invoke("get-policy")
 .then(policyObj=>{
     if("wallpaper" in policyObj && policyObj.wallpaper!=="")
-        document.body.style.backgroundImage =  `url("${(path.relative(__dirname,policyObj.wallpaper)).replaceAll(path.sep,path.sep+path.sep)}")`;
+        document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
     else
-        document.body.style.backgroundImage =  `url(${path.relative(__dirname,"../../images/default-wallpaper.jpg").replaceAll(path.sep,path.sep+path.sep)})`;
+        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
 });
 // ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
 // });
