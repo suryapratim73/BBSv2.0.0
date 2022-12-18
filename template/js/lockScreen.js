@@ -1,6 +1,6 @@
 const { toggleDevTool,validateInput,validateInput2, removeAllElem,drawTimer,applyTheme } = require("../js/common");
 const { ipcRenderer } = require("electron");
-const path = require("path");
+const fs = require("fs");
 
 
 toggleDevTool(document);
@@ -8,10 +8,14 @@ toggleDevTool(document);
 
 ipcRenderer.invoke("get-policy")
 .then(policyObj=>{
-    if("wallpaper" in policyObj && policyObj.wallpaper!=="")
-        document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
+    if("wallpaper" in policyObj && policyObj.wallpaper!==""){
+        if(fs.existsSync(policyObj.wallpaper))
+            document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
+        else
+            document.body.style.backgroundImage =  `url("../../images/default-wallpaper.svg")`;    
+    }
     else
-        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
+        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.svg")`;
 });
 // ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null)).finally(()=>{
 // });

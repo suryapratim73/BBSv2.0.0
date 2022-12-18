@@ -43,6 +43,7 @@ const {
   purchase,
   user,
   schemas,
+  finData
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
 const { Op, Sequelize } = require("sequelize");
@@ -69,7 +70,8 @@ let closeFlag = false,
   currentUser,
   totpTimer,
   linuxThemeWatchTimer,
-  firstBoot = false;
+  firstBoot = false,
+  dbInitialized = false;
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -112,6 +114,7 @@ async function createWindow() {
         role: "admin",
       });
     } // First start condition
+    dbInitialized = true;
     let ses = session.fromPartition("persist:bbs_auth");
     let authCookies = await ses.cookies.get({
       name: "bbs_auth",
@@ -136,20 +139,20 @@ async function createWindow() {
       }
     }
     firstBoot = true;
-    const mainWindow = createModal(
-      windowOptions,
-      `./template/html/firstBoot.html`,
-      { maxWinCount: 1, label: "Main",show:true,
-        cb:function(){
-          this.webContents.send("first-launch");
-        } 
-      }
-    );
     // const mainWindow = createModal(
     //   windowOptions,
-    //   `./template/html/${fileName}.html`,
-    //   { maxWinCount: 1, label: "Main" }
+    //   `./template/html/firstBoot.html`,
+    //   { maxWinCount: 1, label: "Main",show:true,
+    //     cb:function(){
+    //       this.webContents.send("first-launch");
+    //     } 
+    //   }
     // );
+    const mainWindow = createModal(
+      windowOptions,
+      `./template/html/${fileName}.html`,
+      { maxWinCount: 1, label: "Main" }
+    );
     let strtMsg = process.argv.find(str=>str.startsWith("msg="));
     if(strtMsg && typeof strtMsg==="string")
       mainWindow.once("focus",()=>{
@@ -205,11 +208,21 @@ async function createWindow() {
           }
         }
       );
-      await sequelize.sync({
-        force:true,
-        alter:true
-      }).catch(console.warn);
+      // await sequelize.sync({
+      //   force:true,
+      //   alter:true
+      // }).catch(console.warn);
       appLogger({message:"Database initialized."});
+      dbInitialized = true;
+      mainWindow.webContents.send("Database initialized");
+      let path2TmpFile = path.resolve(app.getPath("appData"),"/temp.json");
+      if(fs.existsSync(path2TmpFile)){
+        let pageWiseData = JSON.parse(fs.readFileSync(path2TmpFile).toString())
+        Object.keys(pageWiseData)
+        .forEach(pageNo=>{
+          saveInitData(pageNo,pageWiseData[pageNo]);
+        });
+      }
       return mainWindow;
     }
     else
@@ -603,7 +616,7 @@ ipcMain.handle("get-purchase-content", async () => {
 
 ipcMain.handle("add-user", async (e, data) => {
   let encryptedPaswd = await bcrypt.hash(data.passwd, 10);
-  let role = ["admin", "all"].includes(currentUser.role) ? data.role : "bill";
+  let role = currentUser!==undefined && "role" in currentUser && ["admin", "all"].includes(currentUser.role) ? data.role : "bill";
   try {
     return user.findOrCreate({
       where: {
@@ -654,9 +667,7 @@ ipcMain.handle("get-file-path", (e, filterObj) => {
 ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd }) => {
   try {
     if (filePath) {
-      let data = fs.readFileSync(
-        path.resolve(getUserPolicyPath())
-      );
+      let data = fs.readFileSync(getUserPolicyPath());
       data = JSON.parse(data.toString());
       data.wallpaper = filePath;
       fs.writeFileSync(
@@ -1512,5 +1523,123 @@ autoUpdater.on("update-available", () => {
 //     message:String(err)
 //   })
 // })
+
+// First Boot IPCs
+ipcMain.handle("db-init-status",()=>{
+  return dbInitialized;
+});
+
+async function saveInitData(pageNo,data){
+  try{
+    switch(pageNo){
+      case 1://Conpany Info
+        let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+        saleConfig = {
+          ...saleConfig,
+          ...data
+        }
+        fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
+        break;
+      case 2:// Financial info
+        let policyConfig = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+        policyConfig = {
+          ...policyConfig,
+          "financialYearStartDate":data.financialYearStartDate,
+          "resetBillNo":data.resetBillNo
+        }
+        await finData.findOrCreate({
+          where:{
+            finYear:new Date().getFullYear()-1
+          },
+          defaults:{
+            finYear:new Date().getFullYear()-1,
+            closingStock:Number(data.closingStock),
+            grossCredit:Number(data.grossCredit),
+            grossDebt:Number(data.grossDebt),
+            advNetIncome:Number(data.advNetIncome),
+            advNetExpence:Number(data.advNetExpence)
+          }
+        });
+        fs.writeFileSync(getUserPolicyPath(),JSON.stringify(policyConfig));
+        break;
+      default: // Page 4
+        let { filePath,'theme-pref':themePref } = data;
+        let appPolicyConfig = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+        let _policyConfig = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+        _policyConfig.wallpaper = filePath;
+        appPolicyConfig.useDarkTheme = themePref==="true";
+        fs.writeFileSync(getAppPolicyPath(),JSON.stringify(appPolicyConfig));
+        fs.writeFileSync(getUserPolicyPath(),JSON.stringify(_policyConfig));
+        ipcMain.emit("first-load");
+    }
+    return true;
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:err.message
+    });
+    return false;
+  }
+}
+
+ipcMain.handle("save-settings",async (e,{pageNo,data})=>{
+  if(dbInitialized){
+    let resp = await saveInitData(pageNo,data);
+    return resp;
+  }
+  else
+    return false;
+});
+
+ipcMain.on("write-settings",async (e,pageWiseData)=>{
+  fs.writeFile(path.resolve(app.getPath("appData")+"/temp.json"),JSON.stringify(pageWiseData),(err)=>{
+    if(err) return appLogger({
+      title:"Error",
+      message:err.message
+    });
+    appLogger({
+      title:"Success",
+      message:"Written initial data to a temporary json file"
+    })
+  });
+});
+
+ipcMain.on("first-load",async ()=>{
+  try {
+    let {id,name,secret,role,session,sessionTime,usePasswd} = (await user.findOrCreate({
+      where:{
+        name:"admin"
+      },
+      defaults:{
+        id: uuid.v5("admin", "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        name: "admin",
+        passwd: await bcrypt.hash("admin", 10),
+        role: "admin"
+      }
+    }))[0].dataValues;
+    currentUser = new User(
+      id,
+      name,
+      secret,
+      role,
+      session,
+      sessionTime,
+      usePasswd
+    );
+      ipcMain.emit("app-login");
+      await user.update(
+        {
+          lastLogin: currentUser.lastLogin,
+        },
+        {
+          where: { id: currentUser.id },
+        }
+      );
+    } catch (err) {
+      throw new Error(err);
+    }
+  ipcMain.emit("load-lander-page")
+});
 
 module.exports.checkForUpdates = checkForUpdates;

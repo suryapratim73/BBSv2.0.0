@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme } = require("../js/common");
+const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme } = require("../js/common");
 
 
 let themeObj = {
@@ -378,7 +378,7 @@ async function showForm(e,cmd,show){
                 try{
                     let cookies = await ipcRenderer.invoke("check-session-info");
                     if(cookies.length>0){
-                        console.log(cookies[0].expirationDate-Date.now())
+                        // console.log(cookies[0].expirationDate-Date.now())
                         let {session,sessionTime} = JSON.parse(cookies[0].value);
                         if(session){
                             let numHour = sessionTime/(60*60*1000);
@@ -607,13 +607,6 @@ async function saveSettings(e){
     if(cmd==="registration")
         ipcRenderer.send("app-registration",e.target.gst.value);
     showForm(null,"back",show);
-}
-
-async function chooseFile(e,filterObj = {name: 'Images',extensions:['jpg', 'png', 'gif']}){
-    let input = e.target.previousSibling.previousSibling;
-    let selectionObj = await ipcRenderer.invoke("get-file-path",filterObj);
-    if(!selectionObj.canceled)
-        input.value = selectionObj.filePaths[0];
 }
 
 async function enableOrDisableQR(e){

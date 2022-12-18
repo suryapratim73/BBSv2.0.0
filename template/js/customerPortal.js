@@ -1,7 +1,9 @@
 const { ipcRenderer } = require("electron");
 const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme } = require("../js/common");
 const uuid = require("uuid");
-const { unitMap } = require("../../config/saleConfig.json");
+const { getsaleConfigPolicyPath } = require("../../common");
+let fs = require("fs");
+const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
 
 
 toggleDevTool(document);

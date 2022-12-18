@@ -3,7 +3,7 @@ body{
     background-size: cover;
     background-position: left;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     padding: 5rem;
 }
@@ -26,6 +26,7 @@ form h2,h2{
     width: 100%;
     background-color: unset;
     text-align: center;
+    color: var(--theme-secondary);
 }
 form>div{
     margin-bottom: 1.5rem;
@@ -36,6 +37,7 @@ form>div>div{
 form label{
     font-size: 1.2rem;
     background-color: unset;
+    color: var(--theme-secondary);
 }
 form input{
     padding: 0.25rem 0.5rem;
@@ -56,4 +58,18 @@ form button,button{
     display: flex;
     justify-content: center;
     width: 100%;
+}
+body>div{
+    max-width: 25rem;
+}
+h1{
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+}
+p{
+    background: none;
+}
+h1,p{
+    color: var(--theme-secondary);
+    text-shadow: 1px 1px black;
 }

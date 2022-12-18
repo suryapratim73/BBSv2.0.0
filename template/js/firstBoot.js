@@ -1,10 +1,10 @@
-const { toggleDevTool } = require("../js/common");
+const { toggleDevTool,chooseFile, removeAllElem,showToastNotification, appendToDL, validateInput, validateInput2 } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const fs = require("fs");
 
 
 toggleDevTool(document);
-let modeHost = document.getElementById("mode-host");
+let modeHost = document.getElementById("mode-host"),pageWiseData = {},dbInitialized = false;
 
 ipcRenderer.invoke("get-policy")
 .then(policyObj=>{
@@ -12,11 +12,61 @@ ipcRenderer.invoke("get-policy")
         if(fs.existsSync(policyObj.wallpaper))
             document.body.style.backgroundImage =  `url('${policyObj.wallpaper}')`;
         else
-            document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;    
+            document.body.style.backgroundImage =  `url("../../images/default-wallpaper.svg")`;    
     }
     else
-        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.jpg")`;
+        document.body.style.backgroundImage =  `url("../../images/default-wallpaper.svg")`;
 });
+
+async function saveToDB(e,pageNo){
+    let form = e.target.nodeName==="FORM" ? e.target : document.querySelector("form");
+    let data = Object.fromEntries(new FormData(form).entries());
+    pageWiseData[pageNo] = data;
+    if(dbInitialized){
+        if(pageNo!==3)
+            ipcRenderer.invoke("save-settings",{pageNo,data})
+            .then(isSaved=>{
+                pageWiseData[pageNo].isSaved = isSaved;
+                console.log({isSaved})
+                if(isSaved)
+                    showToastNotification("Data saved","first-boot-toast");
+                else
+                    showToastNotification("Database is not initialized yet.","first-boot-toast");
+                if(pageNo===4){
+                    if(dbInitialized)
+                        Object.keys(pageWiseData)
+                        .forEach(page=>{
+                            if(!("isSaved" in pageWiseData[page]))
+                                ipcRenderer.invoke("save-settings",{pageNo:page,data})
+                        });
+                    else
+                        ipcRenderer.send("write-settings",pageWiseData);
+                }
+            });
+        else{
+            pageWiseData[3].isSaved = true;
+            if(!("name" in data)) return;
+            if(data.name.toLowerCase().trim()==="admin") return alert("Cannot use a system reserved name as username.")
+            if(data.passwd !== data["re-passwd"]){
+                document.getElementById("re-passwd").focus()
+                return alert("Password entered doesn't match.")
+            }
+            await ipcRenderer.invoke("add-user",data);
+        }
+    }
+    else
+        dbInitialized = await ipcRenderer.invoke("db-init-status");
+}
+
+function restoreFormData(pageNo){
+    if(!(pageNo in pageWiseData)) return;
+    let form = document.querySelector("form");
+    let data = pageWiseData[pageNo];
+    Object.keys(data)
+    .forEach(key=>{
+        form[key].value = data[key];
+    });
+}
 
 function submitHandler(e){
     e.preventDefault();
@@ -25,32 +75,56 @@ function submitHandler(e){
     if(!allowedNodeNames.includes(nodeName)) return;
     if(cmd.startsWith("page")){
         let pageNo = Number(cmd.split("-")[1]);
-        let page = [...document.querySelectorAll("#mode-host .page")]
-        .map(page=>{
-            if(page.id!==cmd)
-                page.classList.add("hide");
-            else{
-                page.classList.remove("hide");
-                return page;
-            }
-        }).filter(page=>page!==undefined);
-        if(page.length===0){
-            let content = document.getElementById(cmd+"-template").content.cloneNode(true).querySelector("div");
-            modeHost.appendChild(content);
-        }
         if(type==="submit"){
+            saveToDB(e,pageNo);
             pageNo += pageNo<4 ? 1 : 0;
-            e.target.dataset.cmd = `page-${pageNo}`;    
         }
-        else{
-            pageNo = Number(cmd.split("-")[1])+1;
-            e.target.form.dataset.cmd = `page-${pageNo}`;
-        }
+        document.querySelector("form").dataset.cmd = `page-${pageNo}`;
+        removeAllElem("#mode-host .page")
+        let content = document.getElementById(`page-${pageNo}-template`).content.cloneNode(true).querySelector("div");
+        modeHost.appendChild(content);
+        restoreFormData(pageNo);
+    }
+    else
+    if(cmd==="skip"){
+        ipcRenderer.send("first-load");
+    }
+    else
+    if(cmd==="create-user"){
+        e.target.classList.add("hide");
+        [...document.querySelectorAll("form button")]
+        .forEach(btn=>{
+            btn.setAttribute("disabled",true);
+        });
+        let host = document.getElementById("page-3-host");
+        let content = document.getElementById(cmd+"-template").content.cloneNode(true).querySelector("div");
+        host.appendChild(content);
+    }
+    else
+    if(cmd==="cancel-user-add"){
+        removeAllElem("#create-user-form");
+        document.querySelector("#page-3-host [data-cmd='create-user']").classList.remove("hide");
+        [...document.querySelectorAll("form button")]
+        .forEach(btn=>{
+            btn.removeAttribute("disabled");
+        });
+    }
+    else
+    if(cmd==="add-user"){
+        saveToDB(e,3);
     }
 }
 
-ipcRenderer.on("first-launch",()=>{
-    console.log("first-launch")
+ipcRenderer.on("first-launch",async ()=>{
+    console.log("first-launch");
+    dbInitialized = await ipcRenderer.invoke("db-init-status");
     let introductoryDiv = document.getElementById("page-1-template").content.cloneNode(true).querySelector("div");
     modeHost.appendChild(introductoryDiv);
+    let dl = document.createElement("datalist");
+    dl.id = "user-list";
+    appendToDL("get-users",dl);
+});
+
+ipcRenderer.on("Database initialized",()=>{
+    dbInitialized = true;
 });

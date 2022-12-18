@@ -1,8 +1,11 @@
 const { ipcRenderer } = require("electron");
 const {toggleDevTool,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme } =  require("../js/common");
 const uuid = require("uuid");
-const { unitMap } = require("../../config/saleConfig.json");
+const { getsaleConfigPolicyPath } = require("../../common");
+let fs = require("fs");
 
+
+const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
 
 toggleDevTool(document);
 

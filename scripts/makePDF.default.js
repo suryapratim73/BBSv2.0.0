@@ -3,7 +3,10 @@ const fs = require("fs");
 const {app} = require("electron");
 const path = require("path");
 const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
+const { getsaleConfigPolicyPath } = require("../common");
 
+// let path2
+if(process.APP_ENV==="DEV"){}
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template){
     let docOpts = {
@@ -29,7 +32,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
 
 exports.billPDF = function(billObj){
     const {billMeta,customer,orderItems} = billObj;
-    let saleConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname,"../config/saleConfig.json")).toString());
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, emblem } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
         let { main } = require("../lib/execCustomTemplate");
@@ -57,7 +60,7 @@ exports.billPDF = function(billObj){
         .font(saleConfig.titleFontFamily)
         .text(captions[i],{
             align:'right'
-         })
+        })
         createHeader(doc,billMeta,customer);
         createFooter(doc,billMeta);
         let initialY = 265;
@@ -82,7 +85,7 @@ exports.billPDF = function(billObj){
 exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate){
     const doc = new PDFDocument({margin});
     let path2pdf = app.getPath("temp"),initY;
-    let saleConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname,"../config/saleConfig.json")).toString());
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     doc.pipe(fs.createWriteStream(path.join(path2pdf,"ledger")));
     doc.fontSize(12)
     .font(saleConfig.titleFontFamily);

@@ -4,18 +4,24 @@ body{
     flex-direction: column;
     padding: 1rem;
 }
-h1,h2,p,label{
+h1,h2,p{
     background-color: unset;
-    color: white;
+    color: var(--theme-primary-lighter);
+}
+label,form p,form h2{
+    color: var(--theme-secondary);
+    background-color: unset;
+    text-align: left;
 }
 h1{
     text-align: center;
     font-size: -webkit-xxx-large;
-    text-shadow: 1px 1px black;
+    text-shadow: -1px 1px #afafff;
     font-weight: 100;
 }
 p{
     text-align: center;
+    /* text-shadow: 1px 1px black; */
 }
 body>div{
     flex: 1;
@@ -33,7 +39,7 @@ form{
 form>div{
     width: 40%;
     padding: 1rem 0.5rem;
-    background-color: darkslateblue;
+    background-color: var(--theme-primary);
     border-radius: 15px;
     display: flex;
     flex-direction: column;
@@ -45,25 +51,51 @@ form>div{
     height: 100%;
     display: flex;
     flex-direction: column;
-}
-#mode-host>div>div:last-child{
-    margin-top: auto;
+    justify-content: space-between;
 }
 #mode-host input,#mode-host select{
     width: 100%;
     padding: 0.15rem 0.3rem;
     border-radius: 5px;
-    background-color: #afafff;
-    color: black;
+    background-color: var(--theme-secondary);
+    color: var(--theme-text-color);
+    border: none;
+    font-size: 1rem;
+    /* text-shadow: 1px 1px black; */
+}
+#mode-host input:focus{
+    outline-color: #0277BD;
 }
 #mode-host button,button{
     padding: 0.5rem;
     font-size: 1rem;
-    background: #afafff;
+    background: var(--theme-secondary);
     border-radius: 5px;
     outline: none;
+    border: none;
+    color: var(--theme-text-color);
+    margin-top: 0.5rem;
+    max-width: fit-content;
 }
-#mode-host button[type="submit"]{
-    background: greenyellow;
-    color: #4A148C;
+#mode-host button[type="submit"],#create-user-form button:first-child{
+    color: var(--theme-primary);
+}
+.page div{
+    margin: 0 0 0.2rem 0;
+}
+.first-boot-toast{
+    right: 1rem;
+    width: fit-content;
+    flex-direction: row;
+    color: white;
+    background-color: var(--theme-primary-lighter);
+    min-width: 150px;
+    letter-spacing: 0.1rem;
+}
+#page-3-host{
+    flex: 3;
+    margin-top: 1rem;
+}
+#create-user-form{
+    margin-top: 1rem;
 }

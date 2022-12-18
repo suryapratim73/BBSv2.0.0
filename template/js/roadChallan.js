@@ -1,7 +1,10 @@
 const { toggleDevTool, makeKey, showDeleteBTN , capitalize , validateInput, validateInput2, appendToDL, removeAllElem, applyTheme } = require("../js/common");
 const { ipcRenderer, } = require("electron");
-const { unitMap } = require("../../config/saleConfig.json");
+const { getsaleConfigPolicyPath } = require("../../common");
+let fs = require("fs");
 
+
+const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
 
 toggleDevTool(document);
 

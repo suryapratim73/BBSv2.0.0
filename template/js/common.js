@@ -355,8 +355,12 @@ function toastNotification(msg,customClasses,...elems){
     if(elems.length>0)
         elems.forEach(elem=>div.appendChild(elem));
     div.className = "toast-div";
-    if(customClasses && typeof customClasses==="object")
-        customClasses.forEach(className=>div.classList.add(className));
+    if(customClasses){
+        if(typeof customClasses==="object")
+            customClasses.forEach(className=>div.classList.add(className));
+        else
+            div.className = "toast-div " + customClasses; 
+    }
     return div;
 }
 
@@ -366,7 +370,12 @@ exports.showToastNotification = function(msg,className,container,adjX=8){
     [...document.querySelectorAll(".toast-div")].forEach(toast=>{
         toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;
     });
-    document.getElementById(container).appendChild(toast);
+    try{
+        document.getElementById(container).appendChild(toast);
+    }
+    catch(e){
+        document.body.appendChild(toast);
+    }
     let toastTimers = [];
     [...document.querySelectorAll(".toast-div")].forEach((toast,index,self)=>{
         if(index>4)
@@ -832,7 +841,8 @@ exports.appendToDL = async function (eventName,datalist){
         }
         datalist.appendChild(option)
     });
-    document.body.appendChild(datalist);
+    if(!document.querySelector(datalist.id))
+        document.body.appendChild(datalist);
     return list;
 }
 
@@ -955,4 +965,11 @@ exports.applyTheme = async function(e,theme){
     else{
         this.body.style.backgroundImage = `url(${file})`;
     }
+}
+
+exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['jpg', 'png', 'gif','svg']}){
+    let input = e.target.previousSibling.previousSibling;
+    let selectionObj = await ipcRenderer.invoke("get-file-path",filterObj);
+    if(!selectionObj.canceled)
+        input.value = selectionObj.filePaths[0];
 }

@@ -100,7 +100,7 @@
       "!config",
       "!.vscode"
     ],
-    "asar": false,
+    "asar": true,
     "afterPack": "scripts/afterpack.js"
   },
   "homepage": "http://192.168.0.104/home/git/BBS.git"

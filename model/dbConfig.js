@@ -15,9 +15,11 @@ const {exec} = require("child_process");
 
 let appPath,tempStr="",timer;
 if(process.env.APP_ENV==="DEV")
-    appPath = __dirname;
+    appPath = path.resolve(__dirname,"../");
 else
     appPath = app.getPath("appData")+"/BBS";
+if(!fs.existsSync(path.resolve(appPath,"./db/bbs.db")))
+    fs.writeFileSync(path.resolve(appPath,"./db/bbs.db"),"");
 const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:path.resolve(appPath,"./db/bbs.db"),
@@ -521,6 +523,32 @@ const userSchema = {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     }
+};
+
+const financialRecordSchema = {
+    id:{
+        type: DataTypes.UUID,
+        primaryKey: true,
+        defaultValue:UUIDV4
+    },
+    finYear:{
+        type: DataTypes.DATE
+    },
+    closingStock:{
+        type: DataTypes.NUMBER
+    },
+    grossCredit:{
+        type: DataTypes.NUMBER
+    },
+    grossDebt:{
+        type: DataTypes.NUMBER
+    },
+    advNetIncome:{
+        type: DataTypes.NUMBER
+    },
+    advNetExpence:{
+        type: DataTypes.NUMBER
+    }
 }
 
 module.exports = {
@@ -596,6 +624,10 @@ module.exports = {
         freezeTableName: true,
         timestamps: false
     }),
+    finData: sequelize.define("financial_record",financialRecordSchema,{
+        freezeTableName: true,
+        timestamps: false
+    }),
     schemas:{
         supplier,
         freight,
@@ -617,4 +649,4 @@ module.exports = {
 // sequelize.sync({
 //     force:true,
 //     alter:true
-// }).then(()=>console.log("sequelize sync done")).catch(console.warn);
+// }).then(()=>console.log("sequelize sync done")).catch(console.log);
