@@ -19,7 +19,7 @@ if(process.env.APP_ENV==="DEV")
 else
     appPath = app.getPath("appData")+"/BBS";
 if(!fs.existsSync(path.resolve(appPath,"./db/bbs.db")))
-    fs.writeFileSync(path.resolve(appPath,"./db/bbs.db"),"");
+    fs.writeFileSync(path.resolve(appPath,"./db/bbs.db"),"",{flag:"wx"});
 const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:path.resolve(appPath,"./db/bbs.db"),
