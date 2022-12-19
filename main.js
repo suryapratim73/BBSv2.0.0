@@ -442,7 +442,7 @@ app.on("ready", async () => {
       appLogger({message:"Filelist check complate"});
       fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
         if (err) return console.error(err);
-        const { billNo } = JSON.parse(data);
+        const { billNo } = JSON.parse(data.toString());
         billNoCounter(billNo);
       });
       if(process.env.APP_ENV!=="DEV" && !fs.existsSync(app.getPath("appData")+"/BBS"))
