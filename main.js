@@ -71,13 +71,33 @@ let closeFlag = false,
   totpTimer,
   linuxThemeWatchTimer,
   firstBoot = false,
-  dbInitialized = false;
+  dbInitialized = false,
+  unsavedUsers = [];
 
 function updateCloseFlag() {
   closeFlag = true;
 }
 
 exports.updateCloseFlag = updateCloseFlag;
+
+function bootCommon(mainWindow){
+  let menu = Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
+  Menu.setApplicationMenu(menu);
+  mainWindow.webContents.on("did-finish-load", async () => {
+    if (currentUser) {
+      // For session login
+      let { id, name, role, usePasswd } = currentUser;
+      mainWindow.webContents.send("logged-in-user", {
+        id,
+        name,
+        role,
+        usePasswd,
+      });
+      if (!["admin", "all"].includes(currentUser.role)) imposeRestriction();
+    } else mainWindow.webContents.send("use-lock");
+  });
+  return mainWindow;
+}
 
 async function createWindow() {
   let { width, height: workAreaHeight } = screen.getPrimaryDisplay().workArea;
@@ -174,28 +194,19 @@ async function createWindow() {
           });
         })
       });
-    let menu = Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
-    Menu.setApplicationMenu(menu);
     mainWindow.maximize();
     winState.manage(mainWindow);
-    mainWindow.webContents.on("did-finish-load", async () => {
-      if (currentUser) {
-        // For session login
-        let { id, name, role, usePasswd } = currentUser;
-        mainWindow.webContents.send("logged-in-user", {
-          id,
-          name,
-          role,
-          usePasswd,
-        });
-        if (!["admin", "all"].includes(currentUser.role)) imposeRestriction();
-      } else mainWindow.webContents.send("use-lock");
-    });
-    return mainWindow;
+    return bootCommon(mainWindow)
   }
   catch(err){
     if("name" in err && err.name==="SequelizeDatabaseError"){
       firstBoot = true;
+      unsavedUsers.push({
+        id: uuid.v5("admin", "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        name: "admin",
+        passwd: "admin",
+        role: "admin",
+      });
       let appConfig = fs.readFileSync (getAppPolicyPath())
       const mainWindow = createModal(
         windowOptions,
@@ -208,15 +219,61 @@ async function createWindow() {
           }
         }
       );
-      // await sequelize.sync({
-      //   force:true,
-      //   alter:true
-      // }).catch(console.warn);
+      mainWindow.maximize();
+      winState.manage(mainWindow);
+      await sequelize.sync({
+        force:true,
+        alter:true
+      }).catch(console.warn);
       appLogger({message:"Database initialized."});
       dbInitialized = true;
       mainWindow.webContents.send("Database initialized");
+      if(fs.existsSync(app.getPath("appData")+"/temp.json")){
+        let pageWiseData = JSON.parse(fs.readFileSync(app.getPath("appData")+"/temp.json").toString());
+        appLogger({
+          title:"Restoring initial Data",
+          data:JSON.stringify(pageWiseData)
+        });
+      }
+      if(unsavedUsers.length>0){
+        appLogger({
+          title:"Message",
+          message:"Saving unsaved users."
+        });
+        Promise.all(
+          unsavedUsers.map(async data=>{
+            console.log("Saving password",data.passwd)
+            let encryptedPaswd = await bcrypt.hash(data.passwd, 10);
+            let role = ["admin", "all"].includes(currentUser?.role ?? "admin") ? data.role : "bill";
+            return user.findOrCreate({
+              where: {
+                id:data.id,
+              },
+              defaults: {
+                id:data.id,
+                name: data.name,
+                passwd: encryptedPaswd,
+                role,
+              },
+            });
+          })
+        )
+        .then(()=>{
+          unsavedUsers = [];
+          appLogger({
+            title:"Success",
+            message:"Users saved"
+          });
+        })
+        .catch(err=>{
+          appLogger({
+            title:"Error",
+            message:String(err)
+          });
+        });
+      }
       let path2TmpFile = path.resolve(app.getPath("appData"),"/temp.json");
-      if(fs.existsSync(path2TmpFile)){
+      if(fs.existsSync(path2TmpFile)){ // If file containing initial info exists.
         let pageWiseData = JSON.parse(fs.readFileSync(path2TmpFile).toString())
         Object.keys(pageWiseData)
         .forEach(pageNo=>{
@@ -287,11 +344,14 @@ exports.billDesignerWindow = (mainWindow) => {
 };
 
 ipcMain.handle("get-users", async () => {
-  return (
-    await user.findAll({
-      attributes: ["name", "id"],
-    })
-  ).map(({ dataValues }) => dataValues);
+  if(dbInitialized)
+    return (
+      await user.findAll({
+        attributes: ["name", "id"],
+      })
+    ).map(({ dataValues }) => dataValues);
+  else
+      return [];
 });
 
 // app.whenReady().then(createWindow);
@@ -352,6 +412,7 @@ function paySalary(refWindow) {
 }
 
 app.on("ready", async () => {
+  console.log("ready event")
   let policyJsonSchema = {
     "noReturn": 120,
     "gstRecurranceTerm": 1,
@@ -538,6 +599,7 @@ exports.getCurrentLogin = function () {
 
 ipcMain.handle("get-overview-content", async () => {
   let { minStock,creditLimitDays } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  if(!dbInitialized) return;
   let stocks = (
     await stock.findAll({
       where: {
@@ -578,6 +640,7 @@ ipcMain.on("new-sale-purchase", (e, mode) => {
 });
 
 ipcMain.handle("get-sale-content", async () => {
+  if(!dbInitialized) return;
   let queuedBills = (
     await sale.findAll({
       where: {
@@ -611,19 +674,28 @@ ipcMain.handle("get-sale-content", async () => {
 });
 
 ipcMain.handle("get-purchase-content", async () => {
+  if(!dbInitialized) return;
   return (await purchase.findAll()).map(({ dataValues }) => dataValues);
 });
 
 ipcMain.handle("add-user", async (e, data) => {
   let encryptedPaswd = await bcrypt.hash(data.passwd, 10);
   let role = currentUser!==undefined && "role" in currentUser && ["admin", "all"].includes(currentUser.role) ? data.role : "bill";
+  let id = uuid.v5(data.name, "6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+  if(!dbInitialized && !unsavedUsers.find(usr=>(usr.id===id))){
+    unsavedUsers.push({
+      id,
+      ...data
+    });
+    return data;
+  }
   try {
     return user.findOrCreate({
       where: {
-        id: uuid.v5(data.name, "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        id,
       },
       defaults: {
-        id: uuid.v5(data.name, "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        id,
         name: data.name,
         passwd: encryptedPaswd,
         role,
@@ -841,43 +913,63 @@ ipcMain.handle("check-session-info", async () => {
 // Lock Screen ipcs
 
 ipcMain.handle("unlock-app", async (e, authData) => {
-  let _user = await user.findOne({
-    where: {
-      name: authData.name,
-    },
-  });
-  if (!_user) throw new Error("No user");
-  let { passwd, id, name, role, secret, session, sessionTime, usePasswd } =
-    _user.dataValues;
-  if (await bcrypt.compare(authData.passwd, passwd)) {
-    currentUser = new User(
-      id,
-      name,
-      secret,
-      role,
-      session,
-      sessionTime,
-      usePasswd
-    );
-    if (secret) {
-      function writeTOTP() {
-        process.stdout.cursorTo(0, 4);
-        process.stdout.clearLine(0);
-        process.stdout.write(
-          speakeasy.totp({
-            secret: secret,
-            encoding: "base32",
-          }) + "\n"
-        );
+  let _user;
+  try{
+    _user = await user.findOne({
+      where: {
+        name: authData.name,
+      },
+    });
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:err.message
+    });
+    if(unsavedUsers.length>0){
+      _user = {...unsavedUsers.find(({name})=>name===authData.name)};
+      if(_user){
+        let encryptedPaswd = await bcrypt.hash(_user.passwd, 10);
+        _user.passwd = encryptedPaswd;
       }
-      writeTOTP();
-      clearInterval(totpTimer);
-      totpTimer = setInterval(writeTOTP, 1000);
-      return 1;
     }
-    ipcMain.emit("app-login");
-    return 0;
-  } else return -1;
+  }
+  finally{
+    if (!_user)
+      throw new Error("No user");
+    _user = "dataValues" in _user ? _user.dataValues : _user;
+    let { passwd, id, name, role, secret, session, sessionTime, usePasswd } = _user;
+    console.log({passwd,auth:authData.passwd})
+    if (await bcrypt.compare(authData.passwd, passwd)) {
+      currentUser = new User(
+        id,
+        name,
+        secret,
+        role,
+        session,
+        sessionTime,
+        usePasswd
+      );
+      if (secret) {
+        function writeTOTP() {
+          process.stdout.cursorTo(0, 4);
+          process.stdout.clearLine(0);
+          process.stdout.write(
+            speakeasy.totp({
+              secret: secret,
+              encoding: "base32",
+            }) + "\n"
+          );
+        }
+        writeTOTP();
+        clearInterval(totpTimer);
+        totpTimer = setInterval(writeTOTP, 1000);
+        return 1;
+      }
+      ipcMain.emit("app-login");
+      return 0;
+    } else return -1;
+  }
 });
 
 ipcMain.on("load-lander-page", () => {
@@ -1415,7 +1507,7 @@ function downloadUpdate(appVersion){
   });
 }
 
-async function checkForUpdates() {
+async function checkForUpdates(flag="auto") {
   let { UPDATE_REST } = process.env;
   let mainWin = getMainWindow();
   if (!["admin", "all"].includes(currentUser.role)) {
@@ -1439,7 +1531,12 @@ async function checkForUpdates() {
     appLogger({
       title:"Error",
       message:err.message
-    })
+    });
+    if(flag!=="auto")
+      return dialog.showMessageBox({
+        title:"Failed to connect",
+        message: "Update server is offline. Check later."
+      });
   }
   if (isOnline === false)
     return dialog.showMessageBox(mainWin, {
@@ -1468,11 +1565,15 @@ async function checkForUpdates() {
       cond2:Number(_minor) === Number(minor),
       cond3:Number(_bugFix) === Number(bugFix)
     });
-    if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix))
-      return dialog.showMessageBox({
-        title:"No new update",
-        message: "Application is at latest release version"
-      });// App is already updated.
+    if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix)){
+      if(flag!=="auto")
+        return dialog.showMessageBox({
+          title:"No new update",
+          message: "Application is at latest release version"
+        });// App is already updated.
+      else
+        return;
+    }
     let { response } = await dialog.showMessageBox(mainWin, {
       title: "Update available for download",
       message,
@@ -1547,19 +1648,22 @@ async function saveInitData(pageNo,data){
           "financialYearStartDate":data.financialYearStartDate,
           "resetBillNo":data.resetBillNo
         }
-        await finData.findOrCreate({
-          where:{
-            finYear:new Date().getFullYear()-1
-          },
-          defaults:{
-            finYear:new Date().getFullYear()-1,
-            closingStock:Number(data.closingStock),
-            grossCredit:Number(data.grossCredit),
-            grossDebt:Number(data.grossDebt),
-            advNetIncome:Number(data.advNetIncome),
-            advNetExpence:Number(data.advNetExpence)
-          }
-        });
+        if(dbInitialized){
+          await finData.findOrCreate({
+            where:{
+              finYear:new Date().getFullYear()-1
+            },
+            defaults:{
+              finYear:new Date().getFullYear()-1,
+              closingStock:Number(data.closingStock),
+              grossCredit:Number(data.grossCredit),
+              grossDebt:Number(data.grossDebt),
+              advNetIncome:Number(data.advNetIncome),
+              advNetExpence:Number(data.advNetExpence)
+            }
+          });
+          return false;
+        }
         fs.writeFileSync(getUserPolicyPath(),JSON.stringify(policyConfig));
         break;
       default: // Page 4
@@ -1579,17 +1683,17 @@ async function saveInitData(pageNo,data){
       title:"Error",
       message:err.message
     });
-    return false;
+    if(pageNo===4){
+      let mainWin = getMainWindow();
+      mainWin.webContents.send("save-settings");
+    }
+    else
+      return false;
   }
 }
 
 ipcMain.handle("save-settings",async (e,{pageNo,data})=>{
-  if(dbInitialized){
-    let resp = await saveInitData(pageNo,data);
-    return resp;
-  }
-  else
-    return false;
+  return saveInitData(pageNo,data);
 });
 
 ipcMain.on("write-settings",async (e,pageWiseData)=>{
@@ -1627,19 +1731,32 @@ ipcMain.on("first-load",async ()=>{
       sessionTime,
       usePasswd
     );
-      ipcMain.emit("app-login");
-      await user.update(
-        {
-          lastLogin: currentUser.lastLogin,
-        },
-        {
-          where: { id: currentUser.id },
-        }
-      );
+    await user.update(
+      {
+        lastLogin: currentUser.lastLogin,
+      },
+      {
+        where: { id: currentUser.id },
+      }
+    );
     } catch (err) {
-      throw new Error(err);
+      appLogger({
+        title:"Error",
+        message:err.message
+      });
     }
-  ipcMain.emit("load-lander-page")
+    finally{
+      currentUser = new User(
+        uuid.v5("admin", "6ba7b814-9dad-11d1-80b4-00c04fd430c8"),
+        "admin",
+        undefined,
+        "admin",
+        false
+      );
+      ipcMain.emit("app-login");
+      ipcMain.emit("load-lander-page");
+      bootCommon(getMainWindow());
+    }
 });
 
 module.exports.checkForUpdates = checkForUpdates;

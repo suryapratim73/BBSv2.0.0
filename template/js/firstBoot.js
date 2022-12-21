@@ -18,45 +18,51 @@ ipcRenderer.invoke("get-policy")
         document.body.style.backgroundImage =  `url("../../images/default-wallpaper.svg")`;
 });
 
+function page4Common(){
+    
+}
+
 async function saveToDB(e,pageNo){
     let form = e.target.nodeName==="FORM" ? e.target : document.querySelector("form");
     let data = Object.fromEntries(new FormData(form).entries());
     pageWiseData[pageNo] = data;
-    if(dbInitialized){
-        if(pageNo!==3)
-            ipcRenderer.invoke("save-settings",{pageNo,data})
-            .then(isSaved=>{
-                pageWiseData[pageNo].isSaved = isSaved;
-                console.log({isSaved})
-                if(isSaved)
-                    showToastNotification("Data saved","first-boot-toast");
-                else
-                    showToastNotification("Database is not initialized yet.","first-boot-toast");
-                if(pageNo===4){
-                    if(dbInitialized)
-                        Object.keys(pageWiseData)
-                        .forEach(page=>{
-                            if(!("isSaved" in pageWiseData[page]))
-                                ipcRenderer.invoke("save-settings",{pageNo:page,data})
-                        });
-                    else
-                        ipcRenderer.send("write-settings",pageWiseData);
-                }
-            });
-        else{
-            pageWiseData[3].isSaved = true;
-            if(!("name" in data)) return;
-            if(data.name.toLowerCase().trim()==="admin") return alert("Cannot use a system reserved name as username.")
-            if(data.passwd !== data["re-passwd"]){
-                document.getElementById("re-passwd").focus()
-                return alert("Password entered doesn't match.")
-            }
-            await ipcRenderer.invoke("add-user",data);
+    if(pageNo===3){
+        pageWiseData[3].isSaved = true;
+        if(!("name" in data)) return;
+        if(data.name.toLowerCase().trim()==="admin") return alert("Cannot use a system reserved name as username.")
+        if(data.passwd !== data["re-passwd"]){
+            document.getElementById("re-passwd").focus()
+            return alert("Password entered doesn't match.")
         }
+        await ipcRenderer.invoke("add-user",data);
+        cancelUsrAddComm();
     }
     else
+    if(pageNo===3 && !dbInitialized){
         dbInitialized = await ipcRenderer.invoke("db-init-status");
+        if(dbInitialized) return saveToDB(e,pageNo);
+    }
+    else // For page 1,2,4
+        ipcRenderer.invoke("save-settings",{pageNo,data})
+        .then(isSaved=>{
+            pageWiseData[pageNo].isSaved = isSaved;
+            if(isSaved)
+                showToastNotification("Data saved","first-boot-toast");
+            else
+                showToastNotification("Database is not initialized yet.","first-boot-toast");
+            if(pageNo===4)
+                Object.keys(pageWiseData)
+                .forEach(page=>{
+                    if(!("isSaved" in pageWiseData[page]))
+                        ipcRenderer.invoke("save-settings",{pageNo:page,data:pageWiseData[page]});
+                });
+        });
 }
+
+ipcRenderer.on("save-settings",()=>{
+    ipcRenderer.send("write-settings",pageWiseData);
+    ipcRenderer.send("first-load");
+});
 
 function restoreFormData(pageNo){
     if(!(pageNo in pageWiseData)) return;
@@ -65,6 +71,15 @@ function restoreFormData(pageNo){
     Object.keys(data)
     .forEach(key=>{
         form[key].value = data[key];
+    });
+}
+
+function cancelUsrAddComm(){
+    removeAllElem("#create-user-form");
+    document.querySelector("#page-3-host [data-cmd='create-user']").classList.remove("hide");
+    [...document.querySelectorAll("form button")]
+    .forEach(btn=>{
+        btn.removeAttribute("disabled");
     });
 }
 
@@ -101,14 +116,8 @@ function submitHandler(e){
         host.appendChild(content);
     }
     else
-    if(cmd==="cancel-user-add"){
-        removeAllElem("#create-user-form");
-        document.querySelector("#page-3-host [data-cmd='create-user']").classList.remove("hide");
-        [...document.querySelectorAll("form button")]
-        .forEach(btn=>{
-            btn.removeAttribute("disabled");
-        });
-    }
+    if(cmd==="cancel-user-add")
+        cancelUsrAddComm();
     else
     if(cmd==="add-user"){
         saveToDB(e,3);
@@ -127,4 +136,11 @@ ipcRenderer.on("first-launch",async ()=>{
 
 ipcRenderer.on("Database initialized",()=>{
     dbInitialized = true;
+});
+
+window.addEventListener("keypress",e=>{
+    if(e.key==="Enter"){
+        e.preventDefault();
+        document.querySelector("form button[type='submit']").click();
+    }
 });

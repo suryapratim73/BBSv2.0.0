@@ -33,7 +33,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check for update",
-                    click: ()=>checkForUpdates()
+                    click: ()=>checkForUpdates("manual")
                 },
                 {
                     label: "Help",

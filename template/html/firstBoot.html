@@ -25,7 +25,7 @@
                     <label for="biller">Name *</label>
                 </div>
                 <div>
-                    <input required type="text" name="biller" id="biller" autofocus>
+                    <input required type="text" spellcheck="false" name="biller" id="biller" autofocus>
                 </div>
             </div>
             <div>
@@ -33,7 +33,7 @@
                     <label for="address">Address *</label>
                 </div>
                 <div>
-                    <input required type="text" name="address" id="address">
+                    <input required type="text" spellcheck="false" name="address" id="address">
                 </div>
             </div>
             <div>
@@ -41,7 +41,7 @@
                     <label for="gst">GST</label>
                 </div>
                 <div>
-                    <input type="text" name="gst" id="gst">
+                    <input type="text" spellcheck="false" name="gst" id="gst">
                 </div>
             </div>
             <div>
@@ -57,7 +57,7 @@
                     <label for="phones">Contact Number *</label>
                 </div>
                 <div>
-                    <input required type="tel" name="phones" id="phones" pattern="^(\+\d{1,3}[- ]?)? \d{5} *\d{5}$" name="customer-phones" data-name="phones" data-type="Number" onkeypress="validateInput(event)">
+                    <input required type="tel" name="phones" id="phones" pattern="^(\+?\d{0,3}[- ]?)?\d{5} *\d{5}$" name="customer-phones" data-name="phones" data-type="Number" onkeypress="validateInput(event)">
                 </div>
             </div>
             <div>
@@ -105,7 +105,7 @@
                     <label for="closingStock">Last year closing stock</label>
                 </div>
                 <div>
-                    <input type="text" name="closingStock" id="closingStock" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="closingStock" id="closingStock" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
                 </div>
             </div>
             <div>
@@ -113,7 +113,7 @@
                     <label for="grossCredit">Net Gross Credit</label>
                 </div>
                 <div>
-                    <input type="text" name="grossCredit" id="grossCredit" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="grossCredit" id="grossCredit" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
                 </div>
             </div>
             <div>
@@ -121,7 +121,7 @@
                     <label for="grossDebt">Net Gross Debt</label>
                 </div>
                 <div>
-                    <input type="text" name="grossDebt" id="grossDebt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="grossDebt" id="grossDebt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
                 </div>
             </div>
             <div>
@@ -129,7 +129,7 @@
                     <label for="advNetIncome">Net Advance Income</label>
                 </div>
                 <div>
-                    <input type="text" name="advNetIncome" id="advNetIncome" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="advNetIncome" id="advNetIncome" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
                 </div>
             </div>
             <div>
@@ -137,7 +137,7 @@
                     <label for="advNetExpence">Net Advance Expence</label>
                 </div>
                 <div>
-                    <input type="text" name="advNetExpence" id="advNetExpence" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="advNetExpence" id="advNetExpence" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
                 </div>
             </div>
             <div>
@@ -170,7 +170,7 @@
                     <label for="filePath">Choose lockscreen wallpaper</label>
                 </div>
                 <div>
-                    <input type="text" name="filePath" placeholder="Using default wallpaper on lockscreen " id="file-path">
+                    <input type="text" spellcheck="false" name="filePath" placeholder="Using default wallpaper on lockscreen " id="file-path">
                     <button type="button" class="main-ui-btn" onclick="chooseFile(event)">Choose</button>
                 </div>
             </div>
@@ -199,7 +199,7 @@
                     <label for="name">Select user</label>
                 </divv>
                 <divv>
-                    <input type="text" autofocus name="name">
+                    <input type="text" spellcheck="false" autofocus name="name">
                 </divv>
             </div>
             <div>

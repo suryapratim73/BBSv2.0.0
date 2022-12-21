@@ -25,17 +25,22 @@ async function initPage(){
     document.querySelector(`#nav-div [data-cmd='${currentMode}']`).classList.add("selected");
     await applyMode();
     let userListDL = document.getElementById("user-list");
-    (await ipcRenderer.invoke("get-users"))
-    .forEach(user=>{
-        let option = document.createElement("option");
-        option.textContent = user.name;
-        option.dataset.id = user.id;
-        option.dataset.name = user.name;
-        userListDL.appendChild(option);
-    });
+    try{
+        (await ipcRenderer.invoke("get-users"))
+        .forEach(user=>{
+            let option = document.createElement("option");
+            option.textContent = user.name;
+            option.dataset.id = user.id;
+            option.dataset.name = user.name;
+            userListDL.appendChild(option);
+        });
+    }
+    catch(err){
+        alert(err)
+    }
     let themeObj = await ipcRenderer.invoke("init-theme");
-    applyTheme.call(document,null,themeObj);
-    spinner.remove(window);    
+    applyTheme.call(document,null,themeObj); 
+    spinner.remove(window);   
 }
 initPage();
 
@@ -75,7 +80,7 @@ function reducedArr(arr,id){
 }
 
 async function overviewPageInit(){
-    let {stocks,unPaidBills} = await ipcRenderer.invoke("get-overview-content");
+    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content") ?? {};
     let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
     let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
     dtEventDiv.querySelector("h1").textContent = dt;
@@ -107,7 +112,7 @@ async function overviewPageInit(){
 }
 
 async function salePaageInit(){
-    let {bills,allBills} = await ipcRenderer.invoke("get-sale-content");
+    let {bills=[],allBills=[]} = await ipcRenderer.invoke("get-sale-content") ?? {};
     let orderQueueContainer = document.getElementById("order-queue-container");
     if(bills.length===0)
         document.getElementById("order-queue-container").innerHTML = '<p class="item-obj">Create bill to show up here</p>';
@@ -133,7 +138,7 @@ async function salePaageInit(){
 }
 
 async function purchasePageInit(){
-    let allPurchases = await ipcRenderer.invoke("get-purchase-content");
+    let allPurchases = await ipcRenderer.invoke("get-purchase-content") ?? {};
     let tbody = document.querySelector("#current-purchase .tbody");
     allPurchases
     .filter((billObj)=>(billObj.billDate.toLocaleDateString("en-GB")==new Date().toLocaleDateString("en-GB")))

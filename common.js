@@ -175,7 +175,7 @@ exports.getLoggerFD = function(...arg){
 exports.appLogger = function(...lines){
     let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))?.["appLogs.txt"].fd;
     let lineToAppend = lines.reduce((str,line)=>(str+JSON.stringify(line)+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
-    // console.log(lines[0]);
+    console.log(lines[0]);
     if(appLoggerFD)
         fs.appendFile(appLoggerFD,lineToAppend,err=>{
             if(err) throw err;
