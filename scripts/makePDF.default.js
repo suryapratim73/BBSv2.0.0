@@ -3,7 +3,7 @@ const fs = require("fs");
 const {app} = require("electron");
 const path = require("path");
 const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody } = require('../lib/buildPage.default');
-const { getsaleConfigPolicyPath } = require("../common");
+const { getsaleConfigPolicyPath } = require("../template/js/common");
 
 // let path2
 if(process.APP_ENV==="DEV"){}

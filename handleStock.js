@@ -68,23 +68,32 @@ ipcMain.handle("get-stock-names",()=>{
 });
 
 async function queryStock(attributes){
-    if(stockList.length===0)      
-        (await (await stock.sync()).findAll())
-        .map(({dataValues})=>dataValues)
-        .forEach(obj=>{
-            obj._type = "stock";
-            stockList.push(new People(obj));
-        });
-    if(typeof attributes==="object"){
-        return stockList.map(stockObj=>{
-            let tempObj = {}
-            for(let key in stockObj)
-                if(attributes.includes(key))
-                    tempObj[key] = stockObj[key];
-            return tempObj;
-        })
+    try{
+        if(stockList.length===0)      
+            (await (await stock.sync()).findAll())
+            .map(({dataValues})=>dataValues)
+            .forEach(obj=>{
+                obj._type = "stock";
+                stockList.push(new People(obj));
+            });
+        if(typeof attributes==="object"){
+            return stockList.map(stockObj=>{
+                let tempObj = {}
+                for(let key in stockObj)
+                    if(attributes.includes(key))
+                        tempObj[key] = stockObj[key];
+                return tempObj;
+            })
+        }
+        else{
+            return stockList
+        }
     }
-    else{
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message
+        })
         return stockList
     }
 }

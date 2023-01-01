@@ -72,8 +72,10 @@ class FileHandler{
             this.fd = fs.openSync(path.resolve(this.rootPath,this.rPath),"a+");
         }
         catch(err){
-            console.log(err);
-            dialog.showErrorBox("File creation error",err.message);
+            appLogger({
+                title:"Error",
+                message:err.message
+            });
         }
     }
 }
@@ -175,7 +177,8 @@ exports.getLoggerFD = function(...arg){
 exports.appLogger = function(...lines){
     let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))?.["appLogs.txt"].fd;
     let lineToAppend = lines.reduce((str,line)=>(str+JSON.stringify(line)+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
-    console.log(lines[0]);
+    if(process.env.APP_ENV==="DEV")
+        console.log(lines[0]);
     if(appLoggerFD)
         fs.appendFile(appLoggerFD,lineToAppend,err=>{
             if(err) throw err;
@@ -243,29 +246,3 @@ exports.customDecoder = function(num,skip){
         skip = Math.abs(8 - skip);
     return (num>>1)-skip;
 }
-
-function policyPathCommmon(relPath){
-    let policyPath = __dirname; 
-    if(process.env.APP_ENV==="DEV")
-        policyPath = __dirname;
-    else
-        policyPath = app.getPath("appData")+"/BBS";
-    policyPath = path.resolve(policyPath,relPath);
-    // dialog.showMessageBox({
-    //     title:"Path to JSON",
-    //     message:policyPath
-    // })
-    return policyPath;
-}
-
-exports.getAppPolicyPath = function(relPath="./config/appDefault.json"){
-    return policyPathCommmon(relPath);
-};
-
-exports.getUserPolicyPath = function(relPath="./config/policy.json"){
-    return policyPathCommmon(relPath);
-};
-
-exports.getsaleConfigPolicyPath = function(relPath="./config/saleConfig.json"){
-    return policyPathCommmon(relPath);
-};

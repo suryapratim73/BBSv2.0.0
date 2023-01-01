@@ -2,10 +2,11 @@ const { ipcMain, dialog } = require("electron");
 const { createModal } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getsaleConfigPolicyPath } = require("./common");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
 const { stockList } = require("./handleStock");
+const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 
 
@@ -21,6 +22,7 @@ exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
         saleWindow = createModal(windowOptions,"./template/html/salePage.html");
+        saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{
             if(!closeFlag){
                 e.preventDefault();
@@ -73,7 +75,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         payment,
         netAmt,
         id="",
-        paymentStatus 
+        paymentStatus,
+        billType 
     } = billMeta;
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     const { billPDF } = require("./scripts/makePDF.default");
@@ -185,6 +188,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             customerId:custId,
             name,
             billNo,
+            billType,
             billDate,
             billAmt:Math.round(billMeta.netAmtTax+deliveryCharge),
             tax:Math.round(netTax),
@@ -228,12 +232,20 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
 ipcMain.on("save-exit-sale-bill",save_exist);
 
 async function initCustomerList(){
-    (await (await customer.sync()).findAll())
-    .map(({dataValues})=>dataValues)
-    .forEach(obj=>{
-        obj._type = "customer";
-        customerList.push(new People(obj));
-    });
+    try{
+        (await (await customer.sync()).findAll())
+        .map(({dataValues})=>dataValues)
+        .forEach(obj=>{
+            obj._type = "customer";
+            customerList.push(new People(obj));
+        });
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message
+        })
+    }
 }
 
 ipcMain.handle("get-customers",async ()=>{

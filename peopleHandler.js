@@ -58,13 +58,13 @@ ipcMain.handle("get-employee-names",async (e,id)=>{
     return employeesToSupp;
 });
 
-ipcMain.handle("get-coolies",async e=>{
-    return (await (await people).findAll({
-        where:{
-            relation:"Coolie"
-        }
-    })).map(({dataValues})=>dataValues);
-});
+// ipcMain.handle("get-coolies",async e=>{
+//     return (await (await people).findAll({
+//         where:{
+//             relation:"Coolie"
+//         }
+//     })).map(({dataValues})=>dataValues);
+// });
 
 ipcMain.on("new-employee",(e,empObj)=>{
     people.findOrCreate({

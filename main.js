@@ -21,11 +21,9 @@ const {
   User,
   customEncoder,
   customDecoder,
-  getAppPolicyPath,
-  getsaleConfigPolicyPath,
-  getUserPolicyPath,
   appLogger,
 } = require("./common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");

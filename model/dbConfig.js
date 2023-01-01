@@ -25,15 +25,18 @@ const sequelize = new Sequelize({
         if(global.shouldWait)
             tempStr += msg[0] + "\n";
         else
-        if(global.shouldWait===false && tempStr){
+        if(global.shouldWait===false )
+        {
             let loggerFD = getLoggerFD?.("dbLogs.txt");
-            appendToFile(loggerFD,tempStr+msg[0]);
-            console.log("Appending temStr")
-            tempStr = undefined;
-        }
-        else{
-            let loggerFD = getLoggerFD?.("dbLogs.txt");
-            appendToFile(loggerFD,msg[0]);
+            if(tempStr){
+                appendToFile(loggerFD,tempStr+msg[0]);
+                console.log("Appending temStr");
+                tempStr = undefined;
+            }
+            else{
+                // console.log(msg[0])
+                appendToFile(loggerFD,msg[0]);
+            }
         }
     },
     transactionType:"IMMEDIATE"
@@ -52,7 +55,7 @@ async function appendToFile(fd,data){
                     }
                 }
                 catch(err){
-                    console.log({err,msg:"Reattempting fd retrueval"})
+                    console.log({err,msg:"Reattempting fd retrieval"})
                 }
             },50);
         });
@@ -351,6 +354,9 @@ const saleSchema = {
     billDate:{
         type: DataTypes.DATE,
         allowNull: false
+    },
+    billType:{
+        type: DataTypes.TEXT
     },
     billAmt:{
         type: DataTypes.INTEGER,

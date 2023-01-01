@@ -2,8 +2,9 @@ const { ipcMain } = require("electron");
 const { createModal } = require("./createModal");
 const { sequelize, sale, purchase, outPayments, inPayments } = require("./model/dbConfig");
 const { supplierLedgerSchema,customerLedgerSchema } = require("./model/dynamicSchemas");
-const { getLedgerModel, getUserPolicyPath } = require("./common");
+const { getLedgerModel } = require("./common");
 const { Op } = require("sequelize");
+const { getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 
 let windowOptions = {

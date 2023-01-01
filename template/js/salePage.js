@@ -1,11 +1,9 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme } =  require("../js/common");
+const {toggleDevTool,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem } =  require("../js/common");
 const uuid = require("uuid");
-const { getsaleConfigPolicyPath } = require("../../common");
 let fs = require("fs");
 
-
-const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
 
 toggleDevTool(document);
 
@@ -21,14 +19,12 @@ let nameDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
-    bodyRow,timer,
-    coolieDatalist = document.createElement("datalist");
+    bodyRow,timer;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
 unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
-coolieDatalist.id = "coolie-dl";
 
 async function init(){
     appendToDL("get-stocks",nameDatalist);
@@ -42,7 +38,6 @@ async function init(){
         option.textContent = key==="Bag"?"Bag (=50 Kg)":key;
         unitDatalist.appendChild(option);
     });
-    appendToDL("get-coolies",coolieDatalist);
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
     setFooter();
@@ -89,7 +84,10 @@ function setFooter(){
         footer.querySelector(`[data-type="proceed"]`).classList.remove("hide");
     }
     else{
-        footer.querySelector(`[data-type="print"]`).classList.remove("hide");
+        if(billMeta.billType==="regular")
+            footer.querySelector(`[data-type="print"]`).classList.remove("hide");
+        else
+            footer.querySelector(`[data-type="print"]`).classList.add("hide");
         footer.querySelector(`[data-type="save"]`).classList.remove("hide");
         footer.querySelector(`[data-type="proceed"]`).classList.add("hide");
     }
@@ -99,20 +97,101 @@ function setFooter(){
         footer.querySelector(`[data-type="back"]`).classList.remove("hide");
 }
 
-async function mainForm(){
-    [...document.querySelectorAll(".page")].forEach(page=>{
-        if(Number(page.dataset.pageno)===currentStep)
-            page.classList.remove("hide");
-        else
-            page.classList.add("hide");
+function reInitFormData(){
+    let main = document.querySelector("main");
+    [ customer, billMeta, orderItems ]
+    .forEach(obj=>{
+        if(currentStep===3 && obj instanceof Array){//Step 3
+            orderItems.forEach(itemObj=>{
+                main.querySelector("#add-item > button").click();
+                bodyRow = main.querySelector("#tbody .body.row:nth-last-child(2)");
+                selectedItem = itemObj;
+                [...bodyRow.querySelectorAll("input")]
+                .forEach(input=>{
+                    let key = input.dataset.name;
+                    if(key!=="unit")
+                        input.value = itemObj?.[key] ?? "";
+                    else
+                        input.value = itemObj.sellUnit;
+                });
+                calculateAmounts();
+            });
+        }
+        else{// Step 1,2,4
+            let inputs = [...main.querySelectorAll(`input,select`)];
+            if(inputs.length===0) return;
+            //Step 1,2
+            for(let _index=0;_index<inputs.length;_index++){
+                let input = inputs[_index];
+                let key = input.dataset.name;
+                if(!(key in obj)) break;
+                if(["text","email"].includes(input.type)){
+                    input.value = obj[key];
+                    inputs.splice(_index,1);
+                    _index--;
+                }
+                if(key==="billType" && obj[key]==="monthly"){
+                    inputs.splice(_index,1);
+                    _index--;
+                    inputs.splice(inputs.findIndex(input=>input.dataset.name==="billType"),1);
+                    main.querySelector("#bill-type-monthly").setAttribute("checked",true);
+                    main.querySelector(".bill-number.regular").classList.add("hide");
+                    main.querySelector(".bill-number.regular input").setAttribute("disabled",true);
+                    main.querySelector(".bill-number.monthly").classList.remove("hide");
+                    if("autoBill" in obj && obj.autoBill)
+                        main.querySelector(".bill-number.monthly input[data-name='autoBill']").setAttribute("checked",true);
+                    main.querySelector(`#bill-number-${obj.billNo}`).setAttribute("checked",true);
+                    [...main.querySelectorAll(".bill-number.monthly input[data-name='billNo']")]
+                    .forEach(input=>{
+                        input.removeAttribute("disabled");
+                    });
+                    main.querySelector("#bill-status-open").setAttribute("checked",true);
+                    main.querySelector("#bill-status-open").setAttribute("disabled",true);
+                    main.querySelector("#bill-status-close").setAttribute("disabled",true);
+                }
+                if(key==="billDate")
+                    input.valueAsDate = new Date(obj.billDate);
+            }
+            if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
+                main.querySelector("#bill-number-regular").value = billMeta.billNo;
+            if("deliveryType" in obj && obj.deliveryType==="transport"){
+                main.querySelector("#delivery-mode option[value='transport']").setAttribute("selected",true);
+                assignDeliveryOptions({value:"transport"});
+                main.querySelector("input[data-name='transportName']").value = obj.transportName;
+                main.querySelector("input[data-name='transportAddress']").value = obj.transportAddress ?? "";
+                main.querySelector("input[data-name='transportContact']").value = obj.transportContact ?? "";
+            }
+            //Step 4
+            if(!("payment" in billMeta)) return;
+            billMeta.payment.forEach((payObj,i)=>{
+                if(i===0)
+                    showPaymentMode({value:payObj.type});
+                Object.keys(payObj)
+                .forEach(key=>{
+                    let input = main.querySelector(`#${payObj.type}-payment input[data-name="${key}"]`);
+                    if(input)
+                        input.value = payObj[key];
+                    if(billMeta.paymentStatus && payObj.type!=="cash")
+                        main.querySelector(`#${payObj.type}-payment select[data-name="paymentStatus"] option[value="${billMeta.paymentStatus}"]`).setAttribute("selected",true);
+                });
+            });
+            if("discVal" in billMeta)
+                main.querySelector("#discount-div>input").value = billMeta.discVal;
+            reassignSummaryDivFeilds();
+        }
     });
-    if(document.getElementById(`page-${currentStep}`).children.length===0){
-        let pageDF = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true);
-        document.getElementById(`page-${currentStep}`).appendChild(pageDF);
-    }
+}
+
+async function mainForm(){
+    removeAllElem("main *");
+    let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
+    document.querySelector("main").appendChild(page);
     if(currentStep===2 && !page2initialized){
         document.querySelector(`[data-name="billDate"]`).valueAsDate = new Date();
-        document.querySelector(`[data-name="billNo"]`).value = await ipcRenderer.invoke("get-sale-bill-number");
+        billMeta.billDate = document.querySelector(`[data-name="billDate"]`).value;
+        billMeta.billNo = await ipcRenderer.invoke("get-sale-bill-number");
+        billMeta.billType = "regular";
+        document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
         page2initialized = true;
     }
     setFooter();
@@ -120,6 +199,9 @@ async function mainForm(){
         document.querySelector("#tbody")?.addEventListener("focusin",clickOrFocusinHandler);
         document.querySelector("#tbody")?.addEventListener("click",clickOrFocusinHandler);
     }
+    if(currentStep===4)
+        page4Init();
+    reInitFormData();
 }
 
 function phoneRegExpInp(text){
@@ -142,7 +224,6 @@ function page4Init(){
     let netAmtTax = Math.round(billMeta.netAmtTax);
     document.querySelector("#summary-div .highlight").textContent = Math.round(netAmtTax);
     let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
-    deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
     document.querySelector("[data-name='delCharge']").textContent = deliveryCharge;
     document.querySelector("[data-name='netAmtTaxDel']").textContent = netAmtTax+deliveryCharge;
     let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,obj)=>acc+obj.payment,0):0;
@@ -169,13 +250,11 @@ function proceedOrFinishHandler(e){
                     if(input.dataset.name==="phones")
                         formObjs[input.dataset.name] = advanceSet(customer.phones,input.value);
                     else
-                    if(input.dataset.name==="delivery-mode")
-                        formObjs.deliveryType = input.value;
-                    else
-                    if(input.dataset.name==="colley-required")
-                        formObjs.coolieReq = input.value;
-                    else
+                    if(input.type!=="checkbox")
                         formObjs[input.dataset.name] = input.value;
+                    else
+                    if(input.type==="checkbox")
+                        formObjs[input.dataset.name] = input.checked;
                 }
                 else
                 if(input.type==="radio" && input.checked)
@@ -183,19 +262,20 @@ function proceedOrFinishHandler(e){
             });
             if(currentStep===1){
                 customer = {...customer,...formObjs};
-                if(!("id" in customer))
+                if(!("id" in customer)){
+                    // customer.id = await crypto.subtle.digest("SHA-256",Buffer.from(customer.name));
+                    // console.log(customer.id)
                     customer.id = uuid.v5(customer.name+"_customer","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+                }
             }
             else{
                 billMeta = {...billMeta,...formObjs};
                 if(billMeta.deliveryType==="transport" && !("transportId" in billMeta))
                     billMeta.transportId = uuid.v5(billMeta.transportName,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
-                if(billMeta.coolieReq==="yes" && !("id" in billMeta))
-                    billMeta.id = uuid.v5(billMeta.coolieName , "6ba7b814-9dad-11d1-80b4-00c04fd430c8")
                 if(!("discVal" in billMeta))
                     billMeta.discVal = 0;
             }
-        }
+        }// Step 1,2 & 4
         else{
             orderItems.forEach(itemObj=>{
                 ["sgst","cgst","igst"].forEach(key=>{
@@ -209,7 +289,7 @@ function proceedOrFinishHandler(e){
                 billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
                 billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
             }
-        }
+        }// Step 3
         currentStep++;
     }
     else
@@ -217,8 +297,6 @@ function proceedOrFinishHandler(e){
         currentStep--;
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
-    if(currentStep===4)
-        page4Init();
 }
 
 function cancelAction(){
@@ -250,7 +328,7 @@ function addRow(e){
 
 function showPaymentMode(e){
     [...document.getElementsByClassName("payment-detail")].forEach(div=>{
-        if(div.id===e.target.value+"-payment")
+        if(div.id===(e?.target || e).value+"-payment")
             div.classList.remove("hide");
         else
             div.classList.add("hide");
@@ -264,9 +342,39 @@ function validateInput2(e){
 }
 
 function selectionHandler(e){// Work needed here
+    if(e.target.dataset.name==="billType"){
+        // Step 2 
+        [...document.querySelectorAll("form .row1.bill-number")]
+        .forEach(row=>{
+            if(row.classList.contains("hide")){// && row.contains(row.querySelector(".radio-btn-div")) && e.target.value==="monthly")
+                row.classList.remove("hide");
+                [...row.querySelectorAll("input")]
+                .forEach(input=>{
+                    input.removeAttribute("disabled");
+                });
+            }
+            else{
+                row.classList.add("hide");
+                [...row.querySelectorAll("input")]
+                .forEach(input=>{
+                    input.setAttribute("disabled",true)
+                });
+            }
+        });
+        [...document.querySelectorAll("form input[name='bill-status']")]
+        .forEach(input=>{
+            if(e.target.value==="monthly"){
+                if(input.id==="bill-status-open")
+                    input.checked = true;
+                input.setAttribute("disabled",true);
+            }
+            else
+                input.removeAttribute("disabled");
+        });
+    }
     let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
     if(!match || Object.keys(match).length==0) return;
-    if(e.target.dataset.name==="stock-name"){
+    if(e.target.dataset.name==="name"){
         selectedItem = match;
         bodyRow = e.target.parentNode.parentNode;
         for(let key in match){
@@ -306,12 +414,6 @@ function selectionHandler(e){// Work needed here
         document.querySelector("[data-name='transportAddress']").value = address!==undefined?address:"";
         document.querySelector("[data-name='transportContact']").value = phone!==undefined?phone:"";
         document.querySelector("[data-name='transportCharge']").value = charge;
-    }
-    else
-    if(e.target.dataset.name==="coolieName"){
-        let { phones,moreInfo } = match;
-        document.querySelector("[data-name='coolieContact']").value = phones!==undefined?phones:"";
-        document.querySelector("[data-name='coolieCharge']").value = JSON.parse(moreInfo).charge;
     }
 }
 
@@ -429,7 +531,7 @@ function displaySection(){
     billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
     billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
     billMeta.netTax = roundOffTo2DecimalPlace(billMeta.netAmtTax - billMeta.netAmt);
-    [...summaryDiv.querySelectorAll("#bill-summary .red")].forEach(p=>p.textContent=!isNaN(reducedOrder[p.dataset.name])?roundOffTo2DecimalPlace(reducedOrder[p.dataset.name]):p.textContent);
+    [...summaryDiv.querySelectorAll("#bill-summary .highlight")].forEach(p=>p.textContent=!isNaN(reducedOrder[p.dataset.name])?roundOffTo2DecimalPlace(reducedOrder[p.dataset.name]):p.textContent);
 }
 
 function deleteRow(){
@@ -447,7 +549,6 @@ function updateBillValue(e){
     if(paymentModeDiv.id==="cash-payment"){
         payObj.type = "cash";
         let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
-        deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
         if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment)
             billMeta.paymentStatus = true;
         else
@@ -455,17 +556,17 @@ function updateBillValue(e){
     }
     else if(paymentModeDiv.id==="check-payment"){
         payObj.type = "check";
-        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.branch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
-        payObj.a_c_No = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
+        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.bankBranch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
+        payObj.bankACNo = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
         payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
-        billMeta.paymentStatus = JSON.parse(paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value);
+        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
     }
     else{
         payObj.type = "online";
-        payObj.bnk = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.ref = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
-        billMeta.paymentStatus = JSON.parse(paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value);
+        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.bankTrnRef = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
+        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
     }
     let updateFlag = false;
     if(payment.length>0)
@@ -478,6 +579,8 @@ function updateBillValue(e){
     if(!updateFlag)
         payment.push(payObj);
     billMeta.payment = payment;
+    if(billMeta.billType!=="regular")
+        billMeta.paymentStatus = false;
     if(billMeta.paymentStatus)
         showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
     else
@@ -511,48 +614,32 @@ function deleteKey(arr,obj){
 
 function assignDeliveryOptions(e){
     let transportDiv = document.getElementById("transport-div");
-    let coolieDiv = document.getElementById("coolie-div");
-    if(e.target.name==="delivery-mode"){
-        if(e.target.value==="transport"){
-            transportDiv.classList.remove("hide");
-            let transportOptDF = document.getElementById("transport-retractable-div-template").content.cloneNode(true);
-            transportDiv.appendChild(transportOptDF);
-        }
-        else{
-            transportDiv.classList.add("hide");
-            transportDiv.querySelector(".retractable-div").remove();
-            deleteKey([
-                "deliveryType",
-                "transportName",
-                "transportAddress",
-                "transportContact",
-                "transportCharge"
-            ],billMeta);
-        }
+    if((e?.target || e).value==="transport"){
+        transportDiv.classList.remove("hide");
+        let transportOptDF = document.getElementById("transport-retractable-div-template").content.cloneNode(true);
+        transportDiv.appendChild(transportOptDF);
     }
     else{
-        if(e.target.value==="yes"){
-            coolieDiv.classList.remove("hide");
-            let coolieOptDF = document.getElementById("coolie-retractable-div-template").content.cloneNode(true);
-            coolieDiv.appendChild(coolieOptDF);
-        }
-        else{
-            coolieDiv.classList.add("hide");
-            coolieDiv.querySelector(".retractable-div").remove();
-            deleteKey([
-                "coolieReq",
-                "coolieName",
-                "coolieContact",
-                "coolieCharge"
-            ],billMeta);
-        }
+        transportDiv.classList.add("hide");
+        transportDiv.querySelector(".retractable-div").remove();
+        deleteKey([
+            "deliveryType",
+            "transportName",
+            "transportAddress",
+            "transportContact",
+            "transportCharge"
+        ],billMeta);
     }
 }
 
 function updatePayStatus(e){
-    billMeta.paymentStatus = false;
+    if(billMeta.billType!=="regular"){
+        billMeta.paymentStatus = false;
+        return showToastNotification("Monthly bills are marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
+    }
+    billMeta.paymentStatus = "paymentStatus" in billMeta? billMeta.paymentStatus : false;
     if(e)
-        billMeta.paymentStatus = JSON.parse(e.target.value);
+        billMeta.paymentStatus = e.target.value==="true";
     if(billMeta.paymentStatus)
         showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
     else
@@ -578,8 +665,12 @@ ipcRenderer.on("printObj",(e,printObj)=>{
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
 
-function saveExit(){
-    ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
+async function saveExit(){
+    let dbInitialized = await ipcRenderer.invoke("db-init-status");
+    if(dbInitialized)
+        ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
+    else
+        showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
 }
 
 function applyDiscount(e){
@@ -611,9 +702,11 @@ document.addEventListener("keydown",e=>{
     if(e.ctrlKey && e.key==="Enter" && currentStep===4)
         document.querySelector('[data-type="save"]').click();
     if(e.ctrlKey && e.key==="ArrowLeft")
-        document.querySelector('[data-type="back"]').click();
+        document.querySelector('[data-type="back"]' && currentStep>1).click();
     if(e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     if(e.shiftKey && e.key==="Delete")
         deleteRow();
+    if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
+        document.querySelector(`[data-type="print"]`).click();
 });

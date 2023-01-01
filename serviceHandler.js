@@ -19,11 +19,19 @@ exports.serviceRegistor = function (mainWindow){
 }
 
 async function initService(){
-    (await (await service.sync()).findAll())
-    .map(({dataValues})=>{
-        serviceList.push(new People(dataValues));
-        return dataValues;
-    });
+    try{
+        (await (await service.sync()).findAll())
+        .map(({dataValues})=>{
+            serviceList.push(new People(dataValues));
+            return dataValues;
+        });
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message
+        })
+    }
 }
 
 ipcMain.handle("get-services",async e=>{

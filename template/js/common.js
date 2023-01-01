@@ -1,5 +1,6 @@
 const {ipcRenderer} = require("electron");
 const uuid = require("uuid");
+const path = require("path");
 require("dotenv").config();
 const {
     APP_ENV
@@ -973,3 +974,29 @@ exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['
     if(!selectionObj.canceled)
         input.value = selectionObj.filePaths[0];
 }
+
+function policyPathCommmon(relPath,_path){
+    let policyPath = __dirname; 
+    if(process.env.APP_ENV==="DEV")
+        policyPath = __dirname;
+    else
+        policyPath = app.getPath("appData")+"/BBS";
+    policyPath = path.resolve(policyPath,relPath,_path);
+    // dialog.showMessageBox({
+    //     title:"Path to JSON",
+    //     message:policyPath
+    // })
+    return policyPath;
+}
+
+exports.getAppPolicyPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./config/appDefault.json");
+};
+
+exports.getUserPolicyPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./config/policy.json");
+};
+
+exports.getsaleConfigPolicyPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./config/saleConfig.json");
+};

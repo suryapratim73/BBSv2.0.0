@@ -14,7 +14,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
   cb
 }={})=>{
   let modal;
-  let { getAppPolicyPath } = require("./common");
+  let { getAppPolicyPath } = require("./template/js/common");
   windowOptions = {
       width: 400,
       height: 450,
