@@ -22,7 +22,7 @@ exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
         saleWindow = createModal(windowOptions,"./template/html/salePage.html");
-        saleWindow.webContents.toggleDevTools()
+        // saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{
             if(!closeFlag){
                 e.preventDefault();
@@ -64,19 +64,17 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         transportId="",
         transportAddress="",
         transportContact="",
-        transportCharge="",
-        coolieName="",
-        coolieContact="",
-        coolieCharge="",
         netDue, 
         billNo, 
         billDate, 
         netTax,
         payment,
         netAmt,
-        id="",
         paymentStatus,
-        billType 
+        billType,
+        autoBill,
+        orderRef,
+        netAmtTax
     } = billMeta;
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     const { billPDF } = require("./scripts/makePDF.default");
@@ -87,7 +85,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         netDue = Math.round(netAmt + netTax);
     else
         netDue = Math.round(netAmt + netTax - netPayment);
-    let deliveryCharge = Math.round(Number(transportCharge) + Number(coolieCharge));
     if(deliveryType!=="hand")
         freight.sync()
         .then(model=>
@@ -97,8 +94,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                     id:transportId,
                     name:transportName,
                     address:transportAddress,
-                    phone:transportContact,
-                    charge:transportCharge
+                    phone:transportContact
                 }
             })
             .then(()=>console.log("Transporter db updated!!"))
@@ -125,8 +121,28 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         })
         .then(()=>console.log("Customer db updated"))
         .catch(console.log);
-    }    
-    let billModel = await getBillModel(custId,billNo,billDate,billItemSchema);
+    }
+    if(billNo==="spot"){
+        let [ dd,mn,yy ] = (new Date()).toLocaleDateString("en-IN").split("/");
+        mn = mn<11?mn++:0;
+        if(mn===0)
+            yy++;
+        billDate = (new Date((new Date(yy,mn,1)).getTime() - 24*60*60*1000))
+                    .toLocaleDateString("en-IN",{
+                        month:"2-digit",
+                        day:"2-digit",
+                        year:"numeric"
+                    })
+                    .split("/")
+                    .reduce((acc,str,i)=>{
+                        acc = i===0 ? str : str+"-"+acc;
+                        return acc;
+                    },"");
+    }
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+    ];
+    let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);
     let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
     let lastBalance = (await ((await customerLedger.sync()).findOne({
         attributes:["balance"],
@@ -137,7 +153,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
     Promise.all([
         ...orderItems.filter(obj=>obj.type!=="service")
         .map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
-            let tax = igst>0?igst:cgst+sgst;
+            let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
             let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
             return billModel.create({
                 name,
@@ -146,12 +162,15 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
                 quantity:qty,
                 sellUnit,
                 rate:rate*multiplier,
-                tax:tax*amt/100
+                tax:tax*amt/100,
+                sgst,
+                cgst,
+                igst
             })
         }),
         customerLedger.create({
             billStatus,
-            date:billDate,
+            date: billNo!="spot"? billDate : undefined,
             billNo,
             billAmt:Math.round(netAmt),
             tax:Math.round(netTax),
@@ -159,8 +178,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             payments:Math.round(netPayment),
             netDue,
             itemList:`${custId}_${billNo}_${billDate}`,
-            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,transportCharge,coolieName,coolieCharge,coolieContact}:"hand",
-            balance: Math.round(lastBalance + billMeta.netAmtTax + deliveryCharge - netPayment)
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand",
+            balance: Math.round(lastBalance + netAmtTax - netPayment)
         }),
         ...orderItems
         .filter(obj=>obj.type!=="service")
@@ -190,22 +209,16 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             billNo,
             billType,
             billDate,
-            billAmt:Math.round(billMeta.netAmtTax+deliveryCharge),
-            tax:Math.round(netTax),
-            payment:Math.round(netPayment),
+            billAmt:netAmtTax,
+            netAmt,
+            tax:netTax,
+            payment:netPayment,
             paymentStatus,
-            netDue:Math.round(netDue),
-            billItemTable:`${custId}_${billNo}_${billDate}`
-        }),
-        (await people.sync()).findOrCreate({
-            where:{id},
-            defaults:{
-                id,
-                relation:"Coolie",
-                name:coolieName,
-                phones:coolieContact,
-                moreInfo:{charge:transportCharge}
-            }
+            netDue:netDue,
+            billItemTable:`${custId}_${billNo}_${billDate}`,
+            autoBill,
+            orderRef,
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand"
         })
     ])
     .then(async ()=>{
@@ -226,7 +239,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         appLogger("sale",JSON.stringify({name,billNo,netPayment}))
     })
     .catch(console.log);
-    return billPDF({billMeta,customer:customerObj,orderItems});
+    if(billType!=="monthly")
+        return billPDF({billMeta,customer:customerObj,orderItems});
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
@@ -256,6 +270,7 @@ ipcMain.handle("get-customers",async ()=>{
 
 ipcMain.on("salepage-print-doc",async (e,billObj)=>{
     let path2pdf = await save_exist(e,billObj);
+    if(!path2pdf) return;
     // return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
     if(billStatus!=="open")

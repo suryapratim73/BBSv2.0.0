@@ -19,7 +19,7 @@ let nameDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
-    bodyRow,timer;
+    bodyRow,timer,currentBillNo;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -154,7 +154,7 @@ function reInitFormData(){
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
                 main.querySelector("#bill-number-regular").value = billMeta.billNo;
-            if("deliveryType" in obj && obj.deliveryType==="transport"){
+            if("deliveryType" in obj && obj.deliveryType==="transport" && currentStep===2){
                 main.querySelector("#delivery-mode option[value='transport']").setAttribute("selected",true);
                 assignDeliveryOptions({value:"transport"});
                 main.querySelector("input[data-name='transportName']").value = obj.transportName;
@@ -189,7 +189,8 @@ async function mainForm(){
     if(currentStep===2 && !page2initialized){
         document.querySelector(`[data-name="billDate"]`).valueAsDate = new Date();
         billMeta.billDate = document.querySelector(`[data-name="billDate"]`).value;
-        billMeta.billNo = await ipcRenderer.invoke("get-sale-bill-number");
+        currentBillNo = await ipcRenderer.invoke("get-sale-bill-number");
+        billMeta.billNo = currentBillNo;
         billMeta.billType = "regular";
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
         page2initialized = true;
@@ -275,6 +276,8 @@ function proceedOrFinishHandler(e){
                 if(!("discVal" in billMeta))
                     billMeta.discVal = 0;
             }
+            if(billMeta.billType==="monthly" && billMeta.billNo==="reserve")
+                billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
             orderItems.forEach(itemObj=>{
@@ -374,10 +377,12 @@ function selectionHandler(e){// Work needed here
     }
     let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
     if(!match || Object.keys(match).length==0) return;
-    if(e.target.dataset.name==="name"){
+    if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
         bodyRow = e.target.parentNode.parentNode;
         for(let key in match){
+            if(["sgst","cgst","igst"].includes(key))
+                continue;
             let input = bodyRow.querySelector(`input[data-name="${key}"]`);
             if(input && key!=="unit")
                 input.value = match[key];
@@ -391,7 +396,7 @@ function selectionHandler(e){// Work needed here
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
             bodyRow.dataset[key] = match[key];
         }
-        bodyRow.querySelector(`[data-name="qty"]`).focus();
+        bodyRow.querySelector(`[data-name="qty"]`)?.focus();
         match.sellId = bodyRow.dataset.sellId;
         orderItems = orderItems.filter(obj=>obj.sellId!==match.sellId);
         orderItems.push(match);
@@ -400,7 +405,7 @@ function selectionHandler(e){// Work needed here
         displaySection();
     }
     else
-    if(e.target.dataset.name==="name"){// Done.
+    if(e.target.dataset.name==="name" && currentStep===1){// Done.
         let {address,phones,gst,moreInfo} = match;
         customer = {...match};
         document.querySelector("[data-name='address']").value = address;
@@ -482,6 +487,7 @@ function reduceOrder(){
 }
 
 function displaySection(){
+    if(currentStep!==3) return;
     let df = document.getElementById("summary-div-template").content.cloneNode(true);
     document.querySelector(".page #page3-summary-div")?.remove();
     document.querySelector("#page-3").appendChild(df);

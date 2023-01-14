@@ -74,7 +74,10 @@ function printcmd(e){
     if(captions.length===0)
         return alert("Check at least 1 box.");
     printObj.captions = captions;
-    ipcRenderer.send("forward-printObj",printObj,pdfPath);
+    if(pdfPath)
+        ipcRenderer.send("forward-printObj",printObj,pdfPath);
+    else
+        ipcRenderer.send("print-obj",printObj);
 }
 
 document.querySelector('[data-name="print-cancel-btn"]').addEventListener("click",()=>{
@@ -82,6 +85,7 @@ document.querySelector('[data-name="print-cancel-btn"]').addEventListener("click
 });
 
 ipcRenderer.on("hide-label",(e,path2pdf)=>{
+    console.log("Hide label")
     pdfPath = path2pdf;
     document.querySelector("fieldset:first-child").classList.add("hide");
 })

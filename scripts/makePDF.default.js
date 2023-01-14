@@ -30,7 +30,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     return {doc,pdfPath};
 }
 
-exports.billPDF = function(billObj){
+exports.billPDF = async function(billObj){
     const {billMeta,customer,orderItems} = billObj;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, emblem } = saleConfig;
@@ -38,12 +38,12 @@ exports.billPDF = function(billObj){
         let { main } = require("../lib/execCustomTemplate");
         let data = fs.readFileSync(saleConfig.billTemplate.file);
         let template = JSON.parse(data.toString());
-        const {doc,pdfPath} = initBillPDF(billObj,template);    
+        const {doc,pdfPath} = initBillPDF(billObj,template);   
         return main(doc,pdfPath,billObj,template);
     }
     const {doc,pdfPath} = initBillPDF({...billObj,margin});
     let j,lastJ=0,lastI=0;
-    const {printObj:{captions}} = billMeta;
+    const {printObj:{captions}={captions:["Original Buyer's Copy"]}} = billMeta;
     loop1:
     for(let i=0;i<captions.length;i++){
         j=lastJ;

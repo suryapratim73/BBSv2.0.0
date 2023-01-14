@@ -115,7 +115,16 @@ exports.billItemSchema = {
         allowNull:false
     },
     tax:{
-        type: DataTypes.TEXT
+        type: DataTypes.NUMBER
+    },
+    sgst:{
+        type: DataTypes.NUMBER
+    },
+    cgst:{
+        type: DataTypes.NUMBER
+    },
+    igst:{
+        type: DataTypes.NUMBER
     },
     itemReturned:{
         type: DataTypes.BOOLEAN,

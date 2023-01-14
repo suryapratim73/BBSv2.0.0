@@ -112,9 +112,6 @@ const freight = {
     address:{
         type:DataTypes.TEXT
     },
-    charge:{
-        type:DataTypes.INTEGER
-    },
     phones:{
         type:DataTypes.JSON
     },
@@ -223,6 +220,15 @@ const stockSchema = {
         defaultValue:[]
     },
     tax:{
+        type: DataTypes.INTEGER
+    },
+    sgst:{
+        type: DataTypes.INTEGER
+    },
+    cgst:{
+        type: DataTypes.INTEGER
+    },
+    igst:{
         type: DataTypes.INTEGER
     },
     pInfo:{
@@ -362,6 +368,10 @@ const saleSchema = {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    netAmt:{
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
     tax:{
         type: DataTypes.INTEGER,
         allowNull: false
@@ -382,6 +392,17 @@ const saleSchema = {
     deliveryStatus:{
         type:DataTypes.TEXT,
         defaultValue:"queued"
+    },
+    autoBill:{
+        type:DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    orderRef:{
+        type:DataTypes.TEXT
+    },
+    delivery:{
+        type:DataTypes.JSON,
+        defaultValue:"hand"
     }
 }
 

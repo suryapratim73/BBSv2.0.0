@@ -31,7 +31,7 @@ header button{
     border: none;
     padding: 0.5rem 1rem;
     width: 100%;
-    color: var(--theme-secondary);
+    color: var(--theme-text-color);
 }
 #filter-options>p.selected{
     color: var(--theme-primary);

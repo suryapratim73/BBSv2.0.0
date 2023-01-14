@@ -22,6 +22,8 @@ const {
   customEncoder,
   customDecoder,
   appLogger,
+  getBillModel,
+  getLedgerModel,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
@@ -41,7 +43,8 @@ const {
   purchase,
   user,
   schemas,
-  finData
+  finData,
+  customer
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
 const { Op, Sequelize } = require("sequelize");
@@ -51,8 +54,10 @@ const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
 const { spawn,execFile } = require("child_process");
+const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
+const { billPDF } = require("./scripts/makePDF.default");
 
-const { billItemSchema } = dynamicSchemas;
+const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
   windowOptions = {
     width: 600,
@@ -70,7 +75,7 @@ let closeFlag = false,
   linuxThemeWatchTimer,
   firstBoot = false,
   dbInitialized = false,
-  unsavedUsers = [];
+  unsavedUsers = [],jobs = [];
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -95,6 +100,36 @@ function bootCommon(mainWindow){
     } else mainWindow.webContents.send("use-lock");
   });
   return mainWindow;
+}
+
+class Job{
+  constructor(id,intr,args,func,time){
+    this.id = id;
+    this.intr = intr;
+    this.args = args;
+    this.func = func;
+    this.time = time;
+    this.status = "created";
+    if(time){
+      setInterval(()=>{
+        this.act(this.intr);
+      },this.time)
+    }
+  }
+  act(intr){
+    if(this.intr===intr){
+      this.func(...this.args);
+    }
+  }
+  updateStatus(status){
+    this.status = status;
+  }
+  updateArgs(...args){
+    this.args = [
+      ...this.args,
+      ...args
+    ];
+  }
 }
 
 async function createWindow() {
@@ -154,6 +189,7 @@ async function createWindow() {
         );
         currentUser.login();
         fileName = "mainPage";
+        autoPrintMonthlyBills();
       }
     }
     firstBoot = true;
@@ -567,6 +603,144 @@ app.on("ready", async () => {
   });
 });
 
+async function autoPrintMonthlyBills(){
+  let date = new Date();
+  //Below code runs on 1st of every month.
+  if(date.getDate()===1 && ["admin","all"].includes(currentUser.role)){
+    jobs = [];
+    let month = date.getMonth();
+    month = month>0?month--:11;
+    let year = date.getFullYear();
+    if(month===11)
+      year--;
+    let lastDay_lastMonth = new Date(Date.now() - 24*60*60*1000);
+    let firstDay_lastMonth = new Date(year,month,1);
+    let sales = (await sale.findAll({
+      where:{
+        billType:"monthly",
+        autoBill:true,
+        billStatus:"open",
+        billDate:{
+          [Op.between]:[firstDay_lastMonth,lastDay_lastMonth]
+        }
+      }
+    })).map(({dataValues})=>dataValues);
+    if(sales.length>0){
+      // Create bill-pdf and then continue.
+      Promise.all(
+        sales.map(async (saleObj,index)=>{
+          let {billDate,billNo,entryNo,customerId,delivery,tax,billAmt} = saleObj;
+          billNo = billNoCounter();
+          saleObj.billNo = billNo;
+          billDate = lastDay_lastMonth
+                      .toLocaleDateString("en-IN",{
+                        month:"2-digit",
+                        day:"2-digit",
+                        year:"numeric"
+                      })
+                      .split("/")
+                      .reduce((acc,str,i)=>{
+                        acc = i===0 ? str : str+"-"+acc;
+                        return acc;
+                    },"");
+          saleObj.billDate = lastDay_lastMonth;
+          let customerObj = (await customer.findOne({
+            where:{
+              id:customerId
+            }
+          })).dataValues;
+          let billModel = await getBillModel(customerId,"spot",billDate,billItemSchema);
+          let orderItems = (await billModel.findAll()).map(obj=>obj.dataValues);
+          let billMeta = {
+            ...saleObj,
+            ...delivery,
+            netTax:tax,
+            netAmtTax:billAmt,
+            printObj:{
+              captions:["Original Buyer's Copy"]//Use preset captions from user config
+            },
+            billDate
+          };//Recreate billMeta
+          path2pdf = await billPDF({billMeta,customer:customerObj,orderItems});
+          jobs.push(new Job(`print_${entryNo}`,"print",[path2pdf],printPDF));
+          return sale.update({
+            billStatus:"close",
+            billNo,
+            billDate
+          },{
+            where:{
+              entryNo
+            }
+          })
+        })
+      ).then(async function printQuery(){
+        let resp = await dialog.showMessageBox({
+          title:"Auto-print invoices",
+          message:"Bills ready for auto-print. Start printing now?",
+          buttons: [ "Print now","Remind me later" ]
+        });
+        let scheduledTime = resp.response===0 ? 0 : 60*60*1000;
+        if(resp.response===1)
+          dialog.showMessageBox({
+            title:"Auto-print postponed",
+            message:"We will remind you to auto-print montly bill after an hour."
+          })
+        setTimeout(()=>{
+          if(scheduledTime===0){
+            let pathToHTML = "./template/html/printDialog.html";
+            let windowOptions = {
+              width: 400,
+              height: 450,
+              resizable:false,
+              webPreferences: {
+                  nodeIntegration: true,
+                  devTools:true
+              },
+              parent:BrowserWindow.getFocusedWindow(),
+              contextIsolation:true,
+              movable:false,
+              frame:false,
+              titleBarStyle:"hidden"
+            }
+            let modal = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog"});
+            ipcMain.on("print-obj",(e,printObj)=>{
+              modal.close();
+              jobs.forEach(job=>{
+                job.updateArgs(printObj);
+              });
+            });
+            jobs.forEach(job=>{
+              job.act("print");
+            });
+          }
+          else
+            printQuery();
+        },scheduledTime);
+      }).catch((err)=>{
+        console.log(err)
+        appLogger({
+          title:"Monthly-bill",
+          message:String(err)
+        })
+      });
+    }
+  }
+}
+
+function printPDF(path2pdf,printObj){
+  let { printer,copies=1,paperSize,printOrientation } = printObj;
+  switch(process.platform){
+    case "linux":
+        return printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
+    case "win32":
+        return printOnWindows(path2pdf,printer,copies,paperSize);
+    case "darwin":
+        return printOnLinuxOrMac(path2pdf,printer,copies);
+    default:
+        dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
+  }
+}
+
 ipcMain.on("take-attendance", (e) => {
   let refWin = getTargetWindow("Employee-Page");
   takeAttendance(refWin);
@@ -937,7 +1111,6 @@ ipcMain.handle("unlock-app", async (e, authData) => {
       throw new Error("No user");
     _user = "dataValues" in _user ? _user.dataValues : _user;
     let { passwd, id, name, role, secret, session, sessionTime, usePasswd } = _user;
-    console.log({passwd,auth:authData.passwd})
     if (await bcrypt.compare(authData.passwd, passwd)) {
       currentUser = new User(
         id,
@@ -948,7 +1121,8 @@ ipcMain.handle("unlock-app", async (e, authData) => {
         sessionTime,
         usePasswd
       );
-      if (secret) {
+      // Write TOTP on console
+      if (secret && process.APP_ENV==="DEV") {
         function writeTOTP() {
           process.stdout.cursorTo(0, 4);
           process.stdout.clearLine(0);
@@ -995,7 +1169,10 @@ ipcMain.handle("verify-code", async (e, { code }) => {
         }
       );
     } catch (err) {
-      throw new Error(err);
+      appLogger({
+        title:"Error",
+        message:String(err)
+      });
     }
   }
   return res;
@@ -1016,9 +1193,10 @@ ipcMain.on("app-login", async () => {
       }
     );
   } catch (err) {
-    appLogger({title:"Error",message:err});
+    appLogger({title:"Error",message:String(err)});
   } finally {
     imposeRestriction();
+    autoPrintMonthlyBills();
   }
 });
 
@@ -1287,7 +1465,7 @@ async function initTheme({ shouldUpdate = false } = {}, e = {}) {
     ...dataBuff,
     shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
   };
-  win.webContents.send("apply-theme", themeObj);
+  win?.webContents.send("apply-theme", themeObj);
   if (shouldUpdate) {
     BrowserWindow.getAllWindows().forEach((_win) => {
       if (_win !== win) _win.webContents.send("apply-theme", themeObj);

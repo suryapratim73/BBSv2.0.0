@@ -69,6 +69,6 @@ exports.createModal = (windowOptions={},pathToHTML,{
   }
 }
 
-exports.getMainWindow = ()=>(windowList.find(win=>win.label==="Main").modal);
+exports.getMainWindow = ()=>(windowList.find(win=>win.label==="Main")?.modal);
 
 exports.getTargetWindow = (label)=>(windowList.find(win=>win.label===label).modal);

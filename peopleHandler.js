@@ -37,7 +37,7 @@ exports.employeePortal = mainWindow => {
 ipcMain.handle("get-freights",async e=>{
     if(freightList.length>0) return freightList;
     let frgtList = (await (await freight.sync()).findAll({
-        attributes: [ "name", "id", "charge" ]
+        attributes: [ "name", "id" ]
     })).map(({dataValues})=>dataValues);
     frgtList.forEach(frieghtObj=>{
         frieghtObj._type = "freight";
