@@ -25,7 +25,7 @@ const {
   getBillModel,
   getLedgerModel,
 } = require("./common");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -618,32 +618,32 @@ async function autoPrintMonthlyBills(){
     let sales = (await sale.findAll({
       where:{
         billType:"monthly",
-        autoBill:true,
-        billStatus:"open",
         billDate:{
           [Op.between]:[firstDay_lastMonth,lastDay_lastMonth]
         }
       }
     })).map(({dataValues})=>dataValues);
     if(sales.length>0){
-      // Create bill-pdf and then continue.
+      // Create bill-pdf for all monthly bills and then continue to print.
       Promise.all(
-        sales.map(async (saleObj,index)=>{
-          let {billDate,billNo,entryNo,customerId,delivery,tax,billAmt} = saleObj;
-          billNo = billNoCounter();
-          saleObj.billNo = billNo;
-          billDate = lastDay_lastMonth
-                      .toLocaleDateString("en-IN",{
-                        month:"2-digit",
-                        day:"2-digit",
-                        year:"numeric"
-                      })
-                      .split("/")
-                      .reduce((acc,str,i)=>{
-                        acc = i===0 ? str : str+"-"+acc;
-                        return acc;
-                    },"");
-          saleObj.billDate = lastDay_lastMonth;
+        sales.map(async saleObj=>{// Creating bill-pdf for auto-print bills
+          let {billDate,billNo,entryNo,customerId,delivery,tax,billAmt,autoBill} = saleObj;
+          if(billNo==="spot"){// Updating billNo and billDate only if billNo==spot
+            billNo = billNoCounter();
+            saleObj.billNo = billNo;
+            billDate = lastDay_lastMonth
+                        .toLocaleDateString("en-IN",{
+                          month:"2-digit",
+                          day:"2-digit",
+                          year:"numeric"
+                        })
+                        .split("/")
+                        .reduce((acc,str,i)=>{
+                          acc = i===0 ? str : str+"-"+acc;
+                          return acc;
+                      },"");
+            saleObj.billDate = lastDay_lastMonth;
+          }
           let customerObj = (await customer.findOne({
             where:{
               id:customerId
@@ -662,7 +662,8 @@ async function autoPrintMonthlyBills(){
             billDate
           };//Recreate billMeta
           path2pdf = await billPDF({billMeta,customer:customerObj,orderItems});
-          jobs.push(new Job(`print_${entryNo}`,"print",[path2pdf],printPDF));
+          if(autoBill===true)
+            jobs.push(new Job(`print_${entryNo}`,"print",[path2pdf],printPDF));
           return sale.update({
             billStatus:"close",
             billNo,
@@ -677,8 +678,9 @@ async function autoPrintMonthlyBills(){
         let resp = await dialog.showMessageBox({
           title:"Auto-print invoices",
           message:"Bills ready for auto-print. Start printing now?",
-          buttons: [ "Print now","Remind me later" ]
+          buttons: [ "Print now","Remind me later","Don't print" ]
         });
+        if(resp.response===2) return;// Don't auto-print
         let scheduledTime = resp.response===0 ? 0 : 60*60*1000;
         if(resp.response===1)
           dialog.showMessageBox({
@@ -800,15 +802,25 @@ ipcMain.handle("get-overview-content", async () => {
   return { unPaidBills, stocks };
 });
 
+ipcMain.handle("get-orders",async ()=>{
+  let orderPath = getOrderPath();
+  let orders = [];
+  if(!fs.existsSync(orderPath)) return orders;
+  orders = JSON.parse(fs.readFileSync(orderPath)?.toString());
+  return orders;
+});
+
 ipcMain.on("new-sale-purchase", (e, mode) => {
   if (["all", "admin", "bill"].includes(currentUser.role) && mode === 1)
     Menu.getApplicationMenu().items[1].submenu.items[0].click();
-  else if (
-    ["all", "admin", "purchase"].includes(currentUser.role) &&
-    mode === 2
-  )
+  else 
+  if (["all", "admin", "purchase"].includes(currentUser.role) && mode === 2)
     Menu.getApplicationMenu().items[2].submenu.items[0].click();
-  else e.sender.send("error", "Insufficient permission");
+  else
+  if(["all", "admin", "bill"].includes(currentUser.role) && mode === 3)
+    Menu.getApplicationMenu().items[1].submenu.items[3].click();
+  else 
+    e.sender.send("error", "Insufficient permission");
 });
 
 ipcMain.handle("get-sale-content", async () => {

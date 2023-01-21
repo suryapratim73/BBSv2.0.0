@@ -1,6 +1,6 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { Op } = require("sequelize");
-const { createModal } = require("./createModal");
+const { createModal, getMainWindow } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
@@ -24,7 +24,15 @@ exports.getSuplierPortal = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
         let pathToHTML = "./template/html/supplierPortal.html";
-        createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Page"});
+        createModal(windowOptions,pathToHTML,{
+            maxWinCount:1,
+            label:"Supplier-Page",
+            cb:function(){
+                this.on("close",()=>{
+                    getMainWindow().webContents.send("update-content");
+                });
+            }
+        });
     }
 }
 

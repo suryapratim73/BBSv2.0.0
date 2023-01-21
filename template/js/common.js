@@ -1000,3 +1000,95 @@ exports.getUserPolicyPath = function(relPath="../../"){
 exports.getsaleConfigPolicyPath = function(relPath="../../"){
     return policyPathCommmon(relPath,"./config/saleConfig.json");
 };
+
+exports.getOrderPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./orders.json");
+};
+
+exports.noDataPlaceholder = function(host){
+    let div = document.createElement("div");
+    div.classList.add("no-data");
+    div.innerHTML = `
+        <h2>NO DATA <i class="fa-regular fa-folder-open"></i></h2>
+    `;
+    host.appendChild(div);
+}
+
+exports.selectionHandler = function(e,_currentStep){// Work needed here
+    if(!currentStep)
+        currentStep = _currentStep;
+    if(e.target.dataset.name==="billType"){// Step 2 
+        [...document.querySelectorAll("form .row1.bill-number")]
+        .forEach(row=>{
+            if(row.classList.contains("hide")){// && row.contains(row.querySelector(".radio-btn-div")) && e.target.value==="monthly")
+                row.classList.remove("hide");
+                [...row.querySelectorAll("input")]
+                .forEach(input=>{
+                    input.removeAttribute("disabled");
+                });
+            }
+            else{
+                row.classList.add("hide");
+                [...row.querySelectorAll("input")]
+                .forEach(input=>{
+                    input.setAttribute("disabled",true)
+                });
+            }
+        });
+        [...document.querySelectorAll("form input[name='bill-status']")]
+        .forEach(input=>{
+            if(e.target.value==="monthly"){
+                if(input.id==="bill-status-open")
+                    input.checked = true;
+                input.setAttribute("disabled",true);
+            }
+            else
+                input.removeAttribute("disabled");
+        });
+    }
+    let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
+    if(!match || Object.keys(match).length==0) return;
+    if(e.target.dataset.name==="name" && currentStep===3){
+        selectedItem = match;
+        bodyRow = e.target.parentNode.parentNode;
+        for(let key in match){
+            if(["sgst","cgst","igst"].includes(key))
+                continue;
+            let input = bodyRow.querySelector(`input[data-name="${key}"]`);
+            if(input && key!=="unit")
+                input.value = match[key];
+            if(key==="unit" && selectedItem.type!=="service")
+                input.value = "Kg";
+            else
+            if(key==="unit" && selectedItem.type==="service")
+                input.value = selectedItem.unit;
+            else
+            if(key==="standardSellPrice")
+                input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
+            bodyRow.dataset[key] = match[key];
+        }
+        bodyRow.querySelector(`[data-name="qty"]`)?.focus();
+        match.sellId = bodyRow.dataset.sellId;
+        orderItems = orderItems.filter(obj=>obj.sellId!==match.sellId);
+        orderItems.push(match);
+        if(selectedItem.id!==match.id)
+            selectedItem = match;
+        displaySection();
+    }
+    else
+    if(e.target.dataset.name==="name" && currentStep===1){// Done.
+        let {address,phones,gst,moreInfo} = match;
+        customer = {...match};
+        document.querySelector("[data-name='address']").value = address;
+        document.querySelector("[data-name='phones']").value = JSON.parse(phones)[0];
+        document.querySelector("[data-name='gst']").value = gst;
+        document.querySelector("[data-name='email']").value = JSON.parse(moreInfo).email;
+    }
+    else
+    if(e.target.dataset.name==="transportName"){// Done
+        let {address,phone,charge} = match;
+        document.querySelector("[data-name='transportAddress']").value = address!==undefined?address:"";
+        document.querySelector("[data-name='transportContact']").value = phone!==undefined?phone:"";
+        document.querySelector("[data-name='transportCharge']").value = charge;
+    }
+}

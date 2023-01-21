@@ -614,7 +614,12 @@ module.exports = {
     }),
     sale: sequelize.define("sale",saleSchema,{
         freezeTableName: false,
-        timestamps: false
+        timestamps: false,
+        setterMethods:{
+            closeBill(){
+                this.setDataValue("billStatus","open");
+            }
+        }
     }),
     outPayments: sequelize.define("outPayments",outPaymentSchema,{
         freezeTableName:true,

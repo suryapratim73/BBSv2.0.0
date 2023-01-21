@@ -1,6 +1,6 @@
 const { ipcMain } = require("electron/main");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
-const { createModal } = require("./createModal");
+const { createModal, getMainWindow } = require("./createModal");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
 const { supplierLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { suppliers } = require("./supplierHandler");
@@ -14,7 +14,15 @@ let windowOptions = {
 exports.addPurchase = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/purchaseTemplate.html",{maxWinCount:2,label:"Purchase-Entry"});
+        createModal(windowOptions,"./template/html/purchaseTemplate.html",{
+            maxWinCount:2,
+            label:"Purchase-Entry",
+            cb:function(){
+                this.on("close",()=>{
+                    getMainWindow().webContents.send("update-content");
+                });
+            }
+        });
     }
 }
 

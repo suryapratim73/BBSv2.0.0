@@ -1,6 +1,6 @@
 const { ipcMain, shell, app, dialog, BrowserWindow, ipcRenderer } = require("electron");
 const { getLedgerModel, print, getBillModel, appLogger } = require("./common");
-const { createModal } = require("./createModal");
+const { createModal, getMainWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
@@ -22,7 +22,12 @@ exports.customerPortal = mainWindow =>{
         let pathToHTML = "./template/html/customerPortal.html";
         createModal(windowOptions,pathToHTML,{
             maxWinCount:1,
-            label:"customer-portal"
+            label:"customer-portal",
+            cb:function(){
+                this.on("close",()=>{
+                    getMainWindow().webContents.send("update-content");
+                });
+            }
         });
     }
 }

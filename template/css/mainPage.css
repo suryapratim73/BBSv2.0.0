@@ -101,8 +101,8 @@ h1{
 }
 #overview-div>div:first-child{
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    flex-direction: column;
 }
 #overview-div>div:last-child{
     height: 100%;
@@ -122,10 +122,10 @@ h1{
     justify-content: space-between;
     gap: 3rem;
 }
-#sale-purchase-btn-div>button{
+#sale-purchase-btn-div button{
     padding: 0.5rem;
     border: none;
-    border-radius: 5px;
+    /* border-radius: 5px; */
     font-size: 1rem;
     box-shadow: 1px 1px 0px 1px var(--theme-shadow-color);
     text-shadow: 1px 1px black;
@@ -134,11 +134,41 @@ h1{
 #sale-purchase-btn-div>button:active{
     box-shadow: none;
 }
-#sale-purchase-btn-div>button:first-child{
-    background: var(--theme-primary);
-    color: var(--theme-secondary);
+#sale-purchase-btn-div{
+    display: flex;
+    gap: 0.5rem;
 }
-#sale-purchase-btn-div>button:last-child{
+#sale-purchase-btn-div>div{
+    display: flex;
+}
+#sale-purchase-btn-div>div>div{
+    width: 0;
+    position: relative;
+}
+#sale-purchase-btn-div>div .drop-down{
+    position: absolute;
+    right: 0;
+    width: max-content;
+    height: max-content;
+    top: 110%;
+    z-index: 2;
+    background: var(--theme-primary);
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+#sale-purchase-btn-div>div .drop-down div{
+    margin-bottom: 0.25rem;
+}
+#sale-purchase-btn-div>div .drop-down a{
+    color: var(--theme-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-bottom 0.1s linear;
+}
+#sale-purchase-btn-div>div .drop-down a:hover{
+    border-bottom: 1px solid;
+}
+#sale-purchase-btn-div button{
     background: var(--theme-primary);
     color: var(--theme-secondary);
 }
@@ -147,6 +177,7 @@ h1{
 }
 #expired-bill-table-div .table{
     display: flex;
+    height: max-content;
 }
 #expired-bill-table-div .tbody{
     height: fit-content;

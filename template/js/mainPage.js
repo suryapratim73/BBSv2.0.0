@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme } = require("../js/common");
+const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder } = require("../js/common");
 
 
 let themeObj = {
@@ -86,32 +86,41 @@ async function overviewPageInit(){
     dtEventDiv.querySelector("h1").textContent = dt;
     dtEventDiv.querySelector("p").textContent = `${mnth}, ${yr}`;
     let billTbody = document.querySelector("#expired-bill-table-div .tbody");
-    unPaidBills.forEach(billObj=>{
-        let div = document.createElement("div");
-        div.dataset.billObj = JSON.stringify(billObj);
-        div.className = "body row";
-        div.innerHTML = `
-            <p class="col eq-space">${billObj.billNo}</p>
-            <p class="col eq-space">${billObj.billDate.toLocaleDateString('en-GB')}</p>
-            <p class="col eq-space">${billObj.name}</p>
-            <p class="col eq-space">${billObj.billAmt}</p>
-        `;
-        billTbody.appendChild(div);
-        
-    });
+    removeAllElem("#expired-bill-table-div .no-data,#stock-div .no-data");
+    if(unPaidBills.length>0)
+        unPaidBills.forEach(billObj=>{
+            let div = document.createElement("div");
+            div.dataset.billObj = JSON.stringify(billObj);
+            div.className = "body row";
+            div.innerHTML = `
+                <p class="col eq-space">${billObj.billNo}</p>
+                <p class="col eq-space">${billObj.billDate.toLocaleDateString('en-GB')}</p>
+                <p class="col eq-space">${billObj.name}</p>
+                <p class="col eq-space">${billObj.billAmt}</p>
+            `;
+            billTbody.appendChild(div);
+            
+        });
+    else
+        noDataPlaceholder(billTbody);
     let stockTbody = document.querySelector("#stock-div .tbody");
-    stocks.forEach(stock=>{
-        let div = document.createElement("div");
-        div.className = "body row";
-        div.innerHTML = `
-            <p class="col eq-space">${stock.name}</p>
-            <p class="col eq-space">${stock.quantity}</p>
-        `;
-        stockTbody.appendChild(div);
-    });
+    if(stocks.length>0)
+        stocks.forEach(stock=>{
+            let div = document.createElement("div");
+            div.className = "body row";
+            div.innerHTML = `
+                <p class="col eq-space">${stock.name}</p>
+                <p class="col eq-space">${stock.quantity}</p>
+            `;
+            stockTbody.appendChild(div);
+        });
+    else
+        noDataPlaceholder(stockTbody);
+    let orders = await ipcRenderer.invoke("get-orders");
+    console.log(orders)
 }
 
-async function salePaageInit(){
+async function salePageInit(){
     let {bills=[],allBills=[]} = await ipcRenderer.invoke("get-sale-content") ?? {};
     let orderQueueContainer = document.getElementById("order-queue-container");
     if(bills.length===0)
@@ -194,16 +203,16 @@ async function applyMode(){
             document.getElementById("mode-host").appendChild(modeContent);
         if(!modeContent) return;
         if(currentMode==="overview")
-            await overviewPageInit();
+            overviewPageInit();
         else
         if(currentMode==="sale")
-            await salePaageInit();
+            salePageInit();
         else
         if(currentMode==="purchase")
-            await purchasePageInit();
+            purchasePageInit();
         else
         if(currentMode==="settings")
-            await settingsPageInit(modeContent);
+            settingsPageInit(modeContent);
     }
     else{
         modeContent = document.getElementById(`${currentMode}-div`);
@@ -736,4 +745,15 @@ ipcRenderer.on("check-for-update",async (e,UPDATE_REST,appVersion)=>{
     catch(err){
         ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,err});
     }
+});
+
+document.addEventListener("click",(e)=>{
+    if(e.target.classList.contains("drop-down-btn")) return;
+    document.querySelector(".drop-down")?.classList.add("hide");
+});
+
+ipcRenderer.on("update-content",async ()=>{
+    let spinner = drawSpinner(document);
+    await applyMode();
+    spinner.remove(window);
 });

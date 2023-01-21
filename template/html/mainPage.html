@@ -32,7 +32,23 @@
                 <div>
                     <h2>Overview</h2>
                     <div id="sale-purchase-btn-div">
-                        <button onclick="ipcRenderer.send('new-sale-purchase',1)">Create Sale</button>
+                        <div>
+                            <button onclick="ipcRenderer.send('new-sale-purchase',1)">Create Sale</button>
+                            <button class="fa-sharp fa-solid fa-caret-down drop-down-btn" onclick="document.querySelector('.drop-down').classList.toggle('hide');"></button>
+                            <div>
+                                <div class="drop-down hide">
+                                    <div>
+                                        <a href="#" onclick="ipcRenderer.send('new-sale-purchase',3)">Create new order</a>
+                                    </div>
+                                    <div>
+                                        <a href="#">Update order</a>
+                                    </div>
+                                    <div>
+                                        <a href="#">Update "Open" bills</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <button onclick="ipcRenderer.send('new-sale-purchase',2)">Register Purchase</button>
                     </div>
                 </div>
@@ -57,6 +73,16 @@
     <template id="overview-page-template">
         <div id="overview-div" class="mode-content">
             <div id="expired-bill-table-div">
+                <div class="table hide">
+                    <h3>Unbilled orders</h3>
+                    <div class="row head">
+                        <div class="col eq-space"><p>Sl No</p></div>
+                        <div class="col eq-space"><p>Date</p></div>                        
+                        <div class="col eq-space"><p>Customer Name</p></div>
+                        <div class="col eq-space"><p>Amount</p></div>
+                        <div class="col eq-space"><p>Action</p></div>
+                    </div>
+                </div>
                 <div class="table">
                     <h3>Expired Bills</h3>
                     <div class="row head">

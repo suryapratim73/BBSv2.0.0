@@ -1,5 +1,5 @@
 const { ipcMain, dialog } = require("electron");
-const { createModal } = require("./createModal");
+const { createModal, getMainWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
 const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
@@ -29,6 +29,7 @@ exports.saleWindow = ()=>{
                 e.sender.send("get-current-step");
             } else
                 closeFlag = false;
+            getMainWindow().webContents.send("update-content");
         })
     }
 }
@@ -37,6 +38,17 @@ exports.showSales = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;
         saleWindow = createModal(windowOptions,"./template/html/showSale.html",{maxWinCount:1,label:"Sale-Dsiplay"});
+    }
+}
+
+exports.orderRegister = ()=>{
+    return ()=>{
+        windowOptions.parent = undefined;
+        saleWindow = createModal(windowOptions,"./template/html/orderRegister.html",{label:"new-order"});
+        // saleWindow.webContents.toggleDevTools()
+        saleWindow?.on("close",(e)=>{
+            getMainWindow().webContents.send("update-content");
+        })
     }
 }
 
@@ -122,7 +134,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         .then(()=>console.log("Customer db updated"))
         .catch(console.log);
     }
-    if(billNo==="spot"){
+    if(billNo==="spot"){// Updating billDate for billNo==spot
         let [ dd,mn,yy ] = (new Date()).toLocaleDateString("en-IN").split("/");
         mn = mn<11?mn++:0;
         if(mn===0)

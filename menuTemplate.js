@@ -1,9 +1,9 @@
 require("./common")
 const { BrowserWindow, ipcMain, dialog, app } = require("electron");
-const {addPurchase,showPurchase} = require("./handlePurchase");
-const {displayStock,handleReturn} = require("./handleStock");
-const {getSuplierPortal,checkOutPayments} = require("./supplierHandler");
-const {saleWindow, showSales} = require("./saleHandler");
+const { addPurchase,showPurchase } = require("./handlePurchase");
+const { displayStock,handleReturn } = require("./handleStock");
+const { getSuplierPortal,checkOutPayments } = require("./supplierHandler");
+const { saleWindow, showSales, orderRegister } = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
@@ -20,7 +20,7 @@ function appStateComplianceEnforcement(funcName,...params){
 
 module.exports = mainWindow=>{
     let menu = [
-        {
+        {// Application menu
             label:"BBS",
             submenu: [
                 {
@@ -58,8 +58,8 @@ module.exports = mainWindow=>{
                 { type: "separator" },
                 { role: "quit" }
             ]
-        },// Application menu
-        {
+        },
+        {// Sale menu
             label:"Sale",
             submenu:[
                 {
@@ -71,10 +71,23 @@ module.exports = mainWindow=>{
                     label:"Customer Portal",
                     accelerator: "F5",
                     click: ()=>appStateComplianceEnforcement(customerPortal(mainWindow))
+                },
+                {type:"separator"},
+                {
+                    label: "New order",
+                    click:()=>appStateComplianceEnforcement(orderRegister())
+                },
+                {
+                    label: "View & Update order",
+                    click:()=>{}
+                },
+                {
+                    label: "Add item to \"Open\" Bills",
+                    click:()=>{}
                 }
             ]
-        },// Sale menu
-        {
+        },
+        {// Purchase menu
             label:"Purchase",
             submenu:[
                 {
@@ -88,8 +101,8 @@ module.exports = mainWindow=>{
                     click: ()=>appStateComplianceEnforcement(getSuplierPortal(mainWindow))
                 }
             ]
-        },// Purchase menu
-        {
+        },
+        {// Table menu
             label:"Tables",
             submenu:[
                 {
@@ -113,8 +126,8 @@ module.exports = mainWindow=>{
                     click: ()=>appStateComplianceEnforcement(showSales(mainWindow))
                 }
             ]
-        },// Table menu
-        {
+        },
+        {// Tools menu
             label:"Tools and Analytics",
             submenu: [
                 {
@@ -158,8 +171,8 @@ module.exports = mainWindow=>{
                     label: "BBS Remote"
                 }
             ]
-        },// Tools menu
-        {
+        },
+        {// Admin menu
             label: "Admin",
             submenu: [
                 {
@@ -180,7 +193,7 @@ module.exports = mainWindow=>{
                     accelerator: "F8"
                 }
             ]
-        }// Admin menu
+        }
     ];
     if(process.env.APP_ENV==="DEV")
         menu.push(

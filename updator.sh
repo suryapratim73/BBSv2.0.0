@@ -29,6 +29,8 @@ install(){
             "
             echo "Update complete" >> "$2/.config/BBS/logs/appLogs.txt"
             ;;
+        *)
+            echo "Default case"
     esac
 }
 usr=$(who | awk '{print $1}')
@@ -37,13 +39,14 @@ usr=$(who | awk '{print $1}')
 
 
 if [[ $mode -eq 2 || $mode -eq "-u" ]];then
+    echo "$@"
     if [[ $(id -u) == 0 ]];then
         install $mode "/home/$usr" $2
     else
         elevate install $mode "/home/$usr" $2
     fi
     echo "Launching BBS" >> "/home/$usr/.config/BBS/logs/appLogs.txt"
-    bash -c "sudo -u $usr bbs msg='Update \complete.'"
+    bash -c "sudo -u $usr bbs msg='Update complete.'"
 else
     install 1 "/home/$usr" $@
 fi
