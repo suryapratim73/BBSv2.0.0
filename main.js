@@ -501,6 +501,10 @@ app.on("ready", async () => {
   readInterface.on("line", (line) => fileList.push(JSON.parse(line)));
   readInterface.on("close",async () => {
     try {
+      if(process.env.APP_ENV!=="DEV" && !fs.existsSync(app.getPath("appData")+"/BBS"))
+        fs.mkdirSync(app.getPath("appData")+"/BBS",{recursive:true});
+      loggerFH("dbLogs.txt");
+      loggerFH("appLogs.txt");
       await Promise.all(
         fileList.map(async ({ fPath, fileName, type, dir }) => {
           //check for dir
@@ -542,10 +546,6 @@ app.on("ready", async () => {
         const { billNo } = JSON.parse(data.toString());
         billNoCounter(billNo);
       });
-      if(process.env.APP_ENV!=="DEV" && !fs.existsSync(app.getPath("appData")+"/BBS"))
-        fs.mkdirSync(app.getPath("appData")+"/BBS",{recursive:true});
-      loggerFH("dbLogs.txt");
-      loggerFH("appLogs.txt");
       global.shouldWait = false;
       // Adding tab switcher
       let mainWindow = await createWindow();
