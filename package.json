@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -101,7 +101,7 @@
       "!config",
       "!.vscode"
     ],
-    "asar": true,
+    "asar": false,
     "afterPack": "scripts/afterpack.js"
   },
   "homepage": "http://192.168.0.104/home/git/BBS.git"
