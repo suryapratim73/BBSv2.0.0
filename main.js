@@ -12,6 +12,7 @@ const {
   session,
   nativeTheme,
   autoUpdater,
+  crashReporter
 } = require("electron");
 const {
   billNoCounter,
@@ -418,6 +419,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", async () => {
+  crashReporter.start({ submitURL:process.env.UPDATE_REST+"crashed" })
   if (BrowserWindow.getAllWindows().length === 0) await createWindow();
 });
 
