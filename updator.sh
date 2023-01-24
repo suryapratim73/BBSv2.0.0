@@ -38,8 +38,8 @@ usr=$(who | awk '{print $1}')
 
 
 
+echo "$@" >> "/home/$usr/.config/BBS/logs/appLogs.txt"
 if [[ $mode -eq 2 || $mode -eq "-u" ]];then
-    echo "$@"
     if [[ $(id -u) == 0 ]];then
         install $mode "/home/$usr" $2
     else
