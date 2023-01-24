@@ -977,11 +977,12 @@ exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['
 
 function policyPathCommmon(relPath,_path){
     let policyPath = __dirname; 
-    if(process.env.APP_ENV==="DEV")
+    if(process.env.APP_ENV==="DEV"){
         policyPath = __dirname;
+        policyPath = path.resolve(policyPath,relPath,_path);
+    }
     else
-        policyPath = app.getPath("appData")+"/BBS";
-    policyPath = path.resolve(policyPath,relPath,_path);
+        policyPath = path.resolve(app.getPath("appData")+"/BBS",_path);
     // dialog.showMessageBox({
     //     title:"Path to JSON",
     //     message:policyPath
