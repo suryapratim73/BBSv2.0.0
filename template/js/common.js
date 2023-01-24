@@ -1,4 +1,4 @@
-const {ipcRenderer} = require("electron");
+const {ipcRenderer,app} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
