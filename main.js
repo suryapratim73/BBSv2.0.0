@@ -1598,11 +1598,11 @@ async function updateCommon(){//This need a relook
     message:"Trying to install update."
   });
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
-    app.quit();
     appLogger({
       message:"Launching updator.sh.",
       cmd:`./updator.sh -u ${this.version}`
     });
+    app.quit();
     let updator = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
       shell:true

@@ -38,7 +38,7 @@ usr=$(who | awk '{print $1}')
 
 
 
-echo "$@" >> "/home/$usr/.config/BBS/logs/appLogs.txt"
+echo "Testing FCM $@" >> "/home/$usr/.config/BBS/logs/appLogs.txt"
 if [[ $mode -eq 2 || $mode -eq "-u" ]];then
     if [[ $(id -u) == 0 ]];then
         install $mode "/home/$usr" $2
