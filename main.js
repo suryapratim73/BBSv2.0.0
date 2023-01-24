@@ -359,7 +359,7 @@ exports.billDesignerWindow = (mainWindow) => {
                   );
                 });
               } catch (err) {
-                appLogger({title:"Error",message:String(err)});
+                appLogger({title:"Error",message:String(err),func:"filepath read error"});
               }
             },
           }),
@@ -602,7 +602,7 @@ app.on("ready", async () => {
       if (process.platform === "linux") setLinuxThemeObserver();
       await initTheme();
     } catch (err) {
-      appLogger({ title: "Error", message: String(err) });
+      appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });
 });
