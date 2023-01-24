@@ -303,7 +303,8 @@ async function createWindow() {
         .catch(err=>{
           appLogger({
             title:"Error",
-            message:String(err)
+            message:String(err),
+            func:"Create user error"
           });
         });
       }
@@ -320,7 +321,8 @@ async function createWindow() {
     else
       appLogger({
         title:"Error",
-        message:String(err)
+        message:String(err),
+        func:"Trying to login error"
       });
   }
 }
@@ -357,7 +359,7 @@ exports.billDesignerWindow = (mainWindow) => {
                   );
                 });
               } catch (err) {
-                appLogger({title:"Error",message:err});
+                appLogger({title:"Error",message:String(err)});
               }
             },
           }),
@@ -538,7 +540,7 @@ app.on("ready", async () => {
           });
         })
       ).catch(err=>{
-        appLogger({title:"Error",message:err});
+        appLogger({title:"Error",message:String(err),func:"Filelist check error"});
       });
       appLogger({message:"Filelist check complate"});
       fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
@@ -600,7 +602,7 @@ app.on("ready", async () => {
       if (process.platform === "linux") setLinuxThemeObserver();
       await initTheme();
     } catch (err) {
-      appLogger({ title: "Error", message: err });
+      appLogger({ title: "Error", message: String(err) });
     }
   });
 });
@@ -849,7 +851,7 @@ ipcMain.handle("get-sale-content", async () => {
         ).map(({ dataValues }) => dataValues);
         acc.push({ billItems, name, billNo });
       } catch (err) {
-        appLogger({title:"Error",message:err});
+        appLogger({title:"Error",message:String(err),func:"bill-item-table define error"});
       }
       return acc;
     },
@@ -888,7 +890,7 @@ ipcMain.handle("add-user", async (e, data) => {
       },
     });
   } catch (err) {
-    appLogger({title:"Error",message:err})
+    appLogger({title:"Error",message:String(err),func:"add-user-ipc"})
     return err;
   }
 });
@@ -1027,7 +1029,7 @@ ipcMain.handle("create-login-session", async (e, { expiry }) => {
     currentUser.sessionTime = Number(expiry) * 1000 * 60 * 60;
     await createSession(Number(expiry) * 1000 * 60 * 60);
   } catch (err) {
-    appLogger({title:"Error",message:err});
+    appLogger({title:"Error",message:String(err),func:"Create-login-session-ipc"});
     return err;
   }
 });
@@ -1046,7 +1048,7 @@ ipcMain.handle("remove-auth-session", async () => {
     currentUser.session = false;
     await ses.cookies.remove("http://localhost", "bbs_auth");
   } catch (err) {
-    appLogger({title:"Error",message:err});
+    appLogger({title:"Error",message:String(err),func:"Remove-auth-session-ipc"});
     return error;
   }
 });
@@ -1066,7 +1068,7 @@ ipcMain.on("logout", async () => {
     currentUser = null;
     mainWin.loadFile("./template/html/lockScreen.html");
   } catch (err) {
-    appLogger({title:"Error",message:err});
+    appLogger({title:"Error",message:String(err),func:"logout-ipc"});
   }
 });
 
@@ -1077,7 +1079,7 @@ function lock_unlockHelper(page, sig) {
     try {
       mainWin.webContents.removeListener("did-finish-load", arguments.callee);
     } catch (err) {
-      appLogger({title:"Error",message:err});
+      appLogger({title:"Error",message:String(err),func:"lock_unlockHelper"});
     }
     if (sig === "lock") mainWin.webContents.send("lock", currentUser);
   });
@@ -1110,7 +1112,8 @@ ipcMain.handle("unlock-app", async (e, authData) => {
   catch(err){
     appLogger({
       title:"Error",
-      message:err.message
+      message:String(err),
+      func:"DB error"
     });
     if(unsavedUsers.length>0){
       _user = {...unsavedUsers.find(({name})=>name===authData.name)};
@@ -1207,7 +1210,7 @@ ipcMain.on("app-login", async () => {
       }
     );
   } catch (err) {
-    appLogger({title:"Error",message:String(err)});
+    appLogger({title:"Error",message:String(err),func:"app-login-ipc"});
   } finally {
     imposeRestriction();
     autoPrintMonthlyBills();
@@ -1578,7 +1581,8 @@ async function updateCommon(){//This need a relook
   catch(err){
     appLogger({
       title:"Error",
-      message:String(err)
+      message:String(err),
+      func:"updateCommon()"
     })
   }
   let resp = await dialog.showMessageBox({
@@ -1602,7 +1606,7 @@ async function updateCommon(){//This need a relook
     updator.stderr.on("data",data=>{
       appLogger({
         title:"Error",
-        message:data
+        message:String(data)
       });
     });
     updator.stdout.on("data",data=>{
@@ -1692,7 +1696,8 @@ function downloadUpdate(appVersion){
     console.error("Error",err);
     appLogger({
       title:"Error",
-      message:err.message
+      message:String(err),
+      func:"Download-update"
     })
   });
 }
@@ -1720,7 +1725,8 @@ async function checkForUpdates(flag="auto") {
     // Logic for error Handling
     appLogger({
       title:"Error",
-      message:err.message
+      message:String(err),
+      func:"Check for update error"
     });
     if(flag!=="auto")
       return dialog.showMessageBox({
@@ -1792,7 +1798,8 @@ async function checkForUpdates(flag="auto") {
     catch(err){
       appLogger({
         title:"Error",
-        message:err.message
+        message:String(err),
+        func:"Update conf read error"
       });
       downloadUpdate(appVersion);
     }
@@ -1871,7 +1878,8 @@ async function saveInitData(pageNo,data){
   catch(err){
     appLogger({
       title:"Error",
-      message:err.message
+      message:String(err),
+      func:"Save-init-data-error"
     });
     if(pageNo===4){
       let mainWin = getMainWindow();
@@ -1890,7 +1898,8 @@ ipcMain.on("write-settings",async (e,pageWiseData)=>{
   fs.writeFile(path.resolve(app.getPath("appData")+"/temp.json"),JSON.stringify(pageWiseData),(err)=>{
     if(err) return appLogger({
       title:"Error",
-      message:err.message
+      message:String(err),
+      func:"write-setting-ipc error"
     });
     appLogger({
       title:"Success",
@@ -1932,7 +1941,8 @@ ipcMain.on("first-load",async ()=>{
     } catch (err) {
       appLogger({
         title:"Error",
-        message:err.message
+        message:String(err),
+        func:"First-boot data save error"
       });
     }
     finally{
