@@ -64,7 +64,7 @@
       ]
     },
     "deb":{
-      "fpm":["--after-upgrade='/opt/Bigbyte Business Service/resources/app/test.sh'"]
+      "fpm":["--after-upgrade='test.sh'"]
     },
     "win": {
       "target": [
