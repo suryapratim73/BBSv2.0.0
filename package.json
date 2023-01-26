@@ -63,6 +63,9 @@
         }
       ]
     },
+    "deb":{
+      "fpm":["--after-upgrade=updator.sh"]
+    },
     "win": {
       "target": [
         {
