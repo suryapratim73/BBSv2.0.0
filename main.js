@@ -1602,11 +1602,11 @@ async function updateCommon(){//This need a relook
       message:"Launching updator.sh.",
       cmd:`./updator.sh -u ${this.version}`
     });
-    app.quit();
     let updator = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
       shell:true
     });
+    app.quit();
     updator.stderr.on("data",data=>{
       appLogger({
         title:"Error",

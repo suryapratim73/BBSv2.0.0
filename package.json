@@ -65,7 +65,7 @@
     },
     "deb": {
       "fpm": [
-        "--after-upgrade=updator.sh"
+        "--after-upgrade updator.sh"
       ]
     },
     "win": {
