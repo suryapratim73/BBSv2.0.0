@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.4.13",
+  "version": "2.4.14",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -64,7 +64,7 @@
       ]
     },
     "deb":{
-      "fpm":["--after-upgrade=updator.sh"]
+      "fpm":["--after-upgrade=build/updator.sh"]
     },
     "win": {
       "target": [
