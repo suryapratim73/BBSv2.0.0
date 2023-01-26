@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register order</title>
+    <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
+    <link rel="stylesheet" href="../css/orderRegister.css">
+    <script src="../js/orderRegister.js" defer></script>
+</head>
+<body>
+    <div id="first-display">
+        <div>
+            <h1>Creating new order.</h1>
+            <h2>Make a choice.</h2>
+        </div>
+        <div onclick="firstChoice(event)">
+            <div data-choice="1">
+                <h2 data-choice="1">Add Customer detail</h2>
+            </div>
+            <div data-choice="2">
+                <h2 data-choice="2">Quick add items</h2>
+            </div>
+        </div>
+    </div>
+    <main class="hide">
+        <div id="progress-map">
+            <!-- ["far fa-circle","fas fa-check-circle","fas fa-spinner"] -->
+            <p><i class="far fa-circle"></i> Customer details</p>
+            <div class="blnk"></div>
+            <p><i class="far fa-circle"></i> Item list</p>
+            <div class="blnk"></div>
+            <p><i class="far fa-circle"></i> Payment Info</p>
+            <div class="blnk"></div>
+            <p><i class="far fa-circle"></i> Ready</p>
+        </div>
+        <div id="mode-host"></div>
+    </main>
+    <template id="customer-form-template">
+        <form onsubmit="proceedOrFinishHandler(event)" onchange="selectionHandler(event,Number(event.target.dataset.step))">
+            <h2>Add customer details</h2>
+            <div>
+                <div>
+                    <label for="customer-name" class="highlight">Name: </label>
+                </div>
+                <div class="row1">
+                    <input required type="text" data-step="1" spellcheck="false" name="customer-name" autofocus data-name="name" list="customer-names"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="customer-address" class="highlight">Address: </label>
+                </div>
+                <div class="row1">
+                    <input required type="text" name="customer-address" data-name="address" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="customer-phones" class="highlight">Phone:</label>
+                </div>
+                <div class="row1">
+                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                    <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="customer-email" class="highlight">Customer Email</label>
+                </div>
+                <div class="row1">
+                    <input name="customer-email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="customer-gst" class="highlight">GST Number</label>
+                </div>
+                <div class="row1">
+                    <input name="customer-gst" type="text" data-name="gst" id="customer-gst" />
+                </div>
+            </div>
+            <div>
+                <button type="submit">Proceed</button>
+            </div>
+        </form>
+    </template>
+</body>
+</html>

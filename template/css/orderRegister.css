@@ -1,0 +1,99 @@
+@import "../css/common.css";
+body{
+    display: block;
+}
+#first-display{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+#first-display>div:first-child{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#first-display>div:last-child{
+    display: flex;
+    gap: 1rem;
+}
+#first-display>div:last-child>div{
+    width: 15rem;
+    height: 15rem;
+    background: var(--theme-secondary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 15px;
+    box-shadow: 1px 1px 2px 1px var(--theme-primary);
+    transition: background 0.15s linear;
+}
+#first-display>div:last-child>div:hover{
+    background: var(--theme-primary);
+}
+#first-display>div:last-child>div:hover h2{
+    color: var(--theme-secondary);
+}
+#first-display h2{
+    background-color: transparent;
+}
+main{
+    width: 100%;
+    height: 100%;
+}
+main>div{
+    width: 100%;
+}
+#progress-map{
+    height: fit-content;
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+}
+#mode-host{
+    height: calc(100% - 2.5rem);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+form{
+    width: 90%;
+    height: 90%;
+    padding: 0.5rem;
+    border-radius: 15px;
+    box-shadow: 1px 1px 2px 2px var(--theme-primary);
+}
+form>div{
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem;
+    align-items: center;
+}
+form>div>div{
+    flex: 1;
+}
+form div.row1{
+    flex: 3;
+}
+form label{
+
+}
+form input{
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+form button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+    border-color: unset;
+}
+form button[type="submit"]{
+    color: var(--theme-secondary);
+    background: var(--theme-primary);
+}
