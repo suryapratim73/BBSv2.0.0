@@ -1,6 +1,15 @@
 @import "../css/common.css";
 body{
     display: block;
+    position: relative;
+}
+body .toast-div{
+    top: 0;
+    right: -24%;
+    padding: 0.5rem;
+    box-shadow: unset;
+    gap: unset;
+    margin: 1rem 0;
 }
 #first-display{
     height: 100%;
@@ -52,6 +61,9 @@ main>div{
     min-height: 2rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 1.5rem;
 }
 #mode-host{
     height: calc(100% - 2.5rem);
@@ -71,15 +83,15 @@ form>div{
     justify-content: space-between;
     margin: 0.5rem;
     align-items: center;
+    gap: 0.5rem;
 }
 form>div>div{
     flex: 1;
+    display: flex;
+    gap: 0.5rem;
 }
 form div.row1{
     flex: 3;
-}
-form label{
-
 }
 form input{
     width: 100%;
@@ -96,4 +108,75 @@ form button{
 form button[type="submit"]{
     color: var(--theme-secondary);
     background: var(--theme-primary);
+}
+.blnk{
+    height: 1px;
+    border-bottom: 1px dashed black;
+    flex: 1;
+}
+.progress{
+    background: var(--theme-primary);
+    border-radius: 50%;
+}
+.done{
+    background: var(--theme-secondary);
+    border-radius: 50%;
+}
+#step-2-form>div:first-child{
+    height: 80%;
+    overflow: hidden;
+}
+#step-2-form>div:last-child,#step-3-form>div:last-child,#step-4-form>div:last-child{
+    justify-content: flex-start;
+    gap: 0.5rem;
+    grid-column: 1/-1;
+}
+#step-3-form,#step-4-form{
+    display: grid;
+    grid-template: repeat(4,1fr)/repeat(4,1fr);
+}
+#step-3-form>div:first-child,#order-host{
+    grid-row: 1/5;
+    grid-column: 1/3;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: baseline;
+}
+#discount-div{
+    flex:unset;
+}
+#step-3-form>div:nth-child(2),#order-meta{
+    grid-row: 1/5;
+    grid-column: 3/-1;
+    justify-content: space-between;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+#step-3-form>div:last-child{
+    grid-row: -1;
+    grid-column: 1/-1;
+}
+#order-meta{
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+#order-meta>div{
+    flex: unset;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+.col input{
+    border: none;
+}
+.sm{
+    width: 2rem;
+}
+.body-row-options {
+    top: 100%;
+    margin-top: 0.5rem;
+}
+.body-row-options button {
+    color: red;
 }

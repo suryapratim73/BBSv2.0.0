@@ -475,7 +475,7 @@ label,input,button,p,h2{
     overflow-y: overlay;
     max-height: 90%;
     border-bottom: 1px solid black;
-    height: 70%;
+    /* height: 70%; */
     width: 100%;
     overflow: auto;
 }
@@ -713,4 +713,7 @@ input[type="checkbox"]:checked::before{
     select,input{
         background-color: var(--theme-primary);
     }
+}
+.toast-div p{
+    background-color: transparent;
 }

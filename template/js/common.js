@@ -367,32 +367,36 @@ function toastNotification(msg,customClasses,...elems){
 
 exports.showToastNotification = function(msg,className,container,adjX=8){
     let toast = toastNotification(msg,className);
-    let { height } = toast.getBoundingClientRect();
-    [...document.querySelectorAll(".toast-div")].forEach(toast=>{
-        toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;
-    });
     try{
+        toast.classList.add("hide");
         document.getElementById(container).appendChild(toast);
     }
     catch(e){
         document.body.appendChild(toast);
     }
-    let toastTimers = [];
-    [...document.querySelectorAll(".toast-div")].forEach((toast,index,self)=>{
-        if(index>4)
-            for(let i=0;i<4;i++){
-                clearTimeout(toastTimers[i]);
-                toastTimers = toastTimers.filter((_,index)=>index!==i);
-                self[i].remove();
-            }
-        toastTimers.push(setTimeout(()=>{
-            toast.style.transform = "translateX(-100%)";
-            toast.classList.add("fade")
-            setTimeout(()=>{
-                toast?.remove();
-            },300);
-        },2000 + 200*index));
-    })
+    finally{
+        let { height } = toast.getBoundingClientRect();
+        [...document.querySelectorAll(".toast-div")].forEach(toast=>{
+            toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;
+        });
+        toast.classList.remove("hide");
+        let toastTimers = [];
+        [...document.querySelectorAll(".toast-div")].forEach((toast,index,self)=>{
+            if(index>4)
+                for(let i=0;i<4;i++){
+                    clearTimeout(toastTimers[i]);
+                    toastTimers = toastTimers.filter((_,index)=>index!==i);
+                    self[i].remove();
+                }
+            toastTimers.push(setTimeout(()=>{
+                toast.style.transform = "translateX(-100%)";
+                toast.classList.add("fade")
+                setTimeout(()=>{
+                    toast?.remove();
+                },300);
+            },2000 + 200*index));
+        });
+    }
 }
 
 const cmdMap = [
@@ -1016,7 +1020,7 @@ exports.noDataPlaceholder = function(host){
 }
 
 exports.selectionHandler = function(e,_currentStep){// Work needed here
-    if(!currentStep)
+    if(e.target.dataset.name==="name" && _currentStep===3)
         currentStep = _currentStep;
     if(e.target.dataset.name==="billType"){// Step 2 
         [...document.querySelectorAll("form .row1.bill-number")]
@@ -1074,7 +1078,14 @@ exports.selectionHandler = function(e,_currentStep){// Work needed here
         orderItems.push(match);
         if(selectedItem.id!==match.id)
             selectedItem = match;
-        displaySection();
+        if(_currentStep===3)
+            currentStep = 2;
+        try{
+            displaySection();
+        }
+        catch(err){
+            if(err?.stack.startsWith("ReferenceError")) return;
+        }
     }
     else
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
@@ -1091,5 +1102,219 @@ exports.selectionHandler = function(e,_currentStep){// Work needed here
         document.querySelector("[data-name='transportAddress']").value = address!==undefined?address:"";
         document.querySelector("[data-name='transportContact']").value = phone!==undefined?phone:"";
         document.querySelector("[data-name='transportCharge']").value = charge;
+    }
+}
+
+exports.addRow = function(e){
+    let clonedBodyRow = document.getElementById("body-row-template").content.cloneNode(true);
+    document.getElementById("add-item").before(clonedBodyRow);
+    [...document.querySelectorAll(".body.row>div:first-child>p")].forEach((p,index)=>{
+        p.textContent = index+1;
+    });
+    e.target.scrollIntoView();
+    e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
+    bodyRow = e.target.parentNode.previousSibling.previousSibling;
+    selectedItem = {};
+    bodyRow.dataset.sellId = uuid.v5(bodyRow.querySelector("p").textContent,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+}
+
+exports.calculateAmounts = function(){
+    if(Object.keys(selectedItem).length===0) return;
+    let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
+    let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
+    let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
+    let res = unitMap.find(uObj=>unit in uObj);
+    let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+    if(selectedItem.type==="service" && unit===selectedItem.unit)
+        multiplier = 1;
+    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier);
+    let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
+    let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
+    let igst = Number(bodyRow.querySelector('[data-name="igst"]').value) ?? 0;
+    if(igst>0){
+        sgst = 0;
+        cgst = 0;
+        bodyRow.querySelector('[data-name="cgst"]').value = "";
+        bodyRow.querySelector('[data-name="sgst"]').value = "";
+    }
+    selectedItem.sgst = sgst;
+    selectedItem.cgst = cgst;
+    selectedItem.igst = igst;
+    selectedItem.rate = rate;
+    selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
+    selectedItem.qty = quantity;
+    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier * (1 + (cgst + sgst + igst)/100));
+    try{
+        displaySection();
+    }
+    catch(err){
+        if(err?.stack.startsWith("ReferenceError")) return;
+    }
+}
+
+exports.updateBillValue = function(e){
+    if(e.target.dataset.name!=="payment") return;
+    //Update summary and billMeta
+    let paymentModeDiv = e.target.parentNode.parentNode;
+    let payObj = {
+        payment:Number(e.target.value)
+    };
+    if(paymentModeDiv.id==="cash-payment"){
+        payObj.type = "cash";
+        let deliveryCharge = "deliveryType" in billMeta && billMeta.deliveryType==="hand"?0:Number(billMeta?.transportCharge ?? 0);
+        if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment)
+            billMeta.paymentStatus = true;
+        else
+            billMeta.paymentStatus = false;
+    }
+    else if(paymentModeDiv.id==="check-payment"){
+        payObj.type = "check";
+        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.bankBranch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
+        payObj.bankACNo = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
+        payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
+        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
+    }
+    else{
+        payObj.type = "online";
+        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
+        payObj.bankTrnRef = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
+        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
+    }
+    let updateFlag = false;
+    if(payment.length>0)
+        for(let i=0;i<payment.length;i++)
+            if(payment[i].type===payObj.type){
+                payment[i] = payObj;
+                updateFlag = true;
+                break;
+            }
+    if(!updateFlag)
+        payment.push(payObj);
+    billMeta.payment = payment;
+    if(!["regular","order"].includes(billMeta.billType))
+        billMeta.paymentStatus = false;
+    if(billMeta.paymentStatus)
+        showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
+    else
+        showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
+    try{
+        reassignSummaryDivFeilds();
+    }
+    catch(err){
+        if(err?.stack.startsWith("ReferenceError")) return;
+        console.log(err);
+    }
+}
+
+exports.showPaymentMode = function(e){
+    [...document.getElementsByClassName("payment-detail")].forEach(div=>{
+        if(div.id===(e?.target || e).value+"-payment")
+            div.classList.remove("hide");
+        else
+            div.classList.add("hide");
+    })
+}
+
+exports.reassignSummaryDivFeilds = function(){
+    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,payObj)=>acc + payObj.payment,0):0;
+    let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
+    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
+    if(Math.sign(deliveryCharge + billMeta.netAmtTax - netPayment)<=0){
+        document.querySelector("[data-name='dueAmt']").textContent = 0;
+        billMeta.netDue = 0;
+        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(netPayment - (Math.round(billMeta.netAmtTax) + deliveryCharge));
+    }
+    else{
+        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
+        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
+        document.querySelector("[data-name='return']").textContent = 0;
+    }
+}
+
+exports.applyDiscount = function(e){
+    let discVal = Number(e.target.value);
+    document.getElementById("discount-feild")?.remove();
+    billMeta.discVal = 0;
+    let netAmt = reduceOrder().netAmt;
+    billMeta.discVal = discVal;
+    if(discVal>0){
+        let div = document.createElement("div");
+        div.innerHTML = `
+            <p>Discount</p>
+            <p data-name="discVal" class="highlight">${roundOffTo2DecimalPlace(netAmt - reduceOrder().netAmt)}</p>
+        `;
+        div.id = "discount-feild";
+        document.getElementById("netAmtTaxDel-div").before(div);
+    }
+    let reducedOrder = reduceOrder();
+    billMeta.netAmt = reducedOrder.netAmt;
+    billMeta.netAmtTax = reducedOrder.netAmtTax;
+    billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
+    try{
+        page4Init();
+    }
+    catch(err){
+        if(err?.stack.startsWith("ReferenceError")) return;
+        reassignSummaryDivFeilds();
+        console.log(err);
+    }
+}
+
+exports.reduceOrder = function(){
+    return orderItems.reduce((acc,obj)=>{
+        let keys = ["qty","sellUnit","rate"];
+        let obJKeys = Object.keys(obj);
+        let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
+            if(key in obj)
+                return acc + obj[key]
+            return acc
+        },0);
+        if(keys.every(val=>obJKeys.includes(val))){
+            if(!("discVal" in billMeta))
+                billMeta.discVal = 0;
+            let res = unitMap.find(uObj=>obj.sellUnit in uObj);
+            let multiplier;
+            if(obj.type!=="service")
+                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+            else
+            if(obj.type==="service" && obj.unit===Object.keys(res)[0])
+                multiplier = 1;
+            else
+            if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
+                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+            if(obj.type!=="service")
+                acc.netQty += obj.qty * multiplier;
+            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
+            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
+        }
+        return acc;
+    },{
+        netQty:0,
+        netAmt:0,
+        netAmtTax:0
+    });
+}
+
+exports.clickOrFocusinHandler = function(e){
+    // if(currentStep!==3) return;
+    if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
+        return deleteRow(e);
+    bodyRow = e.target.parentNode.parentNode;
+    if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
+        selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
+    try {
+        displaySection();   
+    } catch (err) {
+        if(!err?.stack.startsWith("ReferenceError"))
+            console.log(err);
+    }
+    removeAllElem(".body-row-options");
+    if(bodyRow.className==="body row"){
+        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
+        if(document.querySelector(".body-row-options"))
+            document.querySelector(".body-row-options").dataset.sellId = bodyRow.dataset.sellId;    
+        clearTimeout(timer);
+        timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
     }
 }

@@ -27,64 +27,347 @@
     <main class="hide">
         <div id="progress-map">
             <!-- ["far fa-circle","fas fa-check-circle","fas fa-spinner"] -->
-            <p><i class="far fa-circle"></i> Customer details</p>
-            <div class="blnk"></div>
-            <p><i class="far fa-circle"></i> Item list</p>
-            <div class="blnk"></div>
-            <p><i class="far fa-circle"></i> Payment Info</p>
-            <div class="blnk"></div>
-            <p><i class="far fa-circle"></i> Ready</p>
         </div>
         <div id="mode-host"></div>
     </main>
-    <template id="customer-form-template">
-        <form onsubmit="proceedOrFinishHandler(event)" onchange="selectionHandler(event,Number(event.target.dataset.step))">
+    <template id="progress-map-template">
+        <p><i class="step far fa-circle progress" data-step="1"></i> Customer details</p>
+        <div class="blnk"></div>
+        <p><i class="step far fa-circle" data-step="2"></i> Item list</p>
+        <div class="blnk"></div>
+        <p><i class="step far fa-circle" data-step="3"></i> Payment Info</p>
+        <div class="blnk"></div>
+        <p><i class="step far fa-circle" data-step="4"></i> Ready</p>
+    </template>
+    <template id="progress-map-quick-template">
+        <p><i class="step far fa-circle progress" data-step="2"></i> Item list</p>
+        <div class="blnk"></div>
+        <p><i class="step far fa-circle" data-step="4"></i> Ready</p>
+    </template>
+    <template id="step-1-template">
+        <form onclick="clickHandler(event)" onsubmit="proceedOrFinishHandler(event)" onchange="selectionHandler(event,Number(event.target.dataset.step))">
             <h2>Add customer details</h2>
             <div>
                 <div>
-                    <label for="customer-name" class="highlight">Name: </label>
+                    <label for="name" class="highlight">Name: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" data-step="1" spellcheck="false" name="customer-name" autofocus data-name="name" list="customer-names"/>
+                    <input required type="text" data-step="1" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-address" class="highlight">Address: </label>
+                    <label for="address" class="highlight">Address: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" name="customer-address" data-name="address" />
+                    <input required type="text" name="address" data-name="address" />
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-phones" class="highlight">Phone:</label>
+                    <label for="phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
                     <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-email" class="highlight">Customer Email</label>
+                    <label for="email" class="highlight">Customer Email</label>
                 </div>
                 <div class="row1">
-                    <input name="customer-email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-gst" class="highlight">GST Number</label>
+                    <label for="gst" class="highlight">GST Number</label>
                 </div>
                 <div class="row1">
-                    <input name="customer-gst" type="text" data-name="gst" id="customer-gst" />
+                    <input name="gst" type="text" data-name="gst" id="customer-gst" />
                 </div>
             </div>
             <div>
-                <button type="submit">Proceed</button>
+                <button type="submit" data-type='proceed'>Proceed</button>
             </div>
         </form>
+    </template>
+    <template id="step-2-template">
+        <form onclick="clickHandler(event)" id="step-2-form" onsubmit="proceedOrFinishHandler(event)" onchange="selectionHandler(event,3)">
+            <div>
+                <div id="table">
+                    <div class="row head">
+                        <div class="col sm"><p>Sl No.</p></div>
+                        <div class="col lg"><p>Particular</p></div>
+                        <div class="col md"><p>HSN No</p></div>
+                        <div class="col md"><p>Quantity</p></div>
+                        <div class="col md"><p>Unit</p></div>
+                        <div class="col md"><p>Rate</p></div>
+                        <div class="col md"><p>Amount</p></div>
+                        <div class="col sm"><p>CGST</p></div>
+                        <div class="col sm"><p>SGST</p></div>
+                        <div class="col sm"><p>IGST</p></div>
+                        <div class="col md"><p>Total</p></div>
+                    </div>
+                    <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                        <div class="row row-control-div" id="add-item">
+                            <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transportCharge">Delivery Charge</label>
+                </div>
+                <div>
+                    <input type="text" name="transportCharge" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Proceed</button>
+                <button type="button" data-step="1" data-mode="back">Back</button>
+                <button type="button" data-mode="cancel">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="step-3-template">
+        <form onclick="clickHandler(event)" onsubmit="proceedOrFinishHandler(event)" id="step-3-form">
+            <div id="left-section">
+                <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
+                    <div id="payment-mode">
+                        <label for="payment-mode">Select payment mode:</label>
+                        <select onchange="showPaymentMode(event)">
+                            <option value="due" selected>Due</option>
+                            <option value="cash">Cash</option>
+                            <option value="check">Check</option>
+                            <option value="online">NEFT</option>
+                        </select>
+                    </div>
+                    <div id="cash-payment" class="hide payment-detail">
+                        <div>
+                            <p>Enter amount</p>
+                            <input data-type="Number" value="0" data-subtype="price" data-name="payment" />
+                        </div>
+                    </div>
+                    <div id="check-payment" class="hide payment-detail">
+                        <div>
+                            <p>Bank Name</p>
+                            <input type="text" data-name="bankName"/>
+                        </div>
+                        <div>
+                            <p>Bank Branch</p>
+                            <input type="text" data-name="bankBranch"/>
+                        </div>
+                        <div>
+                            <p>Account No.</p>
+                            <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                        </div>
+                        <div>
+                            <p>Check No.</p>
+                            <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                        </div>
+                        <div>
+                            <p>Amount paid</p>
+                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                        </div>
+                        <div>
+                            <p>Mark as paid</p>
+                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="online-payment" class="hide payment-detail">
+                        <div>
+                            <p>Bank Name</p>
+                            <input type="text" data-name="bankName" />
+                        </div>
+                        <div>
+                            <p>Transaction Ref.</p>
+                            <input type="text" data-name="bankTrnRef" />
+                        </div>
+                        <div>
+                            <p>Amount paid</p>
+                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                        </div>
+                        <div>
+                            <p>Mark as paid</p>
+                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="discount-div">
+                    <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                </div>
+            </div>
+            <div id="summary-div">
+                <h2>Order Summary</h2>
+                <div>
+                    <p>Bill Amount</p>
+                    <p data-name="netAmtTax" class="highlight">0</p>
+                </div>
+                <div>
+                    <p>Delivery Charge</p>
+                    <p data-name="transportCharge" class="highlight">0</p>
+                </div>
+                <div id="netAmtTaxDel-div">
+                    <p>Net Amount</p>
+                    <p data-name="netAmtTaxDel" class="highlight">0</p>
+                </div>
+                <div>
+                    <p>Net Payment</p>
+                    <p data-name="paymentAmt" class="highlight">0</p>
+                </div>
+                <div>
+                    <p>Net Due</p>
+                    <p data-name="dueAmt" class="highlight">0</p>
+                </div>
+                <div>
+                    <p>Net Return</p>
+                    <p data-name="return" class="highlight">0</p>
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Proceed</button>
+                <button type="button" data-step="2" data-mode="back">Back</button>
+                <button type="button" data-mode="cancel">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="step-4-template">
+        <form onclick="clickHandler(event)" onsubmit="proceedOrFinishHandler(event)" id="step-4-form">
+            <div id="order-host">
+                <div class="table">
+                    <h2>Order Summary</h2>
+                    <div class="head row">
+                        <p class="col eq-space">Item</p>
+                        <p class="col eq-space">Quantity</p>
+                    </div>
+                    <div class="tbody"></div>
+                </div>
+            </div>
+            <div id="order-meta">
+                <div>
+                    <p>Customer name</p>
+                    <p data-col="name"></p>
+                </div>
+                <div>
+                    <p>Customer address</p>
+                    <p data-col="address"></p>
+                </div>
+                <div>
+                    <p>Bill amount</p>
+                    <p data-col="netAmtTax"></p>
+                </div>
+                <div>
+                    <p>Payment amount</p>
+                    <p data-col="payment"></p>
+                </div>
+                <div>
+                    <p>Payment status</p>
+                    <p data-col="paymentStatus"></p>
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed' data-mode="proceed">Save & Exit</button>
+                <button type="submit" data-mode="proforma">Create Proforma Invoice</button>
+                <button type="button" data-step="3" data-mode="back">Back</button>
+                <button type="button" data-mode="cancel">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="step-2-quick-template">
+        <form onclick="clickHandler(event)" id="step-2-form" onsubmit="proceedOrFinishHandler(event)" onchange="selectionHandler(event,3)">
+            <div>
+                <div id="table">
+                    <div class="row head">
+                        <div class="col sm"><p>Sl No.</p></div>
+                        <div class="col lg"><p>Particular</p></div>
+                        <div class="col md"><p>HSN No</p></div>
+                        <div class="col md"><p>Quantity</p></div>
+                        <div class="col md"><p>Unit</p></div>
+                        <div class="col md"><p>Rate</p></div>
+                        <div class="col md"><p>Amount</p></div>
+                        <div class="col sm"><p>CGST</p></div>
+                        <div class="col sm"><p>SGST</p></div>
+                        <div class="col sm"><p>IGST</p></div>
+                        <div class="col md"><p>Total</p></div>
+                    </div>
+                    <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                        <div class="row row-control-div" id="add-item">
+                            <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <div>
+                        <label for="transportCharge">Delivery Charge</label>
+                    </div>
+                    <div>
+                        <input type="text" name="transportCharge" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="payment">Payment</label>
+                    </div>
+                    <div>
+                        <input data-type="Number" value="0" data-subtype="price" data-name="payment" />
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="type">Select payment mode:</label>
+                    </div>
+                    <div>
+                        <select id="payment-mode" name="type">
+                            <option value="due" selected>Due</option>
+                            <option value="cash">Cash</option>
+                            <option value="check">Check</option>
+                            <option value="online">NEFT</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Proceed</button>
+                <button type="button" data-mode="cancel">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="body-row-options-template">
+        <div class="body-row-options">
+            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col sm"><p>1</p></div>
+            <div class="col lg"><input type="text" data-name="name" list="stock-names" /></div>
+            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col md"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt"></p></div>
+            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt-with-tax"></p></div>
+        </div>
+    </template>
+    <template id="item-div-template">
+        <div class="body row item-div">
+            <p class="col eq-space" data-col="name"></p>
+            <p class="col eq-space" data-col="qty"></p>
+        </div>
     </template>
 </body>
 </html>

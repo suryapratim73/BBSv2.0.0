@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -48,24 +48,6 @@ async function init(){
 init();// Datalist linking and selection handler work
 
 ipcRenderer.on("apply-theme",applyTheme.bind(document));
-
-function clickOrFocusinHandler(e){
-    if(currentStep!==3) return;
-    if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
-        return deleteRow(e);
-    bodyRow = e.target.parentNode.parentNode;
-    if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
-        selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
-    displaySection();
-    [...document.querySelectorAll(".body-row-options")].forEach(div=>div.remove());
-    if(bodyRow.className==="body row"){
-        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
-        if(document.querySelector(".body-row-options"))
-            document.querySelector(".body-row-options").dataset.sellId = bodyRow.dataset.sellId;    
-        clearTimeout(timer);
-        timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
-    }
-}
 
 function stepDetail(){
     if(currentStep===1) return `Add <span class="highlight">customer</span> detail`;
@@ -313,96 +295,10 @@ function addPhone(e){
     customerPhoneInput.setAttribute("placeholder","Add new phone number");
 }
 
-function addRow(e){
-    let clonedBodyRow = document.getElementById("body-row-template").content.cloneNode(true);
-    document.getElementById("add-item").before(clonedBodyRow);
-    [...document.querySelectorAll(".body.row>div:first-child>p")].forEach((p,index)=>{
-        p.textContent = index+1;
-    });
-    e.target.scrollIntoView();
-    e.target.parentNode.previousSibling.previousSibling.querySelector("input").focus();
-    bodyRow = e.target.parentNode.previousSibling.previousSibling;
-    selectedItem = {};
-    bodyRow.dataset.sellId = uuid.v5(bodyRow.querySelector("p").textContent,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
-}
-
-function showPaymentMode(e){
-    [...document.getElementsByClassName("payment-detail")].forEach(div=>{
-        if(div.id===(e?.target || e).value+"-payment")
-            div.classList.remove("hide");
-        else
-            div.classList.add("hide");
-    })
-}
-
 function validateInput2(e){
     validateInput(e)
     if(e.defaultPrevented) return;
     if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
-}
-
-function calculateAmounts(e){
-    if(Object.keys(selectedItem).length===0) return;
-    let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
-    let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
-    let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
-    let res = unitMap.find(uObj=>unit in uObj);
-    let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-    if(selectedItem.type==="service" && unit===selectedItem.unit)
-        multiplier = 1;
-    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier);
-    let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
-    let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
-    let igst = Number(bodyRow.querySelector('[data-name="igst"]').value) ?? 0;
-    if(igst>0){
-        sgst = 0;
-        cgst = 0;
-        bodyRow.querySelector('[data-name="cgst"]').value = "";
-        bodyRow.querySelector('[data-name="sgst"]').value = "";
-    }
-    selectedItem.sgst = sgst;
-    selectedItem.cgst = cgst;
-    selectedItem.igst = igst;
-    selectedItem.rate = rate;
-    selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
-    selectedItem.qty = quantity;
-    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier * (1 + (cgst + sgst + igst)/100));
-    displaySection();
-}
-
-function reduceOrder(){
-    return orderItems.reduce((acc,obj)=>{
-        let keys = ["qty","sellUnit","rate"];
-        let obJKeys = Object.keys(obj);
-        let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
-            if(key in obj)
-                return acc + obj[key]
-            return acc
-        },0);
-        if(keys.every(val=>obJKeys.includes(val))){
-            if(!("discVal" in billMeta))
-                billMeta.discVal = 0;
-            let res = unitMap.find(uObj=>obj.sellUnit in uObj);
-            let multiplier;
-            if(obj.type!=="service")
-                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            else
-            if(obj.type==="service" && obj.unit===Object.keys(res)[0])
-                multiplier = 1;
-            else
-            if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
-                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            if(obj.type!=="service")
-                acc.netQty += obj.qty * multiplier;
-            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
-            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
-        }
-        return acc;
-    },{
-        netQty:0,
-        netAmt:0,
-        netAmtTax:0
-    });
 }
 
 function displaySection(){
@@ -462,72 +358,6 @@ function displaySection(){
 function deleteRow(){
     orderItems = deleteRowCommon(bodyRow,orderItems,"sellId");
     displaySection();
-}
-
-function updateBillValue(e){
-    if(e.target.dataset.name!=="payment") return;
-    //Update summary and billMeta
-    let paymentModeDiv = e.target.parentNode.parentNode;
-    let payObj = {
-        payment:Number(e.target.value)
-    };
-    if(paymentModeDiv.id==="cash-payment"){
-        payObj.type = "cash";
-        let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
-        if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment)
-            billMeta.paymentStatus = true;
-        else
-            billMeta.paymentStatus = false;
-    }
-    else if(paymentModeDiv.id==="check-payment"){
-        payObj.type = "check";
-        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.bankBranch = paymentModeDiv.querySelector("[data-name='bankBranch']").value;
-        payObj.bankACNo = paymentModeDiv.querySelector("[data-name='bankACNo']").value;
-        payObj.chkNo = paymentModeDiv.querySelector("[data-name='chkNo']").value;
-        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
-    }
-    else{
-        payObj.type = "online";
-        payObj.bankName = paymentModeDiv.querySelector("[data-name='bankName']").value;
-        payObj.bankTrnRef = paymentModeDiv.querySelector("[data-name='bankTrnRef']").value;
-        billMeta.paymentStatus = paymentModeDiv.querySelector(`[data-name="paymentStatus"]`).value==="true";
-    }
-    let updateFlag = false;
-    if(payment.length>0)
-        for(let i=0;i<payment.length;i++)
-            if(payment[i].type===payObj.type){
-                payment[i] = payObj;
-                updateFlag = true;
-                break;
-            }
-    if(!updateFlag)
-        payment.push(payObj);
-    billMeta.payment = payment;
-    if(billMeta.billType!=="regular")
-        billMeta.paymentStatus = false;
-    if(billMeta.paymentStatus)
-        showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
-    else
-        showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
-    reassignSummaryDivFeilds();
-}
-
-function reassignSummaryDivFeilds(){
-    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,payObj)=>acc + payObj.payment,0):0;
-    let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
-    deliveryCharge += billMeta.coolieReq==="yes"?Number(billMeta.coolieCharge):0;
-    document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
-    if(Math.sign(deliveryCharge + billMeta.netAmtTax - netPayment)<=0){
-        document.querySelector("[data-name='dueAmt']").textContent = 0;
-        billMeta.netDue = 0;
-        document.querySelector("[data-name='return']").textContent = roundOffTo2DecimalPlace(netPayment - (Math.round(billMeta.netAmtTax) + deliveryCharge));
-    }
-    else{
-        document.querySelector("[data-name='dueAmt']").textContent = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
-        billMeta.netDue = roundOffTo2DecimalPlace(deliveryCharge + Math.round(billMeta.netAmtTax) - netPayment);
-        document.querySelector("[data-name='return']").textContent = 0;
-    }
 }
 
 function deleteKey(arr,obj){
@@ -596,28 +426,6 @@ async function saveExit(){
         ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
     else
         showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
-}
-
-function applyDiscount(e){
-    let discVal = Number(e.target.value);
-    document.getElementById("discount-feild")?.remove();
-    billMeta.discVal = 0;
-    let netAmt = reduceOrder().netAmt;
-    billMeta.discVal = discVal;
-    if(discVal>0){
-        let div = document.createElement("div");
-        div.innerHTML = `
-            <p>Discount</p>
-            <p data-name="discVal" class="highlight">${roundOffTo2DecimalPlace(netAmt - reduceOrder().netAmt)}</p>
-        `;
-        div.id = "discount-feild";
-        document.getElementById("netAmtTaxDel-div").before(div);
-    }
-    let reducedOrder = reduceOrder();
-    billMeta.netAmt = reducedOrder.netAmt;
-    billMeta.netAmtTax = reducedOrder.netAmtTax;
-    billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
-    page4Init();
 }
 
 document.addEventListener("keydown",e=>{

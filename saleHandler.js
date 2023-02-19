@@ -8,6 +8,7 @@ const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
+const uuid = require("uuid");
 
 
 let closeFlag = false,
@@ -45,7 +46,6 @@ exports.orderRegister = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
         saleWindow = createModal(windowOptions,"./template/html/orderRegister.html",{label:"new-order"});
-        // saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
         })
@@ -316,6 +316,17 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
             ["entryNo","DESC"]
         ]
     })))?.dataValues.balance ?? 0;
+});
+
+ipcMain.on("manage-order",async (e,{billMeta,mode})=>{
+    let { name,address,gst,email,phones,netAmt,netAmtTax,netTax,netPayment,netDue,paymentStatus,payment,orderItems,orderMode,discVal } = billMeta;
+    let time = Date.now();
+    let orderId = uuid.v5(time,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    // fs-base order management
+    if(mode==="proforma"){
+
+    }
+    BrowserWindow.getFocusedWindow().close();
 });
 
 exports.customerList = customerList;
