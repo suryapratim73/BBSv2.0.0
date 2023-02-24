@@ -59,7 +59,7 @@ class BillNoGenerator{
 }
 
 class FileHandler{
-    constructor(rPath){
+    constructor(rPath,flag){
         this.rPath = rPath;
         this.rootPath = "";
         if(process.env.APP_ENV==="DEV")
@@ -67,7 +67,7 @@ class FileHandler{
         else
             this.rootPath = app.getPath("appData")+"/BBS";
         try{
-            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath)))
+            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath)) && flag)
                 fs.mkdirSync(path.resolve(this.rootPath,this.rPath,"../"),{recursive:true});
             this.fd = fs.openSync(path.resolve(this.rootPath,this.rPath),"a+");
         }
@@ -160,8 +160,17 @@ exports.getLastBillNo = function(){
     return billNoGenInstance.billNo;
 }
 
-exports.loggerFH = function(fileName){
-    let fh = new FileHandler(`./logs/${fileName}`);
+exports.loggerFH = function(fileName,fPath){
+    let flag;
+    if(!fPath){
+        fPath = `./logs/${fileName}`;
+        flag = true;
+    }
+    else{
+        fPath = `./${fileName}`;
+        flag = false;
+    }
+    let fh = new FileHandler(fPath,flag);
     loggerFH.push({[fileName]:fh});
     return fh;
 }

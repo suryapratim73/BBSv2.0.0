@@ -131,7 +131,7 @@ function proceedOrFinishHandler(e){
         }
         else
             document.getElementById("step-4-form").classList.remove("hide");
-        let { netAmtTax,netAmt,netTax } = reduceOrder();
+        let { netAmtTax,netAmt } = reduceOrder();
         data.transportCharge = Number(data.transportCharge);
         billMeta = {
             ...billMeta,
@@ -140,7 +140,7 @@ function proceedOrFinishHandler(e){
             billType:"order",
             netAmt,
             netAmtTax,
-            netTax
+            netTax: roundOffTo2DecimalPlace(netAmtTax-netAmt)
         }
     }
     if(currentStep===3 && mode==="detail"){
@@ -148,10 +148,10 @@ function proceedOrFinishHandler(e){
         if(billMeta.transportCharge>0)
             billMeta.deliveryType = "transport";
         billMeta.billType = "order";
-        let { netAmtTax,netAmt,netTax } = reduceOrder();
+        let { netAmtTax,netAmt } = reduceOrder();
         billMeta.netAmtTax = netAmtTax;
         billMeta.netAmt = netAmt;
-        billMeta.netTax = netTax;
+        billMeta.netTax = roundOffTo2DecimalPlace(netAmtTax - netAmt);
         document.querySelector(`#summary-div [data-name="netAmtTax"]`).textContent = Math.round(netAmtTax);
         document.querySelector(`#summary-div [data-name="netAmtTaxDel"]`).textContent = Math.round(netAmtTax + billMeta.transportCharge);
         document.querySelector(`#summary-div [data-name="transportCharge"]`).textContent = Math.round(billMeta.transportCharge);
@@ -177,6 +177,7 @@ function proceedOrFinishHandler(e){
             else
                 p.textContent = billMeta.payment.reduce((acc,{payment})=>acc+payment,0);
         });
+        mode==="quick" && document.querySelector(`[data-mode="proforma"]`).classList.add("hide");
     }
 }
 
@@ -275,7 +276,7 @@ function updatePayStatus(e){
 }
 
 document.addEventListener("keydown",e=>{
-    if(e.ctrlKey && e.key==="Enter")
+    if(e.ctrlKey && e.key==="Enter" && !e.shiftKey)
         document.querySelector("[data-type='proceed']").click();
     else
     if(e.ctrlKey && e.key==="ArrowLeft" && currentStep>1)
@@ -284,6 +285,6 @@ document.addEventListener("keydown",e=>{
         document.querySelector("#add-item>button").click();
     if(e.shiftKey && e.key==="Delete")
         deleteRow();
-    if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
+    if(e.ctrlKey && e.shiftKey && e.key==="Enter" && currentStep===4 && mode==="detail")
         document.querySelector(`[data-mode="proforma"]`).click();
 });

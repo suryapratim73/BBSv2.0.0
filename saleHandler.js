@@ -4,11 +4,14 @@ const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
 const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
-const { printOnLinuxOrMac, printOnWindows } = require("./printHandler");
+const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
+const path = require("path");
+const { billPDF } = require("./scripts/makePDF.default");
 const uuid = require("uuid");
+const { printPDF } = require("./main");
 
 
 let closeFlag = false,
@@ -89,7 +92,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         netAmtTax
     } = billMeta;
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    const { billPDF } = require("./scripts/makePDF.default");
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     closeFlag = true;
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
@@ -319,14 +321,82 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
 });
 
 ipcMain.on("manage-order",async (e,{billMeta,mode})=>{
-    let { name,address,gst,email,phones,netAmt,netAmtTax,netTax,netPayment,netDue,paymentStatus,payment,orderItems,orderMode,discVal } = billMeta;
-    let time = Date.now();
-    let orderId = uuid.v5(time,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    let { name="",address,gst,email,phones,netAmtTax,netDue,paymentStatus,orderItems } = billMeta;
+    let orderId = uuid.v5(name+Date.now(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
     // fs-base order management
-    if(mode==="proforma"){
-
+    let baseDir;
+    if(process.env.APP_ENV==="DEV")
+        baseDir = __dirname;
+    else
+        baseDir = app.getPath("appData")+"/BBS";
+    let ordersFilePath = path.resolve(baseDir,"orders.json");
+    let data = JSON.parse(fs.readFileSync(ordersFilePath).toString());
+    let orderObj = {
+        orderId,
+        status:"queued",
+        paymentStatus,
+        customer:name,
+        amount:netAmtTax,
+        netDue
+    };
+    if("fileList" in data)
+        data.fileList.push(orderObj);
+    else
+        data.fileList = [orderObj];
+    try{
+        fs.writeFileSync(path.resolve(baseDir,orderId),JSON.stringify(billMeta));
+        fs.writeFileSync(ordersFilePath,JSON.stringify(data));
     }
-    BrowserWindow.getFocusedWindow().close();
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message,
+            line:"manage order ipc- last try-catch"
+        });
+    }
+    if(mode==="proforma"){
+        billMeta.billDate = new Date()
+                            .toLocaleDateString("en-IN",{
+                                month:"2-digit",
+                                day:"2-digit",
+                                year:"numeric"
+                            })
+                            .split("/")
+                            .reduce((acc,str,i)=>{
+                                acc = i===0 ? str : str+"-"+acc;
+                                return acc;
+                            },"");
+        billMeta.printObj = {
+            captions:["Proforma Invoice"]
+        };
+        billMeta.billNo = "proforma_"+orderId.slice(0,orderId.length/3);
+        let path2pdf = await billPDF({billMeta,customer:{name,address,email,phones,gst},orderItems});
+        let resp = await dialog.showMessageBox({
+            title:"Choose a action",
+            message:"Do you like to print the proforma bill?",
+            buttons:["Print","Save & Exit"]
+        });
+        console.log(resp)
+        if(resp.response===0){// Continue to print order
+            let modal = printDialog(function(){
+                this.webContents.send("hide-label");
+            });
+            let orderWin = modal.getParentWindow();
+            ipcMain.once("print-obj",(e,printObj)=>{
+                billMeta.printObj = {
+                    ...printObj,
+                    captions:["Proforma Invoice"]
+                };
+                modal.close();
+                orderWin.close();
+                printPDF(path2pdf,billMeta.printObj);
+            });
+        }
+        else
+            BrowserWindow.getFocusedWindow().close();
+    }
+    if(mode!="proforma")
+        BrowserWindow.getFocusedWindow().close();
 });
 
 exports.customerList = customerList;

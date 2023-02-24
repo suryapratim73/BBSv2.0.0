@@ -2,3 +2,4 @@
 {"fPath":"config/policy.json","fileName":"policy.json","type":"config","dir":"config/"}
 {"fPath":"config/appDefault.json","fileName":"appDefault.json","type":"config","dir":"config/"}
 {"fPath":"config/saleConfig.json","fileName":"saleConfig.json","type":"config","dir":"config/"}
+{"fPath":"orders.json","fileName":"orders.json","type":"config","dir":"."}

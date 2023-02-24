@@ -10,7 +10,7 @@ let modal,pageFit;
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
     if(!path2pdf && fs.existsSync(path2pdf)) return;
-    let cmd = `lp -d ${printer} -n ${copies} ${pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
+    let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
     execCMD(cmd)
 }
 
@@ -91,4 +91,21 @@ ipcMain.on("forward-printObj",(e,printObj,path2pdf)=>{
     ipcMain.emit("printObj",{printObj,path2pdf});    
 });
 
-
+exports.printDialog = function(cb){
+    let pathToHTML = "./template/html/printDialog.html";
+    let windowOptions = {
+        width: 400,
+        height: 450,
+        resizable:false,
+        webPreferences: {
+            nodeIntegration: true,
+            devTools:true
+        },
+        parent:BrowserWindow.getFocusedWindow(),
+        contextIsolation:true,
+        movable:false,
+        frame:false,
+        titleBarStyle:"hidden"
+    }
+    return createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog",cb});
+}

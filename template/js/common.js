@@ -1250,6 +1250,7 @@ exports.applyDiscount = function(e){
     let reducedOrder = reduceOrder();
     billMeta.netAmt = reducedOrder.netAmt;
     billMeta.netAmtTax = reducedOrder.netAmtTax;
+    console.log(billMeta.netAmtTax , billMeta.netAmt)
     billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
     try{
         page4Init();

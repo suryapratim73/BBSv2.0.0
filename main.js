@@ -55,7 +55,7 @@ const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
 const { spawn,execFile } = require("child_process");
-const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
+const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF } = require("./scripts/makePDF.default");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
@@ -529,6 +529,7 @@ app.on("ready", async () => {
                 if (fileName === "policy.json") schema = policyJsonSchema;
                 else if (fileName === "saleConfig.json") schema = saleConfigSchema;
                 else if (fileName === "appDefault.json") schema = appDefaultSchema;
+                else schema = {};
                 fs.writeFile(path.resolve(rootPath,fPath), JSON.stringify(schema), (err) => {
                   if (err) rej(err);
                   appLogger({title:"File created",message:path.resolve(rootPath,fPath)});
@@ -541,6 +542,11 @@ app.on("ready", async () => {
         })
       ).catch(err=>{
         appLogger({title:"Error",message:String(err),func:"Filelist check error"});
+      });
+      fileList
+      .filter(({type})=>type==="record")
+      .forEach(({fileName,fPath})=>{
+        loggerFH(fileName,fPath);
       });
       appLogger({message:"Filelist check complate"});
       fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
@@ -693,23 +699,8 @@ async function autoPrintMonthlyBills(){
           })
         setTimeout(()=>{
           if(scheduledTime===0){
-            let pathToHTML = "./template/html/printDialog.html";
-            let windowOptions = {
-              width: 400,
-              height: 450,
-              resizable:false,
-              webPreferences: {
-                  nodeIntegration: true,
-                  devTools:true
-              },
-              parent:BrowserWindow.getFocusedWindow(),
-              contextIsolation:true,
-              movable:false,
-              frame:false,
-              titleBarStyle:"hidden"
-            }
-            let modal = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog"});
-            ipcMain.on("print-obj",(e,printObj)=>{
+            let modal = printDialog();
+            ipcMain.once("print-obj",(e,printObj)=>{
               modal.close();
               jobs.forEach(job=>{
                 job.updateArgs(printObj);
@@ -746,6 +737,8 @@ function printPDF(path2pdf,printObj){
         dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
   }
 }
+
+exports.printPDF = printPDF;
 
 ipcMain.on("take-attendance", (e) => {
   let refWin = getTargetWindow("Employee-Page");
@@ -808,9 +801,14 @@ ipcMain.handle("get-overview-content", async () => {
 
 ipcMain.handle("get-orders",async ()=>{
   let orderPath = getOrderPath();
-  let orders = [];
-  if(!fs.existsSync(orderPath)) return orders;
-  orders = JSON.parse(fs.readFileSync(orderPath)?.toString());
+  let orders;
+  try{
+    orders = JSON.parse(fs.readFileSync(orderPath)?.toString());
+  }
+  catch(err){
+    console.log(err);
+    orders = [];
+  }
   return orders;
 });
 
