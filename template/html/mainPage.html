@@ -41,7 +41,7 @@
                                         <a href="#" onclick="ipcRenderer.send('new-sale-purchase',3)">Create new order</a>
                                     </div>
                                     <div>
-                                        <a href="#">Update order</a>
+                                        <a href="#" onclick="ipcRenderer.send('new-sale-purchase',4)">Update order</a>
                                     </div>
                                     <div>
                                         <a href="#">Update "Open" bills</a>
@@ -72,27 +72,28 @@
     </div>
     <template id="overview-page-template">
         <div id="overview-div" class="mode-content">
-            <div id="expired-bill-table-div">
-                <div class="table hide">
+            <div>
+                <div class="table hide" id="order-table-div">
                     <h3>Unbilled orders</h3>
                     <div class="row head">
-                        <div class="col eq-space"><p>Sl No</p></div>
-                        <div class="col eq-space"><p>Date</p></div>                        
-                        <div class="col eq-space"><p>Customer Name</p></div>
-                        <div class="col eq-space"><p>Amount</p></div>
-                        <div class="col eq-space"><p>Action</p></div>
+                        <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
+                        <div class="col eq-space"><p data-col="billDate">Date</p></div>                        
+                        <div class="col eq-space"><p data-col="name">Customer Name</p></div>
+                        <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
+                        <div class="col eq-space"><p data-col="paymentStatus">Payment Status</p></div>
+                        <div class="col eq-space"><p data-col="status">Order Status</p></div>
                     </div>
+                    <div class="tbody hide-scrollbar"></div>
                 </div>
-                <div class="table">
+                <div class="table" id="expired-bill-table-div">
                     <h3>Expired Bills</h3>
                     <div class="row head">
-                        <div class="col eq-space"><p>Bill Number</p></div>
-                        <div class="col eq-space"><p>Bill Date</p></div>
-                        <div class="col eq-space"><p>Customer Name</p></div>
-                        <div class="col eq-space"><p>Bill Amount</p></div>
+                        <div class="col eq-space"><p data-col="billNo">Bill Number</p></div>
+                        <div class="col eq-space"><p data-col="billDate">Bill Date</p></div>
+                        <div class="col eq-space"><p data-col="name">Customer Name</p></div>
+                        <div class="col eq-space"><p data-col="billAmt">Bill Amount</p></div>
                     </div>
-                    <div class="tbody hide-scrollbar">
-                    </div>
+                    <div class="tbody hide-scrollbar"></div>
                 </div>
             </div>
             <div>
@@ -100,8 +101,8 @@
                     <div id="stock-div" class="table">
                         <h3>Stocks running low</h3>
                         <div class="row head">
-                            <div class="col eq-space"><p>Name</p></div>
-                            <div class="col eq-space"><p>Quantity</p></div>
+                            <div class="col eq-space"><p data-col="name">Name</p></div>
+                            <div class="col eq-space"><p data-col="quantity">Quantity</p></div>
                         </div>
                         <div class="tbody hide-scrollbar">
                         </div>

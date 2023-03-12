@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/orderManager.css">
+    <script src="../js/orderManager.js" defer></script>
+    <title>Order manager</title>
+</head>
+<body>
+    <template id="page-1-template">
+        <div class="page" id="page-1">
+            <h2>Select a order to view/edit</h2>
+            <div>
+                <h2>Unbilled orders</h2>
+                <button onclick="ipcRenderer.send('new-sale-purchase',3)">+</button>
+            </div>
+            <div class="table">
+                <div class="row head">
+                    <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space"><p data-col="billDate">Date</p></div>                        
+                    <div class="col eq-space"><p data-col="name">Customer Name</p></div>
+                    <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
+                    <div class="col eq-space"><p data-col="paymentStatus">Payment Status</p></div>
+                    <div class="col eq-space"><p data-col="status">Order Status</p></div>
+                </div>
+                <div class="tbody hide-scrollbar" onclick="clickHandler(event)" data-cmd="open-order"></div>
+            </div>
+        </div>
+    </template>
+    <template id="page-2-template">
+        <div class="page" id="page-2">
+            <div>
+                <h2>Order Details</h2>
+                <div id="meta">
+                    <div>
+                        <p class="bold">Customer</p>
+                        <p data-col="name"></p>
+                    </div>
+                    <div>
+                        <p class="bold">Date</p>
+                        <p data-col="billDate"></p>
+                    </div>
+                    <div>
+                        <p class="bold">Net amount</p>
+                        <p data-col="netAmtTax"></p>
+                    </div>
+                    <div>
+                        <p class="bold">Net payment</p>
+                        <p data-col="netPayment"></p>
+                    </div>
+                    <div>
+                        <p class="bold">Payment Status</p>
+                        <p data-col="paymentStatus"></p>
+                    </div>
+                </div>
+                <div id="item-table" class="table">
+                    <div class="row head">
+                        <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
+                        <div class="col eq-space"><p data-col="name">Item Desc</p></div>
+                        <div class="col eq-space"><p data-col="qty">Quantity</p></div>
+                        <div class="col eq-space"><p data-col="sellUnit">Unit</p></div>
+                        <div class="col eq-space"><p data-col="rate">Rate</p></div>
+                    </div>
+                    <div class="tbody"></div>
+                </div>
+            </div>
+            <div id="payment-history">
+                <h2>Payment History</h2>
+                <div></div>
+            </div>
+            <div class="btn-container" onclick="clickHandler(event)">
+                <button data-cmd="edit">Edit order</button>
+                <button data-cmd="create-bill">Create Bill</button>
+                <button data-cmd="back-page1">Back to First Page</button>
+            </div>
+        </div>
+    </template>
+    <template id="edit-order-template">
+        <div id="page-3" class="page">
+            <div id="table">
+                <div class="row head">
+                    <div class="col sm"><p>Sl No.</p></div>
+                    <div class="col lg"><p>Particular</p></div>
+                    <div class="col md"><p>HSN No</p></div>
+                    <div class="col md"><p>Quantity</p></div>
+                    <div class="col md"><p>Unit</p></div>
+                    <div class="col md"><p>Rate</p></div>
+                    <div class="col md"><p>Amount</p></div>
+                    <div class="col sm"><p>CGST</p></div>
+                    <div class="col sm"><p>SGST</p></div>
+                    <div class="col sm"><p>IGST</p></div>
+                    <div class="col md"><p>Total</p></div>
+                </div>
+                <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                    <div class="row row-control-div" id="add-item">
+                        <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
+                    </div>
+                </div>
+            </div>
+            <div id="btn-container" onclick="clickHandler(event)">
+                <button data-cmd="proceed">Proceed</button>
+                <button data-cmd="cancel">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-4-template">
+        <div class="page" id="page-4">
+            <h2>Review and save order</h2>
+            <div id="item-table" class="table">
+                <div class="row head">
+                    <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space"><p data-col="name">Item Desc</p></div>
+                    <div class="col eq-space"><p data-col="qty">Quantity</p></div>
+                    <div class="col eq-space"><p data-col="sellUnit">Unit</p></div>
+                    <div class="col eq-space"><p data-col="rate">Rate</p></div>
+                </div>
+                <div class="tbody"></div>
+            </div>
+            <div id="review-meta">
+                <h2>Order summary</h2>
+            </div>
+            <div id="btn-container" onclick="clickHandler(event)">
+                <button data-cmd="save">Save Order</button>
+                <button data-cmd="create-bill">Create Bill</button>
+                <button data-cmd="cancel">Cancel Changes</button>
+            </div>
+        </div>
+    </template>
+    <template id="page-5-template">
+        <div class="page" id="page-5">
+            <h2>Fill up missing pieces of information</h2>
+            <div id="host"></div>
+            <div id="btn-container" onclick="clickHandler(event)">
+                <button type="button" disabled data-cmd="save-bill" class="main-ui-btn">Save Bill</button>
+                <button type="button" disabled data-type="print" class="main-ui-btn" onclick="showPrintDialog()">Print Bill</button>
+                <button type="button" data-cmd="back-page1">Cancel</button>
+            </div>
+        </div>
+    </template>
+    <template id="customer-info-template">
+        <form onsubmit="submitHandler(event)" class="sub-page" onchange="selectionHandler(event,Number(event.target.dataset.step))" data-id="cust-form">
+            <h2>Add customer details</h2>
+            <div>
+                <div>
+                    <label for="name" class="highlight">Name: </label>
+                </div>
+                <div class="row1">
+                    <input required type="text" data-step="1" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="address" class="highlight">Address: </label>
+                </div>
+                <div class="row1">
+                    <input required type="text" name="address" data-name="address" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="phones" class="highlight">Phone:</label>
+                </div>
+                <div class="row1">
+                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="email" class="highlight">Customer Email</label>
+                </div>
+                <div class="row1">
+                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="gst" class="highlight">GST Number</label>
+                </div>
+                <div class="row1">
+                    <input name="gst" type="text" data-name="gst" id="customer-gst" />
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Next</button>
+            </div>
+        </form>
+    </template>
+    <template id="bill-meta-template">
+        <form onsubmit="submitHandler(event)" onchange="selectionHandler(event)" class="sub-page" data-pageno="2" data-id="bill-meta">
+            <h2>Add meta informations</h2>
+            <div>
+                <div>
+                    <label for="billDate" class="highlight">Date: </label>
+                </div>
+                <div class="row1">
+                    <input type="date" required name="billDate" data-name="billDate"/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="order-ref" class="highlight">Order Reference:</label>
+                </div>
+                <div class="row1">
+                    <input type="text" data-name="orderRef" name="orderRef" id="order-ref" placeholder="optional">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="billType" class="highlight">Bill Type: </label>
+                </div>
+                <div class="row1">
+                    <div class="radio-btn-div">
+                        <div>
+                            <label for="bill-type-regular">Regular: </label>
+                            <input type="radio" checked required data-name="billType"  name="billType" id="bill-type-regular" value="regular" />
+                        </div>
+                        <div>
+                            <label for="bill-type-monthly">Monthly: </label>
+                            <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="bill-number-regular" class="highlight">Bill Number: </label>
+                </div>
+                <div class="row1 bill-number regular">
+                    <input name="billNo" id="bill-number-regular" required type="text" data-name="billNo" />
+                </div>
+                <div class="row1 hide bill-number monthly">
+                    <div class="radio-btn-div">
+                        <div>
+                            <label for="bill-number-reserve">Reserved: </label>
+                            <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" />
+                        </div>
+                        <div>
+                            <label for="bill-number-spot">Spot: </label>
+                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" />
+                        </div>
+                        <div>
+                            <input type="checkbox" name="auto-bill" data-name="autoBill" disabled id="auto-bill">
+                            <label for="auto-bill">Auto Bill</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label class="highlight">Bill Status</label>
+                </div>
+                <div class="row1">
+                    <div class="radio-btn-div">
+                        <div>
+                            <label for="bill-status-open">Open: </label>
+                            <input type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" />
+                        </div>
+                        <div>
+                            <label for="bill-status-close">Close: </label>
+                            <input type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="delivery-mode" class="highlight">Delivery Mode: </label>
+                </div>
+                <div class="row1">
+                    <select name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
+                        <option value="hand">Hand</option>
+                        <option value="transport">Transport</option>
+                    </select>
+                </div>
+            </div>
+            <div id="transport-div" class="retractable-div-container hide">
+                <div onclick="execRetractHandler(event)">
+                    <button tabindex="-1" type="button" class="hide">Show</button>
+                    <button tabindex="-1" type="button">Hide</button>
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Next</button>
+            </div>
+        </form>
+    </template>
+    <template id="payment-div-template">
+        <form onsubmit="submitHandler(event)" class="sub-page" data-id="payment-div" id="payment-div" onsubmit="submitHandler(event)" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
+            <h2>Add payment informations</h2>
+            <div id="payment-mode">
+                <label for="payment-mode">Select payment mode:</label>
+                <select id="payment-mode" onchange="showPaymentMode(event)">
+                    <option value="due" selected>Due</option>
+                    <option value="cash">Cash</option>
+                    <option value="check">Check</option>
+                    <option value="online">NEFT</option>
+                </select>
+            </div>
+            <div id="cash-payment" class="hide payment-detail">
+                <div>
+                    <p>Enter amount</p>
+                    <input data-type="Number" value="0" data-subtype="price" data-name="payment" />
+                </div>
+            </div>
+            <div id="check-payment" class="hide payment-detail">
+                <div>
+                    <p>Bank Name</p>
+                    <input type="text" data-name="bankName"/>
+                </div>
+                <div>
+                    <p>Bank Branch</p>
+                    <input type="text" data-name="bankBranch"/>
+                </div>
+                <div>
+                    <p>Account No.</p>
+                    <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+                <div>
+                    <p>Check No.</p>
+                    <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+                <div>
+                    <p>Amount paid</p>
+                    <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+                <div>
+                    <p>Mark as paid</p>
+                    <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+            </div>
+            <div id="online-payment" class="hide payment-detail">
+                <div>
+                    <p>Bank Name</p>
+                    <input type="text" data-name="bankName" />
+                </div>
+                <div>
+                    <p>Transaction Ref.</p>
+                    <input type="text" data-name="bankTrnRef" />
+                </div>
+                <div>
+                    <p>Amount paid</p>
+                    <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                </div>
+                <div>
+                    <p>Mark as paid</p>
+                    <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button type="submit" data-type='proceed'>Next</button>
+            </div>
+        </form>
+    </template>
+    <template id="ready-for-billing-template">
+        <div id="ready-for-billing">
+            <div>
+                <div id="tick"></div>
+                <h2>We are ready to process your bill.</h2>
+            </div>
+        </div>
+    </template>
+    <template id="pay-object-template">
+        <div>
+            <div>
+                <p class="bold">Mode</p>
+                <p data-col="mode"></p>
+            </div>
+            <div>
+                <p class="bold">Amount</p>
+                <p data-col="payment"></p>
+            </div>
+            <div>
+                <p class="bold">Date of payment</p>
+                <p data-col="date"></p>
+            </div>
+        </div>
+    </template>
+    <template id="review-meta-template">
+        <div>
+            <div>
+                <p class="bold">Net Amount</p>
+                <p data-col="netAmtTax" class="highlight"></p>
+            </div>
+            <div>
+                <p class="bold">Net Tax</p>
+                <p data-col="netTax" class="highlight"></p>
+            </div>
+            <div>
+                <p class="bold">Net Quantity</p>
+                <p data-col="netQty" class="highlight"></p>
+            </div>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <div class="col sm"><p>1</p></div>
+            <div class="col lg"><input type="text" data-name="name" list="stock-names" /></div>
+            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col md"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt"></p></div>
+            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><p class="amt-with-tax"></p></div>
+        </div>
+    </template>
+    <template id="body-row-options-template">
+        <div class="body-row-options">
+            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
+        </div>
+    </template>
+    <template id="transport-retractable-div-template">
+        <div class="retractable-div" data-collapsed="false">
+            <div>
+                <div>
+                    <label for="transport-name" class="highlight">Transport Name: </label>
+                </div>
+                <div class="row1">
+                    <input list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transport-address" class="highlight">Transport Address: </label>
+                </div>
+                <div class="row1">
+                    <input name="transport-address" type="text" data-name="transportAddress" />
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="transport-contact" class="highlight">Transport Contact: </label>
+                </div>
+                <div class="row1">
+                    <input name="transport-contact" type="text" data-name="transportContact" />
+                </div>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

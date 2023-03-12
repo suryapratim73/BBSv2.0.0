@@ -309,6 +309,7 @@ class Spinner{
             this.modal.remove();
             this.cover.remove();
         },400);
+        return true;
     }
 }
 
@@ -1162,7 +1163,7 @@ exports.updateBillValue = function(e){
     if(paymentModeDiv.id==="cash-payment"){
         payObj.type = "cash";
         let deliveryCharge = "deliveryType" in billMeta && billMeta.deliveryType==="hand"?0:Number(billMeta?.transportCharge ?? 0);
-        if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment)
+        if(Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment || Math.round(billMeta.netAmtTax + deliveryCharge)<=payObj.payment + billMeta.netPayment)
             billMeta.paymentStatus = true;
         else
             billMeta.paymentStatus = false;
@@ -1318,4 +1319,80 @@ exports.clickOrFocusinHandler = function(e){
         clearTimeout(timer);
         timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
     }
+}
+
+exports.bodyRow = function({obj,index,cols,key}){
+    let div = document.createElement("div");
+    div.dataset.obj = JSON.stringify(obj);
+    div.dataset.identifier = key;
+    div.className = "body row";
+    cols.forEach(col=>{
+        let p = document.createElement("p");
+        p.className = "col eq-space";
+        p.textContent = (/date/i.test(col)===true && obj[col] instanceof Date ? obj?.[col]?.toLocaleDateString('en-GB'): (typeof obj?.[col]==="number" ? Math.round(obj?.[col]) : obj?.[col])) ?? index+1;
+        div.appendChild(p);
+    });
+    return div;
+}
+
+exports.bodyRowInpFillup = itemObj=>{
+    document.querySelector("#add-item>button").click();
+    selectedItem = itemObj;
+    [...document.querySelectorAll(`.body.row:nth-last-child(2) input`)]
+    .forEach(input=>{
+        if(input.dataset.name!=="unit")
+            input.value = itemObj[input.dataset.name];
+        else
+            [...input.list.querySelectorAll("option")]
+            .forEach(opt=>{
+                if(opt.value===itemObj.sellUnit){
+                    opt.setAttribute("selected",true);
+                    input.value = itemObj.sellUnit;
+                }
+                else
+                    opt.removeAttribute("selected");
+            });
+    });
+    calculateAmounts();
+}
+
+exports.applySpinner = cb =>{
+    let spinner = drawSpinner(document);
+    cb();
+    spinner.remove(window);
+}
+
+exports.assignDeliveryOptions = function(e){
+    let transportDiv = document.getElementById("transport-div");
+    if((e?.target || e).value==="transport"){
+        transportDiv.classList.remove("hide");
+        let transportOptDF = document.getElementById("transport-retractable-div-template").content.cloneNode(true);
+        transportDiv.appendChild(transportOptDF);
+    }
+    else{
+        transportDiv.classList.add("hide");
+        transportDiv.querySelector(".retractable-div").remove();
+        deleteKey([
+            "deliveryType",
+            "transportName",
+            "transportAddress",
+            "transportContact",
+            "transportCharge"
+        ],billMeta);
+    }
+}
+
+exports.execRetractHandler = function(e){
+    if(e.target.nodeName!=="DIV"){
+        let retractableDiv = e.target.parentNode.parentNode.querySelector(".retractable-div");
+        [...e.target.parentNode.querySelectorAll("button")].forEach(btn=>btn.classList.toggle("hide"));
+        retractHandler(retractableDiv);
+    }
+}
+
+exports.deleteKey = function(arr,obj){
+    arr.forEach(key=>{
+        if(key in obj)
+            Reflect.deleteProperty(obj,key);
+    })
 }

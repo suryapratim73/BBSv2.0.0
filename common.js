@@ -255,3 +255,10 @@ exports.customDecoder = function(num,skip){
         skip = Math.abs(8 - skip);
     return (num>>1)-skip;
 }
+
+exports.getBaseDir = function(){
+    if(process.env.APP_ENV==="DEV")
+        return __dirname;
+    else
+        return app.getPath("appData")+"/BBS";
+}

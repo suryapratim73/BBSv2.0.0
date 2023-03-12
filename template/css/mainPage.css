@@ -103,6 +103,7 @@ h1{
     display: flex;
     align-items: center;
     flex-direction: column;
+    flex: 3;
 }
 #overview-div>div:last-child{
     height: 100%;
@@ -173,7 +174,7 @@ h1{
     color: var(--theme-secondary);
 }
 #expired-bill-table-div{
-    flex: 3;
+    
 }
 #expired-bill-table-div .table{
     display: flex;
@@ -245,7 +246,7 @@ button{
 .tbody{
     height: fit-content;
     border-bottom: 1px solid black;
-    max-height: 100%;
+    max-height: 75%;
 }
 button.hover{
     margin-left: auto;
@@ -320,7 +321,7 @@ button.hover{
     width: 0vw;
     background: var(--theme-primary);
     transition: width 400ms ease-in-out;
-    overflow: hidden;
+    overflow-y: hidden;
     z-index: 5;
     display: grid;
     grid-template: repeat(12,1fr)/1fr;
@@ -675,6 +676,7 @@ form#set-2-factor-auth-form button{
 }
 .side-divs p{
     color: var(--theme-secondary);
+    background: var(--theme-primary-lighter);
     margin-bottom: 0.15rem;
 }
 .page2>div>div{

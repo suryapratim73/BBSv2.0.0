@@ -1,12 +1,12 @@
-const { ipcMain, dialog } = require("electron");
-const { createModal, getMainWindow } = require("./createModal");
+const { ipcMain, dialog, ipcRenderer } = require("electron");
+const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People } = require("./common");
+const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
-const { getsaleConfigPolicyPath } = require("./template/js/common");
+const { getsaleConfigPolicyPath, getOrderPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
@@ -55,6 +55,17 @@ exports.orderRegister = ()=>{
     }
 }
 
+exports.orderManager = (main)=>{
+    return ()=>{
+        windowOptions.parent = main;
+        saleWindow = createModal(windowOptions,"./template/html/orderManager.html",{label:"manage-order"});
+        saleWindow.webContents.openDevTools();
+        saleWindow?.on("close",(e)=>{
+            getMainWindow().webContents.send("update-content");
+        })
+    }
+}
+
 ipcMain.handle("get-sale-bill-number",()=>{
     return billNoCounter();
 });
@@ -66,9 +77,10 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     BrowserWindow.getFocusedWindow().close();
 });
 
-async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
+async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     closeFlag = true;
-    saleWindow.close();
+    if(flag==="regular")
+        saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones, gst, email, id:custId } = customerObj;
@@ -83,7 +95,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
         billNo, 
         billDate, 
         netTax,
-        payment,
+        payment=[],
         netAmt,
         paymentStatus,
         billType,
@@ -250,11 +262,16 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems}){
             message: "Bill added to your sale and stocks and/or ledger updated."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("sale",JSON.stringify({name,billNo,netPayment}))
+        appLogger("sale",JSON.stringify({name,billNo,netPayment}));
+        if(flag!="regular"){
+            await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
+            BrowserWindow.fromId(e.sender.id).webContents.send("billing-complete");
+            BrowserWindow.fromId(e.frameId).webContents.send("update-content");
+        }
     })
     .catch(console.log);
     if(billType!=="monthly")
-        return billPDF({billMeta,customer:customerObj,orderItems});
+        return billPDF({billMeta,customerObj,orderItems});
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
@@ -320,24 +337,36 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
     })))?.dataValues.balance ?? 0;
 });
 
-ipcMain.on("manage-order",async (e,{billMeta,mode})=>{
+ipcMain.on("new-order",async (e,{billMeta,mode})=>{
     let { name="",address,gst,email,phones,netAmtTax,netDue,paymentStatus,orderItems } = billMeta;
     let orderId = uuid.v5(name+Date.now(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
     // fs-base order management
-    let baseDir;
-    if(process.env.APP_ENV==="DEV")
-        baseDir = __dirname;
-    else
-        baseDir = app.getPath("appData")+"/BBS";
+    let baseDir = getBaseDir();
     let ordersFilePath = path.resolve(baseDir,"orders.json");
     let data = JSON.parse(fs.readFileSync(ordersFilePath).toString());
+    billMeta.billDate = new Date()
+                        .toLocaleDateString("en-IN",{
+                            month:"2-digit",
+                            day:"2-digit",
+                            year:"numeric"
+                        })
+                        .split("/")
+                        .reduce((acc,str,i)=>{
+                            acc = i===0 ? str : str+"-"+acc;
+                            return acc;
+                        },"");
+    if(paymentStatus===false && billMeta.netPayment===0){
+        billMeta.netDue = Math.round(netAmtTax);
+        netDue = billMeta.netDue;
+    }
     let orderObj = {
         orderId,
         status:"queued",
         paymentStatus,
-        customer:name,
-        amount:netAmtTax,
-        netDue
+        name,
+        netAmtTax,
+        netDue,
+        billDate:billMeta.billDate
     };
     if("fileList" in data)
         data.fileList.push(orderObj);
@@ -355,17 +384,6 @@ ipcMain.on("manage-order",async (e,{billMeta,mode})=>{
         });
     }
     if(mode==="proforma"){
-        billMeta.billDate = new Date()
-                            .toLocaleDateString("en-IN",{
-                                month:"2-digit",
-                                day:"2-digit",
-                                year:"numeric"
-                            })
-                            .split("/")
-                            .reduce((acc,str,i)=>{
-                                acc = i===0 ? str : str+"-"+acc;
-                                return acc;
-                            },"");
         billMeta.printObj = {
             captions:["Proforma Invoice"]
         };
@@ -397,6 +415,33 @@ ipcMain.on("manage-order",async (e,{billMeta,mode})=>{
     }
     if(mode!="proforma")
         BrowserWindow.getFocusedWindow().close();
+});
+
+async function manageOrder(e,billMeta,flag){
+    let baseDir = getBaseDir(),orderPath = getOrderPath();
+    try{
+        if(flag==="order-billed"){
+            let id = billMeta.orderId;
+            let orderJSON = JSON.parse(fs.readFileSync(orderPath).toString());
+            orderJSON.fileList.splice(orderJSON.fileList.findIndex(obj=>obj.orderId===id),1)
+            fs.writeFileSync(orderPath,JSON.stringify(orderJSON));
+            if(fs.existsSync(path.resolve(baseDir,id)))
+                  fs.unlinkSync(path.resolve(baseDir,id));
+        }
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"manageOrder"
+        });
+    }
+}
+
+ipcMain.handle("manage-order",manageOrder);
+
+ipcMain.handle("get-order",(e,orderId)=>{
+    return JSON.parse(fs.readFileSync(orderId).toString());
 });
 
 exports.customerList = customerList;

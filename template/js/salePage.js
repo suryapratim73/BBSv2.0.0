@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -360,33 +360,6 @@ function deleteRow(){
     displaySection();
 }
 
-function deleteKey(arr,obj){
-    arr.forEach(key=>{
-        if(key in obj)
-            Reflect.deleteProperty(obj,key);
-    })
-}
-
-function assignDeliveryOptions(e){
-    let transportDiv = document.getElementById("transport-div");
-    if((e?.target || e).value==="transport"){
-        transportDiv.classList.remove("hide");
-        let transportOptDF = document.getElementById("transport-retractable-div-template").content.cloneNode(true);
-        transportDiv.appendChild(transportOptDF);
-    }
-    else{
-        transportDiv.classList.add("hide");
-        transportDiv.querySelector(".retractable-div").remove();
-        deleteKey([
-            "deliveryType",
-            "transportName",
-            "transportAddress",
-            "transportContact",
-            "transportCharge"
-        ],billMeta);
-    }
-}
-
 function updatePayStatus(e){
     if(billMeta.billType!=="regular"){
         billMeta.paymentStatus = false;
@@ -399,14 +372,6 @@ function updatePayStatus(e){
         showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
     else
         showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
-}
-
-function execRetractHandler(e){
-    if(e.target.nodeName!=="DIV"){
-        let retractableDiv = e.target.parentNode.parentNode.querySelector(".retractable-div");
-        [...e.target.parentNode.querySelectorAll("button")].forEach(btn=>btn.classList.toggle("hide"));
-        retractHandler(retractableDiv);
-    }
 }
 
 function showPrintDialog(){

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder } = require("../js/common");
+const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow } = require("../js/common");
 
 
 let themeObj = {
@@ -16,7 +16,7 @@ let themeObj = {
     file:""
 };
 let currentMode = "overview",reducedBills = [],reducedPurchases = [];
-let mode = 1,loggedinUser,compInfo,selectedBill,hiddenSection;
+let mode = 1,loggedinUser,compInfo,hiddenSection;
 
 toggleDevTool(document);
 
@@ -85,39 +85,26 @@ async function overviewPageInit(){
     let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
     dtEventDiv.querySelector("h1").textContent = dt;
     dtEventDiv.querySelector("p").textContent = `${mnth}, ${yr}`;
+    removeAllElem(".no-data");
     let billTbody = document.querySelector("#expired-bill-table-div .tbody");
-    removeAllElem("#expired-bill-table-div .no-data,#stock-div .no-data");
+    let cols = [...document.querySelectorAll("#expired-bill-table-div .row.head .col>p")].map(p=>p.dataset.col);
     if(unPaidBills.length>0)
-        unPaidBills.forEach(billObj=>{
-            let div = document.createElement("div");
-            div.dataset.billObj = JSON.stringify(billObj);
-            div.className = "body row";
-            div.innerHTML = `
-                <p class="col eq-space">${billObj.billNo}</p>
-                <p class="col eq-space">${billObj.billDate.toLocaleDateString('en-GB')}</p>
-                <p class="col eq-space">${billObj.name}</p>
-                <p class="col eq-space">${billObj.billAmt}</p>
-            `;
-            billTbody.appendChild(div);
-            
-        });
+        unPaidBills.forEach((obj,index)=>billTbody.appendChild(bodyRow({key:"billObj",obj,cols,index})));
     else
         noDataPlaceholder(billTbody);
     let stockTbody = document.querySelector("#stock-div .tbody");
+    cols = [...document.querySelectorAll("#stock-div .row.head .col>p")].map(p=>p.dataset.col);
     if(stocks.length>0)
-        stocks.forEach(stock=>{
-            let div = document.createElement("div");
-            div.className = "body row";
-            div.innerHTML = `
-                <p class="col eq-space">${stock.name}</p>
-                <p class="col eq-space">${stock.quantity}</p>
-            `;
-            stockTbody.appendChild(div);
-        });
+        stocks.forEach((obj,index)=>stockTbody.appendChild(bodyRow({key:"stock",obj,cols,index})));
     else
         noDataPlaceholder(stockTbody);
     let orders = await ipcRenderer.invoke("get-orders");
-    console.log(orders)
+    let orderTbody = document.querySelector("#order-table-div .tbody");
+    if(!("fileList" in orders) || orders.fileList.length===0) 
+        return noDataPlaceholder(orderTbody);
+    document.getElementById("order-table-div").classList.remove("hide");
+    cols = [...document.querySelectorAll("#order-table-div .row.head .col>p")].map(p=>p.dataset.col);
+    orders.fileList.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
 }
 
 async function salePageInit(){
@@ -197,28 +184,23 @@ async function applyMode(){
     if(["settings",'help'].includes(currentMode))
         [...document.querySelectorAll("#main-div>div:first-child>*")]
         .forEach(elem=>elem.classList.add("hide"));
-    if(!document.getElementById(`${currentMode}-div`)){
-        modeContent = document.getElementById(`${currentMode}-page-template`).content.cloneNode(true).querySelector("div");
-        if(["overview","sale","purchase"].includes(currentMode))
-            document.getElementById("mode-host").appendChild(modeContent);
-        if(!modeContent) return;
-        if(currentMode==="overview")
-            overviewPageInit();
-        else
-        if(currentMode==="sale")
-            salePageInit();
-        else
-        if(currentMode==="purchase")
-            purchasePageInit();
-        else
-        if(currentMode==="settings")
-            settingsPageInit(modeContent);
-    }
-    else{
-        modeContent = document.getElementById(`${currentMode}-div`);
-        modeContent.classList.remove("hide");
-        correctChart();
-    }
+    removeAllElem("#mode-host *");
+    modeContent = document.getElementById(`${currentMode}-page-template`).content.cloneNode(true).querySelector("div");
+    if(["overview","sale","purchase"].includes(currentMode))
+        document.getElementById("mode-host").appendChild(modeContent);
+    if(!modeContent) return;
+    if(currentMode==="overview")
+        overviewPageInit();
+    else
+    if(currentMode==="sale")
+        salePageInit();
+    else
+    if(currentMode==="purchase")
+        purchasePageInit();
+    else
+    if(currentMode==="settings")
+        settingsPageInit(modeContent);
+    correctChart();
 }
 
 function expandOrCollapsePanel(){
@@ -653,12 +635,12 @@ function showContextMenu(e){
     let parentNode;
     if(elem.classList.contains("col")){
         parentNode = elem.parentNode;
-        selectedBill = JSON.parse(parentNode.dataset.billObj);
-        ipcRenderer.send("show-context-menu",{mode:"overview-table",x,y});
+        let obj = JSON.parse(parentNode.dataset.obj);
+        ipcRenderer.send("show-context-menu",{mode:parentNode.dataset.identifier,x,y,obj});
     }
 }
 
-ipcRenderer.on("show-bill",async ()=>{
+ipcRenderer.on("show-bill",async (e,selectedBill)=>{
     if(!selectedBill) return;
     let spinner = drawSpinner(document);
     hiddenSection = document.getElementById("overview-div");

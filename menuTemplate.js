@@ -3,7 +3,7 @@ const { BrowserWindow, ipcMain, dialog, app } = require("electron");
 const { addPurchase,showPurchase } = require("./handlePurchase");
 const { displayStock,handleReturn } = require("./handleStock");
 const { getSuplierPortal,checkOutPayments } = require("./supplierHandler");
-const { saleWindow, showSales, orderRegister } = require("./saleHandler");
+const { saleWindow, showSales, orderRegister, orderManager } = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
@@ -79,7 +79,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "View & Update order",
-                    click:()=>{}
+                    click:()=>appStateComplianceEnforcement(orderManager(mainWindow))
                 },
                 {
                     label: "Add item to \"Open\" Bills",

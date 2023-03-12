@@ -1,4 +1,4 @@
-const { toggleDevTool,reduceOrder,clickOrFocusinHandler,deleteRowCommon,applyDiscount,closeToast,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,showToastNotification,roundOffTo2DecimalPlace,validateInput2,validateInput,calculateAmounts,addRow,appendToDL,getsaleConfigPolicyPath,applyTheme,selectionHandler, removeAllElem } = require("../js/common");
+const { toggleDevTool,reduceOrder,clickOrFocusinHandler,deleteRowCommon,applyDiscount,closeToast,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,showToastNotification,roundOffTo2DecimalPlace,validateInput2,validateInput,calculateAmounts,addRow,appendToDL,getsaleConfigPolicyPath,applyTheme,selectionHandler, removeAllElem, bodyRowInpFillup } = require("../js/common");
 const fs = require("fs");
 const { ipcRenderer } = require("electron");
 
@@ -18,7 +18,7 @@ let choice,
         deliveryType:"hand",
         discVal:0,
         transportCharge:0
-    }, payment = [], mode, selectedItem, timer;
+    }, payment = [], mode, selectedItem, timer, customer;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -108,10 +108,14 @@ function proceedOrFinishHandler(e){
     e.preventDefault();
     let data = Object.fromEntries(new FormData(e.target).entries());
     if(currentStep===4)
-        return ipcRenderer.send("manage-order",{billMeta,mode:e.submitter.dataset.mode});
+        return ipcRenderer.send("new-order",{billMeta,mode:e.submitter.dataset.mode});
     progressBarControl();
-    if(currentStep===1 && mode==="detail")
+    if("phones" in data)
+        data.phones = [data.phones];
+    if(currentStep===1 && mode==="detail"){
+        data.id = customer.id;
         billMeta = { ...billMeta,...data };
+    }
     if(currentStep<4 && mode==="detail"){
         removeAllElem("#mode-host *");
         currentStep++;
@@ -152,6 +156,7 @@ function proceedOrFinishHandler(e){
         billMeta.netAmtTax = netAmtTax;
         billMeta.netAmt = netAmt;
         billMeta.netTax = roundOffTo2DecimalPlace(netAmtTax - netAmt);
+        billMeta.netDue = Math.round(netAmtTax);
         document.querySelector(`#summary-div [data-name="netAmtTax"]`).textContent = Math.round(netAmtTax);
         document.querySelector(`#summary-div [data-name="netAmtTaxDel"]`).textContent = Math.round(netAmtTax + billMeta.transportCharge);
         document.querySelector(`#summary-div [data-name="transportCharge"]`).textContent = Math.round(billMeta.transportCharge);
@@ -204,26 +209,7 @@ function clickHandler(e){
         });
     else
     if(step=="2" && billMeta.orderMode==="detail"){// ordered items
-        orderItems.forEach(itemObj=>{
-            document.querySelector("#add-item>button").click();
-            selectedItem = itemObj;
-            [...document.querySelectorAll(`.body.row:nth-last-child(2) input`)]
-            .forEach(input=>{
-                if(input.dataset.name!=="unit")
-                    input.value = itemObj[input.dataset.name];
-                else
-                    [...input.list.querySelectorAll("option")]
-                    .forEach(opt=>{
-                        if(opt.value===itemObj.sellUnit){
-                            opt.setAttribute("selected",true);
-                            input.value = itemObj.sellUnit;
-                        }
-                        else
-                            opt.removeAttribute("selected");
-                    });
-            });
-            calculateAmounts();
-        });
+        orderItems.forEach(itemObj=>bodyRowInpFillup(itemObj));
         if(billMeta.deliveryType!=="hand")
             form.transportCharge.value = billMeta.transportCharge;
     }

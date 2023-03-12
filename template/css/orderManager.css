@@ -1,0 +1,220 @@
+@import "../css/common.css";
+body{
+    position: relative;
+}
+/* body .toast-div{
+    top: 0;
+    right: -24%;
+    padding: 0.5rem;
+    box-shadow: unset;
+    gap: unset;
+    margin: 1rem 0;
+} */
+#page-1,#page-3{
+    display: grid;
+    grid-template: repeat(12,1fr)/repeat(1,1fr);
+}
+#page-1>div:nth-child(2){
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 0;
+    align-items: center;
+}
+#page-1>div:nth-child(2) h2{
+    font-weight: lighter;
+}
+#page-1>div:nth-child(2) button{
+    padding: 0.5rem 0.75rem;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+#page-1>div:last-child{
+    grid-row: 3/-1;
+}
+#page-2,#page-4,#page-5{
+    display: grid;
+    grid-template: repeat(12,1fr)/repeat(12,1fr);
+    gap: 0.5rem;
+}
+#page-2>div:first-child{
+    grid-column: 1/9;
+    grid-row: 1/-1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+#meta{
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+#meta>div{
+    display: flex;
+    flex-basis: calc(50% - 1rem);
+    justify-content: space-between;
+    align-items: baseline;
+}
+#item-table{
+    flex: 3;
+}
+#payment-history{
+    grid-column: 9/-1;
+    grid-row: 1/-1;
+}
+#payment-history h2{
+    text-align: center;
+}
+#payment-history>div{
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 95%;
+}
+#payment-history>div>div,#review-meta>div{
+    padding: 0.5rem;
+    border-radius: 15px;
+    box-shadow: 0 0 1px 1px grey, 2px 2px 0 0 grey;
+    margin: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+#payment-history>div>div>div,#review-meta>div>div{
+    flex-basis: calc(100% - 1rem);
+    display: flex;
+    justify-content: space-between;
+}
+#page-2>div:last-child{
+    grid-column: 1/9;
+    grid-row: -1;
+}
+#page-2>div:last-child button,#btn-container button,form.sub-page button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+    border-color: unset;
+}
+input{
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 5px;
+    border: none;
+}
+#table{
+    grid-row: 1/-2;
+}
+#btn-container{
+    grid-row: -1;
+}
+#page-4 h2,#page-5 h2{
+    grid-column: 1/-1;
+    grid-row: 1;
+    margin-left: 0.5rem;
+}
+#page-4>div:nth-child(2){
+    grid-column: 1/9;
+    grid-row: 2/-1;
+}
+#page-4>div:nth-child(3){
+    grid-column: 9/-1;
+    grid-row: 2/-1;
+}
+#page-4>div:last-child,#page-5>div:last-child{
+    grid-column: 1/-1;
+}
+form.sub-page>div{
+    display: flex;
+    box-shadow: 0 0 5px 0 black;
+    margin: 1.5rem 0.5rem;
+    padding: 0.25rem;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--theme-secondary);
+}
+form.sub-page>div>div{
+    flex: 1;
+}
+form.sub-page input{
+    border: 1px solid gray;
+    box-shadow: inset 0 0 1px 0px black;
+    border-radius: 5px;
+}
+#host{
+    grid-column: 1/-1;
+    grid-row: 2/-1;
+    overflow: auto;
+}
+#ready-for-billing{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#ready-for-billing>div{
+    display: flex;
+    align-items: center;
+}
+#tick{
+    position: relative;
+    width: 5rem;
+    height: 5rem;
+    background: var(--theme-primary);
+    border-radius: 50%;
+    margin-right: 1rem;
+}
+#tick::after{
+    content: "\2713";
+    position: absolute;
+    top: 25%;
+    left: 75%;
+    transform: translate(-50%, -50%);
+    color: var(--theme-secondary);
+    text-shadow: 2px 2px black, -2px -2px black;
+    animation: animate-tick 0.5s linear forwards;
+}
+@keyframes animate-tick{
+    from{
+        font-size: 0rem;
+    }
+    to{
+        font-size: 10rem;
+    }
+}
+form.sub-page div.payment-detail{
+    flex-direction: column;
+    align-items: flex-start;
+}
+form.sub-page div.payment-detail>div{
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 0;
+}
+form.sub-page div.payment-detail p{
+    flex: 1;
+}
+form.sub-page div.payment-detail input{
+    flex: 6;
+}
+.lg{
+    flex-grow: 1;
+}
+.page{
+    grid-row: 1/-1;
+    grid-column: 1/-1;
+}
+.body-row-options {
+    top: 100%;
+    margin-top: 0.5rem;
+}
+.body-row-options button {
+    color: red;
+}
+.page button:not([data-cmd="cancel"]):not([data-cmd="back-page1"]){
+    color: var(--theme-secondary);
+    background: var(--theme-primary);
+}

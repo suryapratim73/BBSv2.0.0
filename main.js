@@ -25,6 +25,7 @@ const {
   appLogger,
   getBillModel,
   getLedgerModel,
+  getBaseDir,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath } = require("./template/js/common");
 const fs = require("fs");
@@ -76,7 +77,7 @@ let closeFlag = false,
   linuxThemeWatchTimer,
   firstBoot = false,
   dbInitialized = false,
-  unsavedUsers = [],jobs = [];
+  unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"];
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -819,8 +820,8 @@ ipcMain.on("new-sale-purchase", (e, mode) => {
   if (["all", "admin", "purchase"].includes(currentUser.role) && mode === 2)
     Menu.getApplicationMenu().items[2].submenu.items[0].click();
   else
-  if(["all", "admin", "bill"].includes(currentUser.role) && mode === 3)
-    Menu.getApplicationMenu().items[1].submenu.items[3].click();
+  if(["all", "admin", "bill"].includes(currentUser.role) && mode>2)
+    Menu.getApplicationMenu().items[1].submenu.items[mode].click();
   else 
     e.sender.send("error", "Insufficient permission");
 });
@@ -1344,39 +1345,275 @@ ipcMain.handle("get-company-info", () => {
 });
 
 // Context Menu
-ipcMain.on("show-context-menu", (e, { mode, x, y }) => {
-  let window = BrowserWindow.fromId(e.frameId);
-  if (mode === "overview-table") {
-    let contextMenuObj = [
-      {
-        label: "View Bill",
-        click: () => {
-          window.webContents.send("show-bill");
+ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
+  let window = BrowserWindow.fromId(e.frameId),errIdentifier;
+  let contextMenuObj;
+  try{
+    if (mode === "billObj") {
+      contextMenuObj = [
+        {
+          label: "View Bill",
+          click: () => {
+            errIdentifier = "View Bill";
+            window.webContents.send("show-bill",obj);
+          },
         },
-      },
-      {
-        label: "Add Payment",
-        click: () => {
-          ipcMain.emit("toggle-theme");
+        {
+          label: "Add Payment",
+          click: () => {
+            errIdentifier = "Add Payment";
+          },
         },
-      },
-      {
-        label: "Notify",
-      },
-      {
-        label: "Print",
-      },
-    ];
-    let menu = Menu.buildFromTemplate(contextMenuObj);
-    menu.popup({
-      window,
-      x,
-      y,
-      callback: () => {
-        console.log("Context menu closed");
-      },
+        {
+          label: "Notify",
+        },
+        {
+          label: "Print",
+        },
+      ];
+    }
+    else
+    if(mode==="orderObj"){
+      let baseDir = getBaseDir(),orderPath = getOrderPath(),orders;
+      orders = JSON.parse(fs.readFileSync(orderPath).toString());
+      contextMenuObj = [
+        {
+          label: "View/Update Order",
+          click: () => { // Not ready
+            errIdentifier = "View Order";
+            
+          },
+          // accelerator
+        },
+        {
+          label: "Add Payment",
+          click: () => {
+            errIdentifier = "Add Payment";
+            let modal = createModal(undefined,"template/html/generalHTML.html",{cb:function(){
+              let html = [
+                {
+                  elem:"form",
+                  children:[
+                    {
+                      elem:"div",
+                      innerHTML:`
+                        <div class="fr-1 flex flex-dir-col flex-center">
+                          <p>Customer</p>
+                          <p class="row1">${obj.name}</p>
+                        </div>
+                        <div class="fr-1 flex flex-dir-col flex-center">
+                          <p>Due amount</p>
+                          <p class="row1">${obj.netDue}</p>
+                        </div>
+                        <div class="fr-1 flex flex-dir-col flex-center">
+                          <p>Order Date</p>
+                          <p class="row1">${obj.billDate}</p>
+                        </div>
+                      `,
+                      classList:["flex"],
+                      styles:{ 
+                        margin: "0 0 0.5rem 0",
+                        gap: "0.5rem"
+                      } 
+                    },
+                    {
+                      elem:"h2",
+                      textContent:"Enter payment details"
+                    },
+                    {
+                      elem:"div",
+                      innerHTML:`
+                          <div id="payment-div" onkeypress="validateInput2(event)">
+                          <div id="payment-mode">
+                              <label for="payment-mode">Select payment mode:</label>
+                              <select onchange="showPaymentMode(event)" name="mode">
+                                  <option value="due" selected>Due</option>
+                                  <option value="cash">Cash</option>
+                                  <option value="check">Check</option>
+                                  <option value="online">NEFT</option>
+                              </select>
+                          </div>
+                          <div id="cash-payment" class="hide payment-detail">
+                              <div>
+                                  <p>Enter amount</p>
+                                  <input data-type="Number" value="0" data-subtype="price" name="payment" />
+                              </div>
+                          </div>
+                          <div id="check-payment" class="hide payment-detail">
+                              <div>
+                                  <p>Bank Name</p>
+                                  <input type="text" name="bankName"/>
+                              </div>
+                              <div>
+                                  <p>Bank Branch</p>
+                                  <input type="text" name="bankBranch"/>
+                              </div>
+                              <div>
+                                  <p>Account No.</p>
+                                  <input type="text" data-subtype="price" name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                              </div>
+                              <div>
+                                  <p>Check No.</p>
+                                  <input type="text" data-subtype="price" name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                              </div>
+                              <div>
+                                  <p>Amount paid</p>
+                                  <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                              </div>
+                              <div>
+                                  <p>Mark as paid</p>
+                                  <select type="text" name="paymentStatus">
+                                      <option value="false">No</option>
+                                      <option value="true">Yes</option>
+                                  </select>
+                              </div>
+                          </div>
+                          <div id="online-payment" class="hide payment-detail">
+                              <div>
+                                  <p>Bank Name</p>
+                                  <input type="text" name="bankName" />
+                              </div>
+                              <div>
+                                  <p>Transaction Ref.</p>
+                                  <input type="text" name="bankTrnRef" />
+                              </div>
+                              <div>
+                                  <p>Amount paid</p>
+                                  <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                              </div>
+                              <div>
+                                  <p>Mark as paid</p>
+                                  <select type="text" name="paymentStatus">
+                                      <option value="false">No</option>
+                                      <option value="true">Yes</option>
+                                  </select>
+                              </div>
+                          </div>
+                      </div>
+                      `
+                    },
+                    {
+                      elem:"div",
+                      children:[
+                        { 
+                          elem:"button",
+                          attrs:[
+                            { key:"type",value:"submit" }
+                          ],
+                          textContent:"Add payment"
+                        },
+                        {
+                          elem:"button",
+                          attrs:[
+                            { key:"type",value:"button" },
+                            { key:"onclick",value:"window.close()" }
+                          ],
+                          textContent:"Cancel"
+                        }
+                      ]
+                    }
+                  ],
+                  attrs:[
+                    { key:"onsubmit", value:"submitHandler(event)" }
+                  ],
+                  classList:["fr-1"]
+                }
+              ];
+              this.webContents.send("init-page","Add Payment",html)
+            }});
+            modal.webContents.toggleDevTools();
+            ipcMain.once("Add Payment-response",(e,data)=>{
+              modal.close();
+              errIdentifier += ">Add payment ipc";
+              let billMeta = JSON.parse(fs.readFileSync(obj.orderId).toString());
+              let orderJSON = JSON.parse(fs.readFileSync(orderPath).toString());
+              obj = orderJSON.fileList.find(_obj=>_obj.orderId===obj.orderId);
+              data.payment = Number(data.payment);
+              billMeta.payment.push(data);
+              billMeta.netPayment += data.payment;
+              if(("paymentStatus" in data && data?.paymentStatus) || data.mode==="cash"){
+                billMeta.netDue = Math.round(billMeta.netAmtTax)-billMeta.netPayment>0 ? Math.round(billMeta.netAmtTax)-billMeta.netPayment : 0;
+                obj.netDue = billMeta.netDue;
+                if(data.mode==="cash" && obj.netDue===0){
+                  obj.paymentStatus = true;
+                  billMeta.paymentStatus = true;
+                }
+                else
+                if(data.mode==="cash" && obj.netDue>0){
+                  obj.paymentStatus = false;
+                  billMeta.paymentStatus = false;
+                }
+                else
+                if(data.mode!=="cash"){
+                  obj.paymentStatus = data.paymentStatus;
+                  billMeta.paymentStatus = data.paymentStatus;
+                }
+              }
+              fs.writeFileSync(obj.orderId,JSON.stringify(billMeta));
+              fs.writeFileSync(orderPath,JSON.stringify(orderJSON));
+              window.webContents.send("update-content");
+            });
+          },
+        },
+        {
+          label: "Remove order",
+          click: () => {
+            errIdentifier = "Remove order";
+            let { orderId } = obj;
+            if(fs.existsSync(path.resolve(baseDir,orderId)))
+              fs.unlinkSync(path.resolve(baseDir,orderId));
+            if("fileList" in orders)
+              orders.fileList = orders.fileList.filter((obj)=>obj.orderId!==orderId);
+            fs.writeFileSync(orderPath,JSON.stringify(orders));
+            window.webContents.send("update-content");
+            dialog.showMessageBox({
+              title:"Order removed",
+              message:"Order removed"
+            });
+          },
+        },
+        {
+          label: "Update order status",
+          click: () => {
+            errIdentifier = "Update order status";
+            let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+            if("orderStages" in saleConfig)
+              orderStages = saleConfig.orderStages;
+            let indexOfStage = orderStages.findIndex(stageName=>stageName===obj.status);
+            if(indexOfStage!==undefined && indexOfStage<orderStages.length-1){
+              obj = orders.fileList.find(orderObj=>orderObj.orderId===obj.orderId);
+              obj.status = orderStages[indexOfStage+1];
+              fs.writeFileSync(orderPath,JSON.stringify(orders));
+              window.webContents.send("update-content");
+            }
+          },
+        },
+        {
+          label:"Generate bill from order"
+        },
+        {
+          label:"Print proforma bill"
+        }
+      ];
+    }
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      fumc:"Context menu: "+errIdentifier
     });
   }
+  if(!contextMenuObj) return;
+  let menu = Menu.buildFromTemplate(contextMenuObj);
+  menu.popup({
+    window,
+    x,
+    y,
+    callback: () => {
+      console.log("Context menu closed");
+    },
+  });
 });
 
 //Theme IPC
