@@ -32,6 +32,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
 
 exports.billPDF = async function(billObj){
     const {billMeta,customer,orderItems} = billObj;
+    console.log(customer)
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, emblem } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){

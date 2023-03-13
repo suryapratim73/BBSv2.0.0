@@ -58,6 +58,7 @@ const axios = require("axios");
 const { spawn,execFile } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF } = require("./scripts/makePDF.default");
+const { orderManager } = require("./saleHandler");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
@@ -1381,7 +1382,9 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
           label: "View/Update Order",
           click: () => { // Not ready
             errIdentifier = "View Order";
-            
+            orderManager(window,function(){
+              this.webContents.send("view-order",obj,2);
+            })();         
           },
           // accelerator
         },
@@ -1589,10 +1592,38 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
           },
         },
         {
-          label:"Generate bill from order"
+          label:"Generate bill from order",
+          click: ()=>{
+            errIdentifier = "Generate bill from order";
+            orderManager(window,function(){
+              this.webContents.send("generate-bill",obj,5);
+            })();
+          }
         },
         {
-          label:"Print proforma bill"
+          label:"Print proforma bill",
+          click: async ()=>{
+            errIdentifier = "Print proforma bill";
+            let { orderId } = obj;
+            let billMeta = JSON.parse(fs.readFileSync(orderId).toString());
+            let { name="",address,gst,email,phones,orderItems } = billMeta;
+            billMeta.printObj = {
+              captions:["Proforma Invoice"]
+            };
+            billMeta.billNo = "proforma_"+orderId.slice(0,orderId.length/3);
+            let path2pdf = await billPDF({billMeta,customer:{name,address,email,phones,gst},orderItems});
+            let modal = printDialog(function(){
+              this.webContents.send("hide-label");
+            });
+            ipcMain.once("print-obj",(e,printObj)=>{
+              billMeta.printObj = {
+                  ...printObj,
+                  captions:["Proforma Invoice"]
+              };
+              modal.close();
+              printPDF(path2pdf,billMeta.printObj);
+            });
+          }
         }
       ];
     }

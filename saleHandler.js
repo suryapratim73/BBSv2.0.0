@@ -48,21 +48,22 @@ exports.showSales = mainWindow=>{
 exports.orderRegister = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
-        saleWindow = createModal(windowOptions,"./template/html/orderRegister.html",{label:"new-order"});
+        let saleWindow = createModal(windowOptions,"./template/html/orderRegister.html",{label:"new-order"});
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
         })
     }
 }
 
-exports.orderManager = (main)=>{
+exports.orderManager = (main,cb)=>{
     return ()=>{
         windowOptions.parent = main;
-        saleWindow = createModal(windowOptions,"./template/html/orderManager.html",{label:"manage-order"});
+        let saleWindow = createModal(windowOptions,"./template/html/orderManager.html",{label:"manage-order",cb});
         saleWindow.webContents.openDevTools();
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
-        })
+        });
+        return saleWindow;
     }
 }
 
@@ -271,7 +272,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     })
     .catch(console.log);
     if(billType!=="monthly")
-        return billPDF({billMeta,customerObj,orderItems});
+        return billPDF({billMeta,customer:customerObj,orderItems});
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
@@ -299,8 +300,8 @@ ipcMain.handle("get-customers",async ()=>{
     return customerList;
 });
 
-ipcMain.on("salepage-print-doc",async (e,billObj)=>{
-    let path2pdf = await save_exist(e,billObj);
+ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
+    let path2pdf = await save_exist(e,billObj,flag);
     if(!path2pdf) return;
     // return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
@@ -394,7 +395,6 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
             message:"Do you like to print the proforma bill?",
             buttons:["Print","Save & Exit"]
         });
-        console.log(resp)
         if(resp.response===0){// Continue to print order
             let modal = printDialog(function(){
                 this.webContents.send("hide-label");
@@ -439,6 +439,13 @@ async function manageOrder(e,billMeta,flag){
 }
 
 ipcMain.handle("manage-order",manageOrder);
+
+ipcMain.on("set-listener-order-manager",(e)=>{
+    ipcMain.once("print-obj",(ev,printObj)=>{
+        getTargetWindow("Custom-Print-Dialog").close();
+        e.sender.send("printObj",printObj);
+    });
+});
 
 ipcMain.handle("get-order",(e,orderId)=>{
     return JSON.parse(fs.readFileSync(orderId).toString());

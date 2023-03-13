@@ -219,10 +219,11 @@ async function clickHandler(e){
     else
     if(cmd==="back-page1"){
         currentStep = 1;
+        preset = false;
         init();
     }
     else
-    if(cmd==="save-bill"){
+    if(cmd==="save-bill" || cmd==="print"){
         if(!("customer" in billMeta)){
             customer = {...customerNameDatalist.querySelector(`option[data-name="${billMeta.name}"]`).dataset};
             billMeta.customer = {
@@ -257,12 +258,13 @@ async function clickHandler(e){
                 else
                     return;
             }).filter(obj=>!(typeof obj === "undefined"))
+        };
+        if(cmd==="print"){
+            ipcRenderer.send("set-listener-order-manager");
+            ipcRenderer.send("show-print-modal",{pageFit:"-o fit-to-page"});
         }
-        ipcRenderer.send("save-exit-sale-bill",billMeta,"order-billed");
-    }
-    else
-    if(cmd==="print"){
-
+        else
+            ipcRenderer.send("save-exit-sale-bill",billMeta,"order-billed");
     }
 }
 
@@ -278,6 +280,25 @@ function showPrintDialog(){
 
 ipcRenderer.on("billing-complete",()=>{
     clickHandler({target:{dataset:{cmd:"back-page1"}}})
+});
+
+async function contextCommon(e,obj,pageNo){
+    preset = true;
+    let { orderId } = obj;
+    billMeta = await ipcRenderer.invoke("get-order",orderId);
+    billMeta.orderId = orderId;
+    currentStep = pageNo;
+    applySpinner(proceedHandler);
+}
+
+ipcRenderer.on("generate-bill",contextCommon);
+
+ipcRenderer.on("view-order",contextCommon);
+
+ipcRenderer.on("printObj",(e,printObj)=>{
+    billMeta.billMeta.printObj = printObj;
+    console.log(billMeta);
+    ipcRenderer.send("salepage-print-doc",billMeta,"order-billed");
 });
 
 document.addEventListener("keydown",e=>{
