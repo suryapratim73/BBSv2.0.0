@@ -72,7 +72,7 @@
     </div>
     <template id="overview-page-template">
         <div id="overview-div" class="mode-content">
-            <div>
+            <div ondblclick="dblClickHandler(event)">
                 <div class="table hide" id="order-table-div">
                     <h3>Unbilled orders</h3>
                     <div class="row head">
@@ -275,7 +275,7 @@
         </form>
     </template>
     <template id="lock-screen-template">
-        <form onsubmit="saveSettings(event)" data-cmd="lock-screen" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" id="lock-screen" data-cmd="lock-screen" data-show="app-settings">
             <div>
                 <div><label for="file-path">Choose a image file</label></div>
                 <div>
@@ -299,7 +299,7 @@
         </form>
     </template>
     <template id="add-user-template">
-        <form onsubmit="saveSettings(event)" data-cmd="add-user" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" id="add-user" data-cmd="add-user" data-show="app-settings">
             <div>
                 <div><label for="name">Username</label></div>
                 <div><input type="text" name="name" id="name" required></div>
@@ -337,7 +337,7 @@
         </form>
     </template>
     <template id="session-management-template">
-        <form onsubmit="saveSettings(event)" data-cmd="session-management" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" id="session-management" data-cmd="session-management" data-show="app-settings">
             <div>
                 <div>
                     <label>App session</label>
@@ -367,7 +367,7 @@
         </form>
     </template>
     <template id="appearance-management-template">
-        <form onsubmit="saveSettings(event)" class="page1" data-cmd="appearance-management" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" id="appearance-management" class="page1" data-cmd="appearance-management" data-show="app-settings">
             <div>
                 <div>
                     <label for="apply-theme">Select theme</label>
@@ -494,7 +494,7 @@
         </form>
     </template>
     <template id="update-user-template">
-        <form onsubmit="saveSettings(event)" data-cmd="update-user" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" id="update-user" data-cmd="update-user" data-show="app-settings">
             <div>
                 <div><label for="name">Select user</label></div>
                 <div><input type="text" id="name-2" name="name" list="user-list"></div>
@@ -624,7 +624,7 @@
         </div>
     </template>
     <template id="bill-template-template">
-        <form onsubmit="saveSettings(event)" data-cmd="select-bill-template" data-show="billing-settings">
+        <form onsubmit="saveSettings(event)" id="bill-template" data-cmd="select-bill-template" data-show="billing-settings">
             <div>
                 <div>
                     <label for="applyTemplate">Choose template</label>
@@ -652,7 +652,7 @@
         </form>
     </template>
     <template id="company-profile-template">
-        <form onsubmit="saveSettings(event)" data-cmd="company-profile" data-show="billing-settings">
+        <form onsubmit="saveSettings(event)" id="company-profile" data-cmd="company-profile" data-show="billing-settings">
             <h2>Edit your company details</h2>
             <div>
                 <div>

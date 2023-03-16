@@ -156,14 +156,22 @@ async function purchasePageInit(){
 }
 
 async function settingsPageInit(modeContent){
-    document.querySelector("#main-div>div:first-child").appendChild(modeContent);
+    if(!document.getElementById(modeContent.id))
+        document.querySelector("#main-div>div:first-child").appendChild(modeContent);
+    else
+        document.getElementById(modeContent.id).classList.remove("hide");
+    [...document.querySelectorAll("form")]
+    .forEach(elem=>elem.classList.add("hide"));
+    [...document.querySelectorAll(".settings *")]
+    .forEach(elem=>elem.classList.remove("hide"));
     [...document.querySelectorAll(".settings-div>p")]
     .forEach(p=>{
         if(p.classList.contains(loggedinUser.role))
             p.classList.add("hide");
         else
             p.classList.remove("hide");
-    })
+    });
+    document.querySelector("#settings-div nav p[data-mode='app-settings']").click();
 }
 
 async function applyMode(){
@@ -368,7 +376,10 @@ async function showForm(e,cmd,show){
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
             e.target.parentNode.classList.add("hide");
-            document.getElementById(`${show}`).appendChild(form);
+            if(!document.getElementById(form.id))
+                document.getElementById(`${show}`).appendChild(form);
+            else
+                document.querySelector(`#${show} #${form.id}`).classList.remove("hide");
             form.querySelector("input")?.focus();
             if(cmd==="session-management"){
                 try{
@@ -405,6 +416,7 @@ async function showForm(e,cmd,show){
                 document.getElementById("add-user-role-div").classList.remove("hide");
             else
             if(cmd==="bill-template"){
+                // debugger
                 compInfo = await ipcRenderer.invoke("get-company-info");
                 let { billTemplate:{ file,applyTemplate } } = compInfo;
                 if(applyTemplate){
@@ -739,3 +751,9 @@ ipcRenderer.on("update-content",async ()=>{
     await applyMode();
     spinner.remove(window);
 });
+
+function dblClickHandler(e){
+    let elem = e.path.find(elem=>elem.classList.contains("body") && elem.classList.contains("row"));
+    if(elem)
+        ipcRenderer.send("dbl-click-resp",JSON.parse(elem.dataset.obj),1);
+}

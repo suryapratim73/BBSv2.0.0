@@ -26,6 +26,8 @@ const {
   getBillModel,
   getLedgerModel,
   getBaseDir,
+  print,
+  getStartDate,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath } = require("./template/js/common");
 const fs = require("fs");
@@ -57,7 +59,7 @@ const speakeasy = require("speakeasy");
 const axios = require("axios");
 const { spawn,execFile } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
-const { billPDF } = require("./scripts/makePDF.default");
+const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
@@ -1345,6 +1347,15 @@ ipcMain.handle("get-company-info", () => {
   });
 });
 
+ipcMain.on("dbl-click-resp",(e,obj,mode)=>{
+  let window = BrowserWindow.fromId(e.frameId);
+  // Order-dbl-resp
+  if(mode===1)
+    orderManager(window,function(){
+      this.webContents.send("view-order",obj,2);
+    })(); 
+});
+
 // Context Menu
 ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
   let window = BrowserWindow.fromId(e.frameId),errIdentifier;
@@ -2228,5 +2239,46 @@ ipcMain.on("first-load",async ()=>{
       bootCommon(getMainWindow());
     }
 });
+
+ipcMain.on("openDevTool",(e)=>{
+  console.log("Opening DevTool")
+  e.sender.toggleDevTools();
+});
+
+ipcMain.on("close",(e,label)=>{
+  let purchaseWindows = BrowserWindow.getAllWindows();
+  if(purchaseWindows.length>0)
+      purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
+  if(label){
+      let win = getTargetWindow(label);
+      win?.close();
+      if(label==="Salary-Modal")
+          ipcMain.emit("Salary-Modal");
+  }
+  else{
+      let mainWin = getMainWindow();
+      let windows = BrowserWindow.getAllWindows();
+      windows = windows.filter(win=>win!==mainWin);
+      windows.pop().close();
+  }
+});
+
+ipcMain.on("print-ledger",async (e,id,period,mode)=>{
+  let ledgerSchema = mode==1?supplierLedgerSchema:customerLedgerSchema;
+  let ledger = await getLedgerModel(id,ledgerSchema);
+  let startDate = getStartDate(period);
+  let entryArr = (await ledger.findAll({
+      where:{
+          date:{
+              [Op.between]:[startDate.toDateString(),new Date().toDateString()]
+          }
+      }
+  })).map(({dataValues})=>({...dataValues}));
+  let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
+  let path2pdf = ledgerPDF(entryArr,peopleObj,startDate);
+  ipcMain.emit("show-print-modal",path2pdf);
+});
+
+ipcMain.on("printObj",print);
 
 module.exports.checkForUpdates = checkForUpdates;

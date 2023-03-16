@@ -1,12 +1,10 @@
 const { ipcMain, shell, app, dialog, BrowserWindow, ipcRenderer } = require("electron");
-const { getLedgerModel, print, getBillModel, appLogger } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
 const { Op } = require("sequelize");
-const { customerList,initCustomerList } = require("./saleHandler");
-const { People } = require("./common");
+const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger } = require("./common");
 
 
 const { stockList,queryStock } = require("./handleStock");
@@ -26,6 +24,7 @@ exports.customerPortal = mainWindow =>{
             cb:function(){
                 this.on("close",()=>{
                     getMainWindow().webContents.send("update-content");
+                    // this.webContents.toggleDevTool();
                 });
             }
         });

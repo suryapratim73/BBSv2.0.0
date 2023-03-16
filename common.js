@@ -1,37 +1,13 @@
 const { sequelize } = require("./model/dbConfig");
-const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
-const { dialog, ipcMain, BrowserWindow, app } = require("electron");
+const { dialog, BrowserWindow, app } = require("electron");
 const { ledgerPDF } = require("./scripts/makePDF.default");
-const { customer,supplier } = require("./model/dbConfig");
-const { customerLedgerSchema,supplierLedgerSchema } = require("./model/dynamicSchemas");
+const { customer } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
-const { getMainWindow,getTargetWindow } = require("./createModal");
 
+let customerList = [];
 
-ipcMain.on("openDevTool",(e)=>{
-    console.log("Opening DevTool")
-    e.sender.toggleDevTools();
-});
-
-ipcMain.on("close",(e,label)=>{
-    let purchaseWindows = BrowserWindow.getAllWindows();
-    if(purchaseWindows.length>0)
-        purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
-    if(label){
-        let win = getTargetWindow(label);
-        win?.close();
-        if(label==="Salary-Modal")
-            ipcMain.emit("Salary-Modal");
-    }
-    else{
-        let mainWin = getMainWindow();
-        let windows = BrowserWindow.getAllWindows();
-        windows = windows.filter(win=>win!==mainWin);
-        windows.pop().close();
-    }
-});
 
 exports.closeAndDisplay = function(msg){
     let purchaseWindows = BrowserWindow.getAllWindows()
@@ -125,25 +101,9 @@ function getStartDate(period){
 
 exports.getStartDate = getStartDate;
 
-ipcMain.on("printObj",print);
+// ipcMain.on("printObj",print);
 
 exports.print = print
-
-ipcMain.on("print-ledger",async (e,id,period,mode)=>{
-    let ledgerSchema = mode==1?supplierLedgerSchema:customerLedgerSchema;
-    let ledger = await getLedgerModel(id,ledgerSchema);
-    let startDate = getStartDate(period);
-    let entryArr = (await ledger.findAll({
-        where:{
-            date:{
-                [Op.between]:[startDate.toDateString(),new Date().toDateString()]
-            }
-        }
-    })).map(({dataValues})=>({...dataValues}));
-    let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
-    let path2pdf = ledgerPDF(entryArr,peopleObj,startDate);
-    ipcMain.emit("show-print-modal",path2pdf);
-});
 
 exports.billNoCounter = function(count){
     if(count)
@@ -262,3 +222,22 @@ exports.getBaseDir = function(){
     else
         return app.getPath("appData")+"/BBS";
 }
+
+exports.initCustomerList = async function(){
+    try{
+        (await (await customer.sync()).findAll())
+        .map(({dataValues})=>dataValues)
+        .forEach(obj=>{
+            obj._type = "customer";
+            customerList.push(new People(obj));
+        });
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message
+        })
+    }
+}
+
+exports.customerList = customerList;

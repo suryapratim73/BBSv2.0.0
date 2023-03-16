@@ -2,7 +2,7 @@ const { ipcMain, dialog, ipcRenderer } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
@@ -16,7 +16,6 @@ const { printPDF } = require("./main");
 
 let closeFlag = false,
     saleWindow,
-    customerList = [],
     windowOptions = {
         width: 800,
         height: 600
@@ -277,23 +276,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
 
 ipcMain.on("save-exit-sale-bill",save_exist);
 
-async function initCustomerList(){
-    try{
-        (await (await customer.sync()).findAll())
-        .map(({dataValues})=>dataValues)
-        .forEach(obj=>{
-            obj._type = "customer";
-            customerList.push(new People(obj));
-        });
-    }
-    catch(err){
-        appLogger({
-            title:"Error",
-            message:err.message
-        })
-    }
-}
-
 ipcMain.handle("get-customers",async ()=>{
     if(customerList.length>0) return customerList;
     await initCustomerList();
@@ -450,6 +432,3 @@ ipcMain.on("set-listener-order-manager",(e)=>{
 ipcMain.handle("get-order",(e,orderId)=>{
     return JSON.parse(fs.readFileSync(orderId).toString());
 });
-
-exports.customerList = customerList;
-exports.initCustomerList = initCustomerList;

@@ -1,7 +1,7 @@
 const { ipcRenderer } = require("electron");
 const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme } = require("../js/common");
 const uuid = require("uuid");
-const { getsaleConfigPolicyPath } = require("../../common");
+const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
 const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
 
@@ -210,7 +210,7 @@ async function loadLedgerTable(_name){
         deliveryCharge += typeof delivery==="object" && "transportCharge" in delivery ? Number(delivery.transportCharge) : 0;
         deliveryCharge += typeof delivery==="object" && "coolieCharge" in delivery ? Number(delivery.coolieCharge) : 0;
         row.innerHTML = `
-            <p class="col eq-space">${date.toLocaleDateString("en-GB")}</p>
+            <p class="col eq-space">${new Date(date).toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${billNo}</p>
             <p class="col eq-space">${Math.round(billAmt+tax+deliveryCharge)}</p>
             <p class="col eq-space">${payments}</p>
