@@ -836,18 +836,29 @@ exports.makeKey = function(key){
     return key;
 }
 
-exports.appendToDL = async function (eventName,datalist){
+exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,textFormat=[]){
     let list = await ipcRenderer.invoke(eventName);
+    if(paths)
+        list = paths.reduce((acc,path)=>{
+            acc = list[path];
+            return acc;
+        },[]);
     list.forEach(obj=>{
         let option = document.createElement("option");
         for(let key in obj){
-            if(key==="name")
+            if(key==="name"){
                 option.value = obj[key];
+                if(textFormat.length>0)
+                    option.textContent = textFormat.reduce((acc,key)=>{
+                        acc += key + ": " +obj[key] + " ";
+                        return acc;
+                    },"");
+            }
             option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
         }
         datalist.appendChild(option)
     });
-    if(!document.querySelector(datalist.id))
+    if(!document.querySelector(datalist.id) && appendToBody)
         document.body.appendChild(datalist);
     return list;
 }
@@ -1009,6 +1020,10 @@ exports.getsaleConfigPolicyPath = function(relPath="../../"){
 
 exports.getOrderPath = function(relPath="../../"){
     return policyPathCommmon(relPath,"./orders.json");
+};
+
+exports.getSchedulerPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./scheduler.json");
 };
 
 exports.noDataPlaceholder = function(host){
@@ -1358,7 +1373,7 @@ exports.bodyRowInpFillup = itemObj=>{
 
 exports.applySpinner = cb =>{
     let spinner = drawSpinner(document);
-    cb();
+    cb.call(spinner);
     spinner.remove(window);
 }
 

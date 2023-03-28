@@ -297,7 +297,6 @@ ipcRenderer.on("view-order",contextCommon);
 
 ipcRenderer.on("printObj",(e,printObj)=>{
     billMeta.billMeta.printObj = printObj;
-    console.log(billMeta);
     ipcRenderer.send("salepage-print-doc",billMeta,"order-billed");
 });
 

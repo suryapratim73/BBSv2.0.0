@@ -109,14 +109,16 @@
                     </div>
                 </div>
                 <div id="scheduler-div">
-                    <div class="event-div">
-                        <div id="dt-div">
-                            <h1></h1>
-                            <p></p>
+                    <div class="event-page first-page">
+                        <div class="event-div">
+                            <div id="dt-div">
+                                <h1></h1>
+                                <p></p>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <button data-msg="Add New Event" class="hover right top">+</button>
+                        <div class="btn-container">
+                            <button data-cmd="call-scheduler" data-msg="Add New Event" class="hover right top">+</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -275,7 +277,7 @@
         </form>
     </template>
     <template id="lock-screen-template">
-        <form onsubmit="saveSettings(event)" id="lock-screen" data-cmd="lock-screen" data-show="app-settings">
+        <form onsubmit="saveSettings(event)" onchange="changeHandler(event)" id="lock-screen" data-cmd="lock-screen" data-show="app-settings">
             <div>
                 <div><label for="file-path">Choose a image file</label></div>
                 <div>
@@ -290,6 +292,21 @@
                         <option value="true">Yes</option>
                         <option value="false" selected>No</option>
                     </select>
+                </div>
+            </div>
+            <div>
+                <div><label for="lockOnIdle">Lock on idle</label></div>
+                <div>
+                    <select name="lockOnIdle" id="lockOnIdle" data-target="idleTime">
+                        <option value="true">Yes</option>
+                        <option value="false" selected>No</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div><label for="idleTime">Idle trigger time</label></div>
+                <div>
+                    <input type="text" name="idleTime" id="idleTime" placeholder="Time in minutes" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
                 </div>
             </div>
             <div>
@@ -582,7 +599,7 @@
                 <h2 class="first-h2">Ready to subscribe?</h2>
                 <div>
                     <div>
-                        <label for="gst">Enter your GST number</label>
+                        <label for="gst">Enter your GST  </label>
                     </div>
                     <div>
                         <input type="text" name="gst" id="gst">
@@ -696,6 +713,12 @@
     <template id="data-modal-template">
         <div class="data-modal">
             <p></p>
+        </div>
+    </template>
+    <template id="schedules-page-template">
+        <div class="event-page">
+            <h2>Events</h2>
+            <div id="event-host"></div>
         </div>
     </template>
     <datalist id="user-list"></datalist>

@@ -1,0 +1,33 @@
+@import "../css/common.css";
+input,select,textarea{
+    width: 100%;
+    color: var(--theme-text-color);
+}
+option{
+    color: var(--theme-text-color);
+}
+input[type="color"]{
+    width: 2rem;
+}
+form>div{
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 0;
+}
+form>div>div{
+    width: 50%;
+}
+.btn-container{
+    justify-content: flex-start;
+}
+button[type="submit"]{
+    color: var(--theme-secondary);
+    background: var(--theme-primary);
+}
+button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+    border-color: unset;
+}

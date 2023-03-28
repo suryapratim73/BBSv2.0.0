@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../js/scheduler.js" defer></script>
+    <link rel="stylesheet" href="../css/scheduler.css">
+    <title>Scheduler</title>
+</head>
+<body>
+    <form onsubmit="submitHandler(event)" onclick="clickHandler(event)" onchange="changeHandler(event)">
+        <h2>New Event Scheduler</h2>
+        <div>
+            <div>
+                <labe for="label">Label of event</labe>
+            </div>
+            <div>
+                <input type="text" name="label" id="label" required>
+            </div>
+        </div>
+        <div id="type-card">
+            <div>
+                <label for="type">Select type of reminder</label>
+            </div>
+            <div>
+                <select name="type" id="type" data-cmd="type" required>
+                    <option value="reminder">Reminder</option>
+                    <!-- <option value="task">Task</option> -->
+                    <option value="bill-payment">Bill Payment</option>
+                    <option value="order-bill">Billing</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="time">Select Date and Time of event</label>
+            </div>
+            <div>
+                <input type="datetime-local" name="time" id="time">
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="tag">Tag (optional)</label>
+            </div>
+            <div>
+                <input type="text" name="tag" id="tag">
+            </div>
+        </div>
+        <div>
+            <div>
+                <label for="color">Head color</label>
+            </div>
+            <div>
+                <input type="color" name="color" id="color">
+            </div>
+        </div>
+        <div class="btn-container">
+            <button data-cmd="save" type="submit">Save</button>
+            <button data-cmd="cancel" type="button">Cancel</button>
+        </div>
+    </form>
+    <template id="reminder-template">
+        <div class="removable">
+            <div>
+                <label for="note">Add note (optional)</label>
+            </div>
+            <div>
+                <textarea name="note" id="note" style="resize: none;" ></textarea>
+            </div>
+        </div>
+    </template>
+    <template id="bill-payment-template">
+        <div class="removable">
+            <div>
+                <label for="billType">Select</label>
+            </div>
+            <div>
+                <select name="billType" id="billType" data-cmd="billType">
+                    <option value="sales-select">Sale</option>
+                    <option value="purchase-select">Purchase</option>
+                </select>
+            </div>
+        </div>
+        <div class="removable">
+            <div>
+                <label for="billObj">Bill</label>
+            </div>
+            <div id="select-host">
+            </div>
+        </div>
+    </template>
+    <template id="order-bill-template">
+        <div class="removable">
+            <div>
+                <label for="billObj">Orders</label>
+            </div>
+            <div id="select-host">
+            </div>
+        </div>
+    </template>
+</body>
+</html>

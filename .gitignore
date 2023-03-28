@@ -13,3 +13,4 @@ dist/
 build.js
 nodemonConfig.json
 orders.json
+scheduler.json

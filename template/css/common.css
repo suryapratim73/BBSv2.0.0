@@ -776,3 +776,33 @@ input[type="checkbox"]:checked::before{
 button:disabled{
     filter: opacity(0.5);
 }
+@keyframes card-in{
+    from{
+        display: flex;
+        transform: translateX(100%);
+        opacity: 0;
+        z-index: -1;
+    }
+    to{
+        display: flex !important;
+        transform: translateX(0);
+        opacity: 1;
+        z-index: 3;
+    }
+}
+@keyframes card-out{
+    0%{
+        transform: translateX(0);
+        opacity: 1;
+        z-index: 3;
+    }
+    50%{
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100%{
+        transform: translateX(0);
+        opacity: 0;
+        z-index: -1;
+    }
+}

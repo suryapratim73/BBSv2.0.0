@@ -173,9 +173,9 @@ h1{
     background: var(--theme-primary);
     color: var(--theme-secondary);
 }
-#expired-bill-table-div{
+/* #expired-bill-table-div{
     
-}
+} */
 #expired-bill-table-div .table{
     display: flex;
     height: max-content;
@@ -192,11 +192,12 @@ h1{
     padding: 0.5rem;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
-#scheduler-div>div{
+#scheduler-div div.first-page .btn-container{
     flex: 1;
 }
-#scheduler-div>div:first-child{
+#scheduler-div div.first-page .event-div{
     flex: 5;
 }
 #dt-div{
@@ -222,18 +223,19 @@ h1{
     font-size: 1.5rem;
     background: unset;
 }
-#scheduler-div>div:last-child{
+#scheduler-div .first-page div.btn-container{
     display: flex;
     justify-content: flex-end;
     align-items: center;
 }
-#scheduler-div button{
+#scheduler-div .first-page button{
     font-size: 1.5rem;
     color: var(--theme-primary);
     border: none;
     width: 2rem;
     height: 2rem;
     border-radius: 50%;
+    z-index: 3;
 }
 button{
     outline: none;
@@ -490,6 +492,9 @@ button.hover{
 .translate-right{
     animation: translate-right 600ms linear forwards;
 }
+.translate-left{
+    animation: translate-right 600ms linear backwards forwards;
+}
 select,option{
     color: var(--theme-text-color);
     min-width: 5rem;
@@ -733,4 +738,50 @@ form#registration{
 }
 #registration>div:first-child>h2{
     text-align: left;
+}
+#scheduler-div div.event-page{
+    width: calc(100% - 1rem);
+    height: calc(100% - 1rem);
+    flex-direction: column;
+    display: none;
+    background: var(--theme-secondary);
+}
+#scheduler-div div.event-page.first-page{
+    background: transparent;
+}
+#scheduler-div div.event-page.card-out{
+    display: flex;
+    animation: card-out 1s ease-in 0s 1 normal forwards;
+    z-index: 3;
+    position: absolute;
+}
+#scheduler-div div.event-page.card-in{
+    display: flex;
+    animation: card-in 1s ease-out 0.3s 1 normal forwards;
+    z-index: -1;
+    position: absolute;
+}
+#event-host{
+    flex: 5;
+    overflow-y: auto;
+}
+#event-host p{
+    margin: 0.75rem;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+#event-host span{
+    flex: 1;
+}
+#event-host p::before{
+    position: absolute;
+    content: "";
+    width: 0.3rem;
+    height: 100%;
+    top: 0;
+    left: -0.5rem;
+    background: var(--color);
 }

@@ -310,6 +310,10 @@ ipcMain.on("get-sales",async e=>{
     e.sender.send("get-sales-response",(await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues));
 });
 
+ipcMain.handle("get-sales",async e=>{
+    return (await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues);
+});
+
 ipcMain.handle("get-ledger-balance",async (e,custId)=>{
     let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
     return (await ((await customerLedger.sync()).findOne({

@@ -12,7 +12,8 @@ const {
   session,
   nativeTheme,
   autoUpdater,
-  crashReporter
+  crashReporter,
+  powerMonitor
 } = require("electron");
 const {
   billNoCounter,
@@ -29,7 +30,7 @@ const {
   print,
   getStartDate,
 } = require("./common");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -80,7 +81,8 @@ let closeFlag = false,
   linuxThemeWatchTimer,
   firstBoot = false,
   dbInitialized = false,
-  unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"];
+  unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
+  idleLockTimer,appLocked = true;
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -195,6 +197,11 @@ async function createWindow() {
         currentUser.login();
         fileName = "mainPage";
         autoPrintMonthlyBills();
+        let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+        if("lockOnIdle" in policy && policy.lockOnIdle){
+          clearInterval(idleLockTimer);
+          idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
+        }
       }
     }
     firstBoot = true;
@@ -926,12 +933,18 @@ ipcMain.handle("get-file-path", (e, filterObj) => {
   });
 });
 
-ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd }) => {
+ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd, lockOnIdle:_lockOnIdle, idleTime }) => {
   try {
-    if (filePath) {
+    if ( filePath || typeof _lockOnIdle==="boolean" ) {
       let data = fs.readFileSync(getUserPolicyPath());
       data = JSON.parse(data.toString());
       data.wallpaper = filePath;
+      data.lockOnIdle = _lockOnIdle;
+      data.idleTime = idleTime;
+      if(_lockOnIdle)
+        idleLockTimer = setInterval(lockOnIdle.bind({idleTime:idleTime}),5000);
+      else
+        clearInterval(idleLockTimer);
       fs.writeFileSync(
         getUserPolicyPath(),
         JSON.stringify(data)
@@ -1072,9 +1085,20 @@ ipcMain.on("logout", async () => {
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"logout-ipc"});
   }
+  finally{
+    clearInterval(idleLockTimer);
+  }
 });
 
 function lock_unlockHelper(page, sig) {
+  appLocked = sig==="lock";
+  let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());  
+  if("lockOnIdle" in policy && policy.lockOnIdle){
+    if(appLocked)
+      clearInterval(idleLockTimer);
+    else
+      idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
+  }
   let mainWin = getMainWindow();
   mainWin.loadFile(`./template/html/${page}.html`);
   mainWin.webContents.on("did-finish-load", function (e) {
@@ -1216,6 +1240,11 @@ ipcMain.on("app-login", async () => {
   } finally {
     imposeRestriction();
     autoPrintMonthlyBills();
+    let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+    if("lockOnIdle" in policy && policy.lockOnIdle){
+      clearInterval(idleLockTimer);
+      idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
+    }
   }
 });
 
@@ -2282,3 +2311,72 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
 ipcMain.on("printObj",print);
 
 module.exports.checkForUpdates = checkForUpdates;
+
+// BBS timer codes
+
+// Inactivity tracker
+function lockOnIdle(){
+  // console.log("lockOnIdle called")
+  let state = powerMonitor.getSystemIdleState(this.idleTime);
+  let time = powerMonitor.getSystemIdleTime();
+  if(state==="idle" && time>this.idleTime+5)
+    ipcMain.emit("lock");
+}
+
+ipcMain.on("call-scheduler",()=>{
+  let pathToHTML = "./template/html/scheduler.html";
+  let windowOptions = {
+      webPreferences: {
+          nodeIntegration: true,
+          devTools:true
+      },
+      parent:getMainWindow(),
+      movable:true
+  }
+  createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true})
+  .webContents.openDevTools();
+});
+
+ipcMain.on("manage-schedule",async (e,data,flag)=>{
+  let path2scheduler = getSchedulerPath();
+  if(!fs.existsSync(path2scheduler)){
+    dialog.showErrorBox({
+      title:"Error saving event schedule",
+      content:"scheduler.json file missing"
+    });
+    appLogger({
+      title:"Error saving event schedule",
+      message:"scheduler.json file missing"
+    });
+    return BrowserWindow.fromId(e.sender.id).close();  
+  }
+  try{
+    let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
+    if(!("schedules" in jsData))
+      jsData.schedules = [ data ];
+    else
+      jsData.schedules.push(data);
+    fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
+    dialog.showMessageBox({
+      title:"Event saved",
+      message:"Notification and action scheduled at the event time."
+    });
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"manage-schedule ipc"
+    })
+  }
+  finally{
+    BrowserWindow.fromId(e.sender.id).close();
+    BrowserWindow.fromId(e.frameId).webContents.send("update-content");
+  }
+});
+
+ipcMain.handle("get-chedules",()=>{
+  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
+  if(!("schedules" in jsData)) return [];
+  else return jsData.schedules;
+});
