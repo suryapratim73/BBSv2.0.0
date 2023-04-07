@@ -773,6 +773,14 @@ form#registration{
     align-items: center;
     gap: 0.5rem;
 }
+#event-host p:hover{
+    color: var(--theme-primary);
+    background: var(--lighter-shade);
+}
+#event-host p:active{
+    background-color: transparent;
+    color: var(--theme-primary);
+}
 #event-host span{
     flex: 1;
 }

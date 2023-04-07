@@ -108,7 +108,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="scheduler-div">
+                <div id="scheduler-div" onclick="openScheduleManager(event)" onmouseenter="clearInterval(caroselTimer)" onmouseleave="carosel([...document.querySelectorAll('.event-page')],0)">
                     <div class="event-page first-page">
                         <div class="event-div">
                             <div id="dt-div">

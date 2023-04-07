@@ -9,7 +9,7 @@ const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHa
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
-const { billDesignerWindow, getCurrentLogin, checkForUpdates } = require("./main");
+const { billDesignerWindow, getCurrentLogin, checkForUpdates, scheduleManager } = require("./main");
 
 
 function appStateComplianceEnforcement(funcName,...params){
@@ -165,6 +165,11 @@ module.exports = mainWindow=>{
                     label: "Bill Layout Designer",
                     click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow))
                     
+                },
+                {
+                    label: "Scheduler",
+                    click: ()=>appStateComplianceEnforcement(scheduleManager(mainWindow)),
+                    accelerator: "Shift+F2"
                 },
                 {type:"separator"},
                 {

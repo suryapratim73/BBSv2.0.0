@@ -2275,21 +2275,14 @@ ipcMain.on("openDevTool",(e)=>{
 });
 
 ipcMain.on("close",(e,label)=>{
-  let purchaseWindows = BrowserWindow.getAllWindows();
-  if(purchaseWindows.length>0)
-      purchaseWindows = purchaseWindows.filter(purchaseWindow=>purchaseWindow!==BrowserWindow.getFocusedWindow())
   if(label){
       let win = getTargetWindow(label);
       win?.close();
       if(label==="Salary-Modal")
           ipcMain.emit("Salary-Modal");
   }
-  else{
-      let mainWin = getMainWindow();
-      let windows = BrowserWindow.getAllWindows();
-      windows = windows.filter(win=>win!==mainWin);
-      windows.pop().close();
-  }
+  else
+    BrowserWindow.fromId(e.sender.id).close();
 });
 
 ipcMain.on("print-ledger",async (e,id,period,mode)=>{
@@ -2333,8 +2326,7 @@ ipcMain.on("call-scheduler",()=>{
       parent:getMainWindow(),
       movable:true
   }
-  createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true})
-  .webContents.openDevTools();
+  createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true});
 });
 
 ipcMain.on("manage-schedule",async (e,data,flag)=>{
@@ -2352,15 +2344,31 @@ ipcMain.on("manage-schedule",async (e,data,flag)=>{
   }
   try{
     let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
-    if(!("schedules" in jsData))
-      jsData.schedules = [ data ];
+    let schedules = jsData.schedules;
+    if(flag==="a"){
+      data.user = currentUser;
+      data.id = uuid.v4();
+      if(!("schedules" in jsData))
+        jsData.schedules = [ data ];
+      else
+        jsData.schedules.push(data);
+    }
     else
-      jsData.schedules.push(data);
+    if(flag==="r")
+      schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
+    else
+    if(flag==="e"){
+      schedules = schedules.map(evObj=>{
+        if(evObj.id===data.id)
+          evObj = {
+          ...evObj,
+          ...data
+          }
+        return evObj;
+      });
+      jsData.schedules = schedules;
+    }
     fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
-    dialog.showMessageBox({
-      title:"Event saved",
-      message:"Notification and action scheduled at the event time."
-    });
   }
   catch(err){
     appLogger({
@@ -2370,7 +2378,19 @@ ipcMain.on("manage-schedule",async (e,data,flag)=>{
     })
   }
   finally{
-    BrowserWindow.fromId(e.sender.id).close();
+    if(flag==="a" || flag==="e"){
+      dialog.showMessageBox({
+        title:"Event saved",
+        message:"Notification and action scheduled at the event time."
+      });
+      flag==="a" && BrowserWindow.fromId(e.sender.id).close();
+    }
+    else
+    if(flag==="r")
+      dialog.showMessageBox({
+        title:"Event removed",
+        message:"Event removed."
+      });
     BrowserWindow.fromId(e.frameId).webContents.send("update-content");
   }
 });
@@ -2380,3 +2400,16 @@ ipcMain.handle("get-chedules",()=>{
   if(!("schedules" in jsData)) return [];
   else return jsData.schedules;
 });
+
+exports.scheduleManager = main=>{
+  return ()=>{
+    windowOptions.parent = main;
+    windowOptions.width = 800;
+    windowOptions.height = 600;
+    createModal(windowOptions,"./template/html/scheduleManager.html",{label:"scheduler",cb:function(){
+      this.on("close",(e)=>{
+        getMainWindow().webContents.send("update-content");
+      });
+    }});
+  };
+}

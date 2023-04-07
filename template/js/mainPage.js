@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow } = require("../js/common");
+const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel } = require("../js/common");
 
 
 let themeObj = {
@@ -108,7 +108,8 @@ async function overviewPageInit(){
         orders.fileList.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
     }
     let schedules = await ipcRenderer.invoke("get-chedules");
-    if(schedules.length===0) return;
+    if(schedules.length===0) 
+        return document.querySelector(".event-page.first-page").classList.add("card-in");
     let schedulerDiv = document.getElementById("scheduler-div");
     let schedulesPage = document.getElementById("schedules-page-template").content.cloneNode(true).querySelector("div");
     schedulerDiv.appendChild(schedulesPage);
@@ -116,6 +117,9 @@ async function overviewPageInit(){
     schedules.forEach(evObj=>{
         let p = document.createElement("p");
         p.style.setProperty("--color",evObj.color);
+        let [h,s,l] = hslComponents(evObj.color);
+        p.style.setProperty("--lighter-shade",lightenHSL(h,s,l,0.3));
+        p.dataset.obj = JSON.stringify(evObj);
         let span = document.createElement("span");
         span.textContent = evObj.label;
         p.appendChild(span);
@@ -133,18 +137,6 @@ async function overviewPageInit(){
     document.querySelector(".event-page.first-page").classList.add("card-in");
     clearInterval(caroselTimer);
     carosel([...document.querySelectorAll(".event-page")],0);
-}
-
-function carosel(elems,i=0){
-    caroselTimer = setInterval(()=>{
-        elems[i].classList.remove("card-in");
-        elems[i].classList.add("card-out");
-        i++;
-        if(i===elems.length)
-            i = 0;
-        elems[i].classList.remove("card-out");
-        elems[i].classList.add("card-in");
-    },10000);
 }
 
 async function salePageInit(){
@@ -823,4 +815,11 @@ function changeHandler(e){
         else
             form.idleTime.setAttribute("disabled",true);
     }
+}
+
+function openScheduleManager(e){
+    let selectedP = e.path.find(elem=>elem.nodeName==="P");
+    let evObj = JSON.parse(selectedP.dataset.obj);
+    console.log(evObj);
+    // Open event in event manager
 }

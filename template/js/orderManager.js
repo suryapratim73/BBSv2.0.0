@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, showToastNotification, updateBillValue, showPaymentMode, execRetractHandler, deleteKey, assignDeliveryOptions, validateInput, retractHandler, validateInput2, selectionHandler, deleteRowCommon, clickOrFocusinHandler, calculateAmounts, roundOffTo2DecimalPlace, getsaleConfigPolicyPath, drawSpinner, noDataPlaceholder, bodyRow:bodyRowGen, removeAllElem, addRow, appendToDL, applyTheme, bodyRowInpFillup, applySpinner, reduceOrder } = require("../js/common");
+const { toggleDevTool, showToastNotification, updateBillValue, showPaymentMode, execRetractHandler, deleteKey, assignDeliveryOptions, validateInput, retractHandler, validateInput2, selectionHandler, deleteRowCommon, clickOrFocusinHandler, calculateAmounts, roundOffTo2DecimalPlace, getsaleConfigPolicyPath, drawSpinner, noDataPlaceholder, bodyRow:bodyRowGen, removeAllElem, addRow, appendToDL, applyTheme, bodyRowInpFillup, applySpinner, reduceOrder, tableFillupHelper, appendToHost } = require("../js/common");
 const fs = require("fs");
 
 toggleDevTool(document);
@@ -44,16 +44,10 @@ async function init(){
     let orderTbody = document.querySelector("#page-1 .tbody");
     if(!("fileList" in orders) || orders.fileList.length===0) 
         return spinner.remove(window) && noDataPlaceholder(orderTbody);
-    tableFillupHelper(orders.fileList,"#page-1 .row.head .col>p","#page-1 .tbody");
+    tableFillupHelper(orders.fileList,"#page-1 .row.head .col>p","#page-1 .tbody",bodyRowGen);
     spinner.remove(window);
 };
 init();
-
-function tableFillupHelper(arr,selector1,selector2){
-    let cols = [...document.querySelectorAll(selector1)].map(p=>p.dataset.col);
-    let tbody = document.querySelector(selector2);
-    arr.forEach((obj,index)=>tbody.appendChild(bodyRowGen({key:"itemObj",obj,cols,index})));
-}
 
 function proceedHandler(){
     removeAllElem(".page");
@@ -61,7 +55,7 @@ function proceedHandler(){
     if(currentStep===2){
         [...document.querySelectorAll("#meta>div>p:last-child")]
         .forEach(p=>p.textContent=billMeta[p.dataset.col]);
-        tableFillupHelper(billMeta.orderItems,"#item-table .row.head p","#item-table .tbody");
+        tableFillupHelper(billMeta.orderItems,"#item-table .row.head p","#item-table .tbody",bodyRowGen);
         let payHistDiv = document.querySelector("#payment-history>div");
         billMeta.payment.forEach(payObj=>{
             let payObjDiv = document.getElementById("pay-object-template").content.cloneNode(true).querySelector("div");
@@ -81,7 +75,7 @@ function proceedHandler(){
     }
     else
     if(currentStep===4){
-        tableFillupHelper(orderItems,"#item-table .row.head p","#item-table .tbody");
+        tableFillupHelper(orderItems,"#item-table .row.head p","#item-table .tbody",bodyRowGen);
         let reviewMetaDiv = document.querySelector("#review-meta");
         let reducedObj = reduceOrder();
         reducedObj.netTax = roundOffTo2DecimalPlace(reducedObj.netAmtTax-reducedObj.netAmt);
@@ -99,15 +93,6 @@ function proceedHandler(){
         billMeta.orderItems = orderItems;
         checkBillComplaince();
     }
-}
-
-function appendToHost(selector,host,contentType="form"){
-    let child = document.querySelector(selector).content.cloneNode(true).querySelector(contentType);
-    if(host instanceof HTMLElement)
-        host.appendChild(child);
-    else
-        document.querySelector(host).appendChild(child);
-    return child;
 }
 
 async function checkBillComplaince(){

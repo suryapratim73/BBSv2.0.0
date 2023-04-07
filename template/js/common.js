@@ -1336,6 +1336,15 @@ exports.clickOrFocusinHandler = function(e){
     }
 }
 
+exports.appendToHost = function(selector,host=HTMLElement,contentType="form"){
+    let child = document.querySelector(selector).content.cloneNode(true).querySelector(contentType);
+    if(host instanceof HTMLElement)
+        host.appendChild(child);
+    else
+        document.querySelector(host).appendChild(child);
+    return child;
+}
+
 exports.bodyRow = function({obj,index,cols,key}){
     let div = document.createElement("div");
     div.dataset.obj = JSON.stringify(obj);
@@ -1369,6 +1378,12 @@ exports.bodyRowInpFillup = itemObj=>{
             });
     });
     calculateAmounts();
+}
+
+exports.tableFillupHelper = function(arr,theadSelector,tbodySelector,bodyRowGen){
+    let cols = [...document.querySelectorAll(theadSelector)].map(p=>p.dataset.col);
+    let tbody = document.querySelector(tbodySelector);
+    arr.forEach((obj,index)=>tbody.appendChild(bodyRowGen({key:"itemObj",obj,cols,index})));
 }
 
 exports.applySpinner = cb =>{
@@ -1410,4 +1425,74 @@ exports.deleteKey = function(arr,obj){
         if(key in obj)
             Reflect.deleteProperty(obj,key);
     })
+}
+
+exports.hexTohsl = function(hex){
+    let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    var r = parseInt(result[1], 16);
+    var g = parseInt(result[2], 16);
+    var b = parseInt(result[3], 16);
+
+    r /= 255, g /= 255, b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+
+    if(max == min){
+        h = s = 0; // achromatic
+    } else {
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    s = s*100;
+    s = Math.round(s);
+    l = l*100;
+    l = Math.round(l);
+    h = Math.round(360*h);
+    return 'hsl(' + h + ', ' + s + '%, ' + l + '%)';
+
+}
+
+exports.lightenHSL = function(h,s,l,a=0.5,shouldLighten=true,sAdj=10,lAdj=10){
+    let _s;
+    let _l;
+    if(shouldLighten){
+        _s= s + s*sAdj/100;
+        _l= l + l*lAdj/100;
+    }
+    else{
+        _s= s - s*sAdj/100;
+        _l= l - l*lAdj/100;
+    }
+    if(shouldLighten){
+        s = Math.min(100,_s);
+        l = Math.min(100,_l);
+    }
+    else{
+        s = Math.max(0,_s);
+        l = Math.max(0,_l);
+    }
+    return `hsla(${h},${s}%,${l}%,${a})`;
+}
+
+exports.hslComponents = (hexColor)=>{
+    return hexTohsl(hexColor).split(/[\D]/).filter(str=>str!=="").map(str=>+str);
+}
+
+exports.carosel = function(elems,i=0){
+    caroselTimer = setInterval(()=>{
+        elems[i].classList.remove("card-in");
+        elems[i].classList.add("card-out");
+        i++;
+        if(i===elems.length)
+            i = 0;
+        elems[i].classList.remove("card-out");
+        elems[i].classList.add("card-in");
+    },10000);
 }

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../js/scheduleManager.js" defer></script>
+    <link rel="stylesheet" href="../css/scheduleManager.css">
+    <title>Schedule Manager</title>
+</head>
+<body onclick="clickHandler(event)">
+    <template id="page-1-template">
+        <div class="page" id="page-1">
+            <h2>Select a event to see more details/edit</h2>
+            <div>
+                <h2>Schedules</h2>
+                <button onclick="ipcRenderer.send('call-scheduler');">+</button>
+            </div>
+            <div class="table">
+                <div class="row head">
+                    <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space"><p data-col="label">Label</p></div>                        
+                    <div class="col eq-space"><p data-col="time">Date & Time</p></div>
+                </div>
+                <div class="tbody hide-scrollbar" data-cmd="open-event"></div>
+            </div>
+        </div>
+    </template>
+    <template id="page-2-template">
+        <div class="page" id="page-2">
+            <h2>Event Page</h2>
+            <div id="host">
+            </div>
+            <div id="btn-container">
+                <button data-cmd="edit">Edit</button>
+                <button data-cmd="remove">Remove</button>
+                <button data-cmd="page-1">Back to Page-1</button>
+            </div>
+        </div>
+    </template>
+    <template id="event-key-value-template">
+        <div>
+            <p data-name="key"></p>
+            <p data-name="value"></p>
+        </div>
+    </template>
+    <template id="page-3-template">
+        <form id="page-3" class="page" onsubmit="submitHandler(event)">
+            <h2>New Event Scheduler</h2>
+            <div>
+                <div>
+                    <div>
+                        <labe for="label" class="highlight">Label of event</labe>
+                    </div>
+                    <div>
+                        <input type="text" name="label" id="label" required>
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="time" class="highlight">Select Date and Time of event</label>
+                    </div>
+                    <div>
+                        <input type="datetime-local" name="time" id="time">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="tag" class="highlight">Tag (optional)</label>
+                    </div>
+                    <div>
+                        <input type="text" name="tag" id="tag">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="color" class="highlight">Head color</label>
+                    </div>
+                    <div>
+                        <input type="color" name="color" id="color">
+                    </div>
+                </div>
+            </div>
+            <div id="btn-container">
+                <button data-cmd="save" type="submit">Save</button>
+                <button data-cmd="page-1" type="button">Cancel</button>
+            </div>
+        </form>
+    </template>
+</body>
+</html>
