@@ -63,7 +63,7 @@
                 <div>
                     <h2>Notifications</h2>
                 </div>
-                <div id="notification-div"></div>
+                <div id="notification-div" class="hide-scrollbar" onclick="notificationAction(event)"></div>
                 <div class="btn-div">
                     <button>Clear</button>
                 </div>
@@ -716,11 +716,31 @@
         </div>
     </template>
     <template id="schedules-page-template">
-        <div class="event-page">
+        <div class="event-page removable">
             <h2>Events</h2>
             <div id="event-host"></div>
         </div>
     </template>
     <datalist id="user-list"></datalist>
+    <template id="notification-group-template">
+        <div class="retractable-div-container notification-group expand hide-scrollbar">
+            <div class="btn-container">
+                <p data-col="tag" onclick="execRetractHandler(event)"></p>
+                <button data-cmd="delete-all">Dismiss all</button>
+            </div>
+            <div class="hide collate-content"></div>
+            <div class="retractable-div hide-scrollbar" data-collapsed="false"></div>
+        </div>
+    </template>
+    <template id="notification-template">
+        <div class="notification">
+            <h3 data-col="label"></h3>
+            <p data-col="description"></p>
+            <p data-col="time"></p>
+            <div class="btn-container">
+                <button data-cmd="delete">Dismiss</button>
+            </div>
+        </div>
+    </template>
 </body>
 </html>

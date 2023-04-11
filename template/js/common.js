@@ -366,8 +366,10 @@ function toastNotification(msg,customClasses,...elems){
     return div;
 }
 
-exports.showToastNotification = function(msg,className,container,adjX=8){
+exports.showToastNotification = function(msg,className,container,adjX=8,adjRight){
     let toast = toastNotification(msg,className);
+    if(adjRight)
+        toast.style.setProperty("--adj-right",adjRight);
     try{
         toast.classList.add("hide");
         document.getElementById(container).appendChild(toast);

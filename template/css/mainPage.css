@@ -110,12 +110,13 @@ h1{
     overflow: hidden;
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.5rem;
     flex-direction: column;
     flex: 1;
 }
 #overview-div>div:last-child>div{
     flex:1;
+    overflow: hidden;
 }
 #overview-div>div:last-child>div:last-child{
     display: flex;
@@ -337,9 +338,12 @@ button.hover{
 #panel>div:first-child>h2{
     padding: 0.5rem;
     font-size: 2rem;
+    background: transparent;
+    color: var(--theme-secondary);
 }
 #notification-div{
     grid-row: 3/-2;
+    overflow: auto;
 }
 #panel>div:last-child{
     grid-row: -2/-1;
@@ -791,5 +795,100 @@ form#registration{
     height: 100%;
     top: 0;
     left: -0.5rem;
+    background: var(--color);
+}
+.notification-group{
+    margin: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 15px;
+    overflow: auto;
+    background: var(--theme-secondary);
+}
+.expand{
+    height: auto;
+    max-height: 100%;
+}
+.notification-group p[data-col="tag"]{
+    position: relative;
+    text-indent: 1rem;
+}
+.notification-group p[data-col="tag"]::before{
+    content: "\2303";
+    position: absolute;
+    font-size: 1.5rem;
+    width: 1rem;
+    height: 1rem;
+    text-align: center;
+    top: -15%;
+    left: 30%;
+    transform: rotate(180deg);
+}
+.notification-group.expand p[data-col="tag"]::before{
+    left: -40%;
+    top: 0%;
+    transform: rotate(0deg);
+}
+#panel .btn-container{
+    justify-content: space-between;
+    align-items: center;
+}
+.notification-group button{
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
+    border-color: unset;
+    color: var(--theme-primary);
+}
+.notification-group p{
+    background: transparent;
+}
+.notification-group>.retractable-div{
+    height: 95%;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.retractable-div>div.notification{
+    margin: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--theme-primary);
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 1px 1px 1px 1px var(--theme-primary-lighter);
+}
+.notification p{
+    text-align: right;
+}
+.notification p[data-col="description"]{
+    text-align: left;
+    text-indent: 1rem;
+}
+.notification{
+    position: relative;
+}
+.notification::before{
+    content: "";
+    position: absolute;
+    width: 0.5rem;
+    height: 96%;
+    background: var(--color);
+    top: 2%;
+    right: 2px;
+    border-radius: 0 5px 5px 0;
+}
+.notification:hover{
+    background: var(--lighter-shade);
+}
+.collate .collate-content{
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.collate .collate-content>div{
+    width: 1rem;
+    height: 1rem;
     background: var(--color);
 }

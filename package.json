@@ -63,8 +63,10 @@
         }
       ]
     },
-    "deb":{
-      "fpm":["--after-upgrade=test.sh"]
+    "deb": {
+      "fpm": [
+        "--after-upgrade=test.sh"
+      ]
     },
     "win": {
       "target": [

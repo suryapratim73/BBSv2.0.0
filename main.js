@@ -13,7 +13,9 @@ const {
   nativeTheme,
   autoUpdater,
   crashReporter,
-  powerMonitor
+  powerMonitor,
+  Notification,
+  shell
 } = require("electron");
 const {
   billNoCounter,
@@ -118,18 +120,20 @@ class Job{
     this.time = time;
     this.status = "created";
     if(time){
-      setInterval(()=>{
+      this.timer = setInterval(()=>{
         this.act(this.intr);
       },this.time)
     }
   }
   act(intr){
     if(this.intr===intr){
-      this.func(...this.args);
+      this.func(...this.args,this);
     }
   }
   updateStatus(status){
     this.status = status;
+    if(status==="OK")
+      clearInterval(this.timer);
   }
   updateArgs(...args){
     this.args = [
@@ -568,6 +572,7 @@ app.on("ready", async () => {
       global.shouldWait = false;
       // Adding tab switcher
       let mainWindow = await createWindow();
+      createNotifications();
       let focussedWindow = BrowserWindow.getFocusedWindow();
       globalShortcut.register("CommandOrControl+Tab+Up", () => {
         if (mainWindow) {
@@ -735,17 +740,27 @@ async function autoPrintMonthlyBills(){
   }
 }
 
-function printPDF(path2pdf,printObj){
+function printPDF(path2pdf,printObj,job){
   let { printer,copies=1,paperSize,printOrientation } = printObj;
-  switch(process.platform){
-    case "linux":
-        return printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
-    case "win32":
-        return printOnWindows(path2pdf,printer,copies,paperSize);
-    case "darwin":
-        return printOnLinuxOrMac(path2pdf,printer,copies);
-    default:
-        dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
+  try{
+    switch(process.platform){
+      case "linux":
+          return printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
+      case "win32":
+          return printOnWindows(path2pdf,printer,copies,paperSize);
+      case "darwin":
+          return printOnLinuxOrMac(path2pdf,printer,copies);
+      default:
+          dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
+    }
+    job.updateStatus("OK");
+  }
+  catch(err){
+    appLogger({
+      title:"Print error",
+      message:String(err),
+      func:"printPDF"
+    })
   }
 }
 
@@ -2329,7 +2344,7 @@ ipcMain.on("call-scheduler",()=>{
   createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true});
 });
 
-ipcMain.on("manage-schedule",async (e,data,flag)=>{
+ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true)=>{
   let path2scheduler = getSchedulerPath();
   if(!fs.existsSync(path2scheduler)){
     dialog.showErrorBox({
@@ -2368,7 +2383,21 @@ ipcMain.on("manage-schedule",async (e,data,flag)=>{
       });
       jsData.schedules = schedules;
     }
+    else
+    if(flag==="exp"){
+      if(!("expiredSchedules" in jsData))
+        jsData.expiredSchedules = [];
+      jsData.expiredSchedules.push(schedules.find(obj=>obj.id===data));
+      schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
+    }
+    else
+    if(flag==="exp-all")
+      jsData.expiredSchedules = jsData.expiredSchedules.filter(evObj=>evObj.tag!==data);
+    else
+    if(flag==="exp-r")
+      jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data),1)
     fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
+    createNotifications()
   }
   catch(err){
     appLogger({
@@ -2378,7 +2407,7 @@ ipcMain.on("manage-schedule",async (e,data,flag)=>{
     })
   }
   finally{
-    if(flag==="a" || flag==="e"){
+    if((flag==="a" || flag==="e") && showMsg===true){
       dialog.showMessageBox({
         title:"Event saved",
         message:"Notification and action scheduled at the event time."
@@ -2386,12 +2415,13 @@ ipcMain.on("manage-schedule",async (e,data,flag)=>{
       flag==="a" && BrowserWindow.fromId(e.sender.id).close();
     }
     else
-    if(flag==="r")
+    if(flag==="r" && showMsg===true)
       dialog.showMessageBox({
         title:"Event removed",
         message:"Event removed."
       });
-    BrowserWindow.fromId(e.frameId).webContents.send("update-content");
+    if(showMsg===true)
+      BrowserWindow.fromId(e.frameId).webContents.send("update-content");
   }
 });
 
@@ -2413,3 +2443,60 @@ exports.scheduleManager = main=>{
     }});
   };
 }
+
+function sendIPCNotification(evObj,job){
+  ipcMain.emit("manage-schedule",null,evObj.id,"exp",false);
+  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
+  let arr;
+  if(jsData.expiredSchedules.length>0)
+    arr = [...jsData.expiredSchedules,evObj];
+  else
+    arr = [evObj];
+  getMainWindow().webContents.send("notification",arr,true);
+  let notification = new Notification({
+    title:evObj.type,
+    body:evObj.title
+  });
+  notification.show();
+  shell.beep();
+  notification.on("click",()=>app.focus());
+  job.updateStatus("OK");
+}
+
+function createNotifications(){
+  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
+  if("schedules" in jsData){
+    jsData.schedules
+    .forEach(evObj=>{
+      let { id,time } = evObj;
+      if(Math.sign(new Date(time)-Date.now())>0){
+        jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,new Date(time)-Date.now()));
+      }
+      else
+        ipcMain.emit("manage-schedule",null,id,"exp",false);
+    });
+  }
+}
+
+ipcMain.on("get-notification",e=>{
+  try{
+    let path2scheduler = getSchedulerPath();
+    let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
+    if(!("expiredSchedules" in jsData))
+      jsData.expiredSchedules = [];
+    if(jsData.expiredSchedules.find(obj=>obj==="null")==null){
+      jsData.expiredSchedules = jsData.expiredSchedules.filter(obj=>obj!==null);
+      fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
+    }
+    if(jsData.expiredSchedules.length>0)
+      BrowserWindow.fromId(e.frameId).webContents.send("notification",jsData.expiredSchedules);
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"get-notification ipc"
+    });
+    BrowserWindow.fromId(e.frameId).webContents.send("notification",[]);
+  }
+});

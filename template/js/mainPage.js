@@ -40,7 +40,7 @@ async function initPage(){
     }
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj); 
-    spinner.remove(window);   
+    spinner.remove(window); 
 }
 initPage();
 
@@ -79,6 +79,40 @@ function reducedArr(arr,id){
     });
 }
 
+async function initScheduleDiv(){
+    let schedules = await ipcRenderer.invoke("get-chedules");
+    removeAllElem(".event-page.removable");
+    clearInterval(caroselTimer);
+    if(schedules.length===0) 
+        return document.querySelector(".event-page.first-page").classList.add("card-in");
+    let schedulerDiv = document.getElementById("scheduler-div");
+    let schedulesPage = document.getElementById("schedules-page-template").content.cloneNode(true).querySelector("div");
+    schedulerDiv.appendChild(schedulesPage);
+    let pHost = schedulesPage.querySelector("#event-host");
+    schedules.forEach(evObj=>{
+        let p = document.createElement("p");
+        p.style.setProperty("--color",evObj.color);
+        let [h,s,l] = hslComponents(evObj.color);
+        p.style.setProperty("--lighter-shade",lightenHSL(h,s,l,0.3));
+        p.dataset.obj = JSON.stringify(evObj);
+        let span = document.createElement("span");
+        span.textContent = evObj.label;
+        p.appendChild(span);
+        span = document.createElement("span");
+        span.textContent = new Date(evObj.time).toLocaleDateString("en-IN",{
+            day:"2-digit",
+            month:"2-digit",
+            year:"2-digit",
+            hour:"2-digit",
+            minute:"2-digit"
+        });
+        p.appendChild(span);
+        pHost.appendChild(p);
+    });
+    document.querySelector(".event-page.first-page").classList.add("card-in");
+    carosel([...document.querySelectorAll(".event-page")],0);
+}
+
 async function overviewPageInit(){
     let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content") ?? {};
     let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
@@ -107,36 +141,7 @@ async function overviewPageInit(){
         cols = [...document.querySelectorAll("#order-table-div .row.head .col>p")].map(p=>p.dataset.col);
         orders.fileList.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
     }
-    let schedules = await ipcRenderer.invoke("get-chedules");
-    if(schedules.length===0) 
-        return document.querySelector(".event-page.first-page").classList.add("card-in");
-    let schedulerDiv = document.getElementById("scheduler-div");
-    let schedulesPage = document.getElementById("schedules-page-template").content.cloneNode(true).querySelector("div");
-    schedulerDiv.appendChild(schedulesPage);
-    let pHost = schedulesPage.querySelector("#event-host");
-    schedules.forEach(evObj=>{
-        let p = document.createElement("p");
-        p.style.setProperty("--color",evObj.color);
-        let [h,s,l] = hslComponents(evObj.color);
-        p.style.setProperty("--lighter-shade",lightenHSL(h,s,l,0.3));
-        p.dataset.obj = JSON.stringify(evObj);
-        let span = document.createElement("span");
-        span.textContent = evObj.label;
-        p.appendChild(span);
-        span = document.createElement("span");
-        span.textContent = new Date(evObj.time).toLocaleDateString("en-IN",{
-            day:"2-digit",
-            month:"2-digit",
-            year:"2-digit",
-            hour:"2-digit",
-            minute:"2-digit"
-        });
-        p.appendChild(span);
-        pHost.appendChild(p);
-    });
-    document.querySelector(".event-page.first-page").classList.add("card-in");
-    clearInterval(caroselTimer);
-    carosel([...document.querySelectorAll(".event-page")],0);
+    initScheduleDiv();
 }
 
 async function salePageInit(){
@@ -819,7 +824,124 @@ function changeHandler(e){
 
 function openScheduleManager(e){
     let selectedP = e.path.find(elem=>elem.nodeName==="P");
+    if(!selectedP) return;
     let evObj = JSON.parse(selectedP.dataset.obj);
     console.log(evObj);
     // Open event in event manager
+}
+
+function collateUpdator(tagGrp,arr,i,evObj){
+    if(i<5){
+        let div = document.createElement("div");
+        div.style.setProperty("--color",evObj.color);
+        tagGrp.querySelector(".collate-content").appendChild(div);
+    }
+    else
+    if(i===5){
+        let p = document.createElement("p");
+        p.textContent = (arr.length - 5) + "+ notifications";
+        tagGrp.querySelector(".collate-content").appendChild(p);
+    }
+}
+
+ipcRenderer.send("get-notification");
+ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
+    removeAllElem(".notification-group");
+    let notificationHost = document.getElementById("notification-div");
+    notifyJobs = notifyJobs.sort((obj1,obj2)=>new Date(obj2.time)-new Date(obj1.time));
+    let firstPriorityTag = notifyJobs[0].tag;
+    let notificatioGrpObj = notifyJobs.reduce((acc,job)=>{
+        if(Object.keys(acc).includes(job.tag))
+            acc[(job?.tag ?? "default")].push(job);
+        else
+            acc[(job?.tag ?? "default")] = [job];
+        return acc;
+    },{});
+    let tags = Object.keys(notificatioGrpObj);
+    tags.splice(tags.findIndex(tag=>tag===firstPriorityTag),1);
+    tags.unshift(firstPriorityTag);
+    tags.forEach(tag=>{
+        let tagGrp;
+        if(document.getElementById(`${tag}-group`))
+            tagGrp = document.getElementById(`${tag}-group`);
+        else{
+            tagGrp = document.getElementById("notification-group-template").content.cloneNode(true).querySelector("div");
+            tagGrp.id = `${tag}-group`;
+            notificationHost.appendChild(tagGrp);  
+            tagGrp.querySelector('[data-col="tag"]').textContent = tag;          
+        }
+        removeAllElem(`#${tag}-group .collate-content *`);
+        notificatioGrpObj[tag]
+        .forEach((job,i,arr)=>{
+            let notificationDiv = document.getElementById("notification-template").content.cloneNode(true).querySelector("div");
+            tagGrp.querySelector(".retractable-div").appendChild(notificationDiv);
+            notificationDiv.querySelector('[data-col="label"]').textContent = job.label;
+            notificationDiv.querySelector('[data-col="time"]').textContent = job.time;
+            notificationDiv.dataset.obj = JSON.stringify(job);
+            let description;
+            if(job.type==="reminder")
+                description = job.note;
+            notificationDiv.querySelector('[data-col="description"]').textContent = description;
+            collateUpdator(tagGrp,arr,i,job);
+            notificationDiv.style.setProperty("--color",job.color);
+            let [h,s,l] = hslComponents(job.color);
+            notificationDiv.style.setProperty("--lighter-shade",lightenHSL(h,s,l,0.3));
+            if(showToast)
+                showToastNotification(job.label,["animation-common","move-left","blue-toast-box"],"main-div",8,"9%");
+        });
+        retractHandler(tagGrp.querySelector(".retractable-div"));
+        tagGrp.classList.toggle("collate");
+        tagGrp.classList.toggle("expand");
+        [...tagGrp.querySelectorAll(`.notification`)]
+        .forEach(elem=>elem.classList.toggle("hide"));
+        tagGrp.querySelector(".collate-content").classList.toggle("hide");
+    });
+    initScheduleDiv();
+});
+
+function execRetractHandler(e){
+    if(e.target.nodeName!=="DIV"){
+        let container = e.path.find(elem=>elem.classList.contains("retractable-div-container"));
+        let retractableDiv = container.querySelector(".retractable-div");
+        container.classList.toggle("expand");
+        [...document.querySelectorAll(`#${container.id} .notification`)]
+        .forEach(elem=>elem.classList.toggle("hide"));
+        container.classList.toggle("collate");
+        [...document.querySelectorAll(`#${container.id} .collate-content`)]
+        .forEach(elem=>elem.classList.toggle("hide"));
+        retractHandler(retractableDiv);
+    }
+}
+
+function notificationAction(e){
+    if(e.target.nodeName!=="BUTTON") return;
+    let cmd = e.target.dataset.cmd;
+    if(cmd==="delete-all"){
+        let noticeGrp = e.path.find(elem=>elem.classList.contains("notification-group"));
+        let tag = noticeGrp.id.split("-group")[0];
+        ipcRenderer.send("manage-schedule",tag,"exp-all",false);
+        noticeGrp.classList.add("animation-common");
+        noticeGrp.classList.add("vanish");
+        setTimeout(()=>{
+            noticeGrp.remove();
+        },300);
+    }
+    else
+    if(cmd==="delete"){
+        let notification = e.path.find(elem=>elem.classList.contains("notification"));
+        let evObj = JSON.parse(notification.dataset.obj);
+        ipcRenderer.send("manage-schedule",evObj.id,"exp-r",false);
+        notification.classList.add("animation-common");
+        notification.classList.add("vanish");
+        setTimeout(()=>{
+            notification.remove();
+            removeAllElem(`#${evObj.tag}-group .collate-content *`);
+            let arr = [...document.querySelectorAll(`#${evObj.tag}-group .notification`)].map(elem=>JSON.parse(elem.dataset.obj));
+            console.log(arr);
+            let tagGrp = document.getElementById(`${evObj.tag}-group`);
+            arr.forEach((obj,i)=>{
+                collateUpdator(tagGrp,arr,i,obj);
+            });
+        },300);
+    }
 }
