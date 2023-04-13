@@ -1,4 +1,4 @@
-const { ipcMain } = require("electron/main");
+const { ipcMain,BrowserWindow } = require("electron");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
@@ -241,6 +241,18 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                 };
                 closeAndDisplay(msg);
                 appLogger("sale",JSON.stringify({name,billNo,amount}));
+                if(paymentStatus===false){
+                    let evObj = {
+                        label:`Purchase Bill Number ${billNo} expired`,
+                        type: "bill-payment",
+                        billType: "purchase-select",
+                        time: new Date(new Date(billDate).getTime() + 30 * 24 * 60 * 60 * 1000),
+                        tag: "Payment reminder",
+                        color: "#00FF00"
+                    }
+                    ipcMain.emit("manage-schedule",null,evObj,"a",false);
+                    BrowserWindow.fromId(e.frameId).webContents.send("update-content");
+                }
             })
             .catch(console.log)
         }

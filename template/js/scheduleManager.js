@@ -21,14 +21,15 @@ applySpinner(async ()=>{
     init();
 });
 
-function clickHandler(e){
+function clickHandler(e,evObj){
     if(!("cmd" in e.target.dataset) && !(e.path.find(elem=>elem.classList?.contains("tbody")))) return;
     let { cmd } = (e.path?.find(elem=>elem.classList?.contains("tbody")) ?? e.target).dataset;
     if(cmd==="open-event"){
         currentStep = 2;
         removeAllElem(".page");
         appendToHost(`#page-${currentStep}-template`,document.body,"div");
-        let evObj = JSON.parse(e.path.find(elem=>elem.classList.contains("body") && elem.classList.contains("row")).dataset.obj);
+        if(!evObj)
+            evObj = JSON.parse(e.path.find(elem=>elem.classList.contains("body") && elem.classList.contains("row")).dataset.obj);
         Object.keys(evObj)
         .forEach(key=>{
             if(["id","user","color"].includes(key)) return;
@@ -41,7 +42,8 @@ function clickHandler(e){
     }
     else
     if(cmd==="edit"){
-        let evObj = JSON.parse(e.target.dataset.obj);
+        if(!evObj)
+            evObj = JSON.parse(e.target.dataset.obj);
         currentStep = 3;
         removeAllElem(".page");
         let form = appendToHost(`#page-${currentStep}-template`,document.body,"form");
@@ -74,3 +76,7 @@ function submitHandler(e){
     ipcRenderer.send("manage-schedule",data,"e");
     clickHandler({target:{dataset:{cmd:"page-1"}}});
 }
+
+ipcRenderer.on("open-event-scheduler",(e,evObj)=>{
+    clickHandler({target:{dataset:{cmd:"open-event"}}},evObj);
+});

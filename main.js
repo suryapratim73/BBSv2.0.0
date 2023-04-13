@@ -2436,7 +2436,7 @@ exports.scheduleManager = main=>{
     windowOptions.parent = main;
     windowOptions.width = 800;
     windowOptions.height = 600;
-    createModal(windowOptions,"./template/html/scheduleManager.html",{label:"scheduler",cb:function(){
+    return createModal(windowOptions,"./template/html/scheduleManager.html",{label:"scheduler",cb:function(){
       this.on("close",(e)=>{
         getMainWindow().webContents.send("update-content");
       });
@@ -2470,7 +2470,9 @@ function createNotifications(){
     .forEach(evObj=>{
       let { id,time } = evObj;
       if(Math.sign(new Date(time)-Date.now())>0){
-        jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,new Date(time)-Date.now()));
+        let timeDiff = new Date(time)-Date.now();
+        if(timeDiff>2147483647) return
+        jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,timeDiff));
       }
       else
         ipcMain.emit("manage-schedule",null,id,"exp",false);
@@ -2498,5 +2500,15 @@ ipcMain.on("get-notification",e=>{
       func:"get-notification ipc"
     });
     BrowserWindow.fromId(e.frameId).webContents.send("notification",[]);
+  }
+});
+
+ipcMain.on("open-event",(e,evObj)=>{
+  if(evObj.user.id===currentUser.id || ["admin","all"].includes(currentUser.role)){
+    let mainWin = getMainWindow();
+    let scheduler = this.scheduleManager(mainWin)();
+    scheduler.on("ready-to-show",()=>{
+      scheduler.webContents.send("open-event-scheduler",evObj);
+    });
   }
 });

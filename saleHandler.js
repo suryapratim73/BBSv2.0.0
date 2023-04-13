@@ -266,8 +266,20 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         if(flag!="regular"){
             await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
             BrowserWindow.fromId(e.sender.id).webContents.send("billing-complete");
-            BrowserWindow.fromId(e.frameId).webContents.send("update-content");
         }
+        else// Creating notification for regular bills
+        if(flag==="regular" && paymentStatus===false){
+            let evObj = {
+                label:`Bill Number ${billNo} expired`,
+                type: "bill-payment",
+                billType: "sales-select",
+                time: new Date(new Date(billDate).getTime() + 14 * 24 * 60 * 60 * 1000),
+                tag: "Payment collection",
+                color: "#0000FF"
+            }
+            ipcMain.emit("manage-schedule",null,evObj,"a",false);
+        }
+        BrowserWindow.fromId(e.frameId).webContents.send("update-content");
     })
     .catch(console.log);
     if(billType!=="monthly")

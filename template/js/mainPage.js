@@ -826,8 +826,7 @@ function openScheduleManager(e){
     let selectedP = e.path.find(elem=>elem.nodeName==="P");
     if(!selectedP) return;
     let evObj = JSON.parse(selectedP.dataset.obj);
-    console.log(evObj);
-    // Open event in event manager
+    ipcRenderer.send("open-event",evObj);
 }
 
 function collateUpdator(tagGrp,arr,i,evObj){
@@ -944,4 +943,7 @@ function notificationAction(e){
             });
         },300);
     }
+    else
+    if(cmd==="clear")
+        removeAllElem(".notification-group");
 }
