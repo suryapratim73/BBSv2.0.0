@@ -275,7 +275,11 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
                 billType: "sales-select",
                 time: new Date(new Date(billDate).getTime() + 14 * 24 * 60 * 60 * 1000),
                 tag: "Payment collection",
-                color: "#0000FF"
+                color: "#0000FF",
+                billObj:{
+                    ...billMeta,
+                    ...customerObj
+                }
             }
             ipcMain.emit("manage-schedule",null,evObj,"a",false);
         }

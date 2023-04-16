@@ -811,6 +811,7 @@ form#registration{
 .notification-group p[data-col="tag"]{
     position: relative;
     text-indent: 1rem;
+    flex: 1;
 }
 .notification-group p[data-col="tag"]::before{
     content: "\2303";
@@ -820,11 +821,11 @@ form#registration{
     height: 1rem;
     text-align: center;
     top: -15%;
-    left: 30%;
+    left: 4%;
     transform: rotate(180deg);
 }
 .notification-group.expand p[data-col="tag"]::before{
-    left: -40%;
+    left: -4%;
     top: 0%;
     transform: rotate(0deg);
 }
@@ -891,4 +892,34 @@ form#registration{
     width: 1rem;
     height: 1rem;
     background: var(--color);
+}
+.notification-group,.retractable-div,.notification{
+    transition: height 0.5s linear;
+}
+.notification form{
+    display: flex;
+    flex-direction: column;
+}
+.notification form>div{
+    display: flex;
+    justify-content: space-between;
+}
+.notification form>div>div{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.error{
+    position: relative;
+    color: red;
+}
+.error::before{
+    content: "\274C";
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    color: inherit;
+    top: 10%;
+    font-size: 0.7rem;
+    right: 35%;
 }

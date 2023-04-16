@@ -248,7 +248,12 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         billType: "purchase-select",
                         time: new Date(new Date(billDate).getTime() + 30 * 24 * 60 * 60 * 1000),
                         tag: "Payment reminder",
-                        color: "#00FF00"
+                        color: "#00FF00",
+                        billObj:{
+                            ...billMeta,
+                            ...payObj,
+                            ...suppObj
+                        }
                     }
                     ipcMain.emit("manage-schedule",null,evObj,"a",false);
                     BrowserWindow.fromId(e.frameId).webContents.send("update-content");

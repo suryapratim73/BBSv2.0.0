@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel } = require("../js/common");
+const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost } = require("../js/common");
 
 
 let themeObj = {
@@ -16,7 +16,7 @@ let themeObj = {
     file:""
 };
 let currentMode = "overview",reducedBills = [],reducedPurchases = [];
-let mode = 1,loggedinUser,compInfo,hiddenSection,caroselTimer;
+let mode = 1,loggedinUser,compInfo,hiddenSection,caroselTimer,tags;
 
 toggleDevTool(document);
 
@@ -843,6 +843,23 @@ function collateUpdator(tagGrp,arr,i,evObj){
     }
 }
 
+function camelCase(str){
+    return str.split(" ").reduce((acc,str,i)=>{
+        if(i>0)
+            str = capitalize(str);
+        acc += str;
+        return acc;
+    },"");
+}
+
+function reverseCamelCase(str){
+    return str.replace(/[A-Z]/g,(str,i)=>{
+        if(i===0)
+            return str;
+        return " "+str.toLowerCase();
+    });
+}
+
 ipcRenderer.send("get-notification");
 ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
     removeAllElem(".notification-group");
@@ -856,20 +873,20 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
             acc[(job?.tag ?? "default")] = [job];
         return acc;
     },{});
-    let tags = Object.keys(notificatioGrpObj);
+    tags = Object.keys(notificatioGrpObj);
     tags.splice(tags.findIndex(tag=>tag===firstPriorityTag),1);
     tags.unshift(firstPriorityTag);
     tags.forEach(tag=>{
         let tagGrp;
-        if(document.getElementById(`${tag}-group`))
-            tagGrp = document.getElementById(`${tag}-group`);
+        if(document.getElementById(`${camelCase(tag)}-group`))
+            tagGrp = document.getElementById(`${camelCase(tag)}-group`);
         else{
             tagGrp = document.getElementById("notification-group-template").content.cloneNode(true).querySelector("div");
-            tagGrp.id = `${tag}-group`;
+            tagGrp.id = `${camelCase(tag)}-group`;
             notificationHost.appendChild(tagGrp);  
             tagGrp.querySelector('[data-col="tag"]').textContent = tag;          
         }
-        removeAllElem(`#${tag}-group .collate-content *`);
+        removeAllElem(`#${camelCase(tag)}-group .collate-content *`);
         notificatioGrpObj[tag]
         .forEach((job,i,arr)=>{
             let notificationDiv = document.getElementById("notification-template").content.cloneNode(true).querySelector("div");
@@ -877,9 +894,16 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
             notificationDiv.querySelector('[data-col="label"]').textContent = job.label;
             notificationDiv.querySelector('[data-col="time"]').textContent = job.time;
             notificationDiv.dataset.obj = JSON.stringify(job);
-            let description;
+            let description = "";
             if(job.type==="reminder")
                 description = job.note;
+            else
+            if(job.type==="bill-payment"){
+                if(job.billType==="sales-select")
+                    description = `${job.billObj.name} Bill No: ${job.billObj.billNo} Amount Rs.${Math.round(job.billObj.netAmtTax)} is due for collection.`;
+                if(job.billType==="purchase-select")
+                    description = `${job.billObj.name} Bill No: ${job.billObj.billNo} Amount Rs.${Math.round(job.billObj.total)} is due for payment.`;
+            }
             notificationDiv.querySelector('[data-col="description"]').textContent = description;
             collateUpdator(tagGrp,arr,i,job);
             notificationDiv.style.setProperty("--color",job.color);
@@ -912,12 +936,27 @@ function execRetractHandler(e){
     }
 }
 
+function clear2ndRemovable(){
+    removeAllElem(".removable-2");
+    [...document.querySelectorAll(".retractable-div")]
+    .forEach(noticeDiv=>{
+        noticeDiv.style.height = [...noticeDiv.querySelectorAll(".notification")].reduce((acc,elem)=>acc+elem.scrollHeight,0) + "px";
+    });
+}
+
 function notificationAction(e){
     if(e.target.nodeName!=="BUTTON") return;
     let cmd = e.target.dataset.cmd;
+    clear2ndRemovable();
     if(cmd==="delete-all"){
-        let noticeGrp = e.path.find(elem=>elem.classList.contains("notification-group"));
-        let tag = noticeGrp.id.split("-group")[0];
+        let noticeGrp = e.path.find(elem=>elem.classList.contains("notification-group")),tag;
+        let regex = /(?<![A-Z])(?<!^)[A-Z]{1}/g;
+        // console.log(regex.test(noticeGrp.id.split("-group")[0]))
+        if(regex.test(noticeGrp.id.split("-group")[0]))
+            tag = reverseCamelCase(noticeGrp.id.split("-group")[0]);
+        else
+            tag = noticeGrp.id.split("-group")[0];
+        tag = tags.find(_tag=>new RegExp(_tag,"i").test(tag));
         ipcRenderer.send("manage-schedule",tag,"exp-all",false);
         noticeGrp.classList.add("animation-common");
         noticeGrp.classList.add("vanish");
@@ -934,10 +973,9 @@ function notificationAction(e){
         notification.classList.add("vanish");
         setTimeout(()=>{
             notification.remove();
-            removeAllElem(`#${evObj.tag}-group .collate-content *`);
-            let arr = [...document.querySelectorAll(`#${evObj.tag}-group .notification`)].map(elem=>JSON.parse(elem.dataset.obj));
-            console.log(arr);
-            let tagGrp = document.getElementById(`${evObj.tag}-group`);
+            removeAllElem(`#${camelCase(evObj.tag)}-group .collate-content *`);
+            let arr = [...document.querySelectorAll(`#${camelCase(evObj.tag)}-group .notification`)].map(elem=>JSON.parse(elem.dataset.obj));
+            let tagGrp = document.getElementById(`${camelCase(evObj.tag)}-group`);
             arr.forEach((obj,i)=>{
                 collateUpdator(tagGrp,arr,i,obj);
             });
@@ -946,4 +984,28 @@ function notificationAction(e){
     else
     if(cmd==="clear")
         removeAllElem(".notification-group");
+    else
+    if(cmd==="postpone"){
+        let notification = e.path.find(elem=>elem.classList.contains("notification"));
+        let noticeDiv = e.path.find(elem=>elem.classList.contains("retractable-div"));
+        let form = appendToHost("#postpone-template",notification);
+        let evObj = JSON.parse(notification.dataset.obj);
+        form.dataset.obj = JSON.stringify(evObj);
+        noticeDiv.style.height = notification.scrollHeight + "px";
+    }
+}
+
+function submitHandler(e){
+    e.preventDefault();
+    let data = Object.fromEntries(new FormData(e.target).entries());
+    let evObj = JSON.parse(e.target.dataset.obj);
+    if(new Date(data.time)<new Date(evObj.time)){
+        let p = appendToHost("#time-error-template",e.target,"p");
+        setTimeout(()=>{p.remove()},2000);
+    }
+    else{
+        evObj.time = data.time;
+        ipcRenderer.send("manage-schedule",evObj,"exp-u",false,"time");
+        clear2ndRemovable();
+    }
 }

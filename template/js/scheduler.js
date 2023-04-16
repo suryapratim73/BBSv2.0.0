@@ -41,7 +41,7 @@ function submitHandler(e){
     e.preventDefault();
     let data = Object.fromEntries(new FormData(e.target).entries())
     if(data.type!=="reminder")
-        data.billObj = obj;
+        data.billObj = obj ?? {...document.querySelector("#select-host option").dataset};
     ipcRenderer.send("manage-schedule",data,"a");
 }
 
@@ -65,7 +65,6 @@ async function changeHandler(e){
     }
     else
     if(cmd==="billType"){
-        console.log(document.getElementById("select-host"))
         removeAllElem(".removable-select");
         let select = document.getElementById(value).content.cloneNode(true).querySelector("select");
         document.getElementById("select-host").appendChild(select);

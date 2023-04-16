@@ -739,8 +739,31 @@
             <p data-col="time"></p>
             <div class="btn-container">
                 <button data-cmd="delete">Dismiss</button>
+                <button data-cmd="postpone">Postpone reminder</button>
             </div>
         </div>
+    </template>
+    <template id="postpone-template">
+        <form onsubmit="submitHandler(event)" onclick="event.stopPropagation()" data-cmd="update-time" class="removable-2">
+            <h4>Update Tine</h4>
+            <div>
+                <div>
+                    <div>
+                        <label for="time">Set Time</label>
+                    </div>
+                    <div>
+                        <input type="datetime-local" name="time" id="time">
+                    </div>
+                </div>
+                <div class="btn-container">
+                    <button type="submit">Save</button>
+                    <button type="button" onclick="clear2ndRemovable()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </template>
+    <template id="time-error-template">
+        <p class="error">Time cannot be from past.</p>
     </template>
 </body>
 </html>

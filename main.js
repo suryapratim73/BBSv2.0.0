@@ -2344,7 +2344,7 @@ ipcMain.on("call-scheduler",()=>{
   createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true});
 });
 
-ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true)=>{
+ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
   let path2scheduler = getSchedulerPath();
   if(!fs.existsSync(path2scheduler)){
     dialog.showErrorBox({
@@ -2395,7 +2395,12 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true)=>{
       jsData.expiredSchedules = jsData.expiredSchedules.filter(evObj=>evObj.tag!==data);
     else
     if(flag==="exp-r")
-      jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data),1)
+      jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data),1);
+    else
+    if(flag==="exp-u"){
+      let evObj = jsData.expiredSchedules.find(obj=>obj.id===data.id);
+      evObj[updateKey] = data[updateKey];
+    }
     fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
     createNotifications()
   }
@@ -2471,7 +2476,8 @@ function createNotifications(){
       let { id,time } = evObj;
       if(Math.sign(new Date(time)-Date.now())>0){
         let timeDiff = new Date(time)-Date.now();
-        if(timeDiff>2147483647) return
+        timeDiff = 1;
+        if(timeDiff>2147483647) return;
         jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,timeDiff));
       }
       else
