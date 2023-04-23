@@ -894,7 +894,7 @@ form#registration{
     background: var(--color);
 }
 .notification-group,.retractable-div,.notification{
-    transition: height 0.5s linear;
+    transition: height 0.3s linear;
 }
 .notification form{
     display: flex;

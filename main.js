@@ -2400,9 +2400,15 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
     if(flag==="exp-u"){
       let evObj = jsData.expiredSchedules.find(obj=>obj.id===data.id);
       evObj[updateKey] = data[updateKey];
+      if(updateKey==="time"){
+        jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data.id),1);
+        jsData.schedules.push(evObj);
+      }
     }
     fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
-    createNotifications()
+    createNotifications();
+    if(flag==="exp-u" && updateKey==="time")
+      getMainWindow().webContents.send("notification",jsData.expiredSchedules,true);
   }
   catch(err){
     appLogger({
@@ -2452,12 +2458,7 @@ exports.scheduleManager = main=>{
 function sendIPCNotification(evObj,job){
   ipcMain.emit("manage-schedule",null,evObj.id,"exp",false);
   let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
-  let arr;
-  if(jsData.expiredSchedules.length>0)
-    arr = [...jsData.expiredSchedules,evObj];
-  else
-    arr = [evObj];
-  getMainWindow().webContents.send("notification",arr,true);
+  getMainWindow().webContents.send("notification",jsData.expiredSchedules,true);
   let notification = new Notification({
     title:evObj.type,
     body:evObj.title
@@ -2476,7 +2477,7 @@ function createNotifications(){
       let { id,time } = evObj;
       if(Math.sign(new Date(time)-Date.now())>0){
         let timeDiff = new Date(time)-Date.now();
-        timeDiff = 1;
+        // timeDiff = 1;
         if(timeDiff>2147483647) return;
         jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,timeDiff));
       }
@@ -2496,8 +2497,7 @@ ipcMain.on("get-notification",e=>{
       jsData.expiredSchedules = jsData.expiredSchedules.filter(obj=>obj!==null);
       fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
     }
-    if(jsData.expiredSchedules.length>0)
-      BrowserWindow.fromId(e.frameId).webContents.send("notification",jsData.expiredSchedules);
+    BrowserWindow.fromId(e.frameId).webContents.send("notification",jsData.expiredSchedules);
   }
   catch(err){
     appLogger({

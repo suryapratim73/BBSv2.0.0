@@ -5,6 +5,7 @@ const { customer } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
+const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
 
 let customerList = [];
 

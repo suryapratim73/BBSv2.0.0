@@ -18,13 +18,14 @@ exports.toggleDevTool = function(document){
 exports.validateInput = function validateInput(e){
     if(e.target.id==="payment-status" && e.target.value.length>2)
         return e.preventDefault();
-    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) 
+    if(e.target.dataset.subtype==="price" && !/[\d.]/.test(e.key)) 
         return e.preventDefault();
-    if(!/[\d+ ]/.test(e.key)){
+    if(!/[\d+ .]/.test(e.key)){
         if(
-            e.target.id==="partial-payment" || 
+            (e.target.id==="partial-payment" || 
             e.target.dataset.type==="Number" ||
-            e.target.id==="amount"
+            e.target.id==="amount") &&
+            e.target.dataset.subtype!="price"
             )//conditions..
             return e.preventDefault();
     }
@@ -34,7 +35,7 @@ exports.validateInput = function validateInput(e){
 exports.validateInput2 = function(e){
     validateInput(e)
     if(e.defaultPrevented) return;
-    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
+    if(e.target.dataset.subtype==="price" && !/[\d.]/.test(e.key)) e.preventDefault();
     if(Number(e.target.hasAttribute("max") && e.target.value)>Number(e.target.max)) e.preventDefault();
 }
 class Supplier{
@@ -139,11 +140,13 @@ function number2Word(num){
 }
 
 exports.getAmtToWord = function (amt){
-    amt = typeof amt!=="number"? Number(amt):amt;
+    amt = Math.round(typeof amt!=="number"? Number(amt):amt);
     let lakh = Math.floor(amt/100000);
     let thousand = Math.floor((amt - lakh*100000)/1000);
     let hundred = Math.floor((amt - lakh*100000 - thousand*1000)/100);
-    let ten = Math.floor((amt - lakh*100000 - thousand*1000 - hundred*100)/10)*10;
+    let ten = amt - lakh*100000 - thousand*1000 - hundred*100;
+    if(ten>19)
+        ten = Math.floor(ten/10)*10;
     let one = 0
     if(ten>1)
         one = Math.floor(amt - lakh*100000 - thousand*1000 - hundred*100 - ten);
@@ -155,9 +158,8 @@ exports.getAmtToWord = function (amt){
     ten = number2Word(ten);
     one = number2Word(one);
     let word = lakh + " " + thousand + " " + hundred + " and " + ten + " " + one + " only.";
-    word = word.substr(1,1).toUpperCase() + word.substring(2,word.length);
-    return word;
-}//need more testing.
+    return word.trim().split(/^and /i).pop().toLowerCase().split(" ").filter(str=>str!=="").reduce((acc,str)=>acc+str+" ","").trim();
+}
 
 function applyFilter(tbody,selection="*"){
     [...tbody.children].forEach(tr=>tr.classList.remove("hide")); 
@@ -1037,7 +1039,7 @@ exports.noDataPlaceholder = function(host){
     host.appendChild(div);
 }
 
-exports.selectionHandler = function(e,_currentStep){// Work needed here
+exports.selectionHandler = async function(e,_currentStep){// Work needed here
     if(e.target.dataset.name==="name" && _currentStep===3)
         currentStep = _currentStep;
     if(e.target.dataset.name==="billType"){// Step 2 
@@ -1070,7 +1072,7 @@ exports.selectionHandler = function(e,_currentStep){// Work needed here
         });
     }
     let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
-    if(!match || Object.keys(match).length==0) return;
+    // if(!match || Object.keys(match).length==0) return;
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
         bodyRow = e.target.parentNode.parentNode;
@@ -1090,7 +1092,8 @@ exports.selectionHandler = function(e,_currentStep){// Work needed here
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
             bodyRow.dataset[key] = match[key];
         }
-        bodyRow.querySelector(`[data-name="qty"]`)?.focus();
+        if(match && Object.keys(match).length>2)
+            bodyRow.querySelector(`[data-name="qty"]`)?.focus();
         match.sellId = bodyRow.dataset.sellId;
         orderItems = orderItems.filter(obj=>obj.sellId!==match.sellId);
         orderItems.push(match);

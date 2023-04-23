@@ -703,6 +703,10 @@
                     <input type="text" name="phones" id="phones">
                 </div>
             </div>
+            <div id="host"></div>
+            <div>
+                <button data-cmd="add-more-feilds" type="button" onclick="event.stopPropagation();addFeilds(event)">Add more details</button>
+            </div>
             <div>
                 <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
@@ -764,6 +768,51 @@
     </template>
     <template id="time-error-template">
         <p class="error">Time cannot be from past.</p>
+    </template>
+    <template id="no-notification-template">
+        <p class="notification-group">No notification</p>
+    </template>
+    <template id="add-payment-btn-template">
+        <button type="button" data-cmd="add-payment">Add Payment</button>
+    </template>
+    <template id="comp-more-info-feild-template">
+        <div>
+            <div>
+                <div>
+                    <label for="type">Information type</label>
+                </div>
+                <div>
+                    <select name="type" id="type" onchange="event.stopPropagation();addTypeFeild(event)">
+                        <option value="bank">Bank information</option>
+                        <option value="email">Email</option>
+                        <option value="website">Website</option>
+                    </select>
+                </div>
+            </div>
+            <div id="host-2"></div>
+        </div>
+    </template>
+    <template id="info-type-bank-template">
+        <div class="removable">
+            <div>
+                <label for="name">Bank Name</label>
+            </div>
+            <div>
+                <input type="text" name="name" id="bnk-name">
+            </div>
+            <div>
+                <label for="acc-no">Account Number</label>
+            </div>
+            <div>
+                <input type="number" name="acc-no" id="acc-no">
+            </div>
+            <div>
+                <label for="ifsc">IFSC</label>
+            </div>
+            <div>
+                <input type="text" name="ifsc" id="ifsc">
+            </div>
+        </div>
     </template>
 </body>
 </html>

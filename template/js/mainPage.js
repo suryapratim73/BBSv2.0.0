@@ -1,5 +1,7 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal } = require("../js/common");
+const { closeModal } = require("../js/common");
+const uuid = require("uuid");
 
 
 let themeObj = {
@@ -475,15 +477,15 @@ async function showForm(e,cmd,show){
                     if(!input) return;
                     let text = key!=="phones" ? compInfo[key] : "";
                     if(key==="phones")
-                        text = compInfo.phones.reduce((acc,val,index,self)=>{
+                        text = compInfo.phones?.reduce?.((acc,val,index,self)=>{
                             if(index===self.length-1)
                                 acc += val;
                             else
                                 acc += val + ", ";
                             return acc;
-                        },"");
-                    if(["gst","biller"].includes(key))
-                        input.setAttribute("disabled",true);
+                        },"") ?? compInfo.phones;
+                    // if(["gst","biller"].includes(key))
+                    //     input.setAttribute("disabled",true);
                     input.value = text;
                 });
             }
@@ -637,6 +639,21 @@ async function saveSettings(e){
     else
     if(cmd==="company-profile"){
         data.phones = data.phones.split(",").map(val=>Number(val.trim()));
+        data.moreInfo = [];
+        [...e.target.querySelectorAll("#host>div")]
+        .forEach(div=>{
+            let obj = {};
+            obj.id = div.id;
+            [...div.querySelectorAll("input,select")]
+            .forEach(inp=>{
+                obj[inp.name] = inp.value;
+            });
+            data.moreInfo.push(obj);
+        });
+        ["ifsc","name","type","acc-no"]
+        .forEach(key=>{
+            Reflect.deleteProperty(data,key);
+        });
         ipcRenderer.send("company-profile-info",data);
     }
     else
@@ -864,6 +881,8 @@ ipcRenderer.send("get-notification");
 ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
     removeAllElem(".notification-group");
     let notificationHost = document.getElementById("notification-div");
+    if(notifyJobs.length===0)
+        return appendToHost("#no-notification-template",notificationHost,"P");
     notifyJobs = notifyJobs.sort((obj1,obj2)=>new Date(obj2.time)-new Date(obj1.time));
     let firstPriorityTag = notifyJobs[0].tag;
     let notificatioGrpObj = notifyJobs.reduce((acc,job)=>{
@@ -899,6 +918,7 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
                 description = job.note;
             else
             if(job.type==="bill-payment"){
+                appendToHost("#add-payment-btn-template",notificationDiv.querySelector(".btn-container"),"BUTTON")
                 if(job.billType==="sales-select")
                     description = `${job.billObj.name} Bill No: ${job.billObj.billNo} Amount Rs.${Math.round(job.billObj.netAmtTax)} is due for collection.`;
                 if(job.billType==="purchase-select")
@@ -1008,4 +1028,18 @@ function submitHandler(e){
         ipcRenderer.send("manage-schedule",evObj,"exp-u",false,"time");
         clear2ndRemovable();
     }
+}
+
+function addFeilds(e){
+    let { cmd } = e.target.dataset;
+    if(cmd==="add-more-feilds"){
+        let child = appendToHost("#comp-more-info-feild-template",e.path.find(elem=>elem.nodeName==="FORM").querySelector("#host"),"DIV");
+        child.id = uuid.v4();
+        appendToHost("#info-type-bank-template",child.querySelector("#host-2"),"DIV");
+    }
+}
+
+function addTypeFeild(e){
+    if(e.target.value==="bank")
+        appendToHost("#info-type-bank-template",e.path.find(elem=>elem.nodeName==="FORM").querySelector("#host-2"),"DIV");
 }

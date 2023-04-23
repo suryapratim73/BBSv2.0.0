@@ -108,5 +108,16 @@ ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
     return stockList.find(obj=>obj.id===id);
 });
 
+ipcMain.handle("create-stock",async (e,itemObj)=>{
+    let tax = 1 + ("igst" in itemObj ? itemObj.igst : itemObj.sgst + itemObj.cgst)/100;
+    itemObj = await stock.create({
+        name:itemObj.name,
+        hsn:itemObj.hsn,
+        buyPrice:Math.round(itemObj.rate/tax)
+    });
+    stockList.push(new People(itemObj.dataValues));
+    return itemObj.dataValues;
+});
+
 exports.stockList = stockList;
 exports.queryStock = queryStock;

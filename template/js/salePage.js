@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2 } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -259,11 +259,26 @@ function proceedOrFinishHandler(e){
                 billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
-            orderItems.forEach(itemObj=>{
+            orderItems.forEach(async itemObj=>{
                 ["sgst","cgst","igst"].forEach(key=>{
                     if(itemObj[key]===0)
                         Reflect.deleteProperty(itemObj,key);
                 });
+                if(!("id" in itemObj)){
+                    [...document.querySelectorAll(".body.row")]
+                    .forEach(row=>{
+                        if(row.dataset.sellId===itemObj.sellId){
+                            itemObj.name = row.querySelector('[data-name="name"]').value;
+                            itemObj.hsn = row.querySelector('[data-name="hsn"]').value;
+                        }
+                    });
+                    let obj = await ipcRenderer.invoke("create-stock",itemObj);
+                    console.log(obj);
+                    itemObj = {
+                        ...itemObj,
+                        ...obj
+                    }
+                }
             });
             if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
                 let reducedOrder = reduceOrder();
@@ -293,12 +308,6 @@ function addPhone(e){
     customerPhoneInput.value = "";
     customerPhoneInput.focus();
     customerPhoneInput.setAttribute("placeholder","Add new phone number");
-}
-
-function validateInput2(e){
-    validateInput(e)
-    if(e.defaultPrevented) return;
-    if(e.target.dataset.subtype==="price" && !/\d/.test(e.key)) e.preventDefault();
 }
 
 function displaySection(){

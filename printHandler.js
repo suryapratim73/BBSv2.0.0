@@ -10,7 +10,7 @@ let modal,pageFit;
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
     if(!path2pdf && fs.existsSync(path2pdf)) return;
-    let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} ${path2pdf} `;
+    let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} "${path2pdf}.pdf" `;
     execCMD(cmd)
 }
 

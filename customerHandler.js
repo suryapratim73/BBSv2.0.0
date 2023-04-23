@@ -5,10 +5,10 @@ const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(".
 const path = require("path");
 const { Op } = require("sequelize");
 const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger } = require("./common");
-
-
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace } = require("./template/js/common");
+const { printDialog } = require("./printHandler");
+
 
 exports.customerPortal = mainWindow =>{
     return ()=>{
@@ -71,9 +71,12 @@ ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
 });
 
 ipcMain.on("print",(e,name,billDate,billNo)=>{
-    ipcMain.emit("show-print-modal",null,{pageFit:"-o fit-to-page"});
+    let modal = printDialog();
     let path2pdf = path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`);
-    ipcMain.on("printObj",print.bind(path2pdf))
+    ipcMain.once("print-obj",(e,printObj)=>{
+        print({printObj,path2pdf});
+        modal.close();
+    })
 });
 
 ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
