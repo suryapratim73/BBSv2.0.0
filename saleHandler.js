@@ -209,7 +209,9 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         }),
         ...orderItems
         .filter(obj=>obj.type!=="service")
-        .map(async ({qty,id,sellUnit,rate})=>{
+        .map(async ({qty,id,sellUnit,rate,name,hsn})=>{
+            if(!id)
+                return ipcMain.emit("create-stock",null,{name,hsn});
             let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
             let item = await stock.findOne({where:{id}});
             item.reduceStock = qty*multiplier;

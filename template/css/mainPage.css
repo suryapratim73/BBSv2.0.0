@@ -184,7 +184,6 @@ h1{
 #expired-bill-table-div .tbody{
     height: fit-content;
     border-bottom: 1px solid black;
-    max-height: 100%;
 }
 #scheduler-div{
     border-radius: 15px;
@@ -922,4 +921,7 @@ form#registration{
     top: 10%;
     font-size: 0.7rem;
     right: 35%;
+}
+.table p{
+    white-space: unset !important;
 }

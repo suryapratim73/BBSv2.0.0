@@ -273,11 +273,10 @@ function proceedOrFinishHandler(e){
                         }
                     });
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
-                    console.log(obj);
-                    itemObj = {
-                        ...itemObj,
-                        ...obj
-                    }
+                    Object.keys(obj)
+                    .forEach(key=>{
+                        itemObj[key] = obj[key];
+                    });
                 }
             });
             if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
@@ -389,7 +388,7 @@ function showPrintDialog(){
     ipcRenderer.send("show-print-modal",{pageFit:"-o fit-to-page"});
 }
 
-ipcRenderer.on("printObj",(e,printObj)=>{
+ipcRenderer.on("print-obj",(e,printObj)=>{
     billMeta.printObj = printObj;
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
