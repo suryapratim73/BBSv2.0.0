@@ -77,6 +77,21 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     BrowserWindow.getFocusedWindow().close();
 });
 
+function itemAnalyzer(orderItems){
+    let itemList = JSON.parse(JSON.stringify(orderItems));
+    itemList = itemList.reduce((acc,itemObj)=>{
+        let match = acc.find(obj=>obj.name===itemObj.name);
+        if(match){
+            match.qty += itemObj.qty;
+            match.rate = 0.5*(match.rate+itemObj.rate)
+        }
+        else
+            acc.push(itemObj);
+        return acc;
+    },[]); // Item Grouping
+    return itemList;
+}
+
 async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     closeFlag = true;
     if(flag==="regular")
@@ -176,11 +191,14 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             ["entryNo","DESC"]
         ]
     })))?.dataValues.balance ?? 0;
+    orderItems = itemAnalyzer(orderItems);
     Promise.all([
         ...orderItems.filter(obj=>obj.type!=="service")
         .map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
             let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
             let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
+            if(type==="service")
+                multiplier = 1;
             return billModel.create({
                 name,
                 type,

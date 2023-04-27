@@ -318,17 +318,23 @@ function displaySection(){
     [...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue")]
     .forEach(p=>{
         if(p.dataset.name==="specialPrice" && "specialPrice" in selectedItem){
-            let sorted = JSON.parse(selectedItem.specialPrice)
-                .filter(obj=>obj.customerId===customer.id)
-                .sort((obj1,obj2)=>{
-                    if(new Date(obj1.billDate)<new Date(obj2.billDate))
-                        return 1;
-                    else
-                    if(new Date(obj1.billDate)==new Date(obj2.billDate))
-                        return 0;
-                    else
-                        return -1
-                });
+            let sorted;
+            try{
+                sorted = JSON.parse(selectedItem.specialPrice ?? {});
+            }
+            catch(err){
+                sorted = [];
+            }
+            sorted.filter(obj=>obj.customerId===customer.id)
+            .sort((obj1,obj2)=>{
+                if(new Date(obj1.billDate)<new Date(obj2.billDate))
+                    return 1;
+                else
+                if(new Date(obj1.billDate)==new Date(obj2.billDate))
+                    return 0;
+                else
+                    return -1
+            });
             p.textContent = sorted?.[0]?.rate ?? 0;
         }
         else

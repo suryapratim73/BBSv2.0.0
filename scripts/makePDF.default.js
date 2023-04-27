@@ -32,7 +32,6 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
 
 exports.billPDF = async function(billObj){
     const {billMeta,customer,orderItems} = billObj;
-    console.log(customer)
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, emblem } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
@@ -68,7 +67,7 @@ exports.billPDF = async function(billObj){
         for(;j<orderItems.length;j++){
             createBody(doc,orderItems[j],initialY,j+1)
             if(doc.widthOfString(orderItems[j].name)>185)
-                initialY+=40;
+                initialY+=45;
             else
                 initialY+=20;
             if(initialY>650 - 2*doc.currentLineHeight()){
