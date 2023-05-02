@@ -1305,7 +1305,7 @@ exports.reduceOrder = function(){
             else
             if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
                 multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            if(obj.type!=="service")
+            if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
                 acc.netQty += obj.qty * multiplier;
             acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
             acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;

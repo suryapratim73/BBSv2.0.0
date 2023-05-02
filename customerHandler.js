@@ -36,12 +36,12 @@ ipcMain.on("get-customer",async e=>{
         await initCustomerList();
     let _customerList = customerList.reduce(async (acc,custObj)=>{
         let customerLedger = await getLedgerModel(custObj.id,customerLedgerSchema);
-        let {balance} = (await customerLedger.findOne({
+        let {balance=0} = (await customerLedger.findOne({
             attributes:["balance"],
             order:[
                 ["entryNo","DESC"]
             ]
-        })).dataValues;
+        }))?.dataValues ?? {};
         let netPurchase = (await sale.findOne({
             where:{
                 customerId:custObj.id
@@ -49,7 +49,7 @@ ipcMain.on("get-customer",async e=>{
             attributes:[
                 [sequelize.fn("SUM",sequelize.col("billAmt")),"netPurchase"]
             ]
-        })).dataValues.netPurchase;
+        }))?.dataValues.netPurchase;
         acc = await acc;
         acc.push({...custObj,balance,netPurchase});
         return acc;

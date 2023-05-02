@@ -113,7 +113,7 @@ ipcMain.handle("create-stock",async (e,itemObj)=>{
     itemObj = await stock.create({
         name:itemObj.name,
         hsn:itemObj.hsn,
-        buyPrice:Math.round(itemObj.rate/tax)
+        buyPrice:(Math.round(itemObj.rate/tax) ?? 0)
     });
     stockList.push(new People(itemObj.dataValues));
     return itemObj.dataValues;

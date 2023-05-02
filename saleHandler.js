@@ -2,7 +2,7 @@ const { ipcMain, dialog, ipcRenderer } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
@@ -118,6 +118,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         orderRef,
         netAmtTax
     } = billMeta;
+    setBillNo(billNo);
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     closeFlag = true;

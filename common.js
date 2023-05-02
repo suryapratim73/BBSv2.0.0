@@ -32,6 +32,9 @@ class BillNoGenerator{
     }
     reduceBillNo(){
         this.billNo--;
+    }
+    setBillNo(billNo){
+        this.billNo = billNo;
     }   
 }
 
@@ -111,6 +114,10 @@ exports.billNoCounter = function(count){
         billNoGenInstance = new BillNoGenerator(count);
     else
         return billNoGenInstance.getNextBillNo();
+}
+
+exports.setBillNo = function(billNo){
+    billNoGenInstance.setBillNo(billNo);
 }
 
 exports.reduceBillNo = function(){

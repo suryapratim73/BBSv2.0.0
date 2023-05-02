@@ -486,7 +486,7 @@ app.on("ready", async () => {
     "titileFontSize": 20,
     "titleFontFamily": "Times-Bold",
     "captionFontSize": 14,
-    "defaultFontFamile": "Times-Roman",
+    "defaultFontFamily": "Times-Roman",
     "defaultFontSize": 10,
     "headingFontSize": 12,
     "margin": 10,
