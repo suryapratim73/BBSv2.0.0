@@ -415,6 +415,12 @@ async function showForm(e,cmd,show){
         if(cmd==="back-page1"){
             removeAllElem(".page2");
             document.querySelector(".page1").classList.remove("hide");
+            // Experimental step
+            [...document.querySelectorAll(".page1 button")]
+            .forEach(btn=>{
+                btn.parentNode.classList.remove("hide");
+                btn.classList.remove("hide");
+            });
         }
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
@@ -489,6 +495,7 @@ async function showForm(e,cmd,show){
                     input.value = text;
                 });
             }
+            else
             if(cmd==="lock-screen"){
                 let cookies = await ipcRenderer.invoke("check-session-info");
                 let userPolicy = await ipcRenderer.invoke("get-policy");
@@ -512,6 +519,7 @@ async function showForm(e,cmd,show){
                     });
                 }
             }
+            else
             if(cmd==="appearance-management"){
                 let appPolicy = await ipcRenderer.invoke("get-app-policy");
                 Object.keys(appPolicy)
@@ -539,6 +547,7 @@ async function showForm(e,cmd,show){
                         feild.setAttribute("checked",true)
                 });
             }
+            else
             if(cmd==="registration"){
                 let gst = await ipcRenderer.invoke("app-registration-info");
                 if(gst){
@@ -549,6 +558,13 @@ async function showForm(e,cmd,show){
                     form.querySelector("div:first-child>div:first-child").classList.add("hide");
                     form.querySelector("button[type='submit']").setAttribute("disabled",true);
                 }
+            }
+            else
+            if(cmd==="adv-invoice-format"){
+                document.querySelector(".page1").classList.add("hide");
+                // let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
+                // document.getElementById(`${show}`).appendChild(form);
+                
             }
         }
     }

@@ -135,7 +135,10 @@ function number2Word(num){
         case 90:
             return "ninety";
         default:
-            return "";
+            if(num>0)
+                return number2Word(Math.floor(num/10)*10)+" "+number2Word(Math.round(((num/10)-Math.floor(num/10))*10));
+            else
+                return "";
     }
 }
 

@@ -48,7 +48,7 @@ function execCMD(cmd){
             message: stdout
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        BrowserWindow.getFocusedWindow().webContents.send("print-done");
+        BrowserWindow.getFocusedWindow()?.webContents.send("print-done");
     });
 }
 

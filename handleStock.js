@@ -110,10 +110,13 @@ ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
 
 ipcMain.handle("create-stock",async (e,itemObj)=>{
     let tax = 1 + ("igst" in itemObj ? itemObj.igst : itemObj.sgst + itemObj.cgst)/100;
+    let buyPrice = Math.round(itemObj.rate/tax);
+    if(!buyPrice)
+        buyPrice = 0;
     itemObj = await stock.create({
         name:itemObj.name,
         hsn:itemObj.hsn,
-        buyPrice:(Math.round(itemObj.rate/tax) ?? 0)
+        buyPrice
     });
     stockList.push(new People(itemObj.dataValues));
     return itemObj.dataValues;

@@ -247,6 +247,7 @@
                         <div class="settings-div">
                             <p data-cmd="company-profile" data-show="billing-settings" data-msg="Edit company profile.">Company profile</p>
                             <p data-cmd="bill-template" data-show="billing-settings" data-msg="The selected bill template will be used for all bill printing.">Select bil template</p>
+                            <p data-cmd="bill-no" data-show="billing-settings" data-msg="Define bill number format and set bill no">Invoice numbering</p>
                         </div>
                     </div>
                 </div>
@@ -710,6 +711,37 @@
             <div>
                 <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="bill-no-template">
+        <form onsubmit="saveSettings(event)" class="page1" id="bill-no" data-cmd="bill-no" data-show="billing-settings">
+            <div>
+                <p>Change Invoice number format</p>
+                <div>
+                    <button class="main-ui-btn" data-show="billing-settings" type="button" data-cmd="adv-invoice-format">Change</button>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="bill-no">Set invoice number</label>
+                </div>
+                <div>
+                    <input type="text" name="bill-no" id="bill-no" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                </div>
+            </div>
+            <div>
+                <button class="main-ui-btn" type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="adv-invoice-format-template">
+        <form onsubmit="saveSettings(event)" class="page2" id="adv-bill-no" data-cmd="adv-bill-no" data-show="billing-settings">
+        
+            <div>
+                <button class="main-ui-btn" type="submit">Save</button>
+                <button type="button" data-cmd="back-page1" data-show="page1">Cancel</button>
             </div>
         </form>
     </template>

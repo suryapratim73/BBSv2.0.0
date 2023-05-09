@@ -37,7 +37,7 @@
                     <label for="customer-phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
                     <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
                 </div>
             </div>

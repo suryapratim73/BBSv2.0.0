@@ -6,7 +6,7 @@ const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCoun
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
-const { getsaleConfigPolicyPath, getOrderPath } = require("./template/js/common");
+const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
@@ -81,10 +81,8 @@ function itemAnalyzer(orderItems){
     let itemList = JSON.parse(JSON.stringify(orderItems));
     itemList = itemList.reduce((acc,itemObj)=>{
         let match = acc.find(obj=>obj.name===itemObj.name);
-        if(match){
+        if(match && match.rate===itemObj.rate)
             match.qty += itemObj.qty;
-            match.rate = 0.5*(match.rate+itemObj.rate)
-        }
         else
             acc.push(itemObj);
         return acc;
@@ -121,7 +119,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     setBillNo(billNo);
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
-    closeFlag = true;
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
         netDue = Math.round(netAmt + netTax);
@@ -309,6 +306,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     .catch(console.log);
     if(billType!=="monthly")
         return billPDF({billMeta,customer:customerObj,orderItems});
+    closeFlag = true;
 }
 
 ipcMain.on("save-exit-sale-bill",save_exist);
