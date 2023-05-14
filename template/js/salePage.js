@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2 } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -91,8 +91,12 @@ function reInitFormData(){
                 [...bodyRow.querySelectorAll("input")]
                 .forEach(input=>{
                     let key = input.dataset.name;
-                    if(key!=="unit")
-                        input.value = itemObj?.[key] ?? "";
+                    if(key!=="unit"){
+                        if("rate" in itemObj && itemObj.rate>0 && key==="standardSellPrice")
+                            input.value = itemObj.rate;
+                        else
+                            input.value = itemObj?.[key] ?? "";
+                    }
                     else
                         input.value = itemObj.sellUnit;
                 });

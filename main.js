@@ -491,7 +491,7 @@ app.on("ready", async () => {
     "headingFontSize": 12,
     "margin": 10,
     "emblem": "",
-    "unitMap": [{ "Kg": 1 }, { "Bag": 50 }, { "Bundle": 5 }, { "Piece": 1 }],
+    "unitMap": [{ "Kg": 1,unitName:"Kg" }, { "Bag": 50,unitName:"Kg" }, { "Bundle": 5,unitName:"Boxes" }, { "Piece": 1,unitName: "ps"}],
     "billTemplate": {
       "applyTemplate": false,
       "file": ""

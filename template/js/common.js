@@ -1148,10 +1148,7 @@ exports.calculateAmounts = function(){
     let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
     let res = unitMap.find(uObj=>unit in uObj);
-    let multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-    if(selectedItem.type==="service" && unit===selectedItem.unit)
-        multiplier = 1;
-    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier);
+    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate);
     let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
     let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
     let igst = Number(bodyRow.querySelector('[data-name="igst"]').value) ?? 0;
@@ -1167,7 +1164,7 @@ exports.calculateAmounts = function(){
     selectedItem.rate = rate;
     selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
     selectedItem.qty = quantity;
-    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * multiplier * (1 + (cgst + sgst + igst)/100));
+    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * (1 + (cgst + sgst + igst)/100));
     try{
         displaySection();
     }
@@ -1310,8 +1307,8 @@ exports.reduceOrder = function(){
                 multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
             if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
                 acc.netQty += obj.qty * multiplier;
-            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) ?? 0;
-            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * multiplier * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
+            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;
+            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
         }
         return acc;
     },{
@@ -1503,4 +1500,11 @@ exports.carosel = function(elems,i=0){
         elems[i].classList.remove("card-out");
         elems[i].classList.add("card-in");
     },10000);
+}
+
+exports.upperCaseInput = function(e){
+    if(/\w/.test(e.key) && e.key.length===1)
+        e.target.value = (e.target.value + e.key).toUpperCase();
+    if(e.key!=="Enter")
+        e.preventDefault();
 }

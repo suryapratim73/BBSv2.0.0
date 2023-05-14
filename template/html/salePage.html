@@ -54,7 +54,7 @@
                     <label for="customer-gst" class="highlight">GST Number</label>
                 </div>
                 <div class="row1">
-                    <input name="customer-gst" type="text" data-name="gst" id="customer-gst" />
+                    <input name="customer-gst" onkeypress="upperCaseInput(event)" pattern="^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\w{1}Z\w{1}$" type="text" data-name="gst" id="customer-gst" />
                 </div>
             </div>
         </div>
