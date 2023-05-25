@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -263,11 +263,22 @@ function proceedOrFinishHandler(e){
                 billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
+            let probableGrps = [];
             orderItems.forEach(async itemObj=>{
                 ["sgst","cgst","igst"].forEach(key=>{
                     if(itemObj[key]===0)
                         Reflect.deleteProperty(itemObj,key);
                 });
+                let grpObj = probableGrps.find(obj=>obj.rate===itemObj.rate);
+                if(itemObj.type!=="grp"){
+                    if(!grpObj)
+                        probableGrps.push({
+                            rate:itemObj.rate,
+                            items:[itemObj]
+                        })
+                    else
+                        grpObj.items.push(itemObj);
+                }
                 if(!("id" in itemObj)){
                     [...document.querySelectorAll(".body.row")]
                     .forEach(row=>{
@@ -289,6 +300,10 @@ function proceedOrFinishHandler(e){
                 billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
                 billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
             }
+            probableGrps = probableGrps.filter(obj=>obj.items.length!==1)
+            console.log(probableGrps)
+            if(probableGrps.length>0 && orderItems.length>1)
+                return showItemMergeOpts(probableGrps,orderItems);
         }// Step 3
         currentStep++;
     }
@@ -297,6 +312,103 @@ function proceedOrFinishHandler(e){
         currentStep--;
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
+}
+
+function showItemMergeOpts(probableGrps){
+    removeAllElem("main *");
+    let child = appendToHost("#item-group-option-template","main","div");
+    child.dataset.probableGrps = JSON.stringify(probableGrps);
+}
+
+function revealMoreGrpOpts(e,mode){
+    let page = e.path.find(elem=>elem.className==="page");
+    let probableGrps = JSON.parse(page.dataset.probableGrps);
+    if(mode===1){
+        ["#price-selector-div","#swap-btn","#item-host","#create-grp-btn","#new-grp"]
+        .forEach(id=>page.querySelector(id).classList.remove("hide"));
+        let select = page.querySelector("#price-selector-div select");
+        probableGrps.forEach(obj=>{
+            let option = document.createElement("option");
+            select.appendChild(option);
+            option.value = obj.rate;
+        });
+    }
+    else
+    if(mode===2){
+        removeAllElem(".item");
+        let selectedRate = Number(e.target.value);
+        let itemsForPrice = (probableGrps.find(obj=>obj.rate===selectedRate))?.items;
+        let itemHost = page.querySelector("#item-host");
+        itemsForPrice.forEach(itemObj=>{
+            let child = appendToHost("#grp-item-template",itemHost,"div");
+            child.dataset.obj = JSON.stringify(itemObj);
+            [...child.querySelectorAll("p")]
+            .forEach(p=>{
+                p.textContent = itemObj[p.dataset.name];
+            });
+        });
+    }
+}
+
+function swapItems(e){
+    e.stopPropagation();
+    let page = e.path.find(elem=>elem.className==="page");
+    let newGrpHost = page.querySelector("#new-grp");
+    let prevGrpHost = page.querySelector("#item-host");
+    [...page.querySelectorAll(".item")]
+    .map(elem=>{
+        let chkBox = elem.querySelector("input[type='checkbox']");
+        if(chkBox.checked)
+            return elem;
+    })
+    .filter(elem=>elem!==undefined)
+    .forEach(elem=>{
+        elem.querySelector("input[type='checkbox']").checked = false;
+        if(elem.parentNode===prevGrpHost)
+            newGrpHost.appendChild(elem);
+        else
+            prevGrpHost.appendChild(elem);
+    });
+}
+
+function createNewGrp(e){
+    e.stopPropagation();
+    let page = e.path.find(elem=>elem.className==="page");
+    let newGrpHost = page.querySelector("#new-grp");
+    let prevGrpHost = page.querySelector("#item-host");
+    let probableGrps = JSON.parse(page.dataset.probableGrps);
+    let selectedRate = Number(page.querySelector("select").value);
+    let newGrpItems = [...newGrpHost.querySelectorAll(".item")].map(elem=>JSON.parse(elem.dataset.obj));
+    let qty = 0;
+    newGrpItems.forEach(obj=>{
+        let  grpObj = probableGrps.find(obj=>obj.rate===selectedRate);
+        grpObj.items.splice(grpObj.items.find(_obj=>_obj.id===obj.id),1);
+        orderItems.splice(orderItems.find(_obj=>_obj.id===obj.id),1);
+        qty+=obj.qty;
+    });
+    let newId = uuid.v4();
+    // Proceed by adding label for new group and aggregate qty for new group.
+    let modal = createModal("new-grp-label");
+    let child = appendToHost("#new-grp-label-form-template",modal,"FORM");
+    orderItems.push({
+        items:newGrpItems,
+        rate:selectedRate,
+        id:newId,
+        qty,
+        type:"grp"
+    });
+    child.dataset.id = newId;
+}
+
+function addLabelToGrp(e){
+    e.preventDefault();
+    let label = e.target.label.value;
+    let newId = e.target.dataset.id;
+    let targetGrp = orderItems.find(obj=>obj.id===newId);
+    removeAllElem("#new-grp .item");
+    targetGrp.name = label;
+    closeModal();
+    console.log(orderItems)
 }
 
 function cancelAction(){

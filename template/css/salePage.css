@@ -208,3 +208,10 @@ option{
 #discount-div input{
     border: 1px solid gray;
 }
+#new-grp-label{
+    width: auto;
+    height: auto;
+}
+.cover{
+    background: rgba(0, 0, 0, 0.5);
+}

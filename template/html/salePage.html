@@ -385,5 +385,46 @@
             <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
         </div>
     </template>
+    <template id="item-group-option-template">
+        <div id="item-group-option" class="page">
+            <h2>Item grouping options</h2>
+            <p>Grouping items will reduce space space requirement in your bill page.</p>
+            <div id="body">
+                <div>
+                    <input type="checkbox" name="allow-grp" id="allow-grp" onchange="revealMoreGrpOpts(event,1)">
+                    <label for="allow-grp">Allow grouping of items</label>
+                </div>
+                <div id="price-selector-div" class="hide">
+                    <p>Select price</p>
+                    <div>
+                        <select onchange="revealMoreGrpOpts(event,2)">
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="item-host" class="hide">
+                    <p>Previous Group</p>
+                </div>
+                <button id="swap-btn" class="hide" onclick="swapItems(event)" type="button">Swap items</button>
+                <div id="new-grp" class="hide">
+                    <p>New Group</p>
+                </div>
+                <button id="create-grp-btn" class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
+            </div>
+        </div>
+    </template>
+    <template id="grp-item-template">
+        <div class="item">
+            <input type="checkbox">
+            <p class="eq-space" data-name="name"></p>
+            <p class="eq-space" data-name="qty"></p>
+            <p class="eq-space" data-name="sellUnit"></p>
+        </div>
+    </template>
+    <template id="new-grp-label-form-template">
+        <form onsubmit="addLabelToGrp(event)">
+            <input type="text" name="label" autofocus placeholder="Enter label of new group">
+        </form>
+    </template>
 </body>
 </html>
