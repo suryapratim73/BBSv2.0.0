@@ -95,6 +95,7 @@ input,select{
     display: flex;
     justify-content: space-between;
     gap: 2.5rem;
+    height: 100%;
 }
 #payment-div{
     height: min-content;
@@ -183,6 +184,7 @@ option{
 }
 .body.row{
     position: relative;
+    flex-wrap: wrap;
 }
 .body-row-options{
     top: 100%;
@@ -195,10 +197,11 @@ option{
     flex: 2;
     flex-direction: column;
     justify-content: space-between;
-    height: max-content;
+    height: 90%;
 }
 #left-section>div{
     width: 100%;
+    flex: unset;
 }
 #discount-div{
     height: min-content;
@@ -208,10 +211,115 @@ option{
 #discount-div input{
     border: 1px solid gray;
 }
+#grp-btn-div{
+    margin-top: auto;
+}
+#item-group-option{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#body{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 3;
+    overflow: hidden;
+    gap: 0.5rem;
+}
+#item-list{
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+    flex: 6;
+    height: 70%;
+    overflow: hidden;
+    gap: 0.5rem;
+}
+#price-selector-div{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#old-grp,#new-grp{
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#new-item-host,#old-item-host{
+    padding: 0.5rem;
+    border: 1px solid;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    flex: 3;
+    gap: 0.5rem;
+}
+.item{
+    display: flex;
+}
+.item p{
+    border-bottom: 1px solid gray;
+}
+.item p:last-child{
+    border-right: 1px solid gray;
+}
 #new-grp-label{
     width: auto;
     height: auto;
 }
+#new-grp-label{
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
 .cover{
     background: rgba(0, 0, 0, 0.5);
+}
+.desc-div{
+    width: 100%;
+    background: var(--theme-primary);
+    padding: 1rem 0.5rem;
+}
+.desc-div input{
+    border-radius: 5px;
+}
+.desc-div>div{
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.desc-div button{
+    background: transparent;
+    border: 1px solid transparent;
+}
+.desc-div button:hover{
+    animation: hover 300ms linear forwards; 
+}
+@keyframes hover{
+    0%{
+        border-top: 1px solid;
+    }
+    25%{
+        border-right: 1px solid;
+    }
+    50%{
+        border-bottom: 1px solid;
+    }
+    100%{
+        border-left: 1px solid;
+        border-top: 1px solid;
+        border-right: 1px solid;
+        border-bottom: 1px solid;
+    }
+}
+.desc-div button:first-child{
+    color: greenyellow;
+    font-size: 1.5rem;
+}
+.desc-div button:last-child{
+    color: red;
 }

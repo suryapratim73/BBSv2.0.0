@@ -1322,7 +1322,11 @@ exports.clickOrFocusinHandler = function(e){
     // if(currentStep!==3) return;
     if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
         return deleteRow(e);
+    if(e.target.dataset.cmd==="desc-btn" && e.type==="focusin")
+        return bodyRow.querySelector(".desc-div").classList.remove("hide");
     bodyRow = e.target.parentNode.parentNode;
+    if(bodyRow.classList.contains("desc-div"))
+        bodyRow = bodyRow.parentNode;
     if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
         selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
     try {

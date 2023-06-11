@@ -91,6 +91,42 @@ function itemAnalyzer(orderItems){
     return itemList;
 }
 
+async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type},billModel,custId,billDate,billNo){
+    let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
+    let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
+    await billModel.create({
+        name,
+        type,
+        hsn,
+        quantity:qty,
+        sellUnit,
+        rate:rate*multiplier,
+        tax:tax*amt/100,
+        sgst,
+        cgst,
+        igst
+    })
+    if(!id)
+        return ipcMain.emit("create-stock",null,{name,hsn});
+    let item = await stock.findOne({where:{id}});
+    item.reduceStock = qty*multiplier;
+    await item.save();
+    let match = stockList.find(obj=>obj.id===id);
+    match.quantity -= qty*multiplier;
+    match.specialPrice?.push({
+        customerId:custId,
+        rate,
+        billDate,
+        billNo
+    })
+    return stock.update({
+        specialPrice:match.specialPrice
+    },{
+        where:{id}
+    });
+}
+
 async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     closeFlag = true;
     if(flag==="regular")
@@ -118,7 +154,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         netAmtTax
     } = billMeta;
     setBillNo(billNo);
-    let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
@@ -209,25 +244,14 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     })))?.dataValues.balance ?? 0;
     orderItems = itemAnalyzer(orderItems);
     Promise.all([
-        ...orderItems.filter(obj=>obj.type!=="service")
-        .map(({name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type})=>{
-            let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
-            let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
-            if(type==="service")
-                multiplier = 1;
-            return billModel.create({
-                name,
-                type,
-                hsn,
-                quantity:qty,
-                sellUnit,
-                rate:rate*multiplier,
-                tax:tax*amt/100,
-                sgst,
-                cgst,
-                igst
-            })
-        }),
+        ...orderItems
+        .filter(obj=>obj.type!=="service")
+        .map(obj=>{
+            if(obj.type==="grp")
+                return obj.items.map(obj=>helperFunc1(obj,billModel,custId,billDate,billNo));
+            else
+                return helperFunc1(obj,billModel,custId,billDate,billNo);
+        }),//updating stock
         customerLedger.create({
             billStatus,
             date: billNo!="spot"? billDate : undefined,
@@ -241,29 +265,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand",
             balance: Math.round(lastBalance + netAmtTax - netPayment)
         }),
-        ...orderItems
-        .filter(obj=>obj.type!=="service")
-        .map(async ({qty,id,sellUnit,rate,name,hsn})=>{
-            if(!id)
-                return ipcMain.emit("create-stock",null,{name,hsn});
-            let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
-            let item = await stock.findOne({where:{id}});
-            item.reduceStock = qty*multiplier;
-            await item.save();
-            let match = stockList.find(obj=>obj.id===id);
-            match.quantity -= qty*multiplier;
-            match.specialPrice?.push({
-                customerId:custId,
-                rate,
-                billDate,
-                billNo
-            })
-            return await stock.update({
-                specialPrice:match.specialPrice
-            },{
-                where:{id}
-            });
-        }),//updating stock
         (await sale.sync()).create({
             billStatus,
             customerId:custId,

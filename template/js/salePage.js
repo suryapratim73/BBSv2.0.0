@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
 
@@ -19,7 +19,8 @@ let nameDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
-    bodyRow,timer,currentBillNo;
+    bodyRow,timer,currentBillNo,
+    probableGrps = [];
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -57,26 +58,42 @@ function stepDetail(){
 }
 
 function setFooter(){
-    let footerDF = document.getElementById("footer-template").content.cloneNode(true);
-    [...footer.children].forEach(elem=>elem.remove());
-    footer.appendChild(footerDF);
-    if(currentStep<4){
-        footer.querySelector(`[data-type="print"]`).classList.add("hide");
-        footer.querySelector(`[data-type="save"]`).classList.add("hide");
-        footer.querySelector(`[data-type="proceed"]`).classList.remove("hide");
+    if(!document.getElementById("btn-container")){
+        let footerDF = document.getElementById("footer-template").content.cloneNode(true).querySelector("DIV");
+        footer.appendChild(footerDF);
     }
+    [...footer.querySelectorAll("button")]
+    .forEach(btn=>btn.classList.add("hide"));
+    footer.querySelector(`[data-type="cancel"]`).classList.remove("hide");
+    if(currentStep<4)
+        footer.querySelector(`[data-type="proceed"]`).classList.remove("hide");
     else{
         if(billMeta.billType==="regular")
             footer.querySelector(`[data-type="print"]`).classList.remove("hide");
-        else
-            footer.querySelector(`[data-type="print"]`).classList.add("hide");
         footer.querySelector(`[data-type="save"]`).classList.remove("hide");
-        footer.querySelector(`[data-type="proceed"]`).classList.add("hide");
     }
-    if(currentStep==1)
-        footer.querySelector(`[data-type="back"]`).classList.add("hide");
-    else
+    if(currentStep!==1)
         footer.querySelector(`[data-type="back"]`).classList.remove("hide");
+}
+
+function helperFunc1(itemObj){
+    let main = document.querySelector("main");
+    main.querySelector("#add-item > button").click();
+    bodyRow = main.querySelector("#tbody .body.row:nth-last-child(2)");
+    selectedItem = itemObj;
+    [...bodyRow.querySelectorAll("input")]
+    .forEach(input=>{
+        let key = input.dataset.name;
+        if(key!=="unit"){
+            if("rate" in itemObj && itemObj.rate>0 && key==="standardSellPrice")
+                input.value = itemObj.rate;
+            else
+                input.value = itemObj?.[key] ?? "";
+        }
+        else
+            input.value = itemObj.sellUnit;
+    });
+    calculateAmounts();
 }
 
 function reInitFormData(){
@@ -84,23 +101,11 @@ function reInitFormData(){
     [ customer, billMeta, orderItems ]
     .forEach(obj=>{
         if(currentStep===3 && obj instanceof Array){//Step 3
-            orderItems.forEach(itemObj=>{
-                main.querySelector("#add-item > button").click();
-                bodyRow = main.querySelector("#tbody .body.row:nth-last-child(2)");
-                selectedItem = itemObj;
-                [...bodyRow.querySelectorAll("input")]
-                .forEach(input=>{
-                    let key = input.dataset.name;
-                    if(key!=="unit"){
-                        if("rate" in itemObj && itemObj.rate>0 && key==="standardSellPrice")
-                            input.value = itemObj.rate;
-                        else
-                            input.value = itemObj?.[key] ?? "";
-                    }
-                    else
-                        input.value = itemObj.sellUnit;
-                });
-                calculateAmounts();
+            orderItems.forEach(obj=>{
+                if(obj.type==="grp")
+                    obj.items.forEach(obj=>helperFunc1(obj));
+                else
+                    helperFunc1(obj);
             });
         }
         else{// Step 1,2,4
@@ -222,6 +227,10 @@ function page4Init(){
         document.querySelector(`[data-name="dueAmt"]`).textContent = 0;
         document.querySelector(`[data-name="return"]`).textContent = netPayment - (netAmtTax+deliveryCharge);
     }
+    if(probableGrps.length>0)
+        document.querySelector('button[data-cmd="grp-item"]').removeAttribute("disabled");
+    else
+        document.querySelector('button[data-cmd="grp-item"]').setAttribute("disabled",true);
     updatePayStatus();
 }
 
@@ -263,7 +272,6 @@ function proceedOrFinishHandler(e){
                 billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
-            let probableGrps = [];
             orderItems.forEach(async itemObj=>{
                 ["sgst","cgst","igst"].forEach(key=>{
                     if(itemObj[key]===0)
@@ -301,9 +309,6 @@ function proceedOrFinishHandler(e){
                 billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
             }
             probableGrps = probableGrps.filter(obj=>obj.items.length!==1)
-            console.log(probableGrps)
-            if(probableGrps.length>0 && orderItems.length>1)
-                return showItemMergeOpts(probableGrps,orderItems);
         }// Step 3
         currentStep++;
     }
@@ -314,23 +319,28 @@ function proceedOrFinishHandler(e){
     mainForm();
 }
 
-function showItemMergeOpts(probableGrps){
+function showItemMergeOpts(){
     removeAllElem("main *");
-    let child = appendToHost("#item-group-option-template","main","div");
-    child.dataset.probableGrps = JSON.stringify(probableGrps);
+    appendToHost("#item-group-option-template","main","div");
+    [...document.querySelectorAll("#btn-container button")]
+    .forEach(btn=>{
+        btn.classList.add("hide");
+        if(btn.dataset.type==="grp-pg-btn")
+            btn.classList.remove("hide");
+    });
 }
 
 function revealMoreGrpOpts(e,mode){
     let page = e.path.find(elem=>elem.className==="page");
-    let probableGrps = JSON.parse(page.dataset.probableGrps);
     if(mode===1){
-        ["#price-selector-div","#swap-btn","#item-host","#create-grp-btn","#new-grp"]
+        ["#price-selector-div","#swap-btn","#old-grp","#create-grp-btn","#new-grp"]
         .forEach(id=>page.querySelector(id).classList.remove("hide"));
         let select = page.querySelector("#price-selector-div select");
         probableGrps.forEach(obj=>{
             let option = document.createElement("option");
             select.appendChild(option);
             option.value = obj.rate;
+            option.textContent = obj.rate;
         });
     }
     else
@@ -338,7 +348,7 @@ function revealMoreGrpOpts(e,mode){
         removeAllElem(".item");
         let selectedRate = Number(e.target.value);
         let itemsForPrice = (probableGrps.find(obj=>obj.rate===selectedRate))?.items;
-        let itemHost = page.querySelector("#item-host");
+        let itemHost = page.querySelector("#old-item-host");
         itemsForPrice.forEach(itemObj=>{
             let child = appendToHost("#grp-item-template",itemHost,"div");
             child.dataset.obj = JSON.stringify(itemObj);
@@ -353,8 +363,8 @@ function revealMoreGrpOpts(e,mode){
 function swapItems(e){
     e.stopPropagation();
     let page = e.path.find(elem=>elem.className==="page");
-    let newGrpHost = page.querySelector("#new-grp");
-    let prevGrpHost = page.querySelector("#item-host");
+    let newGrpHost = page.querySelector("#new-item-host");
+    let prevGrpHost = page.querySelector("#old-item-host");
     [...page.querySelectorAll(".item")]
     .map(elem=>{
         let chkBox = elem.querySelector("input[type='checkbox']");
@@ -369,14 +379,17 @@ function swapItems(e){
         else
             prevGrpHost.appendChild(elem);
     });
+
+    if([...newGrpHost.querySelectorAll(".item")].length>0)
+        document.getElementById("create-grp-btn").removeAttribute("disabled");
+    else
+        document.getElementById("create-grp-btn").setAttribute("disabled",true);
 }
 
 function createNewGrp(e){
     e.stopPropagation();
     let page = e.path.find(elem=>elem.className==="page");
-    let newGrpHost = page.querySelector("#new-grp");
-    let prevGrpHost = page.querySelector("#item-host");
-    let probableGrps = JSON.parse(page.dataset.probableGrps);
+    let newGrpHost = page.querySelector("#new-item-host");
     let selectedRate = Number(page.querySelector("select").value);
     let newGrpItems = [...newGrpHost.querySelectorAll(".item")].map(elem=>JSON.parse(elem.dataset.obj));
     let qty = 0;
@@ -395,9 +408,60 @@ function createNewGrp(e){
         rate:selectedRate,
         id:newId,
         qty,
-        type:"grp"
+        type:"grp",
+        ...["hsn","sellUnit","sgst","cgst","igst"].reduce((acc,key)=>{
+            if(key in newGrpItems[0] && newGrpItems[0][key])
+                acc[key] = newGrpItems[0][key];
+            return acc;
+        },{}),
+        desc:newGrpItems.reduce((acc,obj,i,self)=>{
+            acc += obj.name + "-" + obj.qty + obj.sellUnit;
+            if(i<self.length-1)
+                acc += ", ";
+            return acc;
+        },"")
     });
     child.dataset.id = newId;
+    modal.querySelector("input").focus();
+    document.querySelector(".cover").addEventListener("click",closeModal)
+}
+
+function showPage4(e,cmd){
+    if(cmd==="cancel-grp")
+        orderItems = orderItems.reduce((acc,obj)=>{
+            if(obj.type!=="grp")
+                acc.push(obj);
+            else
+                obj.items.forEach(obj=>acc.push(obj));
+            return acc;
+        },[]);
+    else
+        orderItems.forEach(obj=>{
+            if(obj.type==="grp")
+                obj.desc = obj.items.reduce((acc,obj,i,self)=>{
+                    acc += obj.name + ": " + obj.qty + capitalize(obj.sellUnit);
+                    if(i<self.length-1)
+                        acc += ", ";
+                    return acc;
+                },"")
+        });
+    currentStep = 4;
+    document.getElementById("page-header").innerHTML = stepDetail();
+    mainForm();
+}
+
+function addDescToItem(e){
+    e.preventDefault();
+    let cmd = e.target.dataset.cmd;
+    let descDiv = bodyRow.querySelector(".desc-div");
+    if(cmd==="rej"){
+        descDiv.querySelector("input").value = "";
+        if("desc" in selectedItem)
+            selectedItem.desc = "";
+    }
+    else
+        selectedItem.desc = descDiv.querySelector("input").value;
+    descDiv.classList.add("hide");
 }
 
 function addLabelToGrp(e){
@@ -408,7 +472,7 @@ function addLabelToGrp(e){
     removeAllElem("#new-grp .item");
     targetGrp.name = label;
     closeModal();
-    console.log(orderItems)
+    // Adopt this new item grouping concept in backend
 }
 
 function cancelAction(){
@@ -537,4 +601,12 @@ document.addEventListener("keydown",e=>{
         deleteRow();
     if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
         document.querySelector(`[data-type="print"]`).click();
+    if(e.shiftKey && e.key==="ArrowDown")
+        bodyRow.querySelector(".desc-div").classList.remove("hide");
+    if(e.shiftKey && e.key==="Enter")
+        bodyRow.querySelector(".desc-cnf-btn").click();
+    if(e.shiftKey && e.key==="ArrowUp")
+        bodyRow.querySelector(".desc-rej-btn").click();
+    // if(e.ctrlKey && e.key==="g")
+    //     document.querySelector("#grp-btn-div button").click();
 });

@@ -251,6 +251,9 @@
                 <div id="discount-div">
                     <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
                 </div>
+                <div id="grp-btn-div">
+                    <button data-cmd="grp-item" disabled onclick="showItemMergeOpts()" type="button">Show Item Grouping Options</button>
+                </div>
             </div>
             <div id="summary-div">
                 <div>
@@ -282,11 +285,13 @@
     </template>
     <template id="footer-template">
         <div id="btn-container">
-            <button type="button" data-type="cancel" onclick="cancelAction()">Cancel</button>
-            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)">Back</button>
-            <button type="submit" data-type="proceed" class="main-ui-btn">Proceed</button>
-            <button type="button" data-type="print" class="main-ui-btn" onclick="showPrintDialog()">Print</button>
-            <button type="button" data-type="save" class="main-ui-btn" onclick="saveExit(event)">Save & Exit</button>
+            <button type="button" data-type="cancel" onclick="cancelAction()" class="hide">Cancel</button>
+            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide">Back</button>
+            <button type="submit" data-type="proceed" class="main-ui-btn hide">Proceed</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide">Cancel Grouping</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide">Done</button>
+            <button type="button" data-type="print" class="main-ui-btn hide" onclick="showPrintDialog()">Print</button>
+            <button type="button" data-type="save" class="main-ui-btn hide" onclick="saveExit(event)">Save & Exit</button>
         </div>
     </template>
     <template id="body-row-template">
@@ -302,6 +307,13 @@
             <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p class="amt-with-tax"></p></div>
+            <div class="desc-div hide">
+                <input type="text" data-name="desc" placeholder="Add product description">
+                <div onclick="addDescToItem(event)">
+                    <button data-cmd="cnf" class="desc-cnf-btn">&#10004;</button>
+                    <button data-cmd="rej" class="desc-rej-btn">&#10060;</button>
+                </div>
+            </div>
         </div>
     </template>
     <template id="summary-div-template">
@@ -383,6 +395,7 @@
     <template id="body-row-options-template">
         <div class="body-row-options">
             <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
+            <button data-cmd="desc-btn" type="button" tabindex="-1">Add Description</button>
         </div>
     </template>
     <template id="item-group-option-template">
@@ -402,14 +415,18 @@
                         </select>
                     </div>
                 </div>
-                <div id="item-host" class="hide">
-                    <p>Previous Group</p>
+                <div id="item-list">
+                    <div id="old-grp" class="hide">
+                        <p>Previous Group</p>
+                        <div id="old-item-host"></div>
+                    </div>
+                    <button id="swap-btn" class="hide" onclick="swapItems(event)" type="button">Swap items</button>
+                    <div id="new-grp" class="hide">
+                        <p>New Group</p>
+                        <div id="new-item-host"></div>
+                    </div>
                 </div>
-                <button id="swap-btn" class="hide" onclick="swapItems(event)" type="button">Swap items</button>
-                <div id="new-grp" class="hide">
-                    <p>New Group</p>
-                </div>
-                <button id="create-grp-btn" class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
+                <button id="create-grp-btn" disabled class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
             </div>
         </div>
     </template>
