@@ -1,418 +1,589 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Customer Portal</title>
-    <link rel="stylesheet" href="../css/customerPortal.css">
+    <link rel="stylesheet" href="../css/customerPortal.css" />
     <script src="../js/customerPortal.js" defer></script>
-</head>
-<body>
+  </head>
+  <body>
     <div id="chart-div">
-        <div id="canvas-container">
-            <canvas width="200" height="200" ></canvas>
-        </div>
-        <p>Sale distribution pie chart</p>
-        <p>* Click on color to bring customer into view</p>
+      <div id="canvas-container">
+        <canvas width="200" height="200"></canvas>
+      </div>
+      <p>Sale distribution pie chart</p>
+      <p>* Click on color to bring customer into view</p>
     </div>
     <div id="right-div">
-        <div id="searchbar">
-            <div id="form">
-                <div class="hide" id="btn-container">
-                    <button data-cmd="bills" data-view="bills" id="show-bill-BTN" type="button" class="main-ui-btn">Show Bills</button>
-                    <button data-cmd="ledger" data-view="ledger" id="show-ledger-BTN" class="main-ui-btn hide" type="button">Show Ledger</button>
-                    <button data-cmd="print-ledger" data-view="bills" id="print-ledger" type="button" class="main-ui-btn">Print Ledger</button>
-                    <button data-cmd="update-profile" class="main-ui-btn">Update Profile</button>
-                    <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">Back</button>
-                    <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide" type="button">Filter</button>
-                    <div id="filter-option" class="hide">
-                        <div class="selected">
-                            <button type="button" data-cmd="all" class="main-ui-btn filter-btn">All</button>
-                        </div>
-                        <div>
-                            <button type="button" data-cmd="unpaid" class="main-ui-btn filter-btn">Unpaid</button>
-                        </div>
-                        <div>
-                            <button type="button" data-cmd="paid" class="main-ui-btn filter-btn">Paid</button>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <input type="text" name="searchText" placeholder="Search customer by any">
-                </div>
+      <div id="searchbar">
+        <div id="form">
+          <div class="hide" id="btn-container">
+            <button
+              data-cmd="bills"
+              data-view="bills"
+              id="show-bill-BTN"
+              type="button"
+              class="main-ui-btn"
+            >
+              Show Bills
+            </button>
+            <button
+              data-cmd="ledger"
+              data-view="ledger"
+              id="show-ledger-BTN"
+              class="main-ui-btn hide"
+              type="button"
+            >
+              Show Ledger
+            </button>
+            <button
+              data-cmd="print-ledger"
+              data-view="bills"
+              id="print-ledger"
+              type="button"
+              class="main-ui-btn"
+            >
+              Print Ledger
+            </button>
+            <button data-cmd="update-profile" class="main-ui-btn">
+              Update Profile
+            </button>
+            <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">
+              Back
+            </button>
+            <button
+              data-cmd="filter"
+              data-view="ledger"
+              id="filter-btn"
+              class="main-ui-btn hide"
+              type="button"
+            >
+              Filter
+            </button>
+            <div id="filter-option" class="hide">
+              <div class="selected">
+                <button
+                  type="button"
+                  data-cmd="all"
+                  class="main-ui-btn filter-btn"
+                >
+                  All
+                </button>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  data-cmd="unpaid"
+                  class="main-ui-btn filter-btn"
+                >
+                  Unpaid
+                </button>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  data-cmd="paid"
+                  class="main-ui-btn filter-btn"
+                >
+                  Paid
+                </button>
+              </div>
             </div>
+          </div>
+          <div>
+            <input
+              type="text"
+              name="searchText"
+              placeholder="Search customer by any"
+            />
+          </div>
         </div>
-        <div id="main-section">
-            <div id="customer-list">
-                <div class="hide" data-letter="a">
-                    <h1>A</h1>
-                </div>
-                <div class="hide" data-letter="b">
-                    <h1>B</h1>
-                </div>
-                <div class="hide" data-letter="c">
-                    <h1>C</h1>
-                </div>
-                <div class="hide" data-letter="d">
-                    <h1>D</h1>
-                </div>
-                <div class="hide" data-letter="e">
-                    <h1>E</h1>
-                </div>
-                <div class="hide" data-letter="f">
-                    <h1>F</h1>
-                </div>
-                <div class="hide" data-letter="g">
-                    <h1>G</h1>
-                </div>
-                <div class="hide" data-letter="h">
-                    <h1>H</h1>
-                </div>
-                <div class="hide" data-letter="i">
-                    <h1>I</h1>
-                </div>
-                <div class="hide" data-letter="j">
-                    <h1>J</h1>
-                </div>
-                <div class="hide" data-letter="k">
-                    <h1>K</h1>
-                </div>
-                <div class="hide" data-letter="l">
-                    <h1>L</h1>
-                </div>
-                <div class="hide" data-letter="m">
-                    <h1>M</h1>
-                </div>
-                <div class="hide" data-letter="n">
-                    <h1>N</h1>
-                </div>
-                <div class="hide" data-letter="o">
-                    <h1>O</h1>
-                </div>
-                <div class="hide" data-letter="p">
-                    <h1>P</h1>
-                </div>
-                <div class="hide" data-letter="q">
-                    <h1>Q</h1>
-                </div>
-                <div class="hide" data-letter="r">
-                    <h1>R</h1>
-                </div>
-                <div class="hide" data-letter="s">
-                    <h1>S</h1>
-                </div>
-                <div class="hide" data-letter="t">
-                    <h1>T</h1>
-                </div>
-                <div class="hide" data-letter="u">
-                    <h1>U</h1>
-                </div>
-                <div class="hide" data-letter="v">
-                    <h1>V</h1>
-                </div>
-                <div class="hide" data-letter="w">
-                    <h1>W</h1>
-                </div>
-                <div class="hide" data-letter="x">
-                    <h1>X</h1>
-                </div>
-                <div class="hide" data-letter="y">
-                    <h1>Y</h1>
-                </div>
-                <div class="hide" data-letter="z">
-                    <h1>Z</h1>
-                </div>
-            </div>
+      </div>
+      <div id="main-section">
+        <div id="customer-list">
+          <div class="hide" data-letter="a">
+            <h1>A</h1>
+          </div>
+          <div class="hide" data-letter="b">
+            <h1>B</h1>
+          </div>
+          <div class="hide" data-letter="c">
+            <h1>C</h1>
+          </div>
+          <div class="hide" data-letter="d">
+            <h1>D</h1>
+          </div>
+          <div class="hide" data-letter="e">
+            <h1>E</h1>
+          </div>
+          <div class="hide" data-letter="f">
+            <h1>F</h1>
+          </div>
+          <div class="hide" data-letter="g">
+            <h1>G</h1>
+          </div>
+          <div class="hide" data-letter="h">
+            <h1>H</h1>
+          </div>
+          <div class="hide" data-letter="i">
+            <h1>I</h1>
+          </div>
+          <div class="hide" data-letter="j">
+            <h1>J</h1>
+          </div>
+          <div class="hide" data-letter="k">
+            <h1>K</h1>
+          </div>
+          <div class="hide" data-letter="l">
+            <h1>L</h1>
+          </div>
+          <div class="hide" data-letter="m">
+            <h1>M</h1>
+          </div>
+          <div class="hide" data-letter="n">
+            <h1>N</h1>
+          </div>
+          <div class="hide" data-letter="o">
+            <h1>O</h1>
+          </div>
+          <div class="hide" data-letter="p">
+            <h1>P</h1>
+          </div>
+          <div class="hide" data-letter="q">
+            <h1>Q</h1>
+          </div>
+          <div class="hide" data-letter="r">
+            <h1>R</h1>
+          </div>
+          <div class="hide" data-letter="s">
+            <h1>S</h1>
+          </div>
+          <div class="hide" data-letter="t">
+            <h1>T</h1>
+          </div>
+          <div class="hide" data-letter="u">
+            <h1>U</h1>
+          </div>
+          <div class="hide" data-letter="v">
+            <h1>V</h1>
+          </div>
+          <div class="hide" data-letter="w">
+            <h1>W</h1>
+          </div>
+          <div class="hide" data-letter="x">
+            <h1>X</h1>
+          </div>
+          <div class="hide" data-letter="y">
+            <h1>Y</h1>
+          </div>
+          <div class="hide" data-letter="z">
+            <h1>Z</h1>
+          </div>
         </div>
+      </div>
     </div>
     <!-- templates -->
     <template id="ledger-div-template">
-        <div id="ledger-div" class="table">
-            <h1>Ledger</h1>
-            <div class="head row">
-                <p data-name="date" class="col eq-space">Date</p>
-                <p data-name="billNo" class="col eq-space">Bill No</p>
-                <p data-name="billAmt" class="col eq-space">Bill Amt</p>
-                <p data-name="payment" class="col eq-space">Payment</p>
-                <p data-name="balance" class="col eq-space">Balance</p>
-            </div>
-            <div id="tbody"></div>
+      <div id="ledger-div" class="table">
+        <h1>Ledger</h1>
+        <div class="head row">
+          <p data-name="date" class="col eq-space">Date</p>
+          <p data-name="billNo" class="col eq-space">Bill No</p>
+          <p data-name="billAmt" class="col eq-space">Bill Amt</p>
+          <p data-name="payment" class="col eq-space">Payment</p>
+          <p data-name="balance" class="col eq-space">Balance</p>
         </div>
+        <div id="tbody"></div>
+      </div>
     </template>
     <template id="card-template">
-        <div id="page2-side-panel">
-            <div class="card">
-                <p class="col-1" data-colname="name"></p>
-                <p class="col-1" data-colname="address"></p>
-                <p class="col-1" data-colname="gst"></p>
-                <div class="col-1" data-colname="phones"></div>
-            </div>
-            <div id="graph-container">
-                <canvas id="bill-graph"></canvas>
-                <canvas id="payment-graph"></canvas>
-            </div>
+      <div id="page2-side-panel">
+        <div class="card">
+          <p class="col-1" data-colname="name"></p>
+          <p class="col-1" data-colname="address"></p>
+          <p class="col-1" data-colname="gst"></p>
+          <div class="col-1" data-colname="phones"></div>
         </div>
+        <div id="graph-container">
+          <canvas id="bill-graph"></canvas>
+          <canvas id="payment-graph"></canvas>
+        </div>
+      </div>
     </template>
     <template id="add-item-template">
-        <div class="page page1">
-            <div id="table">
-                <div class="row head">
-                    <div class="col eq-space"><p>Sl No.</p></div>
-                    <div class="col eq-space"><p>Particular</p></div>
-                    <div class="col eq-space"><p>HSN No</p></div>
-                    <div class="col eq-space"><p>Quantity</p></div>
-                    <div class="col eq-space"><p>Unit</p></div>
-                    <div class="col eq-space"><p>Rate</p></div>
-                    <div class="col eq-space"><p>Amount</p></div>
-                    <div class="col eq-space"><p>CGST</p></div>
-                    <div class="col eq-space"><p>SGST</p></div>
-                    <div class="col eq-space"><p>IGST</p></div>
-                    <div class="col eq-space"><p>Total</p></div>
-                </div>
-                <div id="tbody" class="hide-scrollbar" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
-                    <div class="row row-control-div" id="add-item">
-                        <button type="button" onclick="addRow(event)">+</button>
-                    </div>
-                </div>
+      <div class="page page1">
+        <div id="table">
+          <div class="row head">
+            <div class="col eq-space"><p>Sl No.</p></div>
+            <div class="col eq-space"><p>Particular</p></div>
+            <div class="col eq-space"><p>HSN No</p></div>
+            <div class="col eq-space"><p>Quantity</p></div>
+            <div class="col eq-space"><p>Unit</p></div>
+            <div class="col eq-space"><p>Rate</p></div>
+            <div class="col eq-space"><p>Amount</p></div>
+            <div class="col eq-space"><p>CGST</p></div>
+            <div class="col eq-space"><p>SGST</p></div>
+            <div class="col eq-space"><p>IGST</p></div>
+            <div class="col eq-space"><p>Total</p></div>
+          </div>
+          <div
+            id="tbody"
+            class="hide-scrollbar"
+            onclick="deleteRow(event)"
+            onmouseover="showDeleteBTN(event)"
+            oninput="calculateAmounts(event)"
+            onchange="selectionHandler(event)"
+          >
+            <div class="row row-control-div" id="add-item">
+              <button type="button" onclick="addRow(event)">+</button>
             </div>
-            <div>
-                <button onclick="proceedToPage2()">Add Items</button>
-                <button onclick="showBillPage()">Cancel</button>
-            </div>
+          </div>
         </div>
+        <div>
+          <button onclick="proceedToPage2()">Add Items</button>
+          <button onclick="showBillPage()">Cancel</button>
+        </div>
+      </div>
     </template>
     <template id="body-row-template">
-        <div class="body row">
-            <div class="col eq-space"><p></p></div>
-            <div class="col eq-space"><input type="text" data-name="name" list="stock-names" /></div>
-            <div class="col eq-space"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col eq-space"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col eq-space"><input data-name="unit" type="text" list="unit-dl" /></div>                            
-            <div class="col eq-space"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col eq-space"><p class="amt"></p></div>
-            <div class="col eq-space"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col eq-space"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col eq-space"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col eq-space"><p class="amt-with-tax"></p></div>
+      <div class="body row">
+        <div class="col eq-space"><p></p></div>
+        <div class="col eq-space">
+          <input type="text" data-name="name" list="stock-names" />
         </div>
+        <div class="col eq-space">
+          <input
+            data-name="hsn"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space">
+          <input
+            data-name="qty"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space">
+          <input data-name="unit" type="text" list="unit-dl" />
+        </div>
+        <div class="col eq-space">
+          <input
+            data-name="standardSellPrice"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space"><p class="amt"></p></div>
+        <div class="col eq-space">
+          <input
+            data-name="cgst"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space">
+          <input
+            data-name="sgst"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space">
+          <input
+            data-name="igst"
+            type="text"
+            data-type="Number"
+            data-subtype="price"
+            onkeypress="validateInput2(event)"
+          />
+        </div>
+        <div class="col eq-space"><p class="amt-with-tax"></p></div>
+      </div>
     </template>
     <template id="body-row-options-template">
-        <div class="body-row-options">
-            <button data-cmd="DELETE" type="button" tabindex="-1">Delete Row</button>
-        </div>
+      <div class="body-row-options">
+        <button data-cmd="DELETE" type="button" tabindex="-1">
+          Delete Row
+        </button>
+      </div>
     </template>
     <template id="add-item-modal-page2-template">
-        <div id="add-item-page2" class="page page2">
+      <div id="add-item-page2" class="page page2">
+        <div>
+          <h2>Do you like to close the bill from future item addition?</h2>
+          <div>
+            <label>Bill Status</label>
+          </div>
+          <div>
             <div>
-                <h2>Do you like to close the bill from future item addition?</h2>
-                <div>
-                    <label>Bill Status</label>
-                </div>
-                <div>
-                    <div>
-                        <label for="open">Open</label>
-                        <input type="radio" id="open" name="billStatus">
-                    </div>
-                    <div>
-                        <label for="close">Close</label>
-                        <input type="radio" id="close" name="billStatus">
-                    </div>
-                </div>
+              <label for="open">Open</label>
+              <input type="radio" id="open" name="billStatus" />
             </div>
             <div>
-                <button onclick="addItem2Bill()">Proceed</button>
-                <button onclick="back2page1()">Back</button>
-                <button onclick="showBillPage()">Cancel</button>
+              <label for="close">Close</label>
+              <input type="radio" id="close" name="billStatus" />
             </div>
+          </div>
         </div>
+        <div>
+          <button onclick="addItem2Bill()">Proceed</button>
+          <button onclick="back2page1()">Back</button>
+          <button onclick="showBillPage()">Cancel</button>
+        </div>
+      </div>
     </template>
     <template id="add-payment-template">
-        <form onsubmit="addPayment(event)">
-            <div id="first-section">
-                <h1>Add Payment</h1>
-                <div>
-                    <p>The bill amount is:</p>
-                    <p class="highlight-1"></p>
-                </div>
-                <div>
-                    <div>
-                        <label for="paymode">Payment Mode </label>
-                    </div>
-                    <div>
-                        <select name="paymode" id="paymode" onchange="setPayFeilds(event)">
-                            <option value="cash" selected>Cash</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="net">Net Banking</option>
-                        </select>                    
-                    </div>
-                </div>
+      <form onsubmit="addPayment(event)">
+        <div id="first-section">
+          <h1>Add Payment</h1>
+          <div>
+            <p>The bill amount is:</p>
+            <p class="highlight-1"></p>
+          </div>
+          <div>
+            <div>
+              <label for="paymode">Payment Mode </label>
             </div>
             <div>
-                <button type="submit">Add Payment</button>
-                <button type="button" onclick="showBillPage()">Cancel</button>
+              <select
+                name="paymode"
+                id="paymode"
+                onchange="setPayFeilds(event)"
+              >
+                <option value="cash" selected>Cash</option>
+                <option value="cheque">Cheque</option>
+                <option value="net">Net Banking</option>
+              </select>
             </div>
-        </form>
+          </div>
+        </div>
+        <div>
+          <button type="submit">Add Payment</button>
+          <button type="button" onclick="showBillPage()">Cancel</button>
+        </div>
+      </form>
     </template>
     <template id="cash-feild-template">
-        <div class="removable-section"  >
-            <div>
-                <label for="payment">Payment amount: </label>
-            </div>
-            <div>
-                <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-            </div>
+      <div class="removable-section">
+        <div>
+          <label for="payment">Payment amount: </label>
         </div>
+        <div>
+          <input
+            type="text"
+            name="payment"
+            id="payment"
+            data-subtype="price"
+            data-type="Number"
+            onkeypress="validateInput(event)"
+          />
+        </div>
+      </div>
     </template>
     <template id="cheque-feild-template">
-        <div class="removable-section">
-            <div>
-                <div>
-                    <label for="bankName">Bank Name: </label>
-                </div>
-                <div>
-                    <input type="text" name="bankName" id="bankName"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="bankBranch">Branch Name: </label>
-                </div>
-                <div>
-                    <input type="text" name="bankBranch" id="bankBranch"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="pay-dt">Cheque Date: </label>
-                </div>
-                <div>
-                    <input type="date" name="pay-dt" id="pay-dt"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="chkNo">Cheque Number: </label>
-                </div>
-                <div>
-                    <input type="text" name="chkNo" id="chkNo" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="payment">Payment amount: </label>
-                </div>
-                <div>
-                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                </div>
-            </div>
+      <div class="removable-section">
+        <div>
+          <div>
+            <label for="bankName">Bank Name: </label>
+          </div>
+          <div>
+            <input type="text" name="bankName" id="bankName" />
+          </div>
         </div>
+        <div>
+          <div>
+            <label for="bankBranch">Branch Name: </label>
+          </div>
+          <div>
+            <input type="text" name="bankBranch" id="bankBranch" />
+          </div>
+        </div>
+        <div>
+          <div>
+            <label for="pay-dt">Cheque Date: </label>
+          </div>
+          <div>
+            <input type="date" name="pay-dt" id="pay-dt" />
+          </div>
+        </div>
+        <div>
+          <div>
+            <label for="chkNo">Cheque Number: </label>
+          </div>
+          <div>
+            <input
+              type="text"
+              name="chkNo"
+              id="chkNo"
+              data-subtype="price"
+              data-type="Number"
+              onkeypress="validateInput(event)"
+            />
+          </div>
+        </div>
+        <div>
+          <div>
+            <label for="payment">Payment amount: </label>
+          </div>
+          <div>
+            <input
+              type="text"
+              name="payment"
+              id="payment"
+              data-subtype="price"
+              data-type="Number"
+              onkeypress="validateInput(event)"
+            />
+          </div>
+        </div>
+      </div>
     </template>
     <template id="net-feild-template">
-        <div class="removable-section">
-            <div>
-                <div>
-                    <label for="bankName">Bank Name: </label>
-                </div>
-                <div>
-                    <input type="text" name="bankName" id="bankName"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="payment">Date: </label>
-                </div>
-                <div>
-                    <input type="date" name="pay-dt" id="pay-dt"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="bankTrnRef">Ref Number: </label>
-                </div>
-                <div>
-                    <input type="text" name="bankTrnRef" id="bankTrnRef" pattern="[^ ]"/>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="payment">Payment amount: </label>
-                </div>
-                <div>
-                    <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                </div>
-            </div>
+      <div class="removable-section">
+        <div>
+          <div>
+            <label for="bankName">Bank Name: </label>
+          </div>
+          <div>
+            <input type="text" name="bankName" id="bankName" />
+          </div>
         </div>
+        <div>
+          <div>
+            <label for="payment">Date: </label>
+          </div>
+          <div>
+            <input type="date" name="pay-dt" id="pay-dt" />
+          </div>
+        </div>
+        <div>
+          <div>
+            <label for="bankTrnRef">Ref Number: </label>
+          </div>
+          <div>
+            <input
+              type="text"
+              name="bankTrnRef"
+              id="bankTrnRef"
+              pattern="[^ ]"
+            />
+          </div>
+        </div>
+        <div>
+          <div>
+            <label for="payment">Payment amount: </label>
+          </div>
+          <div>
+            <input
+              type="text"
+              name="payment"
+              id="payment"
+              data-subtype="price"
+              data-type="Number"
+              onkeypress="validateInput(event)"
+            />
+          </div>
+        </div>
+      </div>
     </template>
     <template id="bill-option-template">
-        <div id="bill-option-content">
-            <div class="table">
-                <div class="head row">
-                    <p class="col eq-space">Sl No.</p>
-                    <p class="col eq-space">Particular</p>
-                    <p class="col eq-space">Quantity</p>
-                    <p class="col eq-space">Unit</p>
-                    <p class="col eq-space">Rate</p>
-                </div>
-                <div id="tbody"></div>
-            </div>
-            <div id="bill-option-BTNs" onclick="billUtils(event)">
-                <button data-cmd="open" class="main-ui-btn">Open</button>
-                <button data-cmd="print" class="main-ui-btn">Print</button>
-                <button data-cmd="add-item" class="main-ui-btn hide">Add Items</button>
-                <button data-cmd="pay" class="main-ui-btn hide">Add Payment</button>
-                <button data-cmd="close" onclick="_closeModal()">Close</button>
-            </div>
+      <div id="bill-option-content">
+        <div class="table">
+          <div class="head row">
+            <p class="col eq-space">Sl No.</p>
+            <p class="col eq-space">Particular</p>
+            <p class="col eq-space">Quantity</p>
+            <p class="col eq-space">Unit</p>
+            <p class="col eq-space">Rate</p>
+          </div>
+          <div id="tbody"></div>
         </div>
+        <div id="bill-option-BTNs" onclick="billUtils(event)">
+          <button data-cmd="open" class="main-ui-btn">Open</button>
+          <button data-cmd="print" class="main-ui-btn">Print</button>
+          <button data-cmd="add-item" class="main-ui-btn hide">
+            Add Items
+          </button>
+          <button data-cmd="pay" class="main-ui-btn hide">Add Payment</button>
+          <button data-cmd="close" onclick="_closeModal()">Close</button>
+          <button data-cmd="cancel-bill" class="main-ui-btn red">Cancel Bill</button>
+        </div>
+      </div>
     </template>
     <template id="bill-body-row-template">
-        <div class="body row">
-            <p class="col eq-space" data-name="slNo"></p>
-            <p class="col eq-space" data-name="name"></p>
-            <p class="col eq-space" data-name="quantity"></p>
-            <p class="col eq-space" data-name="unit"></p>
-            <p class="col eq-space" data-name="rate"></p>
-        </div>
+      <div class="body row">
+        <p class="col eq-space" data-name="slNo"></p>
+        <p class="col eq-space" data-name="name"></p>
+        <p class="col eq-space" data-name="quantity"></p>
+        <p class="col eq-space" data-name="unit"></p>
+        <p class="col eq-space" data-name="rate"></p>
+      </div>
     </template>
     <template id="data-modal-template">
-        <div class="data-modal">
-            <p></p>
-        </div>
+      <div class="data-modal">
+        <p></p>
+      </div>
     </template>
     <template id="update-profile-template">
-        <form onsubmit="updateProfile(event)">
-            <h2>Profile Update Form</h2>
-            <div>
-                <div><label for="name">Name</label></div>
-                <div><input name="name" disabled type="text"></div>
-            </div>
-            <div>
-                <div><label for="address">Address</label></div>
-                <div><input name="address" disabled type="text"></div>
-            </div>
-            <div>
-                <div><label for="phone">Phone</label></div>
-                <div><input name="phones" disabled type="text"></div>
-            </div>
-            <div>
-                <div><label for="email">Email</label></div>
-                <div><input name="email" disabled type="text"></div>
-            </div>
-            <div>
-                <div><label for="gst">GST</label></div>
-                <div><input name="gst" disabled type="text"></div>
-            </div>
-            <div>
-                <div>
-                    <button type="button" class="main-ui-btn" onclick="enableInputs(event)">Edit</button>
-                    <button type="submit" class="main-ui-btn hide">Update</button>
-                    <button type="button" onclick="closeModal()">Close</button>
-                </div>
-            </div>
-        </form>
+      <form onsubmit="updateProfile(event)">
+        <h2>Profile Update Form</h2>
+        <div>
+          <div><label for="name">Name</label></div>
+          <div><input name="name" disabled type="text" /></div>
+        </div>
+        <div>
+          <div><label for="address">Address</label></div>
+          <div><input name="address" disabled type="text" /></div>
+        </div>
+        <div>
+          <div><label for="phone">Phone</label></div>
+          <div><input name="phones" disabled type="text" /></div>
+        </div>
+        <div>
+          <div><label for="email">Email</label></div>
+          <div><input name="email" disabled type="text" /></div>
+        </div>
+        <div>
+          <div><label for="gst">GST</label></div>
+          <div><input name="gst" disabled type="text" /></div>
+        </div>
+        <div>
+          <div>
+            <button
+              type="button"
+              class="main-ui-btn"
+              onclick="enableInputs(event)"
+            >
+              Edit
+            </button>
+            <button type="submit" class="main-ui-btn hide">Update</button>
+            <button type="button" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      </form>
+    </template>
+    <template id="customer-div-template">
+      <div class="customer-div">
+        <p class="customer-p name">Ajanta Commercial Corporation</p>
+        <p class="customer-p balance">8872</p>
+      </div>
     </template>
     <!-- datalists -->
     <datalist id="stock-names"></datalist>
     <datalist id="unit-dl"></datalist>
-</body>
+  </body>
 </html>

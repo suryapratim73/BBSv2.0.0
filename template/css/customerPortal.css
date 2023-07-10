@@ -11,6 +11,7 @@ body{
     flex: 1;
     flex-direction: column;
     justify-content: center;
+    background: var(--theme-primary);
 }
 #right-div{
     flex: 4;
@@ -46,15 +47,21 @@ body{
     box-shadow: inset 1px 1px 0px 0px black, inset -1px -1px 0px 0px grey;
     font-style: italic;
 }
-#searchbar button{
-    font-size: 1rem;
+#searchbar button,#bill-option-modal button{
+    /* font-size: 1rem;
     padding: 0.5rem;
     border-radius: 3px;
+    border-color: unset; */
+    padding: 0.3rem 0.5rem;
+    outline: none;
+    border-radius: 3px;
+    font-weight: 100;
     border-color: unset;
 }
 #main-section{
     flex: 5;
     height: 85%;
+    padding: 0.5rem;
 }
 #customer-list{
     height: 90%;
@@ -157,6 +164,7 @@ body{
     position: sticky;
     top: 0;
     z-index: 1;
+    background: var(--theme-secondary);
 }
 #filter-btn{
     position: relative;
@@ -166,7 +174,7 @@ body{
     display: flex;
     flex-direction: column;
     z-index: 2;
-    background: gray;
+    background: var(--theme-secondary);;
     justify-content: center;
     width: fit-content;
     box-shadow: 0px 2px 1px 0px black;
@@ -176,7 +184,6 @@ body{
 #filter-option>div{
     display: flex;
     justify-content: center;
-    background: gray;
 }
 .highlight-1{
     font-weight: 600;
@@ -202,7 +209,10 @@ body{
 }
 #chart-div>p{
     text-align: center;
-    color: black;
+    text-align: center;
+    color: var(--theme-secondary);
+    background: inherit;
+    padding: 0.5rem;
 }
 #chart-div>p:nth-child(2){
     font-size: 1.3rem;
@@ -211,7 +221,7 @@ body{
 #chart-div>p:last-child{
     font-size: 0.8rem;
 }
-#back-btn-div{
+/* #back-btn-div{
     display: flex;
     margin: 1rem 5rem 0 0.5rem;
     justify-content: center;
@@ -236,22 +246,23 @@ body{
     border-bottom: 1px solid gray;
     border-left: 1px solid orangered;
     outline: none;
-}
+} */
 .card{
     box-shadow: unset;
-    width: calc(200px - 0.4rem);
+    /* width: calc(200px - 0.4rem); */
 }
 .card>div{
     margin: unset;
 }
 .card p{
     font-size: 1rem;
-    color: black;
+    color: var(--theme-secondary);
     text-align: center;
     width: 100%;
+    background: var(--theme-primary);
 }
 .card>p:first-child{
-    font-size: 2rem;
+    font-size: 1.25rem;
     font-weight: 600;
 }
 #chart-div.page2-sidebar{
@@ -333,9 +344,14 @@ body{
 }
 #page2-side-panel{
     max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: auto;
 }
 #graph-container{
     max-width: 100%;
+    margin: 1rem 0.5rem;
 }
 #update-profile-modal>form{
     grid-row: 1/-1;
@@ -430,6 +446,11 @@ body{
 option{
     color: black;
 }
-#bill-option-modal button{
-    padding: 0.5rem;
+#bill-option-BTNs{
+    display: flex;
+}
+.main-ui-btn.red{
+    background: white;
+    margin-left: auto;
+    color: red;
 }

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost } = require("../js/common");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
@@ -32,6 +32,14 @@ async function initPage(){
     });
 }
 initPage();
+
+/**
+ * Need to learn how to add bill correction to ledger
+ * Will implement bill correct and cancel feature
+ * Homogenise UI design
+ * Make all Btns interactive
+ */
+
 
 ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
 
@@ -107,8 +115,10 @@ ipcRenderer.send("get-customer");
 
 function drawPieChart(){
     colorCode = [];
+    ctx = canvas.getContext("2d");
     let netBalance = 0,startAngle = 0;
     customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
+    console.clear()
     customerList.forEach(({netPurchase:balance,id})=>{
         netBalance += balance;
         let endAngle = 2*Math.PI*netBalance/total;
@@ -124,22 +134,20 @@ function drawPieChart(){
 }
 
 ipcRenderer.on("customer-list",(e,customerObj)=>{
+    customerList = [];
+    removeAllElem("#customer-list .customer-div")
     customerObj.forEach(_customerList=>{
         customerList.push(_customerList);
         const { name,balance,id,netPurchase } = _customerList;
         let startLetter = name.charAt(0).toLowerCase();
         let selectedDiv = document.querySelector(`[data-letter="${startLetter}"]`);
         selectedDiv.classList.add("occupied");
-        let div = document.createElement("div");
-        let p = document.createElement("p");
+        let div = appendToHost("#customer-div-template",selectedDiv,"DIV");
+        let p = div.querySelector("p.name");
         p.textContent = name;
-        div.appendChild(p);
-        p = document.createElement("p");
+        p = div.querySelector("p.balance");
         p.textContent = balance;
-        div.appendChild(p);
-        div.classList.add("customer-div");
         div.dataset.custId = id;
-        selectedDiv.appendChild(div);
         selectedDiv.classList.remove("hide");
         total += netPurchase;
     });
@@ -156,7 +164,7 @@ async function drawGraphs(id){
         return acc;
     },[[0 , []]])
     .forEach(([total,objs])=>{
-        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#bill-graph","green","red");
+        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#bill-graph","green","red",{yLegend:"Amount",lOffset:25,xLegend:"Date",yLegOffset:0.4});
         canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
     });
     (await ipcRenderer.invoke("get-customer-out-payments",selectedCustomer.id))
@@ -166,7 +174,7 @@ async function drawGraphs(id){
         return acc;
     },[[0 , []]])
     .forEach(([total,objs])=>{
-        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#payment-graph","yellow","green");
+        const { canvas,reducedObjs } = drawLineGraph(total,objs,"#payment-graph","yellow","green",{yLegend:"Payment",xLegend:"Date",lOffset:15});
         canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
     });
 }
@@ -176,7 +184,7 @@ async function loadLedgerTable(_name){
     .forEach(elem=>{
         elem.classList.add("hide");
     });
-    let spinner = drawSpinner(document);
+    let spinner = drawSpinner(document);spinner.remove(window);
     selectedCustomer = customerList.find(({name})=>name===_name);
     page2BTNS.dataset.id = selectedCustomer.id;
     phones = JSON.parse(selectedCustomer.phones);
@@ -197,8 +205,7 @@ async function loadLedgerTable(_name){
                     return `<p class="col-1">${phone}</p>`
             }).reduce((acc,str)=>acc+str,"");
     });
-    if(ledgerEntries.length===0)
-        ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",selectedCustomer.id);
+    ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",selectedCustomer.id);
     
     //Implement realtime Ledger update logic
 
@@ -235,18 +242,20 @@ async function loadLedgerTable(_name){
         else
             btn.classList.remove("hide");
     });
-    spinner.remove(window);
+    // spinner.remove(window);
 } // WORK in Progress
 
 document.getElementById("customer-list").addEventListener("click",function(e){
-    if(!e.target.classList.contains("customer-div")) return;
-    loadLedgerTable.call(this,e.target.children[0].textContent);
+    if(!e.target.classList.contains("customer-div") && !e.target.classList.contains("customer-p")) return;
+    let name = (e.target.classList.contains("customer-div") ? e.target.children[0] : e.target.parentNode.querySelector(".customer-p.name")).textContent;
+    loadLedgerTable.call(this,name);
     document.querySelector("#form>div:last-child").classList.add("hide");
     document.querySelector("#chart-div > p:nth-child(3)").classList.add("hide");
     page2BTNS.classList.remove("hide");
 });
 
 function resetPortal(e){
+    spinner = drawSpinner(document);
     document.querySelector("#back-btn-div")?.removeEventListener("click",arguments.callee);
     removeAllElem("#page2-side-panel,.table");
     document.getElementById("customer-list").classList.remove("hide");
@@ -255,6 +264,8 @@ function resetPortal(e){
     document.getElementById("canvas-container").classList.remove("hide");
     [...document.querySelectorAll("#chart-div>p")].forEach(p=>p.classList.remove("hide"));
     document.querySelector(".page2-sidebar").classList.remove("page2-sidebar");
+    total = 0;
+    ipcRenderer.send("get-customer");
 }
 
 function closeModal(){
@@ -265,7 +276,7 @@ function closeModal(){
 
 async function refreshGraphAndLedger(topLine,id){
     let ledgerRow = document.querySelector("#ledger-div .body.row");
-    if(ledgerRow){
+    if(ledgerRow && topLine){
         let row = document.createElement("div");
         row.className = "body row";
         row.innerHTML = `
@@ -312,7 +323,7 @@ function utilCMD(e){
     let cmd = e.target.dataset.cmd;
     let [id,billNo,billDate] = bodyRow.dataset.itemList.split("_")
     let {name} = customerList.find((custObj)=>custObj.id===id);
-    if(cmd==="open")
+    if(cmd==="open")// Not working
         ipcRenderer.send("open-ext",name,billDate,billNo);
     else
     if(cmd==="print")
@@ -332,59 +343,53 @@ function utilCMD(e){
     }
 }
 
-async function billPageInit(){
+function billPageInit(){
     document.querySelector("#ledger-div").classList.add("hide");    
     let mainDiv = document.getElementById("main-section");
-    if(!document.getElementById("bill-table")){
-        let billsDiv = document.createElement("div");
-        billsDiv.dataset.id = this.dataset.id;
-        billsDiv.classList.add("table");
-        billsDiv.id = "bill-table";
-        billsDiv.addEventListener("click",showBillOptions.bind(billsDiv));
-        let h1 = document.createElement("h1");
-        h1.textContent = "Bills";
-        billsDiv.appendChild(h1);
-        let headRow = document.createElement("div");
-        headRow.className = `head row`;
-        headRow.innerHTML = `
-            <p data-name="date" class="col eq-space">Date</p>
-            <p data-name="billNo" class="col eq-space">Bill No</p>
-            <p data-name="billAmt" class="col eq-space">Bill Amt</p>
-            <p data-name="payment" class="col eq-space">Payment</p>
-            <p data-name="balance" class="col eq-space">Due</p>
+    removeAllElem("#bill-table")
+    let billsDiv = document.createElement("div");
+    billsDiv.dataset.id = this.dataset.id;
+    billsDiv.classList.add("table");
+    billsDiv.id = "bill-table";
+    billsDiv.addEventListener("click",showBillOptions.bind(billsDiv));
+    let h1 = document.createElement("h1");
+    h1.textContent = "Bills";
+    billsDiv.appendChild(h1);
+    let headRow = document.createElement("div");
+    headRow.className = `head row`;
+    headRow.innerHTML = `
+        <p data-name="date" class="col eq-space">Date</p>
+        <p data-name="billNo" class="col eq-space">Bill No</p>
+        <p data-name="billAmt" class="col eq-space">Bill Amt</p>
+        <p data-name="payment" class="col eq-space">Payment</p>
+        <p data-name="balance" class="col eq-space">Due</p>
+    `;
+    billsDiv.appendChild(headRow);
+    let tbody = document.createElement("div");
+    tbody.id = "tbody";
+    billsDiv.appendChild(tbody);
+    document.getElementById("graph-container").classList.remove("hide");
+    bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
+        let row = document.createElement("div");
+        row.innerHTML = `
+            <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
+            <p class="col eq-space">${billNo}</p>
+            <p class="col eq-space">${Math.round(billAmt)}</p>
+            <p class="col eq-space">${payment}</p>
+            <p class="col eq-space ${paymentStatus?"paid":"unpaid"}">${Math.round(billAmt - payment)}</p>
         `;
-        billsDiv.appendChild(headRow);
-        let tbody = document.createElement("div");
-        tbody.id = "tbody";
-        billsDiv.appendChild(tbody);
-        document.getElementById("graph-container").classList.remove("hide");
-        bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
-            let row = document.createElement("div");
-            row.innerHTML = `
-                <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
-                <p class="col eq-space">${billNo}</p>
-                <p class="col eq-space">${Math.round(billAmt)}</p>
-                <p class="col eq-space">${payment}</p>
-                <p class="col eq-space ${paymentStatus?"paid":"unpaid"}">${Math.round(billAmt - payment)}</p>
-            `;
-            row.classList.add("row");
-            row.classList.add("body");
-            row.dataset.itemList = billItemTable;
-            row.dataset.paymentStatus = paymentStatus?paymentStatus:false;
-            row.dataset.billStatus = billStatus;
-            row.dataset.billAmt = billAmt;
-            row.dataset.payment = payment;
-            tbody.appendChild(row);
-            return {billDate,billAmt}
-        });
-        mainDiv.appendChild(billsDiv);
-        if(tbody.scrollHeight>tbody.clientHeight)
-            scrollSymSet(tbody);
-    }
-    else{
-        document.getElementById("ledger-div").classList.add("hide");
-        document.getElementById("bill-table").classList.remove("hide");
-    }
+        row.classList.add("row");
+        row.classList.add("body");
+        row.dataset.itemList = billItemTable;
+        row.dataset.paymentStatus = paymentStatus?paymentStatus:false;
+        row.dataset.billStatus = billStatus;
+        row.dataset.billAmt = billAmt;
+        row.dataset.payment = payment;
+        tbody.appendChild(row);
+    });
+    mainDiv.appendChild(billsDiv);
+    if(tbody.scrollHeight>tbody.clientHeight)
+        scrollSymSet(tbody);
     [...document.querySelectorAll("#btn-container>button")]
     .forEach(btn=>{
         if(btn.dataset.view==="bills")
@@ -545,7 +550,9 @@ async function showBillOptions(e){
 
 function billUtils(e){
     const {cmd} = e.target.dataset;
-    const {itemList,billAmt,payment} = JSON.parse(document.getElementById("bill-option-content")?.dataset.billObj) ?? {};
+    let opt = document.getElementById("bill-option-content");
+    if(!opt) return;
+    const {itemList,billAmt,payment,netDue} = JSON.parse(opt.dataset.billObj);
     if(cmd==="close" || (!itemList || !billAmt || !payment)) return;
     let name = selectedCustomer.name;
     let [id,billNo,billDate] = itemList.split("_");
@@ -562,7 +569,8 @@ function billUtils(e){
         modal.dataset.billNo = billNo;
         modal.dataset.billDate = billDate;
     }
-    else{
+    else
+    if(cmd==="pay"){
         document.getElementById("bill-option-content").classList.add("hide");
         let modal = document.getElementById("bill-option-modal");
         let addPaymentForm = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("form");
@@ -575,6 +583,19 @@ function billUtils(e){
         modal.querySelector(`.highlight-1`).textContent = Math.round(billAmt - payment);
         let cashSegment = document.getElementById("cash-feild-template").content.cloneNode(true).querySelector("div");
         modal.querySelector("#first-section").appendChild(cashSegment);
+    }
+    else
+    if(cmd==="cancel-bill"){
+        console.log({netDue})
+        ipcRenderer.invoke("cancel-bill",id,billNo,billDate,billAmt)
+        .then(()=>{
+            console.log("OK")
+            // Add on success logic
+        })
+        .catch((err)=>{
+            console.log(err)
+            // Handle failure/error
+        })
     }
 }
 
@@ -713,7 +734,8 @@ function addItem2Bill(){
 }
 
 ipcRenderer.on("close-modal",async (e,topLine)=>{
-    await refreshGraphAndLedger(topLine,selectedCustomer.id)
+    await refreshGraphAndLedger(topLine,selectedCustomer.id);
+    billPageInit.call(page2BTNS);
     _closeModal();
 });
 

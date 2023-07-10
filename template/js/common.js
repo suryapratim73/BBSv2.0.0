@@ -684,7 +684,7 @@ exports.retractHandler = function retractHandler(retractableDiv,mode="height",va
     
 }
 
-exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32,mode=1}={}){
+exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32,mode=1,yLegend="",yLegColor="Black",yLegOffset=0.75,yLegFont="12px Arial",xLegend="",xLegColor="Black",xLegOffset=10,xLegFont="12px Arial"}={},axisColor="black",bgColor="white"){
     let canvas =  document.querySelector(selector);
     canvas.width = Math.round(0.95 * canvas.parentNode.clientWidth);
     canvas.height = 200;
@@ -693,9 +693,13 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
     ctx.beginPath();
     ctx.lineWidth = 1;
     ctx.lineCap = "round";
-    ctx.moveTo(0,8);
-    ctx.lineTo(0,canvas.height-16);
-    ctx.lineTo(canvas.width-8,canvas.height-16);
+    ctx.lineColor = axisColor;
+    ctx.moveTo(lOffset,tOffset);
+    ctx.lineTo(lOffset,canvas.height-2*tOffset);
+    ctx.lineTo(canvas.width-2*lOffset,canvas.height-2*tOffset);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,canvas.width,canvas.height)
+    ctx.fill()
     ctx.stroke();
     let reducedObjs = objs.reduce((acc,obj)=>{
         if(typeof obj.date==="string"){
@@ -736,7 +740,22 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
         reducedObjs[date].xPos = xPos;
         reducedObjs[date].yPos = yPos;
     });
-    ctx.save();
+    if(yLegend!==""){
+        ctx.save();
+        ctx.translate(0,canvas.height/2)
+        ctx.rotate(-Math.PI/2);
+        ctx.fillStyle = yLegColor;
+        ctx.font = yLegFont;
+        ctx.textAlign = "center";
+        ctx.fillText(yLegend,0,yLegOffset*lOffset)
+        ctx.restore();
+    }
+    if(xLegend!==""){
+        ctx.fillStyle = xLegColor;
+        ctx.font = xLegFont;
+        ctx.textAlign = "center";
+        ctx.fillText(xLegend,canvas.width/2,canvas.height-bOffset+xLegOffset)
+    }
     return {canvas,ctx,reducedObjs};
 }
 
@@ -791,10 +810,22 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
         let dataModal = document.getElementById("data-modal-template").content.cloneNode(true).querySelector("div");
         this.parentNode.appendChild(dataModal);
         dataModal.querySelector("p").textContent = `Date: ${date[0]}, ${key}: ${reducedObjs[date[0]].amt}`;
-        if(clientX+8+dataModal.clientWidth<this.width)
+        let { right:canvRight,left:canvLeft } = this.getBoundingClientRect();
+        let { right:dataRight,left:dataLeft } = dataModal.getBoundingClientRect();
+        // clientX+8+dataModal.clientWidth<this.width
+        if(dataRight<canvRight && dataLeft<canvLeft){
+            console.log("case 1")
             dataModal.style.left = clientX+8+"px";
+        }
         else
-            dataModal.style.left = clientX - dataModal.clientWidth + "px";
+        if(dataRight>canvRight && dataLeft<canvLeft){
+            console.log("case 2")
+            dataModal.style.left = clientX - dataModal.clientWidth/2 + "px";
+        }
+        else{
+            console.log("case 3")
+            dataModal.style.left = 0 + "px"
+        }
         if(clientY<(this.parentNode.getBoundingClientRect().bottom*0.5))
             dataModal.style.top = clientY+"px";
         else

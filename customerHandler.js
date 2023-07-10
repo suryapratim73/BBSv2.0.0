@@ -1,4 +1,4 @@
-const { ipcMain, shell, app, dialog, BrowserWindow, ipcRenderer } = require("electron");
+const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { createModal, getMainWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
@@ -6,8 +6,9 @@ const path = require("path");
 const { Op } = require("sequelize");
 const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
-const { roundOffTo2DecimalPlace } = require("./template/js/common");
+const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
+const fs = require("fs");
 
 
 exports.customerPortal = mainWindow =>{
@@ -67,13 +68,21 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
-    shell.openExternal(path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`),{activate:true});
+    if(fs.existsSync(`"${path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`)}"`))
+        console.log("File Exists");
+    else
+        console.log("File don't exists",`"${path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`)}"`)
+    shell.openExternal(`${path.join(app.getPath("documents"),`./Bills/"${name}_${billDate}_${billNo}.pdf"`)}`)
+    .then(console.log)
+    .catch((err)=>{
+        console.log("Failed to open",err)
+    });
 });
 
 ipcMain.on("print",(e,name,billDate,billNo)=>{
     let modal = printDialog();
     let path2pdf = path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`);
-    ipcMain.once("print-obj",(e,printObj)=>{
+    ipcMain.once("print-obj",function(e,printObj){
         print({printObj,path2pdf});
         modal.close();
     })
@@ -463,4 +472,92 @@ ipcMain.handle("get-customer-details",async (e,id)=>{
     if(customerList.length===0)
         await initCustomerList();
     return customerList.find(obj=>obj.id===id);
+});
+
+ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
+    // Check if the bill is eligible for deletion
+    // if(Date.now()-(new Date(billDate)).getTime()>3*24*60*60*1000) return dialog.showErrorBox("Bill cannot be cancelled","Bill cancellation date expired");
+    let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
+    let billItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
+    billNo = Number(billNo);
+    billDate = new Date(billDate);
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    return Promise.all([
+        // Delete billItemModel
+        sequelize.dropSchema(`${id}_${billNo}_${billDate}`),
+        // Remove sale record
+        sale.destroy({
+            where:{
+                customerId:id,
+                billNo,
+                billDate
+            }
+        }),
+        // Update Ledger
+        (async function(){
+            let { netDue } = (await customerLedger.findOne({
+                where:{
+                    date:billDate,
+                    billNo
+                }
+            })).dataValues;
+            let { balance } = (await customerLedger.findOne()).dataValues;
+            return customerLedger.update(
+                { 
+                    balance:balance-netDue
+                },
+                {
+                    where:{
+                        date:billDate,
+                        billNo
+                    }
+                }
+            )
+        })(),
+        // Restore reduced stock
+        ...billItems.map(async ({qty,name})=>{
+            if(!name) return;
+            let selectedStock = await stock.findOne({
+                where:{
+                    name
+                }
+            });
+            if(!selectedStock) return;
+            selectedStock.reduceStock = -qty;
+            return selectedStock.save();
+        })
+    ])
+    .then(async ()=>{
+        // Remove associated event
+        let path2scheduler = getSchedulerPath();
+        let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
+        let schedules = jsData.schedules;
+        let i = schedules.findIndex(({billObj:{billNo:_billNo,id:_id,billDate:_billDate}})=>{
+            if(_id===id && _billNo===billNo && _billDate===billDate)
+                return true;
+            else
+                return false;
+        });
+        if(i){
+            schedules.splice(i,1);
+            jsData.schedules = schedules;
+            fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
+            // getMainWindow().webContents.send("update-content");
+            let path2config = getsaleConfigPolicyPath()
+            let saleConfig = JSON.parse(fs.readFileSync(path2config).toString());
+            if(!("availableBillNo" in saleConfig))
+                saleConfig.availableBillNo = [billNo];
+            else
+                saleConfig.availableBillNo.push(billNo);
+            fs.writeFileSync(path2config,JSON.stringify(saleConfig));
+            let topLine = (await (customerLedger.findOne({
+                order:[
+                    ["entryNo","DESC"]
+                ]
+            }))).dataValues;
+            e.sender.send("close-modal",topLine);
+        }
+        else
+            appLogger({title:"Error removing event",message:"Event not found"})
+    })
 });

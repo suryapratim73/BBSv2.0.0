@@ -217,21 +217,21 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
     ];
-    if(billNo!=="spot"){
-        let match_sale = await sale.findOne({
-            where:{
-                billNo,
-                [Op.and]:{
-                    billNo,
-                },
-                [Op.and]:{
-                    customerId:custId
-                }
-            }
-        })
-        if(match_sale)
-            return dialog.showErrorBox("Bill exist","The Bill number already exist for this bill date & customer. If you want to edit a bill then please use customer portal.");
-    }
+    // if(billNo!=="spot"){
+    //     let match_sale = await sale.findOne({
+    //         where:{
+    //             billNo,
+    //             [Op.and]:{
+    //                 billNo,
+    //             },
+    //             [Op.and]:{
+    //                 customerId:custId
+    //             }
+    //         }
+    //     })
+    //     if(match_sale)
+    //         return dialog.showErrorBox("Bill exist","The Bill number already exist for this bill date & customer. If you want to edit a bill then please use customer portal.");
+    // }
 
     let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);
     

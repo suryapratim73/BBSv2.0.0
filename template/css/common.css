@@ -185,7 +185,7 @@ label,input,button,p,h2{
     background: var(--theme-secondary);
     color: var(--theme-primary);
 }
-.selected>button{
+button.selected{
     color: var(--theme-primary) !important;
 }
 .animation-common{
@@ -519,6 +519,8 @@ label,input,button,p,h2{
     color: var(--theme-text-color);
     background-color: var(--theme-secondary);
     width: fit-content;
+    word-wrap: break-word;
+    max-width: 80%;
 }
 #more-feild-menu{
     position: relative;
