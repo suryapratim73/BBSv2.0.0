@@ -33,14 +33,6 @@ async function initPage(){
 }
 initPage();
 
-/**
- * Need to learn how to add bill correction to ledger
- * Will implement bill correct and cancel feature
- * Homogenise UI design
- * Make all Btns interactive
- */
-
-
 ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
 
 ipcRenderer.on("apply-theme",applyTheme.bind(document));
