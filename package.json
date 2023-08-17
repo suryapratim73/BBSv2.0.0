@@ -4,10 +4,16 @@
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
-    "bbsDev": "nodemon --ignore 'config/*.json' --ignore '*.json' --exec electron .",
+    "bbsDev": "nodemon --exec electron .",
     "build_linux": "electron-builder -l",
     "build_win": "electron-builder -w",
     "build": "electron-builder -wl"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "config/*.json",
+      "*.json"
+    ]
   },
   "author": "Surya Pratim Paul <surya.shilpi22@gmail.com>",
   "license": "ISC",
@@ -26,7 +32,7 @@
   "devDependencies": {
     "electron": "^11.5.0",
     "electron-builder": "^23.6.0",
-    "nodemon": "^2.0.20"
+    "nodemon": "^2.0.22"
   },
   "browserslist": {
     "production": [

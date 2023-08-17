@@ -26,6 +26,9 @@
         <div>
             <div><button type="submit">Next</button></div>
         </div>
+        <div>
+            <div><button data-cmd="password-recovery" type="button" onclick="initPasswdRecovery()">Forgot password?</button></div>
+        </div>
     </form>   
     <template id="six-digit-code-form-template">
         <form onsubmit="unlockHandler(event,2)" id="two-factor-form">
@@ -48,6 +51,35 @@
                 <button onclick="lockHandler(event)">Unlock</button>
             </div>
         </div>
+    </template>
+    <template id="otp-input-template">
+        <form onsubmit="validateOTP(event)">
+            <div>
+                <div><label for="user">Enter username</label></div>
+                <div><input type="text" name="user"></div>
+            </div>
+            <div>
+                <div><label for="otp-feild">Check your mail for OTP</label></div>
+                <div><input type="text" name="otp-feild" id="otp-feild"></div>
+            </div>
+            <p>*Please note OTP will expire in 5min</p>
+            <div>
+                <div><button type="submit">Next</button></div>
+            </div>
+            <div><button data-cmd="resend-otp" type="button">Resend OTP</button></div>
+        </form>
+    </template>
+    <template id="new-passwd-template">
+        <form onsubmit="saveNewPasswd(event)">
+            <h2>Set new password for the user: <span id="selected-user"></span></h2>
+            <div><label for="new-passwd">Enter new password</label></div>
+            <div><input type="password" name="new-passwd" id="new-passwd" required></div>
+            <div><label for="re-new-passwd">Enter new password</label></div>
+            <div><input type="password" name="re-new-passwd" id="re-new-passwd" required></div>
+            <div>
+                <div><button type="submit">Next</button></div>
+            </div>
+        </form>
     </template>
 </body>
 </html>

@@ -1169,6 +1169,36 @@ ipcMain.handle("unlock-app", async (e, authData) => {
       throw new Error("No user");
     _user = "dataValues" in _user ? _user.dataValues : _user;
     let { passwd, id, name, role, secret, session, sessionTime, usePasswd } = _user;
+    if(authData.mode==="password-recovery"){
+      try{
+        await user.update({
+          passwd:bcrypt.hashSync(authData['new-passwd'],10)
+        },{
+          where:{
+            name:authData.name
+          }
+        });
+        currentUser = new User(
+          id,
+          name,
+          secret,
+          role,
+          session,
+          sessionTime,
+          usePasswd
+        );
+        ipcMain.emit("app-login");
+        return 0;
+      }
+      catch(err){
+        appLogger({
+          title:"Password recovery failed",
+          message:String(err)
+        });
+        dialog.showErrorBox("Password recovery failed",err.message);
+        return 0;
+      }
+    }
     if (await bcrypt.compare(authData.passwd, passwd)) {
       currentUser = new User(
         id,
