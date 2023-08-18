@@ -1140,7 +1140,6 @@ ipcMain.handle("check-session-info", async () => {
 });
 
 // Lock Screen ipcs
-
 ipcMain.handle("unlock-app", async (e, authData) => {
   let _user;
   try{
@@ -1330,7 +1329,6 @@ function imposeRestriction() {
 }
 
 // Bill designer IPCs
-
 ipcMain.on("load-main-page", () => {
   let mainWindow = getMainWindow();
   mainWindow.loadFile("./template/html/mainPage.html");
@@ -1717,7 +1715,7 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
     appLogger({
       title:"Error",
       message:String(err),
-      fumc:"Context menu: "+errIdentifier
+      func:"Context menu: "+errIdentifier
     });
   }
   if(!contextMenuObj) return;
@@ -1802,15 +1800,6 @@ function defaultThemeData() {
   });
 }
 
-ipcMain.handle("get-app-policy", (e) => {
-  return new Promise((res, rej) => {
-    fs.readFile(getAppPolicyPath(), (err, data) => {
-      if (err) rej(err);
-      res(JSON.parse(data.toString()));
-    });
-  });
-});
-
 function setLinuxThemeObserver() {
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   if (!("useDarkTheme" in appPolicy)) return;
@@ -1852,43 +1841,74 @@ ipcMain.handle("get-svg", (e, filePath) => {
   return fs.readFileSync(filePath).toString();
 });
 
+// IPC fetch user policy
 ipcMain.handle("get-policy",()=>{
   let path2policy = getUserPolicyPath();
   return JSON.parse(fs.readFileSync(path2policy).toString());
 });
+// IPC fetch APP Policy
+ipcMain.handle("get-app-policy", (e) => {
+  return new Promise((res, rej) => {
+    fs.readFile(getAppPolicyPath(), (err, data) => {
+      if (err) rej(err);
+      res(JSON.parse(data.toString()));
+    });
+  });
+});
 
 // App Backup Section
-// setInterval(()=>{
-//   nativeTheme.themeSource = "system";
-//   if(nativeTheme.shouldUseDarkColors)
-//     nativeTheme.themeSource = "dark";
-//   else
-//     nativeTheme.themeSource = "light";
-// },1500);// Remove later
-
-// Backup manager
-ipcMain.handle("app-backup", async (e, data) => {
-  let dirPath = await dialog.showSaveDialog({
-    message: "A backup directory will be created to store backup files.",
-    defaultPath: app.getPath("documents"),
+ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
+  if(items.length===0){
+    dialog.showMessageBox({
+      title:"Nothing picked",
+      message:"Please select something to backup."
+    });
+    return false;
+  }
+  let { canceled,filePath } = await dialog.showSaveDialog({
+    message: "Please name the directory where your backup files will be stored.",
+    defaultPath: app.getPath("documents")
   });
+  if(canceled)
+    return true;
+  try{
+    if(!fs.existsSync(filePath))
+      fs.mkdirSync(filePath,{recursive:true});
+    items.forEach(item=>{
+      let appPath;
+      if(process.env.APP_ENV==="DEV")
+          appPath = __dirname;
+      else
+          appPath = app.getPath("appData")+"/BBS";
+      if(item==="db")
+        fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(filePath,"bbs.db"))
+      else
+      if(item==="logs"){
+        fs.copyFileSync(path.resolve(appPath,"./logs/appLogs.txt"),path.resolve(filePath,"appLogs.txt"));
+        fs.copyFileSync(path.resolve(appPath,"./logs/dbLogs.txt"),path.resolve(filePath,"dbLogs.txt"));
+      }
+      else{// Config
+        fs.copyFileSync(path.resolve(appPath,"./config/appDefault.json"),path.resolve(filePath,"appDefault.json"));
+        fs.copyFileSync(path.resolve(appPath,"./config/policy.json"),path.resolve(filePath,"policy.json"));
+        fs.copyFileSync(path.resolve(appPath,"./config/saleConfig.json"),path.resolve(filePath,"saleConfig.json"));
+      }
+    });
+    if(createZip){
+      
+    }
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"Backup IPC"
+    });
+    dialog.showErrorBox("File save error",err.message);
+    return false;
+  }
   // Create backup path if not exist then perform backups
-  return;
+  return true;
 }); // Not complete
-
-// let backupDB = new Sequelize({
-//   dialect:"sqlite",
-//   storage:"./db/backup.db",
-// })
-
-// backupDB.authenticate()
-// .then(()=>{
-//   let models = Object.keys(sequelize.models);
-//   let fromSchemas = Object.keys(schemas);
-//   // models.forEach(async model=>{
-//   //   console.log(await sequelize.model(model).findAll())
-//   // });
-// });
 
 // App registration
 ipcMain.handle("app-registration-info", (e) => {
@@ -2314,6 +2334,7 @@ ipcMain.on("first-load",async ()=>{
     }
 });
 
+// MISC
 ipcMain.on("openDevTool",(e)=>{
   console.log("Opening DevTool")
   e.sender.toggleDevTools();
@@ -2361,6 +2382,7 @@ function lockOnIdle(){
     ipcMain.emit("lock");
 }
 
+// Scheduler IPCs
 ipcMain.on("call-scheduler",()=>{
   let pathToHTML = "./template/html/scheduler.html";
   let windowOptions = {

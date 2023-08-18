@@ -694,7 +694,9 @@ async function saveSettings(e){
             if(!(["items","createZip","mode"].includes(key)))
                 Reflect.deleteProperty(data,key);
         });
-        await ipcRenderer.invoke("app-backup",data);
+        let resp = await ipcRenderer.invoke("app-backup",data);
+        if(resp===false)
+            return;
     }
     else
     if(cmd==="registration")

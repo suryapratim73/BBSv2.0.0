@@ -981,8 +981,8 @@ exports.applyTheme = async function(e,theme){
         file:""
     };
     theme = theme || themeObj;
-    let { shouldUseDarkColors=false,darkPrimary,darkSecondary,darkShadow,darkText,applyBackgroundImage,file,primary,secondary,shadow,text,applyGradient } = theme;
-    if(shouldUseDarkColors){
+    let { shouldUseDarkColors=false,useDarkTheme=false,darkPrimary,darkSecondary,darkShadow,darkText,applyBackgroundImage,file,primary,secondary,shadow,text,applyGradient } = theme;
+    if(shouldUseDarkColors && useDarkTheme){
         this.documentElement.style.setProperty("--theme-primary",darkPrimary);
         this.documentElement.style.setProperty("--theme-secondary",darkSecondary);
         this.documentElement.style.setProperty("--theme-text-color",darkText);
