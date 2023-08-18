@@ -697,6 +697,8 @@ async function saveSettings(e){
         let resp = await ipcRenderer.invoke("app-backup",data);
         if(resp===false)
             return;
+        else
+            showToastNotification("Backup successful.",["animation-common","move-left","blue-toast-box"],"main");
     }
     else
     if(cmd==="registration")

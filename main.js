@@ -64,6 +64,7 @@ const { spawn,execFile } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
+const AdmZip = require("adm-zip");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
@@ -1894,7 +1895,35 @@ ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
       }
     });
     if(createZip){
-      
+      let zip = new AdmZip();
+      let resp = await new Promise((res,rej)=>{
+        zip.addLocalFolderAsync(filePath,(isSuccessful,err)=>{
+          if(isSuccessful)
+            res(true);
+          else{
+            appLogger({
+              title:"Create ZIP Error",
+              message:String(err),
+              func:"Create ZIP Error- app backup"
+            })
+            dialog.showErrorBox("Create ZIP Error",err);
+            rej(err);
+          }
+        });
+      });
+      if(resp===true)
+        resp = await zip.writeZipPromise(filePath+".zip")
+      else
+        return false;  
+      if(mode==="local"){
+        fs.rmdirSync(filePath,{recursive:true});
+        return true;
+      }
+      else{
+        // Store on clients personal cloud space/BBS Cloud.
+        //Retur true if cloud push is successful.
+        return true;
+      }
     }
   }
   catch(err){
