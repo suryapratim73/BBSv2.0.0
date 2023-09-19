@@ -578,6 +578,7 @@ select,option{
     flex-direction: column;
     overflow: auto;
     height: 95%;
+    padding: 0.5rem;
 }
 #settings-container form>div{
     margin: 0.5rem 0;
@@ -924,4 +925,49 @@ form#registration{
 }
 .table p{
     white-space: unset !important;
+}
+#view{
+    display: flex;
+    justify-content: space-between;
+    flex: 2;
+}
+#table-of-content{
+    flex: 2;
+    margin-right: 1rem !important;
+    border-right: 1px dashed;
+}
+#view #host{
+    flex: 7;
+    display: flex;
+    justify-content: center;
+}
+#view .host{
+    padding: .5rem;
+    display: flex;
+    gap: .5rem;
+    justify-content: center;
+}
+.bank-info{
+    border: 1px solid;
+    border-radius: 5px;
+    padding: .5rem;
+    background: var(--theme-primary);
+}
+.bank-info>h3{
+    background: inherit;
+    color: var(--theme-secondary);
+}
+.bank-info .inner{
+    padding: .5rem;
+    background: var(--theme-secondary);
+    border-radius: 5px;
+}
+.bank-info button{
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+.bank-form>div:first-child{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }

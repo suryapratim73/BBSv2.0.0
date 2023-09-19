@@ -669,54 +669,9 @@
             </div>
         </form>
     </template>
-    <template id="company-profile-template">
-        <form onsubmit="saveSettings(event)" id="company-profile" data-cmd="company-profile" data-show="billing-settings">
-            <h2>Edit your company details</h2>
-            <div>
-                <div>
-                    <label for="biller">Company Name</label>
-                </div>
-                <div>
-                    <input type="text" name="biller" id="biller">
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="address">Company address</label>
-                </div>
-                <div>
-                    <input type="text" name="address" id="address">
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="gst">Company GST</label>
-                </div>
-                <div>
-                    <input type="text" name="gst" id="gst">
-                </div>
-            </div>
-            <div>
-                <div>
-                    <label for="phones">Company phones</label>
-                </div>
-                <div>
-                    <input type="text" name="phones" id="phones">
-                </div>
-            </div>
-            <div id="host"></div>
-            <div>
-                <button data-cmd="add-more-feilds" type="button" onclick="event.stopPropagation();addFeilds(event)">Add more details</button>
-            </div>
-            <div>
-                <button class="main-ui-btn" type="submit">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
-            </div>
-        </form>
-    </template>
     <template id="bill-no-template">
         <form onsubmit="saveSettings(event)" class="page1" id="bill-no" data-cmd="bill-no" data-show="billing-settings">
-            <div>
+            <div id="bill-format-div">
                 <p>Change Invoice number format</p>
                 <div>
                     <button class="main-ui-btn" data-show="billing-settings" type="button" data-cmd="adv-invoice-format">Change</button>
@@ -724,26 +679,73 @@
             </div>
             <div>
                 <div>
-                    <label for="bill-no">Set invoice number</label>
+                    <label for="billNo">Set invoice number</label>
                 </div>
                 <div>
-                    <input type="text" name="bill-no" id="bill-no" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    <input type="text" name="billNo" id="billNo" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn" type="submit">Save</button>
+                <button class="main-ui-btn page1" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
             </div>
         </form>
     </template>
     <template id="adv-invoice-format-template">
         <form onsubmit="saveSettings(event)" class="page2" id="adv-bill-no" data-cmd="adv-bill-no" data-show="billing-settings">
-        
+            <div>
+                <div>
+                    <label for="formats">Select a format</label>
+                </div>
+                <div>
+                    <select name="formats" onclick="event.stopPropagation()" id="formats" data-cmd="invoice-format" onchange="changeHandler(event)">
+                        <option value="1">Bill number(billNo)</option>
+                        <option value="2">Financial year(fy)/Bill number(billNo)</option>
+                        <option value="3">Your company abbrebiation(cabbr)/Financial year(fy)/Bill number(billNo)</option>
+                        <option value="0">Custom format</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hide" id="custom-format-div">
+                <div>
+                    <label for="custom">Custom invoice number</label>
+                </div>
+                <div>
+                    <p>Sample</p>
+                </div>
+                <div>
+                    <input type="text" onkeypress="event.preventDefault()" value="" id="custom-format-display" name="custom-format">
+                </div>
+                <div>
+                    <select name="element" id="element">
+                        <option value="billNo">Bill Number(billNo)</option>
+                        <option value="cabbr">Company abbrebiation(cabbr)</option>
+                        <option value="fy">Financial year(fy)</option>
+                        <option value="batchNo">Batch number(batchNo)</option>
+                        <option value="-">Separator 1 (-)</option>
+                        <option value="/">Separator 2 (/)</option>
+                        <option value=".">Separator 3 (.)</option>
+                        <option value="\\">Separator 4 (\)</option>
+                        <option value="_">Separator 5 (_)</option>
+                    </select>
+                    <button type="button" onclick="appendElem()">Append</button>
+                </div>
+            </div>
             <div>
                 <button class="main-ui-btn" type="submit">Save</button>
                 <button type="button" data-cmd="back-page1" data-show="page1">Cancel</button>
             </div>
         </form>
+    </template>
+    <template id="disabled-input-template">
+        <div>
+            <div>
+                <label></label>
+            </div>
+            <div>
+                <input type="text" onkeypress="event.preventDefault()" onkeydown="event.preventDefault()">
+            </div>
+        </div>
     </template>
     <template id="help-page-template"></template>
     <template id="data-modal-template">
@@ -807,42 +809,139 @@
     <template id="add-payment-btn-template">
         <button type="button" data-cmd="add-payment">Add Payment</button>
     </template>
-    <template id="comp-more-info-feild-template">
-        <div>
+    <!-- Company profile -->
+    <template id="company-profile-template">
+        <form onsubmit="saveSettings(event)" id="company-profile" data-cmd="company-profile" data-show="billing-settings">
+            <h2>Edit your company details</h2>
+            <div id="view">
+                <div id="table-of-content" onclick="event.stopPropagation();addFeilds(event)">
+                    <p class="tab selected" data-cmd="basic">Basic Information</p>
+                    <p class="tab" data-cmd="bank">Bank Information</p>
+                    <p class="tab" data-cmd="email">Email & Website</p>
+                </div>
+                <div id="host"></div>
+            </div>
+            <div>
+                <button class="main-ui-btn" type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="info-type-basic-template">
+        <div class="basic info">                            
             <div>
                 <div>
-                    <label for="type">Information type</label>
+                    <label for="biller">Company Name</label>
                 </div>
                 <div>
-                    <select name="type" id="type" onchange="event.stopPropagation();addTypeFeild(event)">
-                        <option value="bank">Bank information</option>
-                        <option value="email">Email</option>
-                        <option value="website">Website</option>
-                    </select>
+                    <input type="text" name="biller" id="biller">
                 </div>
             </div>
-            <div id="host-2"></div>
+            <div>
+                <div>
+                    <label for="abbr">Company Abbrebiation (optional)</label>
+                </div>
+                <div>
+                    <input type="text" name="abbr" id="abbr">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="address">Company address</label>
+                </div>
+                <div>
+                    <input type="text" name="address" id="address">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="gst">Company GST</label>
+                </div>
+                <div>
+                    <input type="text" name="gst" id="gst">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="phones">Company phones</label>
+                </div>
+                <div>
+                    <input type="text" name="phones" id="phones">
+                </div>
+            </div>
         </div>
     </template>
     <template id="info-type-bank-template">
-        <div class="removable">
+        <div class="bank info">
+        </div>
+    </template>
+    <template id="info-type-email-template">
+        <div class="email info">
             <div>
-                <label for="name">Bank Name</label>
+                <div><label for="email">Company email</label></div>
+                <div><input type="email" name="email" id="email"></div>
             </div>
             <div>
-                <input type="text" name="name" id="bnk-name">
+                <div><label for="website">Company Website</label></div>
+                <div><input type="url" name="website" id="website"></div>
+            </div>
+        </div>
+    </template>
+    <template id="bank-info-form-template">
+        <div class="bank-form">
+            <div>
+                <div>
+                    <div>
+                        <label for="name">Bank Name</label>
+                    </div>
+                    <div>
+                        <input type="text" name="name" id="bnk-name">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="branch">Branch Name</label>
+                    </div>
+                    <div>
+                        <input type="text" name="branch" id="branch">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="acc-no">Account Number</label>
+                    </div>
+                    <div>
+                        <input type="text" name="acc-no" id="acc-no" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <label for="ifsc">IFSC</label>
+                    </div>
+                    <div>
+                        <input type="text" name="ifsc" id="ifsc">
+                    </div>
+                </div>
+                <div>
+                    <button type="button" onclick="addBank(event)">Add Bank</button>
+                </div>
+            </div>
+            <h2 class="hide">List of Banks</h2>
+            <div class="host hide" onclick="event.stopPropagation();manageBank(event)">
+            </div>
+        </div>
+    </template>
+    <template id="bank-info-template">
+        <div class="bank-info">
+            <h3 data-col="name"></h3>
+            <div class="inner">
+                <p data-col="acc-no"></p>
+                <p data-col="ifsc"></p>
+                <p data-col="branch"></p>
             </div>
             <div>
-                <label for="acc-no">Account Number</label>
-            </div>
-            <div>
-                <input type="number" name="acc-no" id="acc-no">
-            </div>
-            <div>
-                <label for="ifsc">IFSC</label>
-            </div>
-            <div>
-                <input type="text" name="ifsc" id="ifsc">
+                <button type="button" data-cmd="edit">Edit</button>
+                <button type="button" data-cmd="delete">-</button>
             </div>
         </div>
     </template>

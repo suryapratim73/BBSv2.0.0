@@ -497,7 +497,7 @@ app.on("ready", async () => {
       "applyTemplate": false,
       "file": ""
     },
-    "bankDetails": {}
+    "bankDetails": []
   };
   let appDefaultSchema = {
     "a4": { "width": 595.28, "height": 841.89 },
@@ -1429,6 +1429,45 @@ ipcMain.on("dbl-click-resp",(e,obj,mode)=>{
     })(); 
 });
 
+ipcMain.handle("manage-company-bank",async (e,obj,flag)=>{
+  try{
+    if(flag==="a"){
+      fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(obj));
+      return true;
+    }
+    else
+    if(flag==="delete" || flag==="auto-delete"){
+      let compInfo = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+      if(flag==="delete"){
+        let { response } = await dialog.showMessageBox({
+          title:"Bank entry deletion",
+          message:"Are you sure you want to delete this bank information?",
+          buttons:["Yes","Cancel"]
+        });
+        if(response===1)
+          return false;
+      }
+      if("bankDetails" in compInfo && compInfo.bankDetails.length>0){
+        let bankDetails = compInfo.bankDetails;
+        bankDetails = bankDetails.filter(bankObj=>bankObj.bankID!=obj.bankID);
+        compInfo.bankDetails = bankDetails;
+        fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(compInfo));
+        return true;
+      }
+      else
+        return false;
+    }
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"manage-company-bank-ipc"
+    });
+    return false;
+  }
+});
+
 // Context Menu
 ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
   let window = BrowserWindow.fromId(e.frameId),errIdentifier;
@@ -1937,7 +1976,7 @@ ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
   }
   // Create backup path if not exist then perform backups
   return true;
-}); // Not complete
+}); // Not complete - cloud sync left
 
 // App registration
 ipcMain.handle("app-registration-info", (e) => {
@@ -2396,6 +2435,23 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
   ipcMain.emit("show-print-modal",path2pdf);
 });
 
+ipcMain.handle("billing-format-ipc",(e,data)=>{
+  try{
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString())
+    console.log(data)
+    if("format" in data)
+      saleConfig.format = data.format;
+    if(parseInt(data.billNo))
+      saleConfig.billNo = Number(data.billNo);
+    fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
+    return true;
+  }
+  catch(err){
+    dialog.showErrorBox("Error",String(err));
+    return false;
+  }
+});
+
 ipcMain.on("printObj",print);
 
 module.exports.checkForUpdates = checkForUpdates;
@@ -2599,3 +2655,5 @@ ipcMain.on("open-event",(e,evObj)=>{
     });
   }
 });
+
+// Network Management

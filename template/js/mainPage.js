@@ -343,7 +343,7 @@ function initAdvThemePage(form,themeObj){
         form.querySelector(`input[name="applyGradient"]`).setAttribute("checked",true);
 }
 
-async function showForm(e,cmd,show){
+async function showForm(e,cmd,show,prevData={}){
     if(e){
         cmd = e.target.dataset.cmd;
         show = e.target.dataset.show;
@@ -421,6 +421,21 @@ async function showForm(e,cmd,show){
                 btn.parentNode.classList.remove("hide");
                 btn.classList.remove("hide");
             });
+            if("prevCMD" in prevData && prevData.prevCMD==="adv-bill-no"){
+                removeAllElem(".selected-inv-format")
+                let inpDiv = document.getElementById("disabled-input-template").content.cloneNode(true).querySelector("div");
+                document.getElementById("bill-format-div").after(inpDiv);
+                inpDiv.className = "selected-inv-format";
+                let inp = inpDiv.querySelector("input");
+                inpDiv.querySelector("label").textContent = "Selected format";
+                inpDiv.querySelector("label").setAttribute("for","format");
+                inp.name = "format";
+                inp.id = "format";
+                let formats = ["custom","billNo","fy/billNo","cabbr/fy/billNo",]
+                let formatIndex = +prevData.formats;
+                inp.value = (formatIndex===0 ? prevData['custom-format'] : formats[formatIndex]);
+                // console.log(prevData)
+            }
         }
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
@@ -476,23 +491,56 @@ async function showForm(e,cmd,show){
             }
             else
             if(cmd==="company-profile"){
-                compInfo = await ipcRenderer.invoke("get-company-info");
-                ["biller","address","gst","phones"]
+                compInfo = await ipcRenderer.invoke("get-company-info"); 
+                removeAllElem("#host *");
+                [...document.querySelectorAll("#table-of-content .tab")]
+                .forEach(elem=>{
+                    if(elem.dataset.cmd==="basic")
+                        elem.classList.add("selected");
+                    else
+                        elem.classList.remove("selected");
+                });
+                ["#info-type-basic-template","#info-type-bank-template","#info-type-email-template"]
+                .map(selector=>appendToHost(selector,"#view #host","DIV"))
+                .forEach(elem=>{
+                    if(!elem.classList.contains("basic"))
+                        elem.classList.add("hide");
+                    if(elem.classList.contains("bank"))
+                        appendToHost("#bank-info-form-template",elem,"DIV")
+                });
+                ["biller","address","gst","phones","abbr",{bankDetails:["name","branch","acc-no","ifsc"]},"email","website"]
                 .forEach(key=>{
-                    let input = form.querySelector(`input[name="${key}"]`);
-                    if(!input) return;
-                    let text = key!=="phones" ? compInfo[key] : "";
-                    if(key==="phones")
-                        text = compInfo.phones?.reduce?.((acc,val,index,self)=>{
-                            if(index===self.length-1)
-                                acc += val;
-                            else
-                                acc += val + ", ";
-                            return acc;
-                        },"") ?? compInfo.phones;
-                    // if(["gst","biller"].includes(key))
-                    //     input.setAttribute("disabled",true);
-                    input.value = text;
+                    let input;
+                    if(typeof key!=="object"){
+                        input = form.querySelector(`input[name="${key}"]`);
+                        if(!input) return;
+                        let text = key!=="phones" ? compInfo?.[key] : "";
+                        if(key==="phones")
+                            text = compInfo.phones?.reduce?.((acc,val,index,self)=>{
+                                if(index===self.length-1)
+                                    acc += val;
+                                else
+                                    acc += val + ", ";
+                                return acc;
+                            },"") ?? compInfo.phones;
+                        input.value = text;
+                    }
+                    else{
+                        let keys = key.bankDetails;
+                        if("bankDetails" in compInfo && compInfo?.bankDetails?.length>0){
+                            let host = document.querySelector("#view .host");
+                            host.classList.remove("hide");
+                            document.querySelector(".bank-form h2").classList.remove("hide");
+                            compInfo.bankDetails.forEach(bankInfo=>{
+                                let child = appendToHost("#bank-info-template",host,"DIV");
+                                child.dataset.obj = JSON.stringify(bankInfo)
+                                child.querySelector("[data-col='name']").textContent = bankInfo.bank;
+                                child.querySelector("[data-col='acc-no']").textContent = bankInfo.accNo;
+                                child.querySelector("[data-col='branch']").textContent = bankInfo.branch;
+                                child.querySelector("[data-col='ifsc']").textContent = bankInfo.ifsc;                                
+                            })
+                        }
+                    }
                 });
             }
             else
@@ -560,12 +608,8 @@ async function showForm(e,cmd,show){
                 }
             }
             else
-            if(cmd==="adv-invoice-format"){
+            if(cmd==="adv-invoice-format")
                 document.querySelector(".page1").classList.add("hide");
-                // let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
-                // document.getElementById(`${show}`).appendChild(form);
-                
-            }
         }
     }
     else
@@ -575,6 +619,13 @@ async function showForm(e,cmd,show){
         selectedSettings.querySelector(".settings-div").classList.remove("hide");
     }
     spinner.remove(window);
+}
+
+function appendElem(e){
+    let variable = document.getElementById("element").value;
+    let sample = document.getElementById("custom-format-display").value;
+    if(!new RegExp(variable).test(sample) || ["/","\\",".","_","-"].includes(variable))
+        document.getElementById("custom-format-display").value = sample + variable;
 }
 
 function showOrHideDiv(e){
@@ -655,20 +706,14 @@ async function saveSettings(e){
     else
     if(cmd==="company-profile"){
         data.phones = data.phones.split(",").map(val=>Number(val.trim()));
-        data.moreInfo = [];
-        [...e.target.querySelectorAll("#host>div")]
-        .forEach(div=>{
-            let obj = {};
-            obj.id = div.id;
-            [...div.querySelectorAll("input,select")]
-            .forEach(inp=>{
-                obj[inp.name] = inp.value;
-            });
-            data.moreInfo.push(obj);
-        });
-        ["ifsc","name","type","acc-no"]
+        ["ifsc","branch","name","type","acc-no"]
         .forEach(key=>{
             Reflect.deleteProperty(data,key);
+        });
+        Object.keys(data)
+        .forEach(key=>{
+            if(data[key]==="undefined")
+                data[key] = "";
         });
         ipcRenderer.send("company-profile-info",data);
     }
@@ -703,6 +748,17 @@ async function saveSettings(e){
     else
     if(cmd==="registration")
         ipcRenderer.send("app-registration",e.target.gst.value);
+    else
+    if(cmd==="adv-bill-no"){
+        data.prevCMD = cmd;
+        return showForm(null,"back-page1",show,data);
+    }
+    else
+    if(cmd==="bill-no"){
+        let resp = await ipcRenderer.invoke("billing-format-ipc",data);
+        if(resp)
+            showToastNotification("Billing preference saved.",["animation-common","move-left","blue-toast-box"],"main");
+    }
     showForm(null,"back",show);
 }
 
@@ -857,6 +913,12 @@ function changeHandler(e){
         else
             form.idleTime.setAttribute("disabled",true);
     }
+    else
+    if("cmd" in e.target.dataset && e.target.dataset?.cmd==="invoice-format" && e.target.value==="0")
+        document.getElementById("custom-format-div").classList.remove("hide");
+    else
+    if("cmd" in e.target.dataset && e.target.dataset?.cmd==="invoice-format" && e.target.value!="0")
+        document.getElementById("custom-format-div").classList.add("hide");
 }
 
 function openScheduleManager(e){
@@ -1052,14 +1114,74 @@ function submitHandler(e){
 
 function addFeilds(e){
     let { cmd } = e.target.dataset;
-    if(cmd==="add-more-feilds"){
-        let child = appendToHost("#comp-more-info-feild-template",e.path.find(elem=>elem.nodeName==="FORM").querySelector("#host"),"DIV");
-        child.id = uuid.v4();
-        appendToHost("#info-type-bank-template",child.querySelector("#host-2"),"DIV");
-    }
+    [...document.querySelectorAll("#view .tab")]
+    .forEach(tab=>{
+        if(tab.dataset.cmd===cmd)
+            tab.classList.add("selected");
+        else
+            tab.classList.remove("selected");
+    });
+    [...document.querySelectorAll("#view .info")]
+    .forEach(div=>{
+        if(div.classList.contains(cmd))
+            div.classList.remove("hide");
+        else
+            div.classList.add("hide");
+    })
 }
 
-function addTypeFeild(e){
-    if(e.target.value==="bank")
-        appendToHost("#info-type-bank-template",e.path.find(elem=>elem.nodeName==="FORM").querySelector("#host-2"),"DIV");
+async function addBank(e){
+    let compInfo = await ipcRenderer.invoke("get-company-info");
+    let form = e.path.find(elem=>elem.nodeName==="FORM");
+    let bank = form.name.value;
+    let branch = form.branch.value;
+    let accNo = form['acc-no'].value;
+    let ifsc = form.ifsc.value;
+    let bankID = uuid.v5(`${bank}-${accNo}`,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+    let host = document.querySelector("#view #host .bank");
+    let { bankDetails=[] } = compInfo;
+    if(bankDetails.find(({bankID:_id=""})=>_id===bankID))
+        return alert("Bank exists");
+    removeAllElem("#view #host .bank .bank-form");
+    bankDetails.push({bank,branch,accNo,ifsc,bankID});
+    appendToHost("#bank-info-form-template",host,"DIV");
+    document.querySelector("#view #host .bank .host").classList.remove("hide");
+    document.querySelector(".bank-form h2").classList.remove("hide");
+    bankDetails.forEach(obj=>{
+        let child = appendToHost("#bank-info-template","#view #host .bank .host","DIV");
+        child.dataset.obj = JSON.stringify(obj);
+        child.querySelector("[data-col='name']").textContent = obj.bank;
+        child.querySelector("[data-col='acc-no']").textContent = obj.accNo;
+        child.querySelector("[data-col='branch']").textContent = obj.branch;
+        child.querySelector("[data-col='ifsc']").textContent = obj.ifsc;
+    });
+    compInfo.bankDetails = bankDetails;
+    let resp = await ipcRenderer.invoke("manage-company-bank",compInfo,"a");
+    if(resp)
+        showToastNotification("Bank added.",["animation-common","move-left","blue-toast-box"],"main");
+}
+
+async function manageBank(e){
+    e.preventDefault();
+    let btn = e.target;
+    let cmd = btn.dataset.cmd;
+    let div = e.path.find(elem=>elem.classList.contains("bank-info"));
+    let obj = JSON.parse(div.dataset.obj);
+    if(cmd==="delete"){
+        let resp = await ipcRenderer.invoke("manage-company-bank",obj,"delete");
+        if(resp){
+            showToastNotification("Bank deleted.",["animation-common","move-left","blue-toast-box"],"main");
+            div.remove();
+        }
+    }
+    else
+    if(cmd==="edit"){
+        div.remove();
+        await ipcRenderer.invoke("manage-company-bank",obj,"auto-delete");
+        div = e.path.find(elem=>elem.classList.contains("bank-form"))
+        div.querySelector("input[name='name']").value = obj.bank;
+        div.querySelector("input[name='branch']").value = obj.branch;
+        div.querySelector("input[name='acc-no']").value = obj.accNo;
+        div.querySelector("input[name='ifsc']").value = obj.ifsc;
+    }
 }
