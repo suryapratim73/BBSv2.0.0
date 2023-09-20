@@ -52,6 +52,7 @@
     "productName": "Bigbyte Business Service",
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
+    "nodeVersion":"16.20.2",
     "linux": {
       "target": [
         {
@@ -111,5 +112,5 @@
     "asar": false,
     "afterPack": "scripts/afterpack.js"
   },
-  "homepage": "http://192.168.0.104/home/git/BBS.git"
+  "homepage": "http://192.168.0.111/home/git/BBS.git"
 }
