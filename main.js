@@ -977,6 +977,7 @@ ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd, lockOnIdle:_
 });
 
 ipcMain.handle("get-user-status", async (e, id) => {
+  id = id ? id : currentUser.id;
   return (
     await user.findOne({
       where: {
@@ -1004,20 +1005,20 @@ ipcMain.handle("save-secret-for-user", () => {
     },
     {
       where: {
-        id,
+        id:currentUser.id,
       },
     }
   );
 });
 
-ipcMain.handle("remove-secret", (e, id) => {
+ipcMain.handle("remove-secret", () => {
   return user.update(
     {
       secret: null,
     },
     {
       where: {
-        id,
+        id:currentUser.id,
       },
     }
   );
@@ -1199,6 +1200,7 @@ ipcMain.handle("unlock-app", async (e, authData) => {
         return 0;
       }
     }
+    else
     if (await bcrypt.compare(authData.passwd, passwd)) {
       currentUser = new User(
         id,
@@ -1210,20 +1212,23 @@ ipcMain.handle("unlock-app", async (e, authData) => {
         usePasswd
       );
       // Write TOTP on console
-      if (secret && process.APP_ENV==="DEV") {
+      if (secret) {
         function writeTOTP() {
-          process.stdout.cursorTo(0, 4);
-          process.stdout.clearLine(0);
+          readLine.clearLine(process.stdout,0)
+          readLine.cursorTo(process.stdout,0)
           process.stdout.write(
             speakeasy.totp({
               secret: secret,
               encoding: "base32",
-            }) + "\n"
+            })
           );
         }
-        writeTOTP();
-        clearInterval(totpTimer);
-        totpTimer = setInterval(writeTOTP, 1000);
+        if(process.env.APP_ENV==="DEV"){
+          console.log("\nTOTP Code:")
+          writeTOTP();
+          clearInterval(totpTimer);
+          totpTimer = setInterval(writeTOTP, 1000);
+        }
         return 1;
       }
       ipcMain.emit("app-login");

@@ -361,9 +361,8 @@ async function showForm(e,cmd,show,prevData={}){
         }
         else
         if(cmd==="disable-2-factor"){
-            let id = document.getElementById("name").dataset.id;
             let show = e.target.dataset.show;
-            await ipcRenderer.invoke("remove-secret",id);
+            await ipcRenderer.invoke("remove-secret");
             showToastNotification("2-Factor Authentication disabled.",["animation-common","move-left","blue-toast-box"],"main");
             showForm(null,"back",show);          
         }
@@ -468,6 +467,7 @@ async function showForm(e,cmd,show,prevData={}){
                     return alert(err);
                 }
             }
+            else
             if(cmd==="update-user" && loggedinUser.name!=="admin")
                 document.getElementById("role-div").classList.add("hide");
             else
@@ -610,6 +610,9 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="adv-invoice-format")
                 document.querySelector(".page1").classList.add("hide");
+            else
+            if(cmd==="set-2-factor-auth")
+                enableOrDisableQR();
         }
     }
     else
@@ -763,10 +766,11 @@ async function saveSettings(e){
 }
 
 async function enableOrDisableQR(e){
-    let username = e.target.value;
-    let option = e.target.list.querySelector(`[data-name="${username}"]`);
-    let userId = option.dataset.id;
-    e.target.dataset.id = userId;
+    let username = e && e.target.value;
+    let option = e && e.target.list.querySelector(`[data-name="${username}"]`);
+    let userId = option && option.dataset.id;
+    if(e)
+        e.target.dataset.id = userId;
     let secret = await ipcRenderer.invoke("get-user-status",userId);
     let btn;
     if(!secret)
