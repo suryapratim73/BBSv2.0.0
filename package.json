@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.10.2",
+  "version": "2.10.3",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -103,10 +103,10 @@
       "!electron-builder.env",
       "!.gitignore",
       "!private",
-      "!logs",
-      "!ext",
+      "!logs/",
+      "!ext/",
       "!db/",
-      "!config",
+      "!config/",
       "!.vscode"
     ],
     "asar": false,
