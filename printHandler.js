@@ -13,16 +13,16 @@ exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,p
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} "${path2pdf}" `;
-    execCMD(cmd)
+    execCMD.call(printOnLinuxOrMac,cmd)
 }
 
-exports.printOnWindows = function(path2pdf,printer,copies,paperSize){
+exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSize){
     if(!path2pdf && fs.existsSync(path2pdf)) return;
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
     let cmd = `${path2SumatraPDF} -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
-    execCMD(cmd)
+    execCMD.call(printOnWindows,cmd)
 }
 
 function checkPrintersOnLinuxOrMac(os){
@@ -39,7 +39,7 @@ function execCMD(cmd){
     exec(cmd,(err,stdout)=>{
         if(err){
             console.warn({err});
-            timer = setTimeout(printOnLinuxOrMac,1000,path2pdf,printer,copies,paperSize,printOrientation)
+            timer = setTimeout(this,1000,path2pdf,printer,copies,paperSize,printOrientation)
         }
         clearTimeout(timer);
         let msg = {

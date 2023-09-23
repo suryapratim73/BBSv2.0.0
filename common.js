@@ -91,7 +91,7 @@ function print({printObj,path2pdf}){
         printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation);
     else
     if(process.platform==="win32")
-        printOnWindows(path2pdf)
+        printOnWindows(path2pdf,printer,copies,paperSize)
     else
         dialog.showErrorBox("Unsupported OS","The print function is not yet supported for your OS.")
 }
