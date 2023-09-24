@@ -1144,7 +1144,7 @@ async function addBank(e){
     let bankID = uuid.v5(`${bank}-${accNo}`,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
     let host = document.querySelector("#view #host .bank");
     let { bankDetails=[] } = compInfo;
-    if(!bankDetails instanceof Array) 
+    if(!(bankDetails instanceof Array)) 
         bankDetails = [];
     if(bankDetails.find(({bankID:_id=""})=>_id===bankID))
         return alert("Bank exists");
