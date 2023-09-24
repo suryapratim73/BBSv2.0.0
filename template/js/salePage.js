@@ -46,7 +46,9 @@ async function init(){
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj);
 }
-init();// Datalist linking and selection handler work
+init().catch((err)=>{
+    console.log(err)
+});// Datalist linking and selection handler work
 
 ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
