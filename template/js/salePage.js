@@ -3,8 +3,6 @@ const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSum
 const uuid = require("uuid");
 let fs = require("fs");
 
-const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
-
 toggleDevTool(document);
 
 let nameDatalist = document.createElement("datalist"),
@@ -28,6 +26,7 @@ unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
 
 async function init(){
+    const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
     appendToDL("get-stocks",nameDatalist);
     appendToDL("get-services",nameDatalist);
     appendToDL("get-customers",customerNameDatalist);
@@ -521,6 +520,7 @@ function displaySection(){
         }
         else
         if(p.dataset.name==="quantity" && selectedItem.type!=="service"){
+            const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
             let quantity = selectedItem.quantity ?? 0;
             let totalQty = orderItems.reduce((acc,obj)=>{
                 if(obj.id===selectedItem.id && "qty" in obj && "id" in selectedItem && "id" in obj){
