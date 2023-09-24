@@ -25,12 +25,13 @@ let closeFlag = false,
 exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
-        dialog.showMessageBox({
-            title:"Trying to open sale window"
-        })
         saleWindow = createModal(windowOptions,"./template/html/salePage.html");
         saleWindow.on("unresponsive",(e)=>{
             dialog.showErrorBox("Error",String(e))
+        });
+        saleWindow.webContents.openDevTools()
+        dialog.showMessageBox({
+            title:"Sale Window opened"
         })
         // saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{
