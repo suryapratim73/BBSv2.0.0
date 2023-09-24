@@ -8,10 +8,11 @@ const {
 
 exports.toggleDevTool = function(document){
     document.addEventListener("keyup",e=>{
-        if(e.code==="F1" && APP_ENV==="DEV")
-            ipcRenderer.send("openDevTool");
-        else if(e.code==="Escape")
-            ipcRenderer.send("close");
+        ipcRenderer.send("openDevTool");
+        // if(e.code==="F1" && APP_ENV==="DEV")
+        //     ipcRenderer.send("openDevTool");
+        // else if(e.code==="Escape")
+        //     ipcRenderer.send("close");
     });
 }
 
