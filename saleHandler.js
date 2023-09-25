@@ -19,20 +19,21 @@ let closeFlag = false,
     saleWindow,
     windowOptions = {
         width: 800,
-        height: 600
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            enableRemoteModule: true
+        }
     };
 
 exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
         saleWindow = createModal(windowOptions,"./template/html/salePage.html");
+        saleWindow.webContents.openDevTools()
         saleWindow.on("unresponsive",(e)=>{
             dialog.showErrorBox("Error",String(e))
         });
-        saleWindow.webContents.openDevTools()
-        dialog.showMessageBox({
-            title:"Sale Window opened"
-        })
         // saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{
             if(!closeFlag){

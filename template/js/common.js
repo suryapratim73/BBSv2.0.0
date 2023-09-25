@@ -1,4 +1,4 @@
-const {ipcRenderer,app} = require("electron");
+let {ipcRenderer,app,remote} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
@@ -1033,6 +1033,8 @@ exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['
 
 function policyPathCommmon(relPath,_path){
     let policyPath = __dirname; 
+    if(!app)
+        app = remote?.app;
     if(process.env.APP_ENV==="DEV"){
         policyPath = __dirname;
         policyPath = path.resolve(policyPath,relPath,_path);
