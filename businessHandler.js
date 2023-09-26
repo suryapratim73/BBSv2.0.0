@@ -10,6 +10,10 @@ const fs = require("fs");
 let windowOptions = {
     width: 800,
     height: 600,
+    webPreferences: {
+        nodeIntegration: true,
+        enableRemoteModule: true
+    }
 }
 
 exports.createGSTSummaryWindow = mainWindow => {
@@ -42,8 +46,7 @@ async function calcNetTax(table,startDate,endDate){
         attributes:[
             [sequelize.fn("SUM",sequelize.col("tax")),"tax"]
         ]
-    })).dataValues;
-    
+    })).dataValues;   
     return tax;
 }
 

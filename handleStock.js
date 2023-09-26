@@ -7,7 +7,11 @@ const {stock} = require("./model/dbConfig");
 let stockList = [],
     windowOptions = {
         width: 800,
-        height: 600
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            enableRemoteModule: true
+        }
     };
 
 exports.displayStock = mainWindow =>{

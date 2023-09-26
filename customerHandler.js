@@ -17,6 +17,10 @@ exports.customerPortal = mainWindow =>{
             width: 800,
             height: 600,
             parent:mainWindow,
+            webPreferences: {
+                nodeIntegration: true,
+                enableRemoteModule: true
+            }
         }   
         let pathToHTML = "./template/html/customerPortal.html";
         createModal(windowOptions,pathToHTML,{

@@ -34,7 +34,7 @@ function checkPrintersOnLinuxOrMac(os){
     });
 }
 
-function execCMD(cmd){
+function execCMD(cmd,path2pdf,printer,copies,paperSize,printOrientation){
     let timer;
     exec(cmd,(err,stdout)=>{
         if(err){

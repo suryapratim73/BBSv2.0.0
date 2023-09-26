@@ -9,7 +9,11 @@ const { stockList } = require("./handleStock");
 
 let windowOptions = {
     width: 800,
-    height: 600
+    height: 600,
+    webPreferences: {
+        nodeIntegration: true,
+        enableRemoteModule: true
+    }
 } 
 exports.addPurchase = mainWindow=>{
     return ()=>{
