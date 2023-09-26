@@ -425,7 +425,11 @@ app.on("quit", () => {
     fds.forEach((fd) => {
       if(typeof fd ==="number")
         fs.close(fd, (err) => {
-          if (err) throw err;
+          if (err) appLogger({
+            title:"Error",
+            message:String(err),
+            func:"Log FDs in app quit event"
+          });
         });
     });
   globalShortcut.unregister("CommandOrControl+N");
@@ -473,7 +477,9 @@ app.on("ready", async () => {
     "financialYearStartDate": "1/4",
     "minStock": 10,
     "creditLimitDays": 21,
-    "wallpaper": ""
+    "wallpaper": "",
+    "lockOnIdle":false,
+    "billExpiry": 14
   };
   let saleConfigSchema = {
     "billNo": 32,
@@ -497,7 +503,8 @@ app.on("ready", async () => {
       "applyTemplate": false,
       "file": ""
     },
-    "bankDetails": []
+    "bankDetails": [],
+    "availableBillNo":[]
   };
   let appDefaultSchema = {
     "a4": { "width": 595.28, "height": 841.89 },
@@ -630,7 +637,7 @@ app.on("ready", async () => {
   });
 });
 
-async function autoPrintMonthlyBills(){
+async function autoPrintMonthlyBills(){// Lookup required
   let date = new Date();
   //Below code runs on 1st of every month.
   if(date.getDate()===1 && ["admin","all"].includes(currentUser.role)){

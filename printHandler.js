@@ -13,7 +13,7 @@ exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,p
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} "${path2pdf}" `;
-    execCMD.call(printOnLinuxOrMac,cmd)
+    execCMD.call(printOnLinuxOrMac,cmd,path2pdf,printer,copies,paperSize,printOrientation);
 }
 
 exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSize){
@@ -22,7 +22,7 @@ exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSi
         path2pdf+=".pdf";
     let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
     let cmd = `${path2SumatraPDF} -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
-    execCMD.call(printOnWindows,cmd)
+    execCMD.call(printOnWindows,cmd,path2pdf,printer,copies,paperSize);
 }
 
 function checkPrintersOnLinuxOrMac(os){
@@ -90,6 +90,8 @@ ipcMain.on("show-print-modal",(e,...arg)=>{
     }
     ipcMain.once("print-obj",(e,printObj)=>{
         modal.close();
+        if(!parentWindow)
+            parentWindow = BrowserWindow.getFocusedWindow();
         parentWindow.webContents.send("print-obj",printObj);
     });
 });

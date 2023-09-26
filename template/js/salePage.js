@@ -18,20 +18,29 @@ let nameDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
     bodyRow,timer,currentBillNo,
-    probableGrps = [];
+    probableGrps = [],
+    availableBillNoDL = document.createElement("datalist");
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
 unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
+availableBillNoDL.id = "available-bill-no-div";
 
-const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
+const { unitMap = [],availableBillNo = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
 
 async function init(){
     appendToDL("get-stocks",nameDatalist);
     appendToDL("get-services",nameDatalist);
     appendToDL("get-customers",customerNameDatalist);
-    appendToDL("get-transporter",transporterDatalist)
+    appendToDL("get-transporter",transporterDatalist);
+    let billNos = Array.from(new Set(availableBillNo)) ;
+    billNos = billNos.map(no=>{
+        return {
+            name:no
+        }
+    });
+    appendToDL(null,availableBillNoDL,true,null,[],billNos);
     unitMap.forEach(obj=>{
         let key = Object.keys(obj)[0];
         let option = document.createElement("option");
@@ -183,6 +192,10 @@ async function mainForm(){
         document.querySelector(`[data-name="billDate"]`).valueAsDate = new Date();
         billMeta.billDate = document.querySelector(`[data-name="billDate"]`).value;
         currentBillNo = await ipcRenderer.invoke("get-sale-bill-number");
+        if(availableBillNo.length>0){
+            let input = document.getElementById("bill-number-regular");
+            input.setAttribute("list","available-bill-no-div");
+        }
         billMeta.billNo = currentBillNo;
         billMeta.billType = "regular";
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;

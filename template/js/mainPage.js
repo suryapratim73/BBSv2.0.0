@@ -556,7 +556,7 @@ async function showForm(e,cmd,show,prevData={}){
                     [
                         {key:"usePasswd",obj:loggedinUser},
                         {key: "lockOnIdle" in userPolicy ? "lockOnIdle" : "",obj:userPolicy}
-                    ].forEach(({key,obj})=>{
+                    ].filter(({key})=>key!=="").forEach(({key,obj})=>{
                         [...form?.[key]?.querySelectorAll("option")]
                         .forEach(option=>{
                             if(option.value===`${obj[key]}`)

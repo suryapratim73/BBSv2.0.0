@@ -876,8 +876,8 @@ exports.makeKey = function(key){
     return key;
 }
 
-exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,textFormat=[]){
-    let list = await ipcRenderer.invoke(eventName);
+exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,textFormat=[],_list){
+    let list = (eventName!="" && eventName) ? await ipcRenderer.invoke(eventName) : _list;
     if(paths)
         list = paths.reduce((acc,path)=>{
             acc = list[path];

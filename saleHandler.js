@@ -6,7 +6,7 @@ const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCoun
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
-const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace } = require("./template/js/common");
+const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
@@ -30,7 +30,7 @@ exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
         saleWindow = createModal(windowOptions,"./template/html/salePage.html");
-        saleWindow.webContents.openDevTools()
+        // saleWindow.webContents.openDevTools()
         saleWindow.on("unresponsive",(e)=>{
             dialog.showErrorBox("Error",String(e))
         });
@@ -142,6 +142,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy"]}
     const { name, address, phones, gst, email, id:custId } = customerObj;
+    let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
         billStatus, 
         deliveryType,
@@ -318,7 +319,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
                 label:`Bill Number ${billNo} expired`,
                 type: "bill-payment",
                 billType: "sales-select",
-                time: new Date(new Date(billDate).getTime() + 14 * 24 * 60 * 60 * 1000),
+                time: new Date(new Date(billDate).getTime() + billExpiry * 24 * 60 * 60 * 1000),
                 tag: "Payment collection",
                 color: "#0000FF",
                 billObj:{
