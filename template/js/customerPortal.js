@@ -110,7 +110,6 @@ function drawPieChart(){
     ctx = canvas.getContext("2d");
     let netBalance = 0,startAngle = 0;
     customerList.sort(({name:a},{name:b})=>a.localeCompare(b, 'fr', {ignorePunctuation: true}));
-    console.clear()
     customerList.forEach(({netPurchase:balance,id})=>{
         netBalance += balance;
         let endAngle = 2*Math.PI*netBalance/total;
@@ -176,7 +175,8 @@ async function loadLedgerTable(_name){
     .forEach(elem=>{
         elem.classList.add("hide");
     });
-    let spinner = drawSpinner(document);spinner.remove(window);
+    // let spinner = drawSpinner(document);
+    // spinner.remove(window);
     selectedCustomer = customerList.find(({name})=>name===_name);
     page2BTNS.dataset.id = selectedCustomer.id;
     phones = JSON.parse(selectedCustomer.phones);
@@ -225,7 +225,6 @@ async function loadLedgerTable(_name){
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);
     sideDiv.appendChild(customerDiv);
-    
     await drawGraphs(selectedCustomer.id);
     [...document.querySelectorAll("#btn-container>button")]
     .forEach(btn=>{

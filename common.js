@@ -249,3 +249,20 @@ exports.initCustomerList = async function(){
 }
 
 exports.customerList = customerList;
+
+exports.priceInspector = function(itemObj){
+    return new Promise((res,rej)=>{
+        if(!("maxPrice" in itemObj) && !("minPrice" in itemObj))
+            return res(true);
+        if(global.user.role==="admin")
+            return res(true);
+        else{
+            console.log("level 3")
+            if(itemObj.maxPrice==="unset" && itemObj.minPrice==="unset")
+                return res(true);
+            console.log("level 4")
+            if(itemObj.rate>itemObj.maxPrice || itemObj.rate<itemObj.minPrice)
+                return rej(false);
+        }
+    });
+}

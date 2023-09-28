@@ -724,13 +724,9 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
     let redObjsLen = Object.keys(reducedObjs).length;
     Object.keys(reducedObjs).forEach((date,i)=>{
         let xPos = lOffset + (canvas.width-rOffset) * (i/redObjsLen);
-        let yPos = tOffset + (canvas.height-bOffset) * (1 - reducedObjs[date].amt/total);
-        console.log({
-            xPos:xPos-lOffset,
-            yPos:yPos-tOffset,
-            lOffset,
-            tOffset
-        })
+        let yPos = (canvas.height-bOffset) * (1 - reducedObjs[date].amt/total);
+        if(yPos==0)
+            yPos = tOffset;
         if(i===0)
             ctx.beginPath();
         else{

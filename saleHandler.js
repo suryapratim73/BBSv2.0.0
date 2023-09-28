@@ -2,7 +2,7 @@ const { ipcMain, dialog, ipcRenderer } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
@@ -140,7 +140,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(flag==="regular")
         saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
-        billMeta.printObj = {captions:["Original Buyer's Copy"]}
+        billMeta.printObj = {captions:["Original Buyer's Copy","Book Copy"]}
     const { name, address, phones, gst, email, id:custId } = customerObj;
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
@@ -242,6 +242,18 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     //         return dialog.showErrorBox("Bill exist","The Bill number already exist for this bill date & customer. If you want to edit a bill then please use customer portal.");
     // }
 
+    // Price inspection
+    try{
+        await Promise.all(orderItems.map(async itemObj=>{
+            if(itemObj.type==="grp")
+                return await Promise.all(itemObj.items.map(itemObj=>priceInspector(itemObj)))
+            return priceInspector(itemObj)
+        }));
+    }
+    catch(err){
+        console.log(err)
+        return dialog.showErrorBox("Price ceiling violation","Sorry you don't have enough permission to sell at above or below price ceiling decided for the item by your administrator. Please contact your administrator.")
+    }
     let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);
     
     let customerLedger = await getLedgerModel(custId,customerLedgerSchema);

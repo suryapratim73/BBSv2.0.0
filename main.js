@@ -200,6 +200,7 @@ async function createWindow() {
           usePasswd
         );
         currentUser.login();
+        global.user = currentUser;
         fileName = "mainPage";
         autoPrintMonthlyBills();
         let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
@@ -1281,6 +1282,7 @@ ipcMain.handle("verify-code", async (e, { code }) => {
 ipcMain.on("app-login", async () => {
   appLogger({ message: "App Login Handler" });
   currentUser.login();
+  global.user = currentUser;
   clearInterval(totpTimer);
   try {
     if (currentUser.session) await createSession(currentUser.sessionTime);
