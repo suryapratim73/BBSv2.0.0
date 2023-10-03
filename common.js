@@ -266,3 +266,17 @@ exports.priceInspector = function(itemObj){
         }
     });
 }
+
+exports.openFormatForDate = function(date=Date){
+    if(!(date instanceof Date)) return date;
+    return date.toLocaleDateString("en-IN",{
+                month:"2-digit",
+                day:"2-digit",
+                year:"numeric"
+            })
+            .split("/")
+            .reduce((acc,str,i)=>{
+                acc = i===0 ? str : str+"-"+acc;
+                return acc;
+            },"");
+}

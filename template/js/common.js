@@ -1022,7 +1022,10 @@ exports.applyTheme = async function(e,theme){
         .backgroundImage = `${gradient} url('data:image/svg+xml;base64,${svg}')`;
     }
     else{
-        this.body.style.backgroundImage = `url(${file})`;
+        let path2bng = file;
+        if(process.platform==="win32")
+            path2bng = path.resolve(__dirname,file).replace(/[\\]/g,'/');
+        this.body.style.backgroundImage = `url(${path2bng})`;
     }
 }
 
@@ -1111,7 +1114,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 input.removeAttribute("disabled");
         });
     }
-    let match = {...e.target.list?.querySelector(`[value='${e.target.value}']`)?.dataset};
+    let match = {...e.target.list?.querySelector(`[value='${e.target.value.replace(/"/g,'\\"')}']`)?.dataset};
     // if(!match || Object.keys(match).length==0) return;
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;

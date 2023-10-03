@@ -31,6 +31,7 @@ const {
   getBaseDir,
   print,
   getStartDate,
+  openFormatForDate,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath } = require("./template/js/common");
 const fs = require("fs");
@@ -638,10 +639,41 @@ app.on("ready", async () => {
   });
 });
 
+function checkIfMonthPassed(lastDt=Date){
+  let today = new Date();
+  if(!lastDt || !(lastDt instanceof Date)) return false;
+  if(lastDt.getMonth()===today.getMonth() && lastDt.getFullYear()===today.getFullYear()) return false;
+  if(today.getFullYear()>lastDt.getFullYear())
+    return true;
+  else
+  if(today.getFullYear()===lastDt.getFullYear() && today.getMonth()>lastDt.getMonth())
+    return true;
+}
+
 async function autoPrintMonthlyBills(){// Lookup required
   let date = new Date();
   //Below code runs on 1st of every month.
-  if(date.getDate()===1 && ["admin","all"].includes(currentUser.role)){
+  let path2AppLogger = path.resolve(__dirname,loggerFH("appLogs.txt").rPath);
+  let lastLogin = await new Promise((res,rej)=>{
+    let lastLogin;
+    let rl = readLine.createInterface({
+      input:fs.createReadStream(path2AppLogger)
+    });
+    rl.on("line",(line)=>{
+      if(/App Login Handler/.test(line)){
+        let [ day,mnth,yr ] = line.split(" ")[0].split(",")[0].split("/");
+        mnth--;
+        let dt = new Date(yr,mnth,day);
+        if(!lastLogin || dt>lastLogin)
+          lastLogin = dt;
+      }
+    });
+    rl.on("close",()=>{
+      res(lastLogin);
+    });
+  });
+  
+  if(["admin","all","bill"].includes(currentUser.role) && checkIfMonthPassed(lastLogin)){
     jobs = [];
     let month = date.getMonth();
     month = month>0?month--:11;
@@ -649,13 +681,10 @@ async function autoPrintMonthlyBills(){// Lookup required
     if(month===11)
       year--;
     let lastDay_lastMonth = new Date(Date.now() - 24*60*60*1000);
-    let firstDay_lastMonth = new Date(year,month,1);
     let sales = (await sale.findAll({
       where:{
         billType:"monthly",
-        billDate:{
-          [Op.between]:[firstDay_lastMonth,lastDay_lastMonth]
-        }
+        autoBill:true
       }
     })).map(({dataValues})=>dataValues);
     if(sales.length>0){
@@ -666,18 +695,8 @@ async function autoPrintMonthlyBills(){// Lookup required
           if(billNo==="spot"){// Updating billNo and billDate only if billNo==spot
             billNo = billNoCounter();
             saleObj.billNo = billNo;
-            billDate = lastDay_lastMonth
-                        .toLocaleDateString("en-IN",{
-                          month:"2-digit",
-                          day:"2-digit",
-                          year:"numeric"
-                        })
-                        .split("/")
-                        .reduce((acc,str,i)=>{
-                          acc = i===0 ? str : str+"-"+acc;
-                          return acc;
-                      },"");
-            saleObj.billDate = lastDay_lastMonth;
+            billDate = openFormatForDate(lastDay_lastMonth)
+            saleObj.billDate = billDate;
           }
           let customerObj = (await customer.findOne({
             where:{
@@ -686,15 +705,16 @@ async function autoPrintMonthlyBills(){// Lookup required
           })).dataValues;
           let billModel = await getBillModel(customerId,"spot",billDate,billItemSchema);
           let orderItems = (await billModel.findAll()).map(obj=>obj.dataValues);
+          saleObj.billDate = openFormatForDate(new Date(billDate));
           let billMeta = {
             ...saleObj,
             ...delivery,
             netTax:tax,
             netAmtTax:billAmt,
             printObj:{
-              captions:["Original Buyer's Copy"]//Use preset captions from user config
+              captions:["Original Buyer's Copy","Book Copy"]//Use preset captions from user config
             },
-            billDate
+            billDate:saleObj.billDate
           };//Recreate billMeta
           path2pdf = await billPDF({billMeta,customer:customerObj,orderItems});
           if(autoBill===true)
@@ -702,7 +722,7 @@ async function autoPrintMonthlyBills(){// Lookup required
           return sale.update({
             billStatus:"close",
             billNo,
-            billDate
+            billDate,
           },{
             where:{
               entryNo
@@ -715,7 +735,9 @@ async function autoPrintMonthlyBills(){// Lookup required
           message:"Bills ready for auto-print. Start printing now?",
           buttons: [ "Print now","Remind me later","Don't print" ]
         });
-        if(resp.response===2) return;// Don't auto-print
+        if(resp.response===2){
+          return 
+        }// Don't auto-print
         let scheduledTime = resp.response===0 ? 0 : 60*60*1000;
         if(resp.response===1)
           dialog.showMessageBox({
@@ -729,10 +751,8 @@ async function autoPrintMonthlyBills(){// Lookup required
               modal.close();
               jobs.forEach(job=>{
                 job.updateArgs(printObj);
+                job.act("print");
               });
-            });
-            jobs.forEach(job=>{
-              job.act("print");
             });
           }
           else
@@ -741,8 +761,9 @@ async function autoPrintMonthlyBills(){// Lookup required
       }).catch((err)=>{
         console.log(err)
         appLogger({
-          title:"Monthly-bill",
-          message:String(err)
+          title:"Monthly-bill Print Error",
+          message:String(err),
+          func:"autoPrintMonthlyBills"
         })
       });
     }
@@ -1891,7 +1912,6 @@ nativeTheme.addListener(
 );
 
 ipcMain.handle("get-svg", (e, filePath) => {
-  console.log({filePath})
   return fs.readFileSync(filePath).toString();
 });
 
@@ -2670,4 +2690,4 @@ ipcMain.on("open-event",(e,evObj)=>{
   }
 });
 
-// Network Management
+// DB Migration for non-breaking model changes only

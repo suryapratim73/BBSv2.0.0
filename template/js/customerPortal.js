@@ -190,7 +190,7 @@ async function loadLedgerTable(_name){
         if(p.dataset.colname!=="phones")
             p.textContent = selectedCustomer[p.dataset.colname];
         else
-            p.innerHTML = phones.map((phone,index)=>{
+            p.innerHTML = phones?.map((phone,index)=>{
                 if(index<phones.length-1)
                     return `<p class="col-1">${phone},</p>`
                 else
