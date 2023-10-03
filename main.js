@@ -653,7 +653,8 @@ function checkIfMonthPassed(lastDt=Date){
 async function autoPrintMonthlyBills(){// Lookup required
   let date = new Date();
   //Below code runs on 1st of every month.
-  let path2AppLogger = path.resolve(__dirname,loggerFH("appLogs.txt").rPath);
+  let path2AppLogger = loggerFH("appLogs.txt").rPath;
+  console.log({path2AppLogger})
   let lastLogin = await new Promise((res,rej)=>{
     let lastLogin;
     let rl = readLine.createInterface({
