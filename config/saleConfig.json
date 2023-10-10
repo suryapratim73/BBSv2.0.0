@@ -1,9 +1,9 @@
 {
-  "billNo": "6",
+  "billNo": "5",
   "biller": "MBTC Foods",
   "address": "Salkia",
-  "gst": "",
-  "phones": "7003031161",
+  "gst": "19BRHPP7041K1ZA",
+  "phones": [7003031161],
   "scriptFile": "makePDF.default",
   "lib": "buildPage.default",
   "borderRect": [10, 22, 590, 750],
@@ -15,7 +15,7 @@
   "headingFontSize": 12,
   "margin": 10,
   "emblem": "",
-  "unitMap": [{ "Kg": 1 }, { "Bag": 50 }, { "Bundle": 5 }, { "Piece": 1 }],
+  "unitMap": [{ "Kg": 1 }, { "Bag": 50 }, { "Bundle": 5 }, { "Piece": 1 },{"Van":1}],
   "billTemplate": { "applyTemplate": false, "file": "" },
   "bankDetails": [
     {
@@ -24,13 +24,6 @@
       "accNo": "41285536675",
       "ifsc": "SBIN0001414",
       "bankID": "e9d2041f-1693-5f12-903f-8a9cb9a14369"
-    },
-    {
-      "bank": "State Bank Of India",
-      "branch": "Salkia",
-      "accNo": "41249967253",
-      "ifsc": "SBIN0001414",
-      "bankID": "4623973f-2d93-56fb-9d06-72d8cd356af1"
     }
   ],
   "email": "",
@@ -44,5 +37,6 @@
       "ifsc": "SBIN0001414"
     }
   ],
-  "availableBillNo": [14, 13, 13, 2, 13, 13, 13, 4, 7]
+  "availableBillNo": [14, 13, 13, 2, 13, 13, 13, 4, 7],
+  "abbr": ""
 }

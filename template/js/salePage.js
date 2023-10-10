@@ -256,6 +256,12 @@ function proceedOrFinishHandler(e){
             let formObjs = {};
             let allInputs = [...e.target.querySelectorAll(`#page-${currentStep} input`)];
             allInputs = [...allInputs,...e.target.querySelectorAll(`#page-${currentStep} select`)];
+            if(currentStep===1){
+                let gst = e.target["customer-gst"].value;
+                let flag = gstChecksum(gst);
+                if(!flag)
+                return alert("Invalid GST number")
+            }
             allInputs.forEach(input=>{
                 if(input.type!=="radio"){
                     if(input.dataset.name==="phones")
@@ -600,6 +606,18 @@ async function saveExit(){
         ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
     else
         showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
+}
+
+function gstChecksum(gst){
+    let regTest = /\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}/.test(gst)
+     if(regTest){
+        let a=65,b=55,c=36;
+        return Array.from(gst).reduce((i,j,k,g)=>{
+            p=(p=(j.charCodeAt(0)<a?parseInt(j):j.charCodeAt(0)-b)*(k%2+1))>c?1+(p-c):p;
+            return k<14?i+p:j==((c=(c-(i%c)))<10?c:String.fromCharCode(c+b));
+        },0); 
+    }
+    return regTest
 }
 
 document.addEventListener("keydown",e=>{

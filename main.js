@@ -165,6 +165,16 @@ async function createWindow() {
   };
   windowOptions.resizable = true;
   windowOptions.maximizable = true;
+  try{
+    await schemaValidator();
+  }
+  catch(err){
+    appLogger({
+      title:"Schema Validation Error",
+      message:String(err)
+    });
+    await dbMigrator(err);
+  }
   if (process.platform === "linux") {
     
   }
@@ -411,7 +421,17 @@ ipcMain.handle("get-users", async () => {
 
 // app.whenReady().then(createWindow);
 
-app.on("quit", () => {
+app.on("quit", async () => {
+  try{
+    await sequelize.close()
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"app.on('quit')"
+    })
+  }
   let rawData = fs
     .readFileSync(getsaleConfigPolicyPath())
     .toString();
@@ -652,10 +672,9 @@ function checkIfMonthPassed(lastDt=Date){
 
 async function autoPrintMonthlyBills(){// Lookup required
   let date = new Date();
-  //Below code runs on 1st of every month.
+  //Below code runs on commence of every new month.
   let { rPath,rootPath } = loggerFH("appLogs.txt");
   let path2AppLogger = path.resolve(rootPath,rPath); 
-  console.log({path2AppLogger})
   let lastLogin = await new Promise((res,rej)=>{
     let lastLogin;
     let rl = readLine.createInterface({
@@ -2693,3 +2712,82 @@ ipcMain.on("open-event",(e,evObj)=>{
 });
 
 // DB Migration for non-breaking model changes only
+async function schemaValidator(){
+  let tables = require("./model/dbConfig");
+  return Promise.all(
+    Object.keys(schemas)
+    .map(async table=>{
+      let cols = Object.keys(schemas[table]);
+      let _model = tables[table];
+      if(_model){
+        try{
+          let _cols = Object.keys((await _model.findOne())?.dataValues ?? {});
+          if(_cols.length===0) return;
+          return true;
+        }
+        catch(err){
+          throw new Error(err)
+        }
+      }
+    })
+  )
+}
+
+async function dbMigrator(err){
+  let _models = require("./model/dbConfig_replica");
+  let { schemas,...models } = require("./model/dbConfig");
+  appLogger({
+    title:"Taking Backup"
+  });
+  let appPath;
+  if(process.env.APP_ENV==="DEV")
+      appPath = __dirname;
+  else
+      appPath = app.getPath("appData")+"/BBS";
+  try{
+    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"),"a+");
+    appLogger({title:"db copied successfully"});
+    const _sequelize = new Sequelize({
+      dialect:"sqlite",
+      storage:path.resolve(appPath,"./db/bbs_replica.db"),
+      transactionType:"IMMEDIATE"
+    });
+    await _sequelize.authenticate();
+    console.log("Connected to replica db")
+    // await sequelize.sync({
+    //   force:true,
+    //   alter:true
+    // }).catch(console.log);
+    let tables = Object.keys(schemas);
+    let cust_ids = (await _models.customer.findAll({
+      attributes:["id"]
+    })).map(({dataValues})=>dataValues);
+    let supp_ids = (await _models.supplier.findAll({
+      attributes:["id"]
+    })).map(({dataValues})=>dataValues);
+    console.log({supp_ids,cust_ids})
+    await Promise.all(
+      [
+        //   tables.map(async table=>{
+        //   let data = await _models[table]?.findAll();
+        //   if("dataValues" in data){
+        //     data = data.dataValues;
+        //     return models[table].bulkCreate(data);
+        //   }
+        //   return;
+        // }),
+        // (async ()=>{
+          
+        //   let ledger = 
+        // })()
+      ]
+    )
+  }
+  catch(err){
+    appLogger({
+      title:"Error",
+      message:err || String(err),
+      func:"line 2765"
+    });
+  }
+}

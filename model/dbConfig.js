@@ -403,7 +403,10 @@ const saleSchema = {
     delivery:{
         type:DataTypes.JSON,
         defaultValue:"hand"
-    }
+    },
+    // billformonth:{
+    //     type:DataTypes.TEXT
+    // }
 }
 
 const outPaymentSchema = {

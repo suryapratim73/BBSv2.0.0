@@ -21,7 +21,7 @@ exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSi
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
-    let cmd = `${path2SumatraPDF} -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
+    let cmd = `"${path2SumatraPDF}" -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
     execCMD.call(printOnWindows,cmd,path2pdf,printer,copies,paperSize);
 }
 
