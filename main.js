@@ -33,7 +33,7 @@ const {
   getStartDate,
   openFormatForDate,
 } = require("./common");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -165,16 +165,6 @@ async function createWindow() {
   };
   windowOptions.resizable = true;
   windowOptions.maximizable = true;
-  try{
-    await schemaValidator();
-  }
-  catch(err){
-    appLogger({
-      title:"Schema Validation Error",
-      message:String(err)
-    });
-    await dbMigrator(err);
-  }
   if (process.platform === "linux") {
     
   }
@@ -231,6 +221,7 @@ async function createWindow() {
     //     } 
     //   }
     // );
+    process.appStatus = "normal";
     const mainWindow = createModal(
       windowOptions,
       `./template/html/${fileName}.html`,
@@ -257,6 +248,33 @@ async function createWindow() {
           });
         })
       });
+    if(schemaValidator()===true){
+      mainWindow.setProgressBar(0,{mode:"normal"});
+      mainWindow.webContents.send("execute-progressbar",0);
+      process.appStatus = "db-migration";
+      await dbMigrator();
+    }
+    if(process.env.APP_ENV==="PROD"){
+      try{
+        if(fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json")){
+          let updateConf = JSON.parse((fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json")).toString());
+          let resp = versionChecker(updateConf.currentVersion,updateConf.versionDownloaded);
+          if(resp>0 && schemaValidator()===true){
+            mainWindow.setProgressBar(0,{mode:"normal"});
+            mainWindow.webContents.send("execute-progressbar",0);
+            await dbMigrator();
+            updateConf.currentUser = app.getVersion();
+            fs.writeSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
+          }
+        }
+      }
+      catch(err){
+        appLogger({
+          title:"Schema Validation Error",
+          message:String(err)
+        });
+      }
+    }
     mainWindow.maximize();
     winState.manage(mainWindow);
     return bootCommon(mainWindow)
@@ -2060,6 +2078,7 @@ ipcMain.on("app-registration", async (e, gst) => {
 //App update logic
 async function updateCommon(){//This need a relook
   let data = {
+    currentVersion:app.getVersion(),
     path2file:app.getPath("appData")+`/BBS/${this.fileName}`,
     time:Date.now(),
     updateDownloaded:true,
@@ -2070,7 +2089,7 @@ async function updateCommon(){//This need a relook
     fileName:this.fileName
   }
   try{
-    fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(data))
+    fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(data));
   }
   catch(err){
     appLogger({
@@ -2200,6 +2219,29 @@ function downloadUpdate(appVersion){
   });
 }
 
+function versionChecker(version1,version2,log=true){
+    let [major, minor, bugFix] = version1.split(".");
+    let [_major, _minor, _bugFix] = version2.split(".");
+    if(log)
+      appLogger({
+        major,_major,minor,_minor,bugFix,_bugFix,
+        cond1:Number(_major) === Number(major),
+        cond2:Number(_minor) === Number(minor),
+        cond3:Number(_bugFix) === Number(bugFix)
+      });
+    if (Number(_major) > Number(major))
+      return 1;
+    else
+    if (Number(_minor) > Number(minor))
+      return 2;
+    else
+    if (Number(_bugFix) > Number(bugFix))
+      return 3;
+    else
+    if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix))
+      return 0;
+}
+
 async function checkForUpdates(flag="auto") {
   let { UPDATE_REST } = process.env;
   let mainWin = getMainWindow();
@@ -2243,23 +2285,17 @@ async function checkForUpdates(flag="auto") {
     typeof appVersion === "string" &&
     new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)
   ) {
-    let [major, minor, bugFix] = app.getVersion().split(".");
-    let [_major, _minor, _bugFix] = appVersion.split(".");
+    let resp = versionChecker(app.getVersion(),appVersion);
     let message;
-    if (Number(_major) > Number(major))
+    if (resp===1)
       message = "A new version of BBS is available for download.";
-    if (Number(_minor) > Number(minor))
+    if (resp===2)
       message = "A minor feature update is available for download.";
-    if (Number(_bugFix) > Number(bugFix))
+    if (resp===3)
       message = "Bug fix available for download.";
     message += ` Please visit ${UPDATE_REST}/changelogs for more details.`;
-    appLogger({
-      major,_major,minor,_minor,bugFix,_bugFix,
-      cond1:Number(_major) === Number(major),
-      cond2:Number(_minor) === Number(minor),
-      cond3:Number(_bugFix) === Number(bugFix)
-    });
-    if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix)){
+    
+    if(resp===0){
       if(flag!=="auto")
         return dialog.showMessageBox({
           title:"No new update",
@@ -2712,30 +2748,46 @@ ipcMain.on("open-event",(e,evObj)=>{
 });
 
 // DB Migration for non-breaking model changes only
-async function schemaValidator(){
-  let tables = require("./model/dbConfig");
-  return Promise.all(
-    Object.keys(schemas)
-    .map(async table=>{
-      let cols = Object.keys(schemas[table]);
-      let _model = tables[table];
-      if(_model){
-        try{
-          let _cols = Object.keys((await _model.findOne())?.dataValues ?? {});
-          if(_cols.length===0) return;
-          return true;
-        }
-        catch(err){
-          throw new Error(err)
-        }
-      }
-    })
-  )
+function schemaValidator(){
+  let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"/BBS") : __dirname;
+  path2config = path.resolve(path2config,"./dbConf.json");
+  if(fs.existsSync(path2config)){
+    let { dbMigrated=true } = JSON.parse(fs.readFileSync(path2config)?.toString() ?? "{}");
+    if(dbMigrated){
+      // let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"/BBS") : __dirname;
+      // fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"))
+      return false;
+    }
+  }
+  let { schemas:_schemas } = require("./model/dbConfig_replica");
+  let { schemas } = require("./model/dbConfig");
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require("./model/dynamicSchemas_replica");
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
+  if(schemas.length!=_schemas.length) return false;
+  let schema_objs = Object.keys(schemas).map(schema=>({obj1:schemas[schema],obj2:_schemas[schema]}))
+  let compareObj = [
+    ...schema_objs,
+    { obj1:customerLedgerSchema,obj2:_customerLedgerSchema },
+    { obj1:supplierLedgerSchema,obj2:_supplierLedgerSchema },
+    { obj1:billItemSchema,obj2:_billItemSchema }
+  ];
+  if(compareObj.find(({obj1,obj2})=>!(deepCompareJSON(obj1,obj2))))
+    return true;
+  else
+    return false;
 }
 
-async function dbMigrator(err){
+function updateProgressbar(win,value,maxVal){
+  win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
+  win.webContents.send("execute-progressbar",Math.round(value/maxVal)*100);
+}
+// dbMigrator()
+async function dbMigrator(){
   let _models = require("./model/dbConfig_replica");
   let { schemas,...models } = require("./model/dbConfig");
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require("./model/dynamicSchemas_replica");
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
+  let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
   });
@@ -2747,17 +2799,19 @@ async function dbMigrator(err){
   try{
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"),"a+");
     appLogger({title:"db copied successfully"});
-    const _sequelize = new Sequelize({
+    let _sequelize = new Sequelize({
       dialect:"sqlite",
       storage:path.resolve(appPath,"./db/bbs_replica.db"),
+      logging:function(msg){
+        let fd = getLoggerFD("dbLogs.txt");
+        fs.appendFile(fd,msg+"\n",(err)=>{
+          console.log(err);
+        });
+      },
       transactionType:"IMMEDIATE"
     });
-    await _sequelize.authenticate();
-    console.log("Connected to replica db")
-    // await sequelize.sync({
-    //   force:true,
-    //   alter:true
-    // }).catch(console.log);
+    await _sequelize.sync();
+    console.log("Connected to replica db");
     let tables = Object.keys(schemas);
     let cust_ids = (await _models.customer.findAll({
       attributes:["id"]
@@ -2765,23 +2819,136 @@ async function dbMigrator(err){
     let supp_ids = (await _models.supplier.findAll({
       attributes:["id"]
     })).map(({dataValues})=>dataValues);
-    console.log({supp_ids,cust_ids})
-    await Promise.all(
-      [
-        //   tables.map(async table=>{
-        //   let data = await _models[table]?.findAll();
-        //   if("dataValues" in data){
-        //     data = data.dataValues;
-        //     return models[table].bulkCreate(data);
-        //   }
-        //   return;
-        // }),
-        // (async ()=>{
-          
-        //   let ledger = 
-        // })()
-      ]
-    )
+    let _sales = (await _models.sale.findAll({attributes:[["customerId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
+    let _purchases = (await _models.purchase.findAll({attributes:[["supplierId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
+    let totaltables = tables.length + cust_ids.length + supp_ids.length + _sales.length + _purchases.length + 1;
+    // Resetting main db
+    updateProgressbar(win,0,totaltables);
+    let progress = 1;
+    updateProgressbar(win,progress,totaltables);
+    async function helperfunc1(id,_schema,schema,mode=2){
+      try{
+        if(mode===1)
+          return getLedgerModel(id,schema);
+        let _ledgerModel = await getLedgerModel(id,_schema,_sequelize);
+        let ledgerModel = await getLedgerModel(id,schema);
+        await ledgerModel.sync();
+        if(_ledgerModel){
+          let ledger = await (await _ledgerModel.sync()).findAll().map?.(({dataValues})=>dataValues);
+          if(!(ledger instanceof Array)) return;
+          await ledgerModel.bulkCreate(ledger,{returning:true});
+          return
+        }
+      }
+      catch(err){
+        console.log({err,line:2830});
+        return;
+      }
+    }
+    async function helperfunc2(id,billNo,billDate,_schema,schema,mode=2){
+      try{
+        if(mode===1)
+          return getBillModel(id,billNo,billDate,schema);
+        billDate = billDate.toISOString().split("T")[0];
+        let _billModel = await getBillModel(id,billNo,billDate,_schema,_sequelize);
+        await _billModel.sync();
+        let _itemList = (await _billModel.findAll()).map(({dataValues})=>dataValues);
+        let billModel = await getBillModel(id,billNo,billDate,schema);
+        await billModel.sync();
+        if(!(_itemList instanceof Array)) return;
+        await billModel.bulkCreate(_itemList,{returning:true});
+        return
+      }
+      catch(err){
+        // console.log({err,line:2841});
+        return;
+      }
+    }
+    console.log({msg:"Dynamic model definition in pogress"})
+    await Promise.allSettled([
+      ...[cust_ids,supp_ids]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          let {id} = arr[i];
+          await helperfunc1(id,_customerLedgerSchema,customerLedgerSchema,1);
+        }
+        return
+      }),
+      ...[_sales,_purchases]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          let { id,billNo,billDate } = arr[i];
+          await helperfunc2(id,billNo,billDate,_billItemSchema,billItemSchema,1);
+        }
+        return;
+      })
+    ]);
+    console.log({msg:"Models defined"});
+    await sequelize.sync({
+      force:true,
+      alter:true
+    })
+    .catch(console.log);
+    console.log({msg:"sequelize sync done"});
+    for (let i=0;i<tables.length;i++){
+      let table = tables[i];
+      if(table==="customers" || table=="customer")
+        table = "customer";
+      try{
+        let data = (await _models[table]?.findAll())?.map(({dataValues})=>dataValues);
+        if(data)
+          await models[table].bulkCreate(data,{returning:true});
+      }
+      catch(err){
+        console.log(err);
+      } finally{
+        updateProgressbar(win,++progress,totaltables);
+      }
+    }
+    Promise.allSettled([
+      ...[cust_ids,supp_ids]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          try {
+            let {id} = arr[i];
+            await helperfunc1(id,_customerLedgerSchema,customerLedgerSchema);
+          } catch (err) {
+            console.log(err);
+          } finally {
+            updateProgressbar(win,++progress,totaltables);
+          }
+        }
+        return
+      }),
+      ...[_sales,_purchases]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          try {
+            let { id,billNo,billDate } = arr[i];
+            await helperfunc2(id,billNo,billDate,_billItemSchema,billItemSchema);
+          } catch (err) {
+            console.log(err)
+          } finally{
+            updateProgressbar(win,++progress,totaltables);
+          }
+        }
+        return;
+      })
+    ])
+    .then(async ()=>{
+      // Removing replica db
+      await _sequelize.close();
+      console.log("Connection closed to replicaDB");
+      // _sequelize = null;
+      // fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"))
+      let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
+      path2config = path.resolve(path2config,"./dbConf.json");
+      win.setProgressBar(-1);
+      process.appStatus = "normal";
+      fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}))
+      app.relaunch();
+      app.exit();
+    })
   }
   catch(err){
     appLogger({
@@ -2791,3 +2958,7 @@ async function dbMigrator(err){
     });
   }
 }
+
+ipcMain.handle("get-app-status",()=>{
+  return process.appStatus;
+})

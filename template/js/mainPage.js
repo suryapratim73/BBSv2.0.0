@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -26,6 +26,8 @@ async function initPage(){
     let spinner = drawSpinner(document);
     document.querySelector(`#nav-div [data-cmd='${currentMode}']`).classList.add("selected");
     await applyMode();
+    global.appStatus = await ipcRenderer.invoke("get-app-status");
+    if(global.appStatus!=="normal") return spinner.remove(window)
     let userListDL = document.getElementById("user-list");
     try{
         (await ipcRenderer.invoke("get-users"))
@@ -116,7 +118,7 @@ async function initScheduleDiv(){
 }
 
 async function overviewPageInit(){
-    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content") ?? {};
+    let {stocks=[],unPaidBills=[]} = global.appStatus==="normal" ? await ipcRenderer.invoke("get-overview-content") : {};
     let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
     let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
     dtEventDiv.querySelector("h1").textContent = dt;
@@ -1191,3 +1193,7 @@ async function manageBank(e){
         div.querySelector("input[name='ifsc']").value = obj.ifsc;
     }
 }
+
+ipcRenderer.on("execute-progressbar",(e,val)=>{
+    createORexecuteProgressbar(val,`DB migration in progress,please wait...`)
+});

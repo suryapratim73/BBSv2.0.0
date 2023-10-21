@@ -1552,3 +1552,32 @@ exports.upperCaseInput = function(e){
     if(e.key!=="Enter")
         e.preventDefault();
 }
+
+exports.createORexecuteProgressbar = function(value=0,msg){
+    let progressbar = document.getElementById("progressbar");
+    if(!progressbar)
+        progressbar = document.body.appendChild(document.getElementById("progressbar-template").content.cloneNode(true).querySelector("div"));
+    progressbar.querySelector("#progress").value = value;
+    progressbar.querySelector("#progress-text").textContent = msg;
+    progressbar.querySelector("#percentage").textContent = `${value}%`;
+    if(value===100)
+        progressbar.remove();
+}
+
+exports.deepCompareJSON = function deepCompareJSON(obj1,obj2){
+    let keys1 = Object.keys(obj1);
+    let keys2 = Object.keys(obj2);
+    // Check for different number of keys in two JSONs
+    if(keys1.length!=keys2.length) return false;
+    // Check is all keys are same in both JSONs
+    if(keys1.find(key=>!(keys2.includes(key))) &&  keys2.find(key=>!(keys1.includes(key)))) return false;
+    // Checking nested objs
+    let resp = keys1.find(key=>{
+        if(typeof obj1[key]==="object" && typeof obj2[key]==="object")
+            return !(deepCompareJSON(obj1[key],obj2[key]));
+        else
+            return false;
+    });
+    if(resp) return false;
+    return true;
+}

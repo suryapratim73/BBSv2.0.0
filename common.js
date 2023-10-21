@@ -62,9 +62,12 @@ class FileHandler{
 
 let billNoGenInstance,loggerFH = [];
 
-async function getLedgerModel(id,ledgerSchema){
+async function getLedgerModel(id,ledgerSchema,_sequelize){
     let supplierLedger = `${id}Ledger`;
-    supplierLedger = await (sequelize.define(supplierLedger,ledgerSchema,{
+    let inst = sequelize;
+    if(_sequelize)
+        inst = _sequelize;
+    supplierLedger = await (inst.define(supplierLedger,ledgerSchema,{
         freezeTableName: true,
         timestamps: false
     }).sync());
@@ -73,9 +76,12 @@ async function getLedgerModel(id,ledgerSchema){
 
 exports.getLedgerModel = getLedgerModel;
 
-exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema){
+exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema,_sequelize){
     let itemListTable = `${id}_${billNo}_${billDate}`;
-    let billModel = await sequelize.define(itemListTable,billSchema,{
+    let inst = sequelize;
+    if(_sequelize)
+        inst = _sequelize;
+    let billModel = await inst.define(itemListTable,billSchema,{
         freezeTableName: true,
         timestamps: false
     }).sync();

@@ -259,8 +259,8 @@ function proceedOrFinishHandler(e){
             if(currentStep===1){
                 let gst = e.target["customer-gst"].value;
                 let flag = gstChecksum(gst);
-                if(!flag)
-                return alert("Invalid GST number")
+                // if(!flag)
+                // return alert("Invalid GST number")
             }
             allInputs.forEach(input=>{
                 if(input.type!=="radio"){

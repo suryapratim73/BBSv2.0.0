@@ -971,3 +971,19 @@ form#registration{
     flex-direction: column;
     align-items: center;
 }
+.progressbar{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 5;
+    background: var(--theme-secondary);
+    padding: 1rem;
+    border-radius: 15px;
+    box-shadow: 1px 1px 2px 1px;
+    width: fit-content;
+    height: fit-content;
+}
+.progressbar #progress{
+    width: 100%;
+}
