@@ -73,6 +73,11 @@ sequelize.authenticate()
     console.error(err)
 });
 
+if(!fs.existsSync(path.resolve(appPath,"./model/schema.js"))){
+    fs.copyFileSync(path.resolve(__dirname,"../","./schema_replica.js"),path.resolve(appPath,"./model/schema_replica.js"),"a+");
+    fs.copyFileSync(path.resolve(__dirname,"../","./schema.js"),path.resolve(appPath,"./model/schema.js"),"a+");
+}
+
 const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path.resolve(appPath,"./model/schema.js")).init(DataTypes,UUIDV4);
 
 module.exports = {

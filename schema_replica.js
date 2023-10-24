@@ -323,9 +323,6 @@ exports.init = function(DataTypes,UUIDV4){
             delivery:{
                 type:DataTypes.JSON,
                 defaultValue:"hand"
-            },
-            billformonth:{
-                type:DataTypes.TEXT
             }
         },
         outPaymentSchema : {

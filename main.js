@@ -55,7 +55,7 @@ const {
   customer
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
-const { Op, Sequelize } = require("sequelize");
+const { Op, Sequelize, UUIDV4 } = require("sequelize");
 const dynamicSchemas = require("./model/dynamicSchemas");
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
@@ -596,7 +596,6 @@ app.on("ready", async () => {
                 if (fileName === "policy.json") schema = policyJsonSchema;
                 else if (fileName === "saleConfig.json") schema = saleConfigSchema;
                 else if (fileName === "appDefault.json") schema = appDefaultSchema;
-                else schema = {};
                 fs.writeFile(path.resolve(rootPath,fPath), JSON.stringify(schema), (err) => {
                   if (err) rej(err);
                   appLogger({title:"File created",message:path.resolve(rootPath,fPath)});
