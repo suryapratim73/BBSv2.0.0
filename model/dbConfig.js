@@ -74,6 +74,8 @@ sequelize.authenticate()
 });
 
 if(!fs.existsSync(path.resolve(appPath,"./model/schema.js"))){
+    if(!fs.existsSync(path.resolve(appPath,"./model/")))
+        fs.mkdirSync(path.resolve(appPath,"./model"))
     fs.copyFileSync(path.resolve(__dirname,"../","./schema_replica.js"),path.resolve(appPath,"./model/schema_replica.js"),"a+");
     fs.copyFileSync(path.resolve(__dirname,"../","./schema.js"),path.resolve(appPath,"./model/schema.js"),"a+");
 }
