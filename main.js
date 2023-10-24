@@ -250,8 +250,17 @@ async function createWindow() {
       });
     // Removing replica DB when it served it purpose.
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
-    if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
-      fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
+    try{
+      if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
+        fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
+    }
+    catch(err){
+      appLogger({
+        title:"Error",
+        message:String(err),
+        func:"Deletion of replica db"
+      })
+    }
     globalShortcut.unregister("CommandOrControl+N");
     if(process.env.APP_ENV==="DEV" && schemaValidator()===true){
       mainWindow.setProgressBar(0,{mode:"normal"});
