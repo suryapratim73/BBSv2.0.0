@@ -16,4 +16,3 @@ orders.json
 scheduler.json
 nodemon.json
 config/
-dbConf.json

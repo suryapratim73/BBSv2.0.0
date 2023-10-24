@@ -248,7 +248,12 @@ async function createWindow() {
           });
         })
       });
-    if(schemaValidator()===true){
+    // Removing replica DB when it served it purpose.
+    let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
+    if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
+      fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
+    globalShortcut.unregister("CommandOrControl+N");
+    if(process.env.APP_ENV==="DEV" && schemaValidator()===true){
       mainWindow.setProgressBar(0,{mode:"normal"});
       mainWindow.webContents.send("execute-progressbar",0);
       process.appStatus = "db-migration";
@@ -472,7 +477,6 @@ app.on("quit", async () => {
           });
         });
     });
-  globalShortcut.unregister("CommandOrControl+N");
 });
 
 app.on("window-all-closed", () => {
@@ -2937,15 +2941,16 @@ async function dbMigrator(){
     ])
     .then(async ()=>{
       // Removing replica db
-      await _sequelize.close();
+      // await _sequelize.close();
+      await _sequelize.connectionManager.close();
       console.log("Connection closed to replicaDB");
       // _sequelize = null;
-      // fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"))
-      let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
-      path2config = path.resolve(path2config,"./dbConf.json");
-      win.setProgressBar(-1);
+      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
+      path2config = path.resolve(appPath,"./dbConf.json");
+      fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
-      fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}))
+      win.setProgressBar(-1);
+      fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
       app.relaunch();
       app.exit();
     })
