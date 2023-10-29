@@ -1,6 +1,6 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
 const fs = require("fs");
-let {getLoggerFD, appLogger} = require("../common");
+let {getLoggerFD} = require("../common");
 const { app } = require("electron");
 const path = require("path");
 require("dotenv").config({path:path.resolve(__dirname,"../.env")});
@@ -78,21 +78,12 @@ if(process.env.APP_ENV==="PROD"){
             fs.mkdirSync(path.resolve(appPath,"./model"));
         ["schema.js","schema_replica.js","dbConf.json"]
         .forEach(file=>{
-            if(!(fs.existsSync(path.resolve(appPath,"./model/"+file)))){
+            if(!(fs.existsSync(path.resolve(appPath,"./model/"+file))))
                 fs.copyFileSync(path.resolve(__dirname,"../",`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
-                appLogger({
-                    title:"File creation",
-                    message:`${file} creation successful.`
-                });
-            }
         });
     }
     catch(err){
-        appLogger({
-            title:"File creation error",
-            message:String(err),
-            func:"dbConfig>file checker"
-        })
+        throw err;
     }
 }
 
