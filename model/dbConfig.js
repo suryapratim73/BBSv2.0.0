@@ -1,9 +1,9 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
 const fs = require("fs");
-let {getLoggerFD} = require("../common");
+let {getLoggerFD, appLogger} = require("../common");
 const { app } = require("electron");
 const path = require("path");
-const {exec} = require("child_process");
+require("dotenv").config({path:path.resolve(__dirname,"../.env")});
 
 
 //Example of how to run sudo command using child process but limited buffer.
@@ -72,12 +72,28 @@ sequelize.authenticate()
 .catch((err)=>{
     console.error(err)
 });
-
-if(!fs.existsSync(path.resolve(appPath,"./model/schema.js"))){
-    if(!fs.existsSync(path.resolve(appPath,"./model/")))
-        fs.mkdirSync(path.resolve(appPath,"./model"))
-    fs.copyFileSync(path.resolve(__dirname,"../","./schema_replica.js"),path.resolve(appPath,"./model/schema_replica.js"),"a+");
-    fs.copyFileSync(path.resolve(__dirname,"../","./schema.js"),path.resolve(appPath,"./model/schema.js"),"a+");
+if(process.env.APP_ENV==="PROD"){
+    try{
+        if(!fs.existsSync(path.resolve(appPath,"./model/")))
+            fs.mkdirSync(path.resolve(appPath,"./model"));
+        ["schema.js","schema_replica.js","dbConf.json"]
+        .forEach(file=>{
+            if(!(fs.existsSync(path.resolve(appPath,"./model/"+file)))){
+                fs.copyFileSync(path.resolve(__dirname,"../",`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
+                appLogger({
+                    title:"File creation",
+                    message:`${file} creation successful.`
+                });
+            }
+        });
+    }
+    catch(err){
+        appLogger({
+            title:"File creation error",
+            message:String(err),
+            func:"dbConfig>file checker"
+        })
+    }
 }
 
 const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path.resolve(appPath,"./model/schema.js")).init(DataTypes,UUIDV4);

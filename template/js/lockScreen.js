@@ -76,7 +76,7 @@ async function unlockHandler(e, mode) {
       let retNum = await ipcRenderer.invoke("unlock-app", data);
       if (retNum >= 0) {
         e.target.querySelector("#name").removeAttribute("disabled");
-        ipcRenderer.send("load-lander-page");
+        ipcRenderer.send("load-lander-page",{lock:false});
       } else alert("Incorrect password!!");
     } catch (err) {
       alert(err);

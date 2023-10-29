@@ -2,7 +2,6 @@ const { ipcRenderer } = require("electron");
 const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize } =  require("../js/common");
 const uuid = require("uuid");
 let fs = require("fs");
-const { appLogger } = require("../../common");
 
 toggleDevTool(document);
 
@@ -259,14 +258,17 @@ function proceedOrFinishHandler(e){
             allInputs = [...allInputs,...e.target.querySelectorAll(`#page-${currentStep} select`)];
             if(currentStep===1){
                 let gst = e.target["customer-gst"].value;
-                let flag = gstChecksum(gst);
-                appLogger({
-                    title:"GST CHecksum",
-                    message:{flag},
-                    func:"proceedOrFinishHandler function"
-                })
-                if(!flag)
-                    alert("Invalid GST number")
+                if(gst!==""){
+                    let flag = gstChecksum(gst);
+                    ipcRenderer.send("log",{
+                        title:"GST CHecksum",
+                        message:{flag,gst},
+                        func:"proceedOrFinishHandler function"
+                    });
+                    console.log({flag})
+                    if(!flag)
+                        alert("GST number may be not valid. You may consider a recheck.")
+                }
             }
             allInputs.forEach(input=>{
                 if(input.type!=="radio"){

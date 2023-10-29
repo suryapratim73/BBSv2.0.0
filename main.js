@@ -87,6 +87,9 @@ let closeFlag = false,
   dbInitialized = false,
   unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
   idleLockTimer,appLocked = true;
+const monthNames = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+  ];
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -95,8 +98,6 @@ function updateCloseFlag() {
 exports.updateCloseFlag = updateCloseFlag;
 
 function bootCommon(mainWindow){
-  let menu = Menu.buildFromTemplate(require("./menuTemplate")(mainWindow));
-  Menu.setApplicationMenu(menu);
   mainWindow.webContents.on("did-finish-load", async () => {
     if (currentUser) {
       // For session login
@@ -107,9 +108,9 @@ function bootCommon(mainWindow){
         role,
         usePasswd,
       });
-      if (!["admin", "all"].includes(currentUser.role)) imposeRestriction();
     } else mainWindow.webContents.send("use-lock");
   });
+  imposeRestriction();
   return mainWindow;
 }
 
@@ -690,6 +691,7 @@ app.on("ready", async () => {
 });
 
 function checkIfMonthPassed(lastDt=Date){
+  return true;//Remove after test
   let today = new Date();
   if(!lastDt || !(lastDt instanceof Date)) return false;
   if(lastDt.getMonth()===today.getMonth() && lastDt.getFullYear()===today.getFullYear()) return false;
@@ -731,11 +733,14 @@ async function autoPrintMonthlyBills(){// Lookup required
     let year = date.getFullYear();
     if(month===11)
       year--;
-    let lastDay_lastMonth = new Date(Date.now() - 24*60*60*1000);
+    let lastDay_lastMonth = new Date(Date.now() - (new Date()).getDate()*24*60*60*1000);
+    lastDay_lastMonth = "2023-10-31"
     let sales = (await sale.findAll({
       where:{
         billType:"monthly",
-        autoBill:true
+        autoBill:true,
+        billStatus:"open",
+        billformonth:monthNames[date.getMonth()]// change attribute to month
       }
     })).map(({dataValues})=>dataValues);
     if(sales.length>0){
@@ -754,8 +759,12 @@ async function autoPrintMonthlyBills(){// Lookup required
               id:customerId
             }
           })).dataValues;
-          let billModel = await getBillModel(customerId,"spot",billDate,billItemSchema);
+          let billModel = await getBillModel(customerId,monthNames[date.getMonth()],billDate,billItemSchema);
           let orderItems = (await billModel.findAll()).map(obj=>obj.dataValues);
+          
+          console.log({orderItems,monthName:monthNames[date.getMonth()]})
+          if(orderItems.length===0) return 
+          
           saleObj.billDate = openFormatForDate(new Date(billDate));
           let billMeta = {
             ...saleObj,
@@ -765,8 +774,11 @@ async function autoPrintMonthlyBills(){// Lookup required
             printObj:{
               captions:["Original Buyer's Copy","Book Copy"]//Use preset captions from user config
             },
-            billDate:saleObj.billDate
+            billDate:saleObj.billDate,
           };//Recreate billMeta
+          // billMeta is incorrect - club sales by customerId then evaluate billMeta 
+          //for each customer. 
+          return;
           path2pdf = await billPDF({billMeta,customer:customerObj,orderItems});
           if(autoBill===true)
             jobs.push(new Job(`print_${entryNo}`,"print",[path2pdf],printPDF));
@@ -781,6 +793,7 @@ async function autoPrintMonthlyBills(){// Lookup required
           })
         })
       ).then(async function printQuery(){
+        return;
         let resp = await dialog.showMessageBox({
           title:"Auto-print invoices",
           message:"Bills ready for auto-print. Start printing now?",
@@ -1197,6 +1210,7 @@ function lock_unlockHelper(page, sig) {
       idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
   }
   let mainWin = getMainWindow();
+  let allWins = BrowserWindow.getAllWindows();
   mainWin.loadFile(`./template/html/${page}.html`);
   mainWin.webContents.on("did-finish-load", function (e) {
     try {
@@ -1204,7 +1218,23 @@ function lock_unlockHelper(page, sig) {
     } catch (err) {
       appLogger({title:"Error",message:String(err),func:"lock_unlockHelper"});
     }
-    if (sig === "lock") mainWin.webContents.send("lock", currentUser);
+    if (sig === "lock") {
+      function menuItemIterator(menu){
+        if(menu instanceof MenuItem)
+          menu.enabled = false;
+        if(menu instanceof Array)
+          menu.forEach(menu=>menuItemIterator(menu));
+        if(menu instanceof MenuItem && "submenu" in menu && menu?.submenu?.items.length>0)
+          menuItemIterator(menu.submenu.items);
+      }
+      menuItemIterator(Menu.getApplicationMenu().items);
+      allWins.filter(win=>win!==mainWin).forEach(win=>win.hide());
+      mainWin.webContents.send("lock", currentUser);
+    }
+    if (sig === "unlock"){
+      imposeRestriction();
+      allWins.filter(win=>win!==mainWin).forEach(win=>win.show());
+    }
   });
 }
 
@@ -1317,9 +1347,13 @@ ipcMain.handle("unlock-app", async (e, authData) => {
   }
 });
 
-ipcMain.on("load-lander-page", () => {
-  let mainPage = getMainWindow();
-  mainPage.loadFile("./template/html/mainPage.html");
+ipcMain.on("load-lander-page", (e,{lock=true}={}) => {
+  if(lock===false)
+    lock_unlockHelper("mainPage","unlock")
+  else{
+    let mainPage = getMainWindow();
+    mainPage.loadFile("./template/html/mainPage.html");
+  }
 });
 
 ipcMain.handle("verify-code", async (e, { code }) => {
@@ -1371,6 +1405,8 @@ ipcMain.on("app-login", async () => {
   } finally {
     imposeRestriction();
     autoPrintMonthlyBills();
+    if(["admin","all"].includes(currentUser.role))
+      checkForUpdates();
     let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
     if("lockOnIdle" in policy && policy.lockOnIdle){
       clearInterval(idleLockTimer);
@@ -1381,6 +1417,9 @@ ipcMain.on("app-login", async () => {
 
 function imposeRestriction() {
   // This is how to restrict access to some user.
+  let mainPage = getMainWindow();
+  let menu = Menu.buildFromTemplate(require("./menuTemplate")(mainPage));
+  Menu.setApplicationMenu(menu);
   function blockHelper(menuList = []) {
     menuList.forEach(({ index, isEnabled }) => {
       Menu.getApplicationMenu().items[index].submenu.items.forEach((item) => {
@@ -1388,6 +1427,7 @@ function imposeRestriction() {
       });
     });
   }
+  if(!currentUser) return;
 
   if (currentUser.role === "bill")
     blockHelper([
@@ -1402,17 +1442,17 @@ function imposeRestriction() {
   else {
     // Case for role admin and all
     // Checking for update
-    checkForUpdates();
     return Menu.getApplicationMenu().items.forEach(({ submenu }) => {
       submenu.items.forEach((item) => {
         item.enabled = true;
       });
     });
   }
-  blockHelper([
-    { index: 4, isEnabled: false },
-    { index: 5, isEnabled: false },
-  ]);
+  if(currentUser.role!=="admin")
+    blockHelper([
+      { index: 4, isEnabled: false },
+      { index: 5, isEnabled: false },
+    ]);
 }
 
 // Bill designer IPCs
@@ -2122,6 +2162,19 @@ async function updateCommon(){//This need a relook
   appLogger({
     message:"Trying to install update."
   });
+  if(data.installMoment==="now" && fs.existsSync(path.resolve(app.getPath("appData"),"./model/schema.js"))){
+    try{
+      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema_replica.js"),path.resolve(appPath,"./model/schema_replica.js"),"a+");
+      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema.js"),path.resolve(appPath,"./model/schema.js"),"a+");
+    }
+    catch(err){
+      appLogger({
+        title:"Error",
+        message:String(err),
+        func:"Trying to delete schema files to allow schema update after install."
+      })
+    }
+  }
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
       message:"Launching updator.sh.",
@@ -2166,9 +2219,15 @@ async function updateCommon(){//This need a relook
       message:path.resolve(data.path2file)
     })
     let spawnedFileProc = spawn(path.resolve(data.path2file),{
-      cwd:__dirname,
       shell:true
     });
+    spawnedFileProc.on("error",(err)=>{
+      appLogger({
+        title:"Error",
+        message:String(err),
+        func:"updator setup spawn error"
+      })
+    })
     spawnedFileProc.on("exit",(code,signal)=>{
       appLogger({
         title:"Launch restart script",
@@ -2761,15 +2820,12 @@ ipcMain.on("open-event",(e,evObj)=>{
 
 // DB Migration for non-breaking model changes only
 function schemaValidator(){
-  let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"/BBS") : __dirname;
+  let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
   path2config = path.resolve(path2config,"./dbConf.json");
   if(fs.existsSync(path2config)){
     let { dbMigrated=true } = JSON.parse(fs.readFileSync(path2config)?.toString() ?? "{}");
-    if(dbMigrated){
-      // let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"/BBS") : __dirname;
-      // fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"))
+    if(dbMigrated)
       return false;
-    }
   }
   let { schemas:_schemas } = require("./model/dbConfig_replica");
   let { schemas } = require("./model/dbConfig");
@@ -2948,12 +3004,7 @@ async function dbMigrator(){
       })
     ])
     .then(async ()=>{
-      // Removing replica db
-      // await _sequelize.close();
-      await _sequelize.connectionManager.close();
-      console.log("Connection closed to replicaDB");
-      // _sequelize = null;
-      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
+      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
       path2config = path.resolve(appPath,"./dbConf.json");
       fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
@@ -2974,4 +3025,8 @@ async function dbMigrator(){
 
 ipcMain.handle("get-app-status",()=>{
   return process.appStatus;
+});
+
+ipcMain.on("log",(e,msg)=>{
+  appLogger(msg);
 })

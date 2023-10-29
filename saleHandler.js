@@ -136,6 +136,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
 }
 
 async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
+    return;
     closeFlag = true;
     if(flag==="regular")
         saleWindow.close();
@@ -302,7 +303,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             billItemTable:`${custId}_${billNo}_${billDate}`,
             autoBill,
             orderRef,
-            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand"
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand",
+            billformonth:monthNames[new Date().getMonth()]
         })
     ])
     .then(async ()=>{
