@@ -136,7 +136,6 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
 }
 
 async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
-    return;
     closeFlag = true;
     if(flag==="regular")
         saleWindow.close();
