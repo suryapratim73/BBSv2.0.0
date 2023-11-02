@@ -408,9 +408,6 @@ document.addEventListener("keydown",e=>{
         document.getElementById("add-new-number").click();
     else
     if(e.key==="Enter"){
-        if(!modal.classList.contains("hide"))
-            modal.querySelector("form:last-child button[type='submit']").click();
-        else
         if([...document.querySelectorAll(".page")].some(page=>(!page.classList.contains("hide")))){
             let page = [...document.querySelectorAll(".page")].find(page=>(!page.classList.contains("hide")));
             if(page.querySelector("form"))

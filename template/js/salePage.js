@@ -301,6 +301,7 @@ function proceedOrFinishHandler(e){
                 billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
+            probableGrps = [];
             orderItems.forEach(async itemObj=>{
                 ["sgst","cgst","igst"].forEach(key=>{
                     if(itemObj[key]===0)
@@ -315,6 +316,7 @@ function proceedOrFinishHandler(e){
                         })
                     else
                         grpObj.items.push(itemObj);
+                    console.log(probableGrps)
                 }
                 if(!("id" in itemObj)){
                     [...document.querySelectorAll(".body.row")]

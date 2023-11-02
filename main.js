@@ -703,6 +703,7 @@ function checkIfMonthPassed(lastDt=Date){
 }
 
 async function autoPrintMonthlyBills(){// Lookup required
+  return
   let date = new Date();
   //Below code runs on commence of every new month.
   let { rPath,rootPath } = loggerFH("appLogs.txt");
