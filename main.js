@@ -262,7 +262,8 @@ async function createWindow() {
         func:"Deletion of replica db"
       })
     }
-    globalShortcut.unregister("CommandOrControl+N");
+    globalShortcut.unregister("CommandOrControl+Tab+Up");
+    globalShortcut.unregister("Esc");
     if(process.env.APP_ENV==="DEV" && schemaValidator()===true){
       mainWindow.setProgressBar(0,{mode:"normal"});
       mainWindow.webContents.send("execute-progressbar",0);
@@ -647,6 +648,11 @@ app.on("ready", async () => {
           focussedWindow?.focus();
         }
       });
+      globalShortcut.register("Esc",()=>{
+        let win = BrowserWindow.getFocusedWindow();
+        if(win && win!==mainWindow)
+          win.close();
+      })
       if(firstBoot) return;
       // Taking attendance
       let todaysAttendance = (

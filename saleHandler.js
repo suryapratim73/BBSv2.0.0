@@ -2,7 +2,7 @@ const { ipcMain, dialog, ipcRenderer } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo } = require("./common");
 const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
@@ -76,7 +76,9 @@ exports.orderManager = (main,cb)=>{
 }
 
 ipcMain.handle("get-sale-bill-number",()=>{
-    return billNoCounter();
+    let billNo = billNoCounter();
+    console.log({billNo});
+    return billNo;
 });
 
 ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
@@ -162,7 +164,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         orderRef,
         netAmtTax
     } = billMeta;
-    setBillNo(billNo);
+    if(Number(billNo)===getLastBillNo())
+        setBillNo(Number(billNo));
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
