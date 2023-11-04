@@ -1114,7 +1114,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 input.removeAttribute("disabled");
         });
     }
-    let match = {...e.target.list?.querySelector(`[value='${e.target.value.replace(/"/g,'\\"')}']`)?.dataset};
+    let match = {...e.target.list?.querySelector(`[value='${e.target.value.replace(/"/g,'\\"').replace(/'/g,"\\'")}']`)?.dataset};
     // if(!match || Object.keys(match).length==0) return;
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;

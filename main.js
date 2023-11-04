@@ -629,6 +629,11 @@ app.on("ready", async () => {
       fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
         if (err) return console.error(err);
         const { billNo } = JSON.parse(data.toString());
+        appLogger({
+          title:"Log",
+          message:JSON.stringify({billNo}),
+          func:"app 'ready' event"
+        })
         billNoCounter(billNo);
       });
       global.shouldWait = false;
@@ -2606,13 +2611,13 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
 
 ipcMain.handle("billing-format-ipc",(e,data)=>{
   try{
-    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString())
-    console.log(data)
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     if("format" in data)
       saleConfig.format = data.format;
     if(parseInt(data.billNo))
       saleConfig.billNo = Number(data.billNo);
     fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
+    billNoCounter(saleConfig.billNo);
     return true;
   }
   catch(err){

@@ -77,7 +77,11 @@ exports.orderManager = (main,cb)=>{
 
 ipcMain.handle("get-sale-bill-number",()=>{
     let billNo = billNoCounter();
-    console.log({billNo});
+    appLogger({
+        title:"Log",
+        message:JSON.stringify({billNo}),
+        func:"IPC event:get-sale-bill-number"
+    });
     return billNo;
 });
 
@@ -166,6 +170,11 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     } = billMeta;
     if(Number(billNo)===getLastBillNo())
         setBillNo(Number(billNo));
+    else{
+        let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+        saleConfig.availableBillNo = saleConfig.availableBillNo.filter(_billNo=>_billNo!=Number(billNo));
+        fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
+    }
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
@@ -257,8 +266,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         console.log(err)
         return dialog.showErrorBox("Price ceiling violation","Sorry you don't have enough permission to sell at above or below price ceiling decided for the item by your administrator. Please contact your administrator.")
     }
-    let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);
-    
+    let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);    
     let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
     let lastBalance = (await ((await customerLedger.sync()).findOne({
         attributes:["balance"],

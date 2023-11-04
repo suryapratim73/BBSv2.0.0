@@ -299,6 +299,7 @@ function proceedOrFinishHandler(e){
             }
             if(billMeta.billType==="monthly" && billMeta.billNo==="reserve")
                 billMeta.billNo = currentBillNo;
+            console.log(orderItems)
         }// Step 1,2 & 4
         else{
             probableGrps = [];
@@ -316,7 +317,7 @@ function proceedOrFinishHandler(e){
                         })
                     else
                         grpObj.items.push(itemObj);
-                    console.log(probableGrps)
+                    // console.log(probableGrps)
                 }
                 if(!("id" in itemObj)){
                     [...document.querySelectorAll(".body.row")]
@@ -427,7 +428,7 @@ function createNewGrp(e){
     newGrpItems.forEach(obj=>{
         let  grpObj = probableGrps.find(obj=>obj.rate===selectedRate);
         grpObj.items.splice(grpObj.items.find(_obj=>_obj.id===obj.id),1);
-        orderItems.splice(orderItems.find(_obj=>_obj.id===obj.id),1);
+        orderItems = orderItems.filter(_obj=>_obj.id!=obj.id);
         qty+=obj.qty;
     });
     let newId = uuid.v4();
