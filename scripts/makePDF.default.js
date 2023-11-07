@@ -62,7 +62,7 @@ exports.billPDF = async function(billObj){
             align:'right'
         })
         createHeader(doc,billMeta,customer);
-        createFooter(doc,billMeta);
+        createFooter(doc,billMeta,customer);
         let initialY = 265;
         for(;j<orderItems.length;j++){
             createBody(doc,orderItems[j],initialY,j+1)

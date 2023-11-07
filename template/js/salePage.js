@@ -199,6 +199,10 @@ async function mainForm(){
         billMeta.billNo = currentBillNo;
         billMeta.billType = "regular";
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
+        document.querySelector('[data-name="shipTo"]').value = customer.name;
+        document.querySelector('[data-name="shipAddr"]').value = customer.address;
+        document.querySelector('[data-name="shipPh"]').value = customer.phones?.[0];
+        document.querySelector('[data-name="shipGST"]').value = customer.gst;
         page2initialized = true;
     }
     setFooter();
@@ -299,7 +303,6 @@ function proceedOrFinishHandler(e){
             }
             if(billMeta.billType==="monthly" && billMeta.billNo==="reserve")
                 billMeta.billNo = currentBillNo;
-            console.log(orderItems)
         }// Step 1,2 & 4
         else{
             probableGrps = [];

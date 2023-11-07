@@ -263,7 +263,7 @@ async function createWindow() {
       })
     }
     globalShortcut.unregister("CommandOrControl+Tab+Up");
-    globalShortcut.unregister("Esc");
+    globalShortcut.unregister("CommandOrControl+F4");
     if(process.env.APP_ENV==="DEV" && schemaValidator()===true){
       mainWindow.setProgressBar(0,{mode:"normal"});
       mainWindow.webContents.send("execute-progressbar",0);
@@ -653,7 +653,7 @@ app.on("ready", async () => {
           focussedWindow?.focus();
         }
       });
-      globalShortcut.register("Esc",()=>{
+      globalShortcut.register("CommandOrControl+F4",()=>{
         let win = BrowserWindow.getFocusedWindow();
         if(win && win!==mainWindow)
           win.close();
