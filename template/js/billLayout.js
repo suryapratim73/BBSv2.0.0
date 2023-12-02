@@ -1,8 +1,10 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme } = require("../js/common");
-const appDefault = require("../../config/appDefault.json");
+const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme, getAppPolicyPath, roundOffTo2DecimalPlace } = require("../js/common");
+const fs = require("fs");
 const uuid = require("uuid");
 
+
+const appDefault = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
 toggleDevTool(document);
 
 let mainDiv = document.querySelector("main"),selectedElem;
@@ -14,7 +16,7 @@ let lastFocus,borderCanvas,actPointer = {};
 let selectedBTN,moveFlag = true,shallResize = false,selectedCTRLDot;
 let helperLineTimer,alignmentLineCSSTimer;
 let columnObj = {},feildObj = {}, partitionObj = {}, focusTimer;
-let midGuideTimer;
+let midGuideTimer,zoomFactor = 1;
 
 function initPageObj(){
     return {
@@ -40,6 +42,7 @@ function initPageObj(){
 }
 
 function init(){
+    ipcRenderer.send("set-app-status","block-non-sp-key");
     page = initPageObj();
     let {width,height} = appDefault[page.size];
     mainDiv.style.width = width + "px";
@@ -124,6 +127,12 @@ function createSection(mode=1){
     section.classList.add("new-elem");
     mainDiv.appendChild(section);
     section.style.zIndex = 1;
+    let { left:left_mainDiv,top:top_mainDiv } = mainDiv.getBoundingClientRect();
+    let { left,top } = section.getBoundingClientRect();
+    section.style.left = (left - left_mainDiv)/zoomFactor + "px";
+    section.dataset.left = (left - left_mainDiv)/zoomFactor;
+    section.style.top = (top - top_mainDiv)/zoomFactor + "px";
+    section.dataset.top = (top - top_mainDiv)/zoomFactor;
     section.dataset.id = uuid.v4();
     if(mode===1){
         page.sections.push({id:section.dataset.id,elem:section});
@@ -218,11 +227,19 @@ function drawAdjPoints(){
 
 function keydownListener(e){
     let selector = document.getElementById("selector");
-    if(!selector) return;
-    let { left:left_mainDiv,top:top_mainDiv,width,height } = mainDiv.getBoundingClientRect();
-    let { left,top,width:elemWidth,height:elemHeight } = selectedElem.getBoundingClientRect();
-    let { width:selectorWidth,height:selectorHeight } = selector.getBoundingClientRect();
+    let { left:left_mainDiv,top:top_mainDiv,width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
     let { code,ctrlKey,shiftKey } = e;
+    if((ctrlKey && shiftKey && code==="Equal") || (ctrlKey && code==="NumpadAdd"))
+        zoomFunc(width_mainDiv,height_mainDiv);
+    if((ctrlKey && shiftKey && code==="Minus") || (ctrlKey && code==="NumpadSubtract"))
+        zoomFunc(width_mainDiv,height_mainDiv,false);
+    if(ctrlKey && code==="KeyN"){
+        document.getElementById("blanck-header").classList.add("hide");
+        selectedElem = createSection();
+    }
+    if(!selector) return;
+    let { width:selectorWidth,height:selectorHeight } = selector.getBoundingClientRect();
+    let { left,top } = selectedElem.getBoundingClientRect();
     let diffX = left - left_mainDiv, diffY = top - top_mainDiv;
     if(code==="ArrowRight")
         diffX++;
@@ -253,6 +270,83 @@ function keydownListener(e){
         drawFeilds(diffX,diffY);
     }
     drawAdjPoints();
+}
+
+function zoomFunc(width_mainDiv,height_mainDiv,zoomIn=true){
+    // Over and under zoom guard
+    if(zoomFactor>1.4 && zoomIn===true){
+        zoomFactor = 1.5;
+        return;
+    }
+    if(zoomFactor<=0.5 && zoomIn===false){
+        zoomFactor = 0.5;
+        return;
+    }
+    if(zoomIn) zoomFactor += 0.1;
+    else zoomFactor -= 0.1;
+    zoomFactor *= 100;
+    zoomFactor = Math.round(zoomFactor)/100;
+    let { width,height } = zoomHelper(mainDiv,width_mainDiv,height_mainDiv,zoomFactor);
+    borderCanvas.width = width;
+    borderCanvas.height = height;
+    let { left,top } = mainDiv.getBoundingClientRect();
+    left_mainDiv = left;
+    top_mainDiv = top;
+    width_mainDiv = width;
+    height_mainDiv = height;
+    let span = document.createElement("span");
+    span.classList = "floating-toast";
+    span.textContent = `Zoom ${zoomFactor}x`;
+    mainDiv.parentNode.appendChild(span);
+    setTimeout(function(){
+        this.clearTimeout();
+        span.remove();
+    },2000);
+    let elems = [...mainDiv.querySelectorAll("*")].filter(elem=>elem.classList.contains("new-elem"));
+    elems.forEach(elem=>{
+        let { height,width } = elem.getBoundingClientRect();
+        zoomHelper(elem,width,height,zoomFactor);
+        let initLeft = Number(elem.dataset.left);
+        let initTop = Number(elem.dataset.top);
+        elem.style.left = initLeft*zoomFactor + "px";
+        elem.style.top = initTop*zoomFactor + "px";
+    });
+    if(!selectedElem) return;
+    removeSelector();
+    selectorPosHelper();
+}
+
+function zoomHelper(elem,width,height,zoomFactor){
+    let _width,_height,aspectRatio;
+    if(!("width_100" in elem.dataset)){
+        elem.dataset["width_100"] = width;
+        elem.dataset["height_100"] = height;
+    }
+    if(!("aspectRatio" in elem.dataset)){
+        aspectRatio = Math.round((width/height)*100)/100;
+        elem.dataset.aspectRatio = aspectRatio;
+    }
+    else
+        aspectRatio = Number(elem.dataset.aspectRatio);
+    if(!(`width_${Math.round(zoomFactor*100)}` in elem.dataset)){
+        _width = roundOffTo2DecimalPlace(zoomFactor * aspectRatio * Number(elem.dataset["height_100"]));
+        _height = roundOffTo2DecimalPlace(zoomFactor * (Number(elem.dataset["width_100"])/aspectRatio));
+        elem.dataset[`width_${Math.round(zoomFactor*100)}`] = _width;
+        elem.dataset[`height_${Math.round(zoomFactor*100)}`] = _height;
+    }
+    else{
+        _width = Number(elem.dataset[`width_${Math.round(zoomFactor*100)}`]);
+        _height = Number(elem.dataset[`height_${Math.round(zoomFactor*100)}`]);
+    }
+    elem.style.width = _width + "px";
+    elem.style.height = _height + "px";
+    return { 
+        width:_width,
+        height:_height,
+        aspectRatio,
+        delX:(zoomFactor - 1) * aspectRatio * Number(elem.dataset["height_100"]),
+        delY:(zoomFactor - 1) * (Number(elem.dataset["width_100"])/aspectRatio)
+    };
 }
 
 function drawAssist(e){// Work in progress- draw x,y coordinate of mouse, resize points
@@ -320,6 +414,9 @@ function computeContraints(){
 
 async function btnCtrls(e){
     let { cmd,dir="" } = e.target.dataset;
+    let { width,height } = mainDiv.getBoundingClientRect();
+    if(cmd.startsWith("Zoom"))
+        return zoomFunc(width,height,cmd==="Zoom-In");
     if(cmd==="change-input"){
         let input = e.target.parentNode.querySelector("input");
         if(input.getAttribute("type")==="range")
@@ -416,11 +513,14 @@ async function btnCtrls(e){
             });
         }
     }
-    if(cmd==="exit")
+    if(cmd==="exit"){
+        ipcRenderer.send("set-app-status","normal");
         return ipcRenderer.send("load-main-page");
+    }
     else
     if(cmd==="save-exit"){
         let _page = elemRemoval(page);
+        ipcRenderer.send("set-app-status","normal");
         ipcRenderer.send("save-bill-template",_page);
     }
 
@@ -676,7 +776,9 @@ function moveElemHelper(newX,newY){
         leftFag = -1;
     selectedElem.style.borderColor = "blue";
     selectedElem.style.top = newY + "px";
+    selectedElem.dataset.top = newY/zoomFactor;
     selectedElem.style.left = newX + "px";
+    selectedElem.dataset.left = newX/zoomFactor;
     selector.style.top = newY - 20 + "px";
     selector.style.left = newX - 20 + "px";
     if(borderCanvas){
@@ -942,12 +1044,14 @@ function move(e){
                 selector.style.left = x - left_mainDiv + "px";
                 selector.style.width = width - diffX + "px";
                 selectedElem.style.left = x - left_mainDiv + 20 + "px";
+                selectedElem.dataset.left = (x - left_mainDiv + 20)/zoomFactor;
                 drawHelperLine(1,{left:x - left_mainDiv + 20});
             }
             else
             if(tag==="top" && checkConstraints(width,height - diffY)){
                 selector.style.top = y - top_mainDiv + "px";
                 selectedElem.style.top = y - top_mainDiv + 20 + "px";
+                selectedElem.dataset.top = (y - top_mainDiv + 20)/zoomFactor;
                 selector.style.height = height - diffY + "px";
                 drawHelperLine(2,{top:y - top_mainDiv + 20});
             }
@@ -955,6 +1059,7 @@ function move(e){
             if(tag==="right" && checkConstraints(width + diffX,height)){
                 selector.style.right = right_mainDiv - x + "px";
                 selectedElem.style.right = right_mainDiv - x + 20 + "px";
+                selectedElem.dataset.left = (selectedElem.getBoundingClientRect().left - left_mainDiv + 20)/zoomFactor;
                 selector.style.width = width + diffX + "px";
                 drawHelperLine(1,{right:right_mainDiv - x + 17.5});
             }
@@ -962,6 +1067,7 @@ function move(e){
             if(tag==="bottom" && checkConstraints(width,height + diffY)){
                 selector.style.bottom = bottom_mainDiv - y + "px";
                 selectedElem.style.bottom = bottom_mainDiv - y + 20 + "px";
+                selectedElem.dataset.top = (selectedElem.getBoundingClientRect().top - top_mainDiv + 20)/zoomFactor;
                 selector.style.height = height + diffY + "px";
                 drawHelperLine(2,{bottom:bottom_mainDiv - y + 15});
             }

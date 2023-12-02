@@ -234,17 +234,15 @@ function advanceSet(target=[],newValue){
 function page4Init(){
     let netAmtTax = Math.round(billMeta.netAmtTax);
     document.querySelector("#summary-div .highlight").textContent = Math.round(netAmtTax);
-    let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
-    document.querySelector("[data-name='delCharge']").textContent = deliveryCharge;
-    document.querySelector("[data-name='netAmtTaxDel']").textContent = netAmtTax+deliveryCharge;
+    document.querySelector("[data-name='netAmtTaxDel']").textContent = netAmtTax;
     let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,obj)=>acc+obj.payment,0):0;
-    if(netAmtTax+deliveryCharge-netPayment>0){
-        document.querySelector(`[data-name="dueAmt"]`).textContent = netAmtTax+deliveryCharge-netPayment;
+    if(netAmtTax-netPayment>0){
+        document.querySelector(`[data-name="dueAmt"]`).textContent = netAmtTax-netPayment;
         document.querySelector(`[data-name="return"]`).textContent = 0;
     }
     else{
         document.querySelector(`[data-name="dueAmt"]`).textContent = 0;
-        document.querySelector(`[data-name="return"]`).textContent = netPayment - (netAmtTax+deliveryCharge);
+        document.querySelector(`[data-name="return"]`).textContent = netPayment - netAmtTax;
     }
     if(probableGrps.length>0)
         document.querySelector('button[data-cmd="grp-item"]').removeAttribute("disabled");

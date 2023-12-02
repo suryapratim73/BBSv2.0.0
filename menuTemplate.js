@@ -15,6 +15,10 @@ const { billDesignerWindow, getCurrentLogin, checkForUpdates, scheduleManager } 
 function appStateComplianceEnforcement(funcName,...params){
     let currentUser = getCurrentLogin();
     if(!currentUser) return;
+    let key = params.pop();
+    if(process.appStatus==="block-non-sp-key" && key==="block-non-sp-key") return
+    if(["lock","logout"].includes(key))
+        return ipcMain.emit(key);
     funcName(...params);
 }
 
@@ -33,7 +37,8 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check for update",
-                    click: ()=>checkForUpdates("manual")
+                    click: ()=>checkForUpdates("manual"),
+                    accelerator: "Shift+F5"
                 },
                 {
                     label: "Help",
@@ -49,11 +54,13 @@ module.exports = mainWindow=>{
                 { type: "separator" },
                 {
                     label: "Lock",
-                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"lock")
+                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"lock"),
+                    accelerator:"CommandOrControl+L"
                 },
                 {
                     label: "Logout",
-                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"logout")
+                    click: ()=>appStateComplianceEnforcement(ipcMain.emit,"logout"),
+                    accelerator:"CommandOrControl+Shift+L"
                 },
                 { type: "separator" },
                 { role: "quit" }
@@ -75,11 +82,13 @@ module.exports = mainWindow=>{
                 {type:"separator"},
                 {
                     label: "New order",
-                    click:()=>appStateComplianceEnforcement(orderRegister())
+                    click:()=>appStateComplianceEnforcement(orderRegister()),
+                    accelerator:"CommandOrControl+Shift+Return"
                 },
                 {
                     label: "View & Update order",
-                    click:()=>appStateComplianceEnforcement(orderManager(mainWindow))
+                    click:()=>appStateComplianceEnforcement(orderManager(mainWindow)),
+                    accelerator:"Shift+F5"
                 },
                 {
                     label: "Add item to \"Open\" Bills",
@@ -107,23 +116,23 @@ module.exports = mainWindow=>{
             submenu:[
                 {
                     label: "View Stock",
-                    accelerator: "F9",
-                    click: ()=>appStateComplianceEnforcement(displayStock(mainWindow))
+                    accelerator: "Shift+T+S",
+                    click: ()=>appStateComplianceEnforcement(displayStock(mainWindow),"block-non-sp-key")
                 },
                 {
                     label: "Check Payments",
-                    accelerator: "F10",
-                    click: ()=>appStateComplianceEnforcement(checkOutPayments(mainWindow))
+                    accelerator: "Shift+T+P",
+                    click: ()=>appStateComplianceEnforcement(checkOutPayments(mainWindow),"block-non-sp-key")
                 },
                 {
                     label: "Check Purchases",
-                    accelerator: "F11",
-                    click: ()=>appStateComplianceEnforcement(showPurchase(mainWindow))
+                    accelerator: "T+P",
+                    click: ()=>appStateComplianceEnforcement(showPurchase(mainWindow),"block-non-sp-key")
                 },
                 {
                     label:"Show Sales",
-                    accelerator:"F12",
-                    click: ()=>appStateComplianceEnforcement(showSales(mainWindow))
+                    accelerator:"T+S",
+                    click: ()=>appStateComplianceEnforcement(showSales(mainWindow),"block-non-sp-key")
                 }
             ]
         },
@@ -132,13 +141,11 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label: "GST Summary",
-                    click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow)),
-                    accelerator: "F2"
+                    click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow))
                 },
                 {
                     label: "Business Statistics",
-                    click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow)),
-                    accelerator: "F3"
+                    click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow))
                 },
                 {
                     label: "GST Return JSON"
@@ -158,18 +165,18 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Generate Requirement Slip",
-                    click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow)),
-                    accelerator: "Shift+F4" // Dev Time Shortcut
+                    click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow))
                 },
                 {
                     label: "Bill Layout Designer",
-                    click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow))
+                    click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow)),
+                    accelerator:"CommandOrControl+B"
                     
                 },
                 {
                     label: "Scheduler",
                     click: ()=>appStateComplianceEnforcement(scheduleManager(mainWindow)),
-                    accelerator: "Shift+F2"
+                    accelerator: "F6"
                 },
                 {type:"separator"},
                 {
@@ -182,20 +189,17 @@ module.exports = mainWindow=>{
             submenu: [
                 {
                     label:"Stock Return Registor",
-                    click: ()=>appStateComplianceEnforcement(handleReturn()),
-                    accelerator: "F7"
+                    click: ()=>appStateComplianceEnforcement(handleReturn())
                 },
                 { type: "separator" },
                 {
                     label: "Employee Portal",
-                    click: ()=>appStateComplianceEnforcement(employeePortal(mainWindow)),
-                    accelerator: "F6"
+                    click: ()=>appStateComplianceEnforcement(employeePortal(mainWindow))
                     // enabled: false
                 },
                 {
                     label: "Register Services",
-                    click: ()=>appStateComplianceEnforcement(serviceRegistor(mainWindow)),
-                    accelerator: "F8"
+                    click: ()=>appStateComplianceEnforcement(serviceRegistor(mainWindow))
                 }
             ]
         }
@@ -217,7 +221,7 @@ module.exports = mainWindow=>{
                         label:"Refresh",
                         click:()=>{
                             mainWindow.webContents.reload()
-                        },
+                        }
                     }
                 ]
                 // enabled:false,// process.env.APP_ENV=="DEV",

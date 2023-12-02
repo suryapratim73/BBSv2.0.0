@@ -79,6 +79,7 @@ body>div{
     align-items: flex-start;
     overflow: auto;
     background: gray;
+    position: relative;
 }
 main{
     background-color: white;
@@ -192,4 +193,22 @@ button.fa-solid.selected-btn-2{
     background: antiquewhite;
     border-radius: 5px;
     box-shadow: 1px 1px;
+}
+#zoom-btn{
+    position: absolute;
+    z-index: 100;
+    right: 10%;
+    bottom: 10%;
+    background: transparent;
+    width: fit-content;
+}
+#zoom-btn button{
+    font-size: 2rem;
+    margin: 0.25rem;
+    width: 3rem;
+    border: none;
+    height: 3rem;
+    border-radius: 50%;
+    box-shadow: 1px 1px 2px 2px;
+    outline: none;
 }

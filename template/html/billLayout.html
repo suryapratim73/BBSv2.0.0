@@ -37,6 +37,10 @@
         <main onmousedown="move(event)">
             <h1 id="blanck-header">Start creating bill design</h1>
         </main>
+        <div id="zoom-btn" onclick="btnCtrls(event)">
+            <button data-cmd="Zoom-Out" data-msg="Zoom-Out" class="hover right top">-</button>
+            <button data-cmd="Zoom-In" data-msg="Zoom-In" class="hover right top">+</button>
+        </div>
     </div>
     <template id="block-option-template">
         <div class="adv-option-div" oninput="assignBlockOptions(event)">

@@ -808,3 +808,15 @@ button:disabled{
         z-index: -1;
     }
 }
+.floating-toast{
+    position: absolute;
+    z-index: 100;
+    font-size: 2rem;
+    color: white;
+    top: 5%;
+    left: 50%;
+    background: grey;
+    padding: 1rem;
+    border-radius: 15px;
+    transform: translateX(-50%);
+}

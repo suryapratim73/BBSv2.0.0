@@ -3039,6 +3039,10 @@ ipcMain.handle("get-app-status",()=>{
   return process.appStatus;
 });
 
+ipcMain.on("set-app-status",(_,status)=>{
+  process.appStatus = status;
+})
+
 ipcMain.on("log",(e,msg)=>{
   appLogger(msg);
 })
