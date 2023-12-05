@@ -2230,7 +2230,7 @@ async function updateCommon(){//This need a relook
       title:"Spawned path",
       message:path.resolve(data.path2file)
     })
-    let spawnedFileProc = spawn(path.resolve(data.path2file),{
+    let spawnedFileProc = spawn(`start "${path.resolve(data.path2file)}"`,{
       shell:true
     });
     spawnedFileProc.on("error",(err)=>{
