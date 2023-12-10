@@ -171,6 +171,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(Number(billNo)===getLastBillNo())
         setBillNo(Number(billNo));
     else{
+        reduceBillNo();
         let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
         saleConfig.availableBillNo = saleConfig.availableBillNo.filter(_billNo=>_billNo!=Number(billNo));
         fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));

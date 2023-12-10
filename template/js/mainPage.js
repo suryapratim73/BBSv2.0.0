@@ -1012,6 +1012,10 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
                 if(job.billType==="purchase-select")
                     description = `${job.billObj.name} Bill No: ${job.billObj.billNo} Amount Rs.${Math.round(job.billObj.total)} is due for payment.`;
             }
+            else
+            if(job.type==="Error"){
+                description = "An Error occured performing last operation. Contact developer to show your error."
+            }
             notificationDiv.querySelector('[data-col="description"]').textContent = description;
             collateUpdator(tagGrp,arr,i,job);
             notificationDiv.style.setProperty("--color",job.color);

@@ -1,5 +1,6 @@
 const { ipcRenderer } = require("electron");
 const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize } =  require("../js/common");
+
 const uuid = require("uuid");
 let fs = require("fs");
 
