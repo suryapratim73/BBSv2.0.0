@@ -2228,7 +2228,7 @@ async function updateCommon(){//This need a relook
     // Try to run a bash or some shell script to update BBS
     appLogger({
       title:"Spawned path",
-      message:path.resolve(data.path2file)
+      message:`start "${path.resolve(data.path2file)}"`
     })
     let spawnedFileProc = spawn(`start "${path.resolve(data.path2file)}"`,{
       shell:true
