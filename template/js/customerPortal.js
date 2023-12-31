@@ -314,7 +314,7 @@ function utilCMD(e){
     let cmd = e.target.dataset.cmd;
     let [id,billNo,billDate] = bodyRow.dataset.itemList.split("_")
     let {name} = customerList.find((custObj)=>custObj.id===id);
-    if(cmd==="open")// Not working
+    if(cmd==="open")
         ipcRenderer.send("open-ext",name,billDate,billNo);
     else
     if(cmd==="print")
@@ -440,6 +440,9 @@ page2BTNS.addEventListener("click",async function(e){
                 },"");
         });
     }
+    else
+    if(e.target.dataset.cmd==="new-bill")
+        ipcRenderer.send("new-bill",selectedCustomer);
     else{
         [...document.getElementById("filter-option").children].forEach(div=>div.classList.remove("selected"));
         let elem = e.target.nodeName!=="DIV"?e.target.parentNode:e.target;

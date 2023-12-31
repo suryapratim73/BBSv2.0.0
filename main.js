@@ -3045,4 +3045,17 @@ ipcMain.on("set-app-status",(_,status)=>{
 
 ipcMain.on("log",(e,msg)=>{
   appLogger(msg);
-})
+});
+
+ipcMain.on("new-bill",async (e,customerObj)=>{
+  if (!["all", "admin", "bill"].includes(currentUser.role)) return;
+  Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
+  process.presets = {
+    customer:customerObj,
+    target:"salePage"
+  };
+});
+
+ipcMain.handle("get-presets",()=>{
+  return process.presets;
+});

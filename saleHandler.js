@@ -1,4 +1,4 @@
-const { ipcMain, dialog, ipcRenderer } = require("electron");
+const { ipcMain, dialog, Menu } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
@@ -90,6 +90,8 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
         reduceBillNo();
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
+    if("presets" in process && process?.presets?.target==="salePage")
+        process.presets = {};
 });
 
 function itemAnalyzer(orderItems){
@@ -148,6 +150,8 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:["Original Buyer's Copy","Book Copy"]}
     const { name, address, phones, gst, email, id:custId } = customerObj;
+    if("presets" in process && process?.presets?.target==="salePage")
+        process.presets = {};
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
         billStatus, 

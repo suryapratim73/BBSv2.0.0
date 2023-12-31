@@ -72,11 +72,7 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
-    if(fs.existsSync(`"${path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`)}"`))
-        console.log("File Exists");
-    else
-        console.log("File don't exists",`"${path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`)}"`)
-    shell.openExternal(`${path.join(app.getPath("documents"),`./Bills/"${name}_${billDate}_${billNo}.pdf"`)}`)
+    shell.openExternal(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))
     .then(console.log)
     .catch((err)=>{
         console.log("Failed to open",err)
@@ -84,12 +80,11 @@ ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
 });
 
 ipcMain.on("print",(e,name,billDate,billNo)=>{
-    let modal = printDialog();
     let path2pdf = path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`);
-    ipcMain.once("print-obj",function(e,printObj){
+    ipcMain.once("print-obj",(function(e,printObj){
         print({printObj,path2pdf});
-        modal.close();
-    })
+        this.close();
+    }).bind(printDialog()))
 });
 
 ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{

@@ -55,6 +55,12 @@ async function init(){
     document.body.appendChild(unitDatalist);
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj);
+    let preset = await ipcRenderer.invoke("get-presets");
+    if(preset && preset?.target==="salePage"){
+        customer = preset.customer;
+        reInitFormData();
+        document.querySelector(`[data-type="proceed"]`).click();
+    }
 }
 init().catch((err)=>{
     console.log(err)
@@ -129,7 +135,7 @@ function reInitFormData(){
                 let key = input.dataset.name;
                 if(!(key in obj)) break;
                 if(["text","email"].includes(input.type)){
-                    input.value = obj[key];
+                    input.value = (key!="phones" || obj instanceof Array) ? obj[key] : JSON.parse(obj[key]);
                     inputs.splice(_index,1);
                     _index--;
                 }
