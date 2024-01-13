@@ -171,15 +171,23 @@ exports.appLogger = function(...lines){
     let msg = lines[0];
     /**
         billType: "sales-select"
-        color: "#0000FF"
         id: "a2358c3a-96b7-478d-9c85-27b7f3d808b9"
-        label: "Bill Number 8 expired"
-        tag: "Payment collection"
         time: "2023-12-02T00:00:00.000Z"
-        type: "bill-payment"
      */
     if(msg.title==="Error")//process.env.APP_ENV!="DEV" && 
-        mainWin.webContents.send("notification",[{tag:"Error",type:"Error",color:"#FF0000"}])//notifyJobs,showToast
+        mainWin.webContents.send(
+            "notification",
+            [
+                {
+                    tag:"Error",
+                    type:"Error",
+                    label:"Error",
+                    color:"#FF0000",
+                    time:new Date().toLocaleTimeString(),
+                    error:lineToAppend
+                }
+            ]
+        )//notifyJobs,showToast
 }
 
 class People{
