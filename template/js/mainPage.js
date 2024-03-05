@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -45,6 +45,7 @@ async function initPage(){
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj); 
     spinner.remove(window); 
+    ipcRenderer.send("booted")
 }
 initPage();
 
@@ -1201,3 +1202,86 @@ async function manageBank(e){
 ipcRenderer.on("execute-progressbar",(e,val)=>{
     createORexecuteProgressbar(val,`DB migration in progress,please wait...`)
 });
+
+let itemFormContent = function(form){
+    if(!(this instanceof Array)) return console.log(this)
+    let itemObj = this.pop();
+    removeAllElem("#container *");
+    form.dataset.lastFlag = this.length===0;
+    form.dataset.itemID = itemObj.id;
+    let formInpTem = document.getElementById("sample-form-input-template").content;
+    form.querySelector("#prod-name").textContent = `${itemObj.name}`;
+    ["standardSellPrice","taxSlab","buyPrice"]
+    .forEach(key=>{
+        if(itemObj.standardSellPrice!=0 || "taxSlab" in itemObj.pInfo) return;
+        let inpDiv = formInpTem.cloneNode(true).querySelector("div");
+        document.getElementById("container").appendChild(inpDiv);
+        let input = inpDiv.querySelector("input");
+        let label = inpDiv.querySelector("label");
+        label.setAttribute("for","standardSellPrice");
+        if(key==="standardSellPrice")
+            label.textContent = "Standard sell price";
+        else
+        if(key==="taxSlab")
+            label.textContent = "GST Slab";
+        else
+        if(key==="buyPrice")
+            label.textContent = "Last buy price";
+        input.setAttribute("type","text");
+        input.setAttribute("id",key);
+        input.setAttribute("name",key);
+        input.dataset.type = "Number";
+        input.dataset.subtype = "price";
+        if(Number(itemObj?.[key])>0 || Number(itemObj.pInfo?.[key])>0)
+            input.value = itemObj?.[key] ?? itemObj.pInfo?.[key]
+        input.setAttribute("onkeypress","validateInput2(event)");
+    });
+    form.querySelector("input").focus();
+}
+
+ipcRenderer.on("product-info-fillup-modal",(e,stockList)=>{
+    let itemModal = createModal("product-info-fillup-modal");
+    document.querySelector(".cover").classList.add("hide");
+    let form = appendToHost("#product-info-fillup-modal-template",itemModal);
+    form.addEventListener("submit",saveItemInfo.bind(stockList))
+    saveItemInfo.bind(stockList);
+    itemFormContent = itemFormContent.bind(stockList);
+    itemFormContent(form);
+});
+
+function saveItemInfo(e){
+    e.preventDefault();
+    let form = e.target;
+    let { itemID:id,lastFlag } = form.dataset;
+    let formData = Object.fromEntries(new FormData(form).entries());
+    ipcRenderer.send("save-stock-info",id,formData);
+    if(lastFlag==="false"){
+        showToastNotification("Product updated.",["animation-common","move-left","blue-toast-box"],"main");
+        itemFormContent(form);
+    }
+    else
+        applySpinner(_closeModal);
+}
+
+async function _closeModal(){
+    document.querySelector(".modal").appendChild(this.canvas)
+    await ipcRenderer.invoke("refresh-stocklist")
+    closeModal();
+    return showToastNotification("Products updated.",["animation-common","move-left","blue-toast-box"],"main");
+}
+
+async function prodFormAction(e){
+    if(e.target.type==="submit") return;
+    let form = e.target.parentNode.parentNode;
+    let { cmd,lastFlag } = e.target.dataset;
+    if(cmd==="skip"){
+        let id = form.dataset.itemID;
+        ipcRenderer.send("item-pinfo",id,"skipFlag",true);
+        itemFormContent(form);
+        lastFlag==="true" && applySpinner(_closeModal);
+    }
+    else
+    if(cmd==="close"){
+        applySpinner(_closeModal)
+    }
+}

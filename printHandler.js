@@ -1,5 +1,5 @@
 const { exec } = require("child_process");
-const { ipcMain,dialog,BrowserWindow, app } = require("electron");
+const { ipcMain,dialog,BrowserWindow, app, webContents } = require("electron");
 const { createModal, getMainWindow } = require("./createModal");
 const fs = require("fs");
 const { setTimeout } = require("timers");
@@ -88,12 +88,16 @@ ipcMain.on("show-print-modal",(e,...arg)=>{
             modal.webContents.send("hide-label",e);
         })
     }
-    ipcMain.once("print-obj",(e,printObj)=>{
-        modal.close();
-        if(!parentWindow)
+    modal.on("close",()=>{
+        ipcMain.removeListener("print-obj",_print);
+    });
+    function _print(e,printObj){
+        modal.close();  
+        if(!(parentWindow instanceof BrowserWindow))
             parentWindow = BrowserWindow.getFocusedWindow();
         parentWindow.webContents.send("print-obj",printObj);
-    });
+    }
+    ipcMain.once("print-obj",_print);
 });
 
 ipcMain.on("forward-printObj",(e,printObj,path2pdf)=>{

@@ -59,7 +59,7 @@
                 <div class="col sm"><p>IGST</p></div>
                 <div class="col md"><p>Total</p></div>
             </div>
-            <div id="tbody" onchange="selectStock(event)" oninput="setAmtFeilds(event)">
+            <div id="tbody" onmouseover="textRollAnnimation(event)" onchange="selectStock(event)" oninput="setAmtFeilds(event)">
                 <div class="row row-control-div" id="add-item">
                     <button onclick="addRow(event)" class="main-ui-btn">+</button>
                 </div>
@@ -183,9 +183,6 @@
     <datalist id="suppliers-dl"></datalist>
     </datalist>
     <datalist id="unit-dl">
-        <option value="Bag">Bag (50Kg)</option>
-        <option value="peice">Peice</option>
-        <option value="kg">Kg</option>
     </datalist>
     <datalist id="employee-to-supp"></datalist>
     <template id="body-row-template">

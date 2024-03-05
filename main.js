@@ -66,6 +66,7 @@ const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandle
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
+const { queryStock } = require("./handleStock");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
@@ -3059,3 +3060,25 @@ ipcMain.on("new-bill",async (e,customerObj)=>{
 ipcMain.handle("get-presets",()=>{
   return process.presets;
 });
+
+ipcMain.on("booted",async (e)=>{
+  let stockList = await queryStock();
+  //standardSellPrice
+  //pInfo : {}
+  let products = stockList.filter(obj=>(
+      !("skipFlag" in obj.pInfo) &&
+      (obj.standardSellPrice===0 || 
+      !("taxSlab" in obj.pInfo))
+    ));
+  if(products.length>0){
+    dialog.showMessageBox({
+      title:"Product attributes found missing",
+      message:"Some of your item has missing attributes like GST rate. Would you like to fill them up now?",
+      buttons:["Sure","Later"]
+    }).then(({response})=>{
+      if(response===1) return;
+      // else show popup to fill in neccessary product information.
+      e.sender.send("product-info-fillup-modal",products);
+    })
+  }
+})

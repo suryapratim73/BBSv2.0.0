@@ -18,43 +18,43 @@
         <div id="page-1" class="page" data-pageno="1">
             <div>
                 <div>
-                    <label for="customer-name" class="highlight">Name: </label>
+                    <label for="name" class="highlight">Name: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" spellcheck="false" name="customer-name" autofocus data-name="name" list="customer-names"/>
+                    <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-address" class="highlight">Address: </label>
+                    <label for="address" class="highlight">Address: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" name="customer-address" data-name="address" />
+                    <input required id="address" type="text" name="address" data-name="address" />
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-phones" class="highlight">Phone:</label>
+                    <label for="phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="customer-phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                    <input type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" />
                     <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-email" class="highlight">Customer Email</label>
+                    <label for="email" class="highlight">Customer Email</label>
                 </div>
                 <div class="row1">
-                    <input name="customer-email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="email" />
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="customer-gst" class="highlight">GST Number</label>
+                    <label for="gst" class="highlight">GST Number</label>
                 </div>
                 <div class="row1">
-                    <input name="customer-gst" onkeypress="upperCaseInput(event)" pattern="^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\w{1}Z\w{1}$" type="text" data-name="gst" id="customer-gst" />
+                    <input name="gst" onkeypress="upperCaseInput(event)" pattern="^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\w{1}Z\w{1}$" type="text" data-name="gst" id="gst" />
                 </div>
             </div>
         </div>
@@ -63,56 +63,56 @@
         <div id="page-2" class="page" data-pageno="2">
             <div>
                 <div>
-                    <label for="bill-date" class="highlight">Date: </label>
+                    <label for="billDate" class="highlight">Date: </label>
                 </div>
                 <div class="row1">
-                    <input type="date" required name="bill-date" data-name="billDate"/>
+                    <input type="date" id="billDate" required name="billDate" data-name="billDate"/>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="order-ref" class="highlight">Order Reference:</label>
+                    <label for="orderRef" class="highlight">Order Reference:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="orderRef" name="order-ref" id="order-ref" placeholder="optional">
+                    <input type="text" data-name="orderRef" name="orderRef" id="orderRef" placeholder="optional">
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="bill-type" class="highlight">Bill Type: </label>
+                    <label for="billType" class="highlight">Bill Type: </label>
                 </div>
                 <div class="row1">
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-type-regular">Regular: </label>
-                            <input type="radio" checked required data-name="billType"  name="bill-type" id="bill-type-regular" value="regular" />
+                            <input type="radio" checked required data-name="billType" name="billType" id="bill-type-regular" value="regular" />
                         </div>
                         <div>
                             <label for="bill-type-monthly">Monthly: </label>
-                            <input type="radio" data-name="billType" name="bill-type" id="bill-type-monthly" value="monthly" />
+                            <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" />
                         </div>
                     </div>
                 </div>
             </div>
             <div>
                 <div>
-                    <label for="bill-number" class="highlight">Bill Number: </label>
+                    <label for="bill-number-regular" class="highlight">Bill Number: </label>
                 </div>
                 <div class="row1 bill-number regular">
-                    <input name="bill-number" id="bill-number-regular" required type="text" data-name="billNo" />
+                    <input name="billNo" id="bill-number-regular" required type="text" data-name="billNo" />
                 </div>
                 <div class="row1 hide bill-number monthly">
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-number-reserve">Reserved: </label>
-                            <input type="radio" required data-name="billNo" disabled  name="bill-number" id="bill-number-reserve" value="reserve" />
+                            <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" />
                         </div>
                         <div>
                             <label for="bill-number-spot">Spot: </label>
-                            <input type="radio" data-name="billNo" name="bill-number" disabled id="bill-number-spot" value="spot" />
+                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" />
                         </div>
                         <div>
-                            <input type="checkbox" name="auto-bill" data-name="autoBill" disabled id="auto-bill">
+                            <input type="checkbox" name="autoBill" data-name="autoBill" disabled id="auto-bill">
                             <label for="auto-bill">Auto Bill</label>
                         </div>
                     </div>
@@ -126,11 +126,11 @@
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-status-open">Open: </label>
-                            <input type="radio" required data-name="billStatus"  name="bill-status" id="bill-status-open" value="open" />
+                            <input type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" />
                         </div>
                         <div>
                             <label for="bill-status-close">Close: </label>
-                            <input type="radio" data-name="billStatus" checked name="bill-status" id="bill-status-close" value="close" />
+                            <input type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" />
                         </div>
                     </div>
                 </div>
@@ -140,7 +140,7 @@
                     <label for="ship-to" class="highlight">Ship to: </label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="ship-to" id="ship-to" data-name="shipTo">
+                    <input type="text" name="shipTo" id="ship-to" data-name="shipTo">
                 </div>
             </div>
             <div>
@@ -148,7 +148,7 @@
                     <label for="ship-addr" class="highlight">Shipping address</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="ship-addr" id="ship-addr" data-name="shipAddr">
+                    <input type="text" name="shipAddr" id="ship-addr" data-name="shipAddr">
                 </div>
             </div>
             <div>
@@ -156,7 +156,7 @@
                     <label for="ship-phone" class="highlight">Consignee contact</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="ship-phone" id="ship-phone" data-name="shipPh">
+                    <input type="text" name="shipPh" id="ship-phone" data-name="shipPh">
                 </div>
             </div>
             <div>
@@ -164,7 +164,7 @@
                     <label for="ship-gst" class="highlight">Consignee GST</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="ship-gst" id="ship-gst" data-name="shipGST">
+                    <input type="text" name="shipGST" id="ship-gst" data-name="shipGST">
                 </div>
             </div>
             <div>
@@ -172,7 +172,7 @@
                     <label for="delivery-mode" class="highlight">Delivery Mode: </label>
                 </div>
                 <div class="row1">
-                    <select name="delivery-mode" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
+                    <select name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
                         <option value="hand">Hand</option>
                         <option value="transport">Transport</option>
                     </select>
@@ -202,7 +202,7 @@
                     <div class="col sm"><p>IGST</p></div>
                     <div class="col md"><p>Total</p></div>
                 </div>
-                <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
                     <div class="row row-control-div" id="add-item">
                         <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
                     </div>
@@ -403,7 +403,7 @@
                     <label for="transport-name" class="highlight">Transport Name: </label>
                 </div>
                 <div class="row1">
-                    <input list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
+                    <input id="transport-name" list="transport-dl" name="transportName" placeholder="compulsory feild" required type="text" data-name="transportName" />
                 </div>
             </div>
             <div>
@@ -411,7 +411,7 @@
                     <label for="transport-address" class="highlight">Transport Address: </label>
                 </div>
                 <div class="row1">
-                    <input name="transport-address" type="text" data-name="transportAddress" />
+                    <input id="transport-address" name="transportAddress" type="text" data-name="transportAddress" />
                 </div>
             </div>
             <div>
@@ -419,7 +419,7 @@
                     <label for="transport-contact" class="highlight">Transport Contact: </label>
                 </div>
                 <div class="row1">
-                    <input name="transport-contact" type="text" data-name="transportContact" />
+                    <input name="transportContact" id="transport-contact" type="text" data-name="transportContact" />
                 </div>
             </div>
             <div>
@@ -427,7 +427,7 @@
                     <label for="transport-gst" class="highlight">Transport GST: </label>
                 </div>
                 <div class="row1">
-                    <input name="transport-gst" type="text" data-name="transportGST" />
+                    <input id="transport-gst" name="transportGST" type="text" data-name="transportGST" />
                 </div>
             </div>
         </div>

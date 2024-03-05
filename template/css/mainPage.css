@@ -987,3 +987,40 @@ form#registration{
 .progressbar #progress{
     width: 100%;
 }
+#product-info-fillup-modal{
+    width: 40vw;
+    height: 40vh;
+    z-index: 100;
+    top: 30vh;
+    left: 35vw;
+    display: flex;
+}
+#product-info-fillup-modal h2{
+    
+}
+#product-info-fillup-modal form{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+#product-info-fillup-modal #container{
+    flex: 2;
+    overflow: auto;
+}
+#product-info-fillup-modal #container>div{
+
+}
+#product-info-fillup-modal #container>div>div{
+
+}
+#product-info-fillup-modal #container input{
+    
+}
+#product-info-fillup-modal .btn-container{
+
+}
+#product-info-fillup-modal .btn-container>button{
+    
+}

@@ -1,6 +1,7 @@
 const {ipcRenderer} = require("electron");
-const { toggleDevTool,validateInput,validateInput2,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon, applyTheme } = require("../js/common.js");
+const { toggleDevTool,validateInput,validateInput2,removeAllElem, roundOffTo2DecimalPlace, showToastNotification ,closeToast, drawSpinner, deleteRowCommon, applyTheme, textRollAnnimation, getsaleConfigPolicyPath } = require("../js/common.js");
 const uuid = require("uuid");
+const fs = require("fs");
 
 
 toggleDevTool(document);
@@ -19,6 +20,19 @@ let supplier = {},
     currentPage = 1,
     payObj = {},
     deletedProperty = [];
+
+let unitDatalist = document.getElementById("unit-dl");
+
+(()=>{
+    const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
+    unitMap.forEach(obj=>{
+        let key = Object.keys(obj)[0];
+        let option = document.createElement("option");
+        option.value = key;
+        option.textContent = key==="Bag"?"Bag (=50 Kg)":key;
+        unitDatalist.appendChild(option);
+    });
+})()
 
 function clickOrFocusinHandler(e){
     removeAllElem(".body-row-options")
@@ -196,7 +210,6 @@ function initPage4(){
         totalWithoutTax:0,
         totalWithTax:0
     });
-    console.log({totalWithTax,totalWithoutTax})
     total = totalWithTax;
     let freightCharge = "freightCharge" in billMeta ? Number(billMeta.freightCharge) : 0;
     total += freightCharge;

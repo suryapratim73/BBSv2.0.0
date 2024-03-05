@@ -2,9 +2,13 @@ let {ipcRenderer,app,remote} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
+
+
 const {
     APP_ENV
 } = process.env;
+
+let n;
 
 exports.toggleDevTool = function(document){
     document.addEventListener("keyup",e=>{
@@ -1119,9 +1123,23 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
         bodyRow = e.target.parentNode.parentNode;
+        selectedItem.pInfo = JSON.parse(selectedItem?.pInfo || "{}");
         for(let key in match){
-            if(["sgst","cgst","igst"].includes(key))
+            if(["sgst","cgst","igst"].includes(key) && typeof igstFlag!=="undefined"){
+                if(!("taxSlab" in selectedItem.pInfo)) continue;
+                if(igstFlag){
+                    bodyRow.querySelector(`input[data-name="igst"]`).value = Number(selectedItem.pInfo.taxSlab);
+                    bodyRow.querySelector(`input[data-name="sgst"]`).value = "";
+                    bodyRow.querySelector(`input[data-name="cgst"]`).value = "";
+                    console.log(selectedItem.pInfo.taxSlab)
+                }
+                else{
+                    bodyRow.querySelector(`input[data-name="igst"]`).value = "";
+                    bodyRow.querySelector(`input[data-name="sgst"]`).value = Number(selectedItem.pInfo.taxSlab)/2;
+                    bodyRow.querySelector(`input[data-name="cgst"]`).value = Number(selectedItem.pInfo.taxSlab)/2;
+                }
                 continue;
+            }
             let input = bodyRow.querySelector(`input[data-name="${key}"]`);
             if(input && key!=="unit")
                 input.value = match[key];
@@ -1144,12 +1162,8 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             selectedItem = match;
         if(_currentStep===3)
             currentStep = 2;
-        try{
+        if(typeof displaySection==="function")
             displaySection();
-        }
-        catch(err){
-            if(err?.stack.startsWith("ReferenceError")) return;
-        }
     }
     else
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
@@ -1165,7 +1179,6 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
         let {address,phone,charge} = match;
         document.querySelector("[data-name='transportAddress']").value = address!==undefined?address:"";
         document.querySelector("[data-name='transportContact']").value = phone!==undefined?phone:"";
-        document.querySelector("[data-name='transportCharge']").value = charge;
     }
 }
 
@@ -1180,6 +1193,20 @@ exports.addRow = function(e){
     bodyRow = e.target.parentNode.previousSibling.previousSibling;
     selectedItem = {};
     bodyRow.dataset.sellId = uuid.v5(bodyRow.querySelector("p").textContent,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+    if(typeof igstFlag!=="boolean") return;
+    if(igstFlag){
+        bodyRow.querySelector(`[data-name="sgst"]`).setAttribute("disabled",true);
+        bodyRow.querySelector(`[data-name="cgst"]`).setAttribute("disabled",true);
+        bodyRow.querySelector(`[data-name="igst"]`).removeAttribute("disabled");
+        bodyRow.querySelector(`[data-name="sgst"]`).textContent = "";
+        bodyRow.querySelector(`[data-name="cgst"]`).textContent = "";
+    }
+    else{
+        bodyRow.querySelector(`[data-name="igst"]`).setAttribute("disabled",true);
+        bodyRow.querySelector(`[data-name="cgst"]`).removeAttribute("disabled");
+        bodyRow.querySelector(`[data-name="sgst"]`).removeAttribute("disabled");
+        bodyRow.querySelector(`[data-name="igst"]`).textContent = "";
+    }
 }
 
 exports.calculateAmounts = function(){
@@ -1205,12 +1232,8 @@ exports.calculateAmounts = function(){
     selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
     selectedItem.qty = quantity;
     bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * (1 + (cgst + sgst + igst)/100));
-    try{
+    if(typeof displaySection==="function")
         displaySection();
-    }
-    catch(err){
-        if(err?.stack.startsWith("ReferenceError")) return;
-    }
 }
 
 exports.updateBillValue = function(e){
@@ -1259,13 +1282,8 @@ exports.updateBillValue = function(e){
         showToastNotification("Bill marked as paid",["animation-common","move-left","blue-toast-box"],"page-4",32);
     else
         showToastNotification("Bill marked as unpaid",["animation-common","move-left","red-toast-box"],"page-4",32);
-    try{
-        reassignSummaryDivFeilds();
-    }
-    catch(err){
-        if(err?.stack.startsWith("ReferenceError")) return;
-        console.log(err);
-    }
+    if(typeof reassignSummaryDivFeilds==="function")
+            reassignSummaryDivFeilds();
 }
 
 exports.showPaymentMode = function(e){
@@ -1313,14 +1331,8 @@ exports.applyDiscount = function(e){
     billMeta.netAmtTax = reducedOrder.netAmtTax;
     console.log(billMeta.netAmtTax , billMeta.netAmt)
     billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
-    try{
+    if(typeof page4Init==="function")
         page4Init();
-    }
-    catch(err){
-        if(err?.stack.startsWith("ReferenceError")) return;
-        reassignSummaryDivFeilds();
-        console.log(err);
-    }
 }
 
 exports.reduceOrder = function(){
@@ -1369,12 +1381,8 @@ exports.clickOrFocusinHandler = function(e){
         bodyRow = bodyRow.parentNode;
     if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
         selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
-    try {
-        displaySection();   
-    } catch (err) {
-        if(!err?.stack.startsWith("ReferenceError"))
-            console.log(err);
-    }
+    if(typeof displaySection==="function")
+        displaySection();
     removeAllElem(".body-row-options");
     if(bodyRow.className==="body row"){
         bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
@@ -1435,9 +1443,11 @@ exports.tableFillupHelper = function(arr,theadSelector,tbodySelector,bodyRowGen)
     arr.forEach((obj,index)=>tbody.appendChild(bodyRowGen({key:"itemObj",obj,cols,index})));
 }
 
-exports.applySpinner = cb =>{
+exports.applySpinner = async cb =>{
     let spinner = drawSpinner(document);
-    cb.call(spinner);
+    let ret = cb.call(spinner);
+    if(ret instanceof Promise)
+        await ret;
     spinner.remove(window);
 }
 
@@ -1580,4 +1590,39 @@ exports.deepCompareJSON = function deepCompareJSON(obj1,obj2){
     });
     if(resp) return false;
     return true;
+}
+
+exports.textRollAnnimation = function(e){
+    let elem = e.target;
+    if(!["P","INPUT"].includes(elem.nodeName)) return;
+    let { width:elemWidth } = elem.getBoundingClientRect();
+    let elemScrollWidth = elem.scrollWidth;
+    let diffX = elemScrollWidth - elemWidth,scrollLeft = Math.ceil(elem.scrollLeft),count=0,mode="right";
+    if(diffX>1 && !n){
+        n = requestAnimationFrame(function scrollFunc(){
+            if(count==3){
+                if(scrollLeft<diffX && mode==="right"){
+                    elem.scrollBy(1,0);
+                    mode = "right";
+                }
+                else{
+                    elem.scrollBy(-1,0);
+                    mode = "left";
+                }
+                scrollLeft = Math.ceil(elem.scrollLeft);
+                count = 0;
+            }
+            else
+                count++;
+            if(elem.scrollLeft===0)
+                mode = "right";
+            n = requestAnimationFrame(scrollFunc);
+            elem.addEventListener("mouseout",function mouseoutHelper(){
+                cancelAnimationFrame(n);
+                elem.scrollTo(0,0);
+                n = null;
+                elem.removeEventListener("mouseout",mouseoutHelper);
+            });
+        });
+    }
 }

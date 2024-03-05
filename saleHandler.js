@@ -478,7 +478,7 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
                 this.webContents.send("hide-label");
             });
             let orderWin = modal.getParentWindow();
-            ipcMain.once("print-obj",(e,printObj)=>{
+            function _print(e,printObj){
                 billMeta.printObj = {
                     ...printObj,
                     captions:["Proforma Invoice"]
@@ -486,7 +486,9 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
                 modal.close();
                 orderWin.close();
                 printPDF(path2pdf,billMeta.printObj);
-            });
+            }
+            modal.on("close",()=>ipcMain.removeListener("print-obj",_print));
+            ipcMain.once("print-obj",_print);
         }
         else
             BrowserWindow.getFocusedWindow().close();

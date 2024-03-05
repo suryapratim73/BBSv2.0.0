@@ -956,5 +956,28 @@
             </div>
         </div>
     </template>
+    <template id="product-info-fillup-modal-template">
+        <form name="prodct-info-form">
+            <h2>
+                Item: <span id="prod-name"></span>
+            </h2>
+            <div id="container"></div>
+            <div class="btn-container" onclick="prodFormAction(event)">
+                <button type="button" data-cmd="close">Close</button>
+                <button type="button" data-cmd="Skip">Skip Item</button>
+                <button type="submit">Save</button>
+            </div>
+        </form>
+    </template>
+    <template id="sample-form-input-template">
+        <div>
+            <div>
+                <label for=""></label>
+            </div>
+            <div>
+                <input type="" name="" id="">
+            </div>
+        </div>
+    </template>
 </body>
 </html>

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize, textRollAnnimation } =  require("../js/common");
 
 const uuid = require("uuid");
 let fs = require("fs");
@@ -20,7 +20,7 @@ let nameDatalist = document.createElement("datalist"),
     footer = document.querySelector("footer"),
     bodyRow,timer,currentBillNo,
     probableGrps = [],
-    availableBillNoDL = document.createElement("datalist");
+    availableBillNoDL = document.createElement("datalist"),igstFlag;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -28,7 +28,7 @@ unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
 availableBillNoDL.id = "available-bill-no-div";
 
-const { unitMap = [],availableBillNo = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
+const { unitMap = [],availableBillNo = [],gst:_gst } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
 
 async function init(){
     appendToDL("get-stocks",nameDatalist);
@@ -111,6 +111,12 @@ function helperFunc1(itemObj){
         else
             input.value = itemObj.sellUnit;
     });
+    let cgst = Number(bodyRow.querySelector(`[data-name="cgst"]`).value);
+    let sgst = Number(bodyRow.querySelector(`[data-name="sgst"]`).value);
+    let igst = Number(bodyRow.querySelector(`[data-name="igst"]`).value);
+    bodyRow.querySelector(`[data-name="igst"]`).value = igstFlag===false && igst>0 ? 0 : cgst + sgst;
+    bodyRow.querySelector(`[data-name="sgst"]`).value = igstFlag===false && igst>0 ? igst/2 : 0;
+    bodyRow.querySelector(`[data-name="cgst"]`).value = igstFlag===false && igst>0 ? igst/2 : 0;
     calculateAmounts();
 }
 
@@ -126,15 +132,16 @@ function reInitFormData(){
                     helperFunc1(obj);
             });
         }
-        else{// Step 1,2,4
+        else
+        if(currentStep!=3 && !(obj instanceof Array)){// Step 1,2,4
             let inputs = [...main.querySelectorAll(`input,select`)];
-            if(inputs.length===0) return;
+            let keys = inputs.map(inp=>inp.dataset.name);
+            if(!keys.some(key=>key in obj)) return;
             //Step 1,2
             for(let _index=0;_index<inputs.length;_index++){
                 let input = inputs[_index];
                 let key = input.dataset.name;
-                if(!(key in obj)) break;
-                if(["text","email"].includes(input.type)){
+                if(["text","email"].includes(input.type) && obj[key]){
                     input.value = (key!="phones" || obj instanceof Array) ? obj[key] : JSON.parse(obj[key]);
                     inputs.splice(_index,1);
                     _index--;
@@ -154,9 +161,10 @@ function reInitFormData(){
                     .forEach(input=>{
                         input.removeAttribute("disabled");
                     });
-                    main.querySelector("#bill-status-open").setAttribute("checked",true);
-                    main.querySelector("#bill-status-open").setAttribute("disabled",true);
-                    main.querySelector("#bill-status-close").setAttribute("disabled",true);
+                    if(obj.billStatus==="close")
+                        main.querySelector("#bill-status-close").setAttribute("checked",true);
+                    else
+                        main.querySelector("#bill-status-open").setAttribute("checked",true);
                 }
                 if(key==="billDate")
                     input.valueAsDate = new Date(obj.billDate);
@@ -231,7 +239,7 @@ function phoneRegExpInp(text){
 
 function advanceSet(target=[],newValue){
     if(typeof target==="string")
-        target = JSON.parse(target);
+        target = [target];
     target.push(newValue);
     return target
             .filter((val,index,self)=>index===self.findIndex(_val=>new RegExp(phoneRegExpInp(val)).test(_val)))
@@ -262,11 +270,9 @@ function proceedOrFinishHandler(e){
     e && e.preventDefault();
     if(e.type==="submit"){
         if(currentStep!==3){ 
-            let formObjs = {};
-            let allInputs = [...e.target.querySelectorAll(`#page-${currentStep} input`)];
-            allInputs = [...allInputs,...e.target.querySelectorAll(`#page-${currentStep} select`)];
+            let formObjs = Object.fromEntries(new FormData(e.target).entries());
             if(currentStep===1){
-                let gst = e.target["customer-gst"].value;
+                let gst = formObjs.gst;
                 if(gst!==""){
                     let flag = gstChecksum(gst);
                     ipcRenderer.send("log",{
@@ -274,40 +280,26 @@ function proceedOrFinishHandler(e){
                         message:{flag,gst},
                         func:"proceedOrFinishHandler function"
                     });
-                    console.log({flag})
                     if(!flag)
-                        alert("GST number may be not valid. You may consider a recheck.")
-                }
-            }
-            allInputs.forEach(input=>{
-                if(input.type!=="radio"){
-                    if(input.dataset.name==="phones")
-                        formObjs[input.dataset.name] = advanceSet(customer.phones,input.value);
-                    else
-                    if(input.type!=="checkbox")
-                        formObjs[input.dataset.name] = input.value;
-                    else
-                    if(input.type==="checkbox")
-                        formObjs[input.dataset.name] = input.checked;
-                }
-                else
-                if(input.type==="radio" && input.checked)
-                    formObjs[input.dataset.name] = input.value;
-            });
-            if(currentStep===1){
+                        alert("GST number may be not valid. You may consider a recheck.");
+                }// GST Validation
+                igstFlag = gst!="" && Number(gst.match(/\d\d/)?.[0])!=Number(_gst.match(/\d\d/)?.[0]);
                 customer = {...customer,...formObjs};
                 if(!("id" in customer))
                     customer.id = uuid.v5(customer.name+"_customer","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+                customer.phones = advanceSet(customer.phones,formObjs.phones);
             }
             else{
-                billMeta = {...billMeta,...formObjs};
+                if("autoBill" in formObjs)
+                    formObjs.autoBill = true;
                 if(billMeta.deliveryType==="transport" && !("transportId" in billMeta))
                     billMeta.transportId = uuid.v5(billMeta.transportName,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
                 if(!("discVal" in billMeta))
                     billMeta.discVal = 0;
+                billMeta = {...billMeta,...formObjs}
+                if(billMeta.billType==="monthly" && billMeta.billNo==="reserve")
+                    billMeta.billNo = currentBillNo;
             }
-            if(billMeta.billType==="monthly" && billMeta.billNo==="reserve")
-                billMeta.billNo = currentBillNo;
         }// Step 1,2 & 4
         else{
             probableGrps = [];

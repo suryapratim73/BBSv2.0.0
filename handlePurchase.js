@@ -6,6 +6,8 @@ const { supplierLedgerSchema, billItemSchema } = require("./model/dynamicSchemas
 const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
 const { stockList } = require("./handleStock");
+const { getsaleConfigPolicyPath } = require("./template/js/common");
+const fs = require("fs");
 
 let windowOptions = {
     width: 800,
@@ -42,6 +44,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
     let { billNo,billDate,freightName,freightCharge=0,totalTax,total,paymentStatus=false,services:_moreInfo={} } = billMeta;
     let { payMethod,detail,payDate,amount,receiverName,balance } = payObj;
     let freights = getFreights();
+    let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     new Promise(async res=>{
         if(!suppliers.find(suppObj=>suppObj.id===id)){
             let supplierObj = await (await supplier.sync()).findOrCreate({
@@ -144,10 +147,14 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         cgst=0,
                         igst=0,
                         pInfo } = stockObj;
-                    unit = unit==="Bag" ? 50 : 1;
-                    let tax = Number(sgst) + Number(cgst) + Number(igst);
+                    let multiplier = Object.values(unitMap.find(obj=>unit in obj))[0];
+                    let tax =  Number(igst)>0 ?  Number(igst) : Number(sgst) + Number(cgst);
+                    pInfo = {
+                        ...pInfo,
+                        taxSlab:tax
+                    }
                     let type = "type" in pInfo ? pInfo.type : "Undefined";
-                    quantity = Number(quantity) * unit;
+                    quantity = Number(quantity) * multiplier;
                     rate = Number(rate);
                     if(freightCharge>0)
                         rate += freightCharge;
@@ -166,7 +173,6 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         selectedStock.type = type;
                         selectedStock.quantity += quantity;
                         selectedStock.name = name;
-                        // console.log({rate,orgRt:stockObj.rate})
                         await stock.update(
                             {
                                 buyPrice:rate,
@@ -192,14 +198,15 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                             buyPrice:rate,
                             standardSellPrice:Math.round(1.1*rate),
                             tax,
-                            pHistory
+                            pHistory,
+                            pInfo
                         }
                         let newStockObj = {
                             ...stockObj,
                             ...obj
                         };
                         ["rate","cgst","sgst","igst","uid"].forEach(key=>key in newStockObj && Reflect.deleteProperty(newStockObj,key));
-                        stockList.push(new People(newStockObj))
+                        stockList.push(new People(newStockObj));
                         return stock.create({
                             ...stockObj,
                             ...obj

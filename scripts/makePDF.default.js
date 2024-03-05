@@ -68,7 +68,7 @@ exports.billPDF = async function(billObj){
             createBody(doc,orderItems[j],initialY,j+1)
             doc.moveDown();
             initialY = doc.y;
-            if(initialY>640 - 2*doc.currentLineHeight()){
+            if(initialY>640 - 2*doc.currentLineHeight() && j<orderItems.length-1){
                 doc.addPage();
                 i--;
                 lastJ = j+1;

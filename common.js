@@ -169,12 +169,7 @@ exports.appLogger = function(...lines){
         });
     let mainWin = getMainWindow();
     let msg = lines[0];
-    /**
-        billType: "sales-select"
-        id: "a2358c3a-96b7-478d-9c85-27b7f3d808b9"
-        time: "2023-12-02T00:00:00.000Z"
-     */
-    if(msg.title==="Error")//process.env.APP_ENV!="DEV" && 
+    if(msg.title==="Error")
         mainWin.webContents.send(
             "notification",
             [

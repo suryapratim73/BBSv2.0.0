@@ -126,5 +126,59 @@ ipcMain.handle("create-stock",async (e,itemObj)=>{
     return itemObj.dataValues;
 });
 
+ipcMain.on("item-pinfo",async (e,id,key,value)=>{
+    let { pInfo } = (await stock.findOne({
+        where:{ id }
+    })).dataValues;
+    await stock.update(
+        {
+            pInfo:{
+                ...pInfo,
+                [key]:value
+            }
+        },
+        {
+            where:{
+                id
+            }
+        }
+    )
+});
+
+ipcMain.on("save-stock-info",async (e,id,updateObj)=>{
+    try{
+        let itemObj = (await stock.findOne({
+            where:{ id }
+        })).dataValues;
+        Object.keys(updateObj)
+        .forEach(key=>{
+            if(key in itemObj)
+                itemObj[key] = /^\d+$/.test(updateObj[key]) ? Number(updateObj[key]) : updateObj[key];
+            else
+                itemObj.pInfo[key] = /^\d+$/.test(updateObj[key]) ? Number(updateObj[key]) : updateObj[key];
+        });
+        await stock.update(
+            itemObj,
+            {
+                where:{
+                    id
+                }
+            }
+        );
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"save-stock-info"
+        });
+    }
+})
+
+ipcMain.handle("refresh-stocklist",()=>{
+    stockList = [];
+    return queryStock();
+});
+
 exports.stockList = stockList;
 exports.queryStock = queryStock;
