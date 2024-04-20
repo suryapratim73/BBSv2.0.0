@@ -2144,7 +2144,7 @@ ipcMain.on("app-registration", async (e, gst) => {
 async function updateCommon(){//This need a relook
   let data = {
     currentVersion:app.getVersion(),
-    path2file:app.getPath("appData")+`/BBS/${this.fileName}`,
+    path2file:path.resolve(app.getPath("appData"),`/BBS/${this.fileName}`),
     time:Date.now(),
     updateDownloaded:true,
     versionDownloaded:this.version,
@@ -2177,8 +2177,8 @@ async function updateCommon(){//This need a relook
   });
   if(data.installMoment==="now" && fs.existsSync(path.resolve(app.getPath("appData"),"./model/schema.js"))){
     try{
-      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema_replica.js"),path.resolve(appPath,"./model/schema_replica.js"),"a+");
-      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema.js"),path.resolve(appPath,"./model/schema.js"),"a+");
+      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema_replica.js"),"a+");
+      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema.js"),"a+");
     }
     catch(err){
       appLogger({
@@ -2231,7 +2231,7 @@ async function updateCommon(){//This need a relook
       title:"Spawned path",
       message:`start "${path.resolve(data.path2file)}"`
     })
-    let spawnedFileProc = spawn(`start "${path.resolve(data.path2file)}"`,{
+    let spawnedFileProc = spawn(data.path2file,{
       shell:true
     });
     spawnedFileProc.on("error",(err)=>{
@@ -2947,11 +2947,19 @@ async function dbMigrator(){
     }
     console.log({msg:"Dynamic model definition in pogress"})
     await Promise.allSettled([
-      ...[cust_ids,supp_ids]
+      ...[cust_ids]
       .map(async (arr)=>{
         for(let i=0;i<arr.length;i++){
           let {id} = arr[i];
           await helperfunc1(id,_customerLedgerSchema,customerLedgerSchema,1);
+        }
+        return
+      }),
+      ...[supp_ids]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          let {id} = arr[i];
+          await helperfunc1(id,_supplierLedgerSchema,supplierLedgerSchema,1);
         }
         return
       }),
@@ -2987,12 +2995,26 @@ async function dbMigrator(){
       }
     }
     Promise.allSettled([
-      ...[cust_ids,supp_ids]
+      ...[cust_ids]
       .map(async (arr)=>{
         for(let i=0;i<arr.length;i++){
           try {
             let {id} = arr[i];
             await helperfunc1(id,_customerLedgerSchema,customerLedgerSchema);
+          } catch (err) {
+            console.log(err);
+          } finally {
+            updateProgressbar(win,++progress,totaltables);
+          }
+        }
+        return
+      }),
+      ...[supp_ids]
+      .map(async (arr)=>{
+        for(let i=0;i<arr.length;i++){
+          try {
+            let {id} = arr[i];
+            await helperfunc1(id,_supplierLedgerSchema,supplierLedgerSchema);
           } catch (err) {
             console.log(err);
           } finally {

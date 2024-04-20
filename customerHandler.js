@@ -493,26 +493,14 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
             }
         }),
         // Update Ledger
-        (async function(){
-            let { netDue } = (await customerLedger.findOne({
+        customerLedger.destroy(
+            {
                 where:{
                     date:billDate,
                     billNo
                 }
-            })).dataValues;
-            let { balance } = (await customerLedger.findOne()).dataValues;
-            return customerLedger.update(
-                { 
-                    balance:balance-netDue
-                },
-                {
-                    where:{
-                        date:billDate,
-                        billNo
-                    }
-                }
-            )
-        })(),
+            }
+        ),
         // Restore reduced stock
         ...billItems.map(async ({qty,name})=>{
             if(!name) return;

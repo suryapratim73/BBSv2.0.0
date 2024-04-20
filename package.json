@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.15.0",
+  "version": "2.15.1",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "adm-zip": "^0.5.10",
-    "axios": "^1.1.3",
+    "axios": "^1.6.8",
     "bcrypt": "^5.1.0",
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
@@ -52,7 +52,7 @@
     "productName": "Bigbyte Business Service",
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
-    "nodeVersion":"16.20.2",
+    "nodeVersion": "16.20.2",
     "linux": {
       "target": [
         {

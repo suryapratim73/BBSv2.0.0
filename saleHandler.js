@@ -172,14 +172,16 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         orderRef,
         netAmtTax
     } = billMeta;
-    if(Number(billNo)===getLastBillNo())
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    if(Number(billNo)===getLastBillNo()){
         setBillNo(Number(billNo));
+        saleConfig.billNo = Number(billNo);
+    }
     else{
         reduceBillNo();
-        let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
         saleConfig.availableBillNo = saleConfig.availableBillNo.filter(_billNo=>_billNo!=Number(billNo));
-        fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
     }
+    fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
