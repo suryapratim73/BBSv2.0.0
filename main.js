@@ -2225,11 +2225,14 @@ async function updateCommon(){//This need a relook
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
-    app.quit();
+    if(fs.existsSync(data.path2file))
+      app.quit();
+
     // Try to run a bash or some shell script to update BBS
     appLogger({
       title:"Spawned path",
-      message:`start "${path.resolve(data.path2file)}"`
+      message:`"${path.resolve(data.path2file)}"`,
+      test:fs.existsSync(data.path2file)
     })
     let spawnedFileProc = spawn(data.path2file,{
       shell:true
