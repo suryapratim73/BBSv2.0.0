@@ -2237,6 +2237,13 @@ async function updateCommon(){//This need a relook
     let spawnedFileProc = spawn(data.path2file,{
       shell:true
     });
+    spawnedFileProc.stderr.on("data",(chunk)=>{
+      appLogger({
+        title:"File launch error",
+        message:Buffer.from(chunk).toString(),
+        func:"Line 2244"
+      })
+    })
     spawnedFileProc.on("error",(err)=>{
       appLogger({
         title:"Error",
