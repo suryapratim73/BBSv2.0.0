@@ -2226,19 +2226,13 @@ async function updateCommon(){//This need a relook
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     // Try to run a bash or some shell script to update BBS
-    let bathFileContent = `
-      echo "---Message from updator.bat---" >> ${path.resolve(app.getPath("appData"),"./BBS/logs/appLogs.txt")}
-    `;
-    fs.writeFileSync(path.resolve(app.getPath("appData"),"./BBS/updator.bat"),bathFileContent)
     appLogger({
       title:"Spawned path",
       message:`"${path.resolve(data.path2file)}"`,
       test:fs.existsSync(data.path2file)
     });
-    fs.chmodSync(path.resolve(app.getPath("appData"),"./BBS/updator.bat"),"550")
-    spawn(path.resolve(app.getPath("appData"),"./BBS/updator.bat"),{
-      shell:true,
-      cwd:path.resolve(app.getPath("appData"),"./BBS")
+    spawn("./updator.bat",{
+      shell:true
     });
     if(fs.existsSync(data.path2file))
       app.quit();
