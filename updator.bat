@@ -1,0 +1,1 @@
+echo "---Message from updator.bat---" >> %HOMEDRIVE%%HOMEPATH%\AppData\Roaming\bbs\logs\appLogs.txt
