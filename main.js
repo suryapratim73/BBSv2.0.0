@@ -2225,45 +2225,18 @@ async function updateCommon(){//This need a relook
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
-    if(fs.existsSync(data.path2file))
-      app.quit();
-
     // Try to run a bash or some shell script to update BBS
     appLogger({
       title:"Spawned path",
       message:`"${path.resolve(data.path2file)}"`,
       test:fs.existsSync(data.path2file)
     })
-    let spawnedFileProc = spawn(data.path2file,{
+    spawn(data.path2file,{
       shell:true,
       cwd:path.resolve(app.getPath("appData"),"./BBS")
     });
-    spawnedFileProc.stderr.on("data",(chunk)=>{
-      appLogger({
-        title:"File launch error",
-        message:Buffer.from(chunk).toString(),
-        func:"Line 2244"
-      })
-    })
-    spawnedFileProc.on("error",(err)=>{
-      appLogger({
-        title:"Error",
-        message:String(err),
-        func:"updator setup spawn error"
-      })
-    })
-    spawnedFileProc.on("exit",(code,signal)=>{
-      appLogger({
-        title:"Launch restart script",
-        message:JSON.stringify({code,signal})
-      })
-    });
-    spawnedFileProc.on("message",(msg)=>{
-      appLogger({
-        title:"File proc message",
-        message:msg
-      })
-    });
+    if(fs.existsSync(data.path2file))
+      app.quit();
   }
 }
 
