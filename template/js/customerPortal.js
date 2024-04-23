@@ -205,14 +205,10 @@ async function loadLedgerTable(_name){
     ledgerEntries.forEach(obj=>{
         let {date,billNo,billAmt,tax,delivery,payments,balance,itemList,entryNo} = obj;
         let row = document.createElement("div");
-        let deliveryCharge = 0;
-        deliveryCharge += typeof delivery==="object" && "transportCharge" in delivery ? Number(delivery.transportCharge) : 0;
-        deliveryCharge += typeof delivery==="object" && "coolieCharge" in delivery ? Number(delivery.coolieCharge) : 0;
         row.innerHTML = `
             <p class="col eq-space">${new Date(date).toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${billNo}</p>
-            <p class="col eq-space">${Math.round(billAmt+tax+deliveryCharge)}</p>
-            <p class="col eq-space">${payments}</p>
+            <p class="col eq-space">${Math.round(billAmt+tax)}</p>
             <p class="col eq-space">${balance}</p>
         `;
         row.classList.add("row");
