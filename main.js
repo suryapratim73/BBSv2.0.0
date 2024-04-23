@@ -2232,7 +2232,8 @@ async function updateCommon(){//This need a relook
       test:fs.existsSync(data.path2file)
     });
     spawn("./updator.bat",{
-      shell:true
+      shell:true,
+      cwd:__dirname
     });
     if(fs.existsSync(data.path2file))
       app.quit();
