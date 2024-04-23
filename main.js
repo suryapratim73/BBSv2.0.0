@@ -67,6 +67,7 @@ const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
+const { title } = require("process");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
@@ -2234,6 +2235,11 @@ async function updateCommon(){//This need a relook
     spawn("./updator.bat",{
       shell:true,
       cwd:__dirname
+    }).stderr.on("data",chunk=>{
+      appLogger({
+        title:"updator.bat launch error",
+        message:Buffer.from(chunk).toString()
+      })
     });
     if(fs.existsSync(data.path2file))
       app.quit();
