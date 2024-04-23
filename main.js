@@ -2235,7 +2235,8 @@ async function updateCommon(){//This need a relook
       test:fs.existsSync(data.path2file)
     })
     let spawnedFileProc = spawn(data.path2file,{
-      shell:true
+      shell:true,
+      cwd:path.resolve(app.getPath("appData"),"./BBS")
     });
     spawnedFileProc.stderr.on("data",(chunk)=>{
       appLogger({
