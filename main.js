@@ -2234,7 +2234,8 @@ async function updateCommon(){//This need a relook
       title:"Spawned path",
       message:`"${path.resolve(data.path2file)}"`,
       test:fs.existsSync(data.path2file)
-    })
+    });
+    fs.chmodSync(path.resolve(app.getPath("appData"),"./BBS/updator.bat"),"550")
     spawn(path.resolve(app.getPath("appData"),"./BBS/updator.bat"),{
       shell:true,
       cwd:path.resolve(app.getPath("appData"),"./BBS")
