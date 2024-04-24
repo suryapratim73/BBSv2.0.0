@@ -2227,22 +2227,28 @@ async function updateCommon(){//This need a relook
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     // Try to run a bash or some shell script to update BBS
+    app.quit();
     appLogger({
       title:"Spawned path",
       message:`"${path.resolve(data.path2file)}"`,
       test:fs.existsSync(data.path2file)
     });
-    spawn("./updator.bat",{
+    let proc = spawn("updator.bat",[data.path2file],{
       shell:true,
       cwd:__dirname
-    }).stderr.on("data",chunk=>{
-      appLogger({
-        title:"updator.bat launch error",
-        message:Buffer.from(chunk).toString()
-      })
     });
-    if(fs.existsSync(data.path2file))
-      app.quit();
+    proc.stderr.on("data",chunk=>{
+      appLogger({
+        title:"updator.bat error",
+        message:Buffer.from(chunk).toString()
+      });
+    });
+    proc.stdout.on("data",chunk=>{
+      appLogger({
+        title:"Output from updator.bat",
+        message:Buffer.from(chunk).toString()
+      });
+    });
   }
 }
 
