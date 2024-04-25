@@ -707,6 +707,7 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
     ctx.fillRect(0,0,canvas.width,canvas.height)
     ctx.fill()
     ctx.stroke();
+    let highestNum = 0;
     let reducedObjs = objs.reduce((acc,obj)=>{
         if(typeof obj.date==="string"){
             let [yr,mnt,dt] = obj.date.split("-").map(num=>Number(num));
@@ -725,10 +726,15 @@ exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffse
             acc[date].amt += obj.amt;
         return acc;
     },{});
+    Object.keys(reducedObjs)
+    .forEach(date=>{
+        if(reducedObjs[date].amt>highestNum)
+            highestNum = reducedObjs[date].amt;
+    });
     let redObjsLen = Object.keys(reducedObjs).length;
     Object.keys(reducedObjs).forEach((date,i)=>{
-        let xPos = lOffset + (canvas.width-rOffset) * (i/redObjsLen);
-        let yPos = (canvas.height-bOffset) * (1 - reducedObjs[date].amt/total);
+        let xPos = lOffset + (canvas.width-rOffset-lOffset) * (i/redObjsLen);
+        let yPos = tOffset + ((canvas.height-bOffset-tOffset) * (1 - reducedObjs[date].amt/highestNum));
         if(yPos==0)
             yPos = tOffset;
         if(i===0)

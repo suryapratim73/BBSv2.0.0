@@ -368,6 +368,7 @@ button.hover{
     overflow: hidden;
     position: relative;
     width: 100%;
+    background: var(--theme-secondary);
 }
 .oder-queue-div{
     height: 95%;

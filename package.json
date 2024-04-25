@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.15.19",
+  "version": "2.15.20",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -72,9 +72,7 @@
       ]
     },
     "deb": {
-      "fpm": [
-        "--after-upgrade=test.sh"
-      ]
+      "fpm": ["--after-upgrade=updator.sh"]
     },
     "win": {
       "target": [
@@ -89,11 +87,11 @@
       "publisherName": "Codemint"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "allowElevation": true,
       "runAfterFinish": true,
       "shortcutName": "BBS",
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": false
     },
     "compression": "store",
     "files": [

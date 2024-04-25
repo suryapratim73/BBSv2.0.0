@@ -2189,66 +2189,41 @@ async function updateCommon(){//This need a relook
       })
     }
   }
+  if(data.installMoment==="now")
+    app.quit();
+  let proc;
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
       message:"Launching updator.sh.",
       cmd:`./updator.sh -u ${this.version}`
     });
-    let updator = spawn(`./updator.sh -u ${this.version}`,{
+    proc = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
       shell:true
-    });
-    app.quit();
-    updator.stderr.on("data",data=>{
-      appLogger({
-        title:"Error",
-        message:String(data)
-      });
-    });
-    updator.stdout.on("data",data=>{
-      appLogger({
-        title:"Msg from updator",
-        message:data
-      })
-    });
-    updator.on("error",err=>{
-      appLogger({
-        title:"Spawn Error",
-        message:err
-      })
-    });
-    updator.on("exit",(code,signal)=>{
-      appLogger({
-        title:"Exit Event of updator",
-        message:JSON.stringify({code,signal})
-      });
     });
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     // Try to run a bash or some shell script to update BBS
-    app.quit();
     appLogger({
       title:"Spawned path",
       message:`"${path.resolve(data.path2file)}"`,
       test:fs.existsSync(data.path2file)
     });
-    let proc = spawn("updator.bat",[data.path2file],{
+    proc = spawn("updator.bat",[data.path2file],{
       shell:true,
       cwd:__dirname
     });
-    proc.stderr.on("data",chunk=>{
+  }
+  if(data.installMoment==="now"){
+    function helperfunc1(chunk){
       appLogger({
-        title:"updator.bat error",
+        title:this,
         message:Buffer.from(chunk).toString()
       });
-    });
-    proc.stdout.on("data",chunk=>{
-      appLogger({
-        title:"Output from updator.bat",
-        message:Buffer.from(chunk).toString()
-      });
-    });
+    }
+    proc.stderr.on("data",helperfunc1.bind("updator.bat error"));
+    proc.stdout.on("data",helperfunc1.bind("Output from updator.bat"));
   }
 }
 
