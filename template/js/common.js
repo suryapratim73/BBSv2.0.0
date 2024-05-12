@@ -1,4 +1,4 @@
-let {ipcRenderer,app} = require("electron");
+let {ipcRenderer,app, remote} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
@@ -1032,7 +1032,7 @@ function policyPathCommmon(relPath,_path){
         policyPath = path.resolve(policyPath,relPath,_path);
     }
     else
-        policyPath = path.resolve(app.getPath("appData")+"/BBS",_path);
+        policyPath = path.resolve((app ?? remote.app).getPath("appData")+"/BBS",_path);
     // dialog.showMessageBox({
     //     title:"Path to JSON",
     //     message:policyPath
