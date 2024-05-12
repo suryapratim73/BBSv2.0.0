@@ -281,7 +281,7 @@ async function createWindow() {
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
             updateConf.currentUser = app.getVersion();
-            fs.writeSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
+            fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
           }
         }
       }
@@ -2816,7 +2816,7 @@ ipcMain.on("open-event",(e,evObj)=>{
 
 // DB Migration for non-breaking model changes only
 function schemaValidator(){
-  let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
+  let path2config =  __dirname;
   path2config = path.resolve(path2config,"./dbConf.json");
   if(fs.existsSync(path2config)){
     let { dbMigrated=true } = JSON.parse(fs.readFileSync(path2config)?.toString() ?? "{}");
@@ -3018,8 +3018,6 @@ async function dbMigrator(){
     ])
     .then(async ()=>{
       let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
-      path2config = path.resolve(appPath,"./dbConf.json");
-      fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
       win.setProgressBar(-1);
       fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
