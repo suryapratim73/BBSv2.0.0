@@ -128,6 +128,14 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     let item = await stock.findOne({where:{id}});
     item.reduceStock = qty*multiplier;
     await item.save();
+    await stock.update({
+        pInfo:{
+            ...item.pInfo,
+            taxSlab:tax
+        }
+    },{
+        where:{id}
+    })
     let match = stockList.find(obj=>obj.id===id);
     match.quantity -= qty*multiplier;
     match.specialPrice?.push({
@@ -148,7 +156,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(flag==="regular")
         saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
-        billMeta.printObj = {captions:["Original Buyer's Copy","Book Copy"]}
+        billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
     if("presets" in process && process?.presets?.target==="salePage")
         process.presets = {};
@@ -173,6 +181,16 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         netAmtTax
     } = billMeta;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    let { billTemplate:{captions={}} } = saleConfig;
+    billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
+        let caption,key = Object.keys(obj).pop();
+        if(captions.find(obj=>Object.keys(obj)[0]===key))
+            caption = captions[captions.findIndex(obj=>Object.keys(obj)[0]===key)][key];
+        else
+            caption = obj[key];
+        acc.push(caption);
+        return acc;    
+    },[]);
     if(Number(billNo)===getLastBillNo()){
         setBillNo(Number(billNo));
         saleConfig.billNo = Number(billNo);
@@ -291,19 +309,15 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             else
                 return helperFunc1(obj,billModel,custId,billDate,billNo);
         }),//updating stock
-        customerLedger.create({
+        (billNo!=="spot" && customerLedger.create({
             billStatus,
-            date: billNo!="spot"? billDate : undefined,
+            date: billDate,
             billNo,
-            billAmt:Math.round(netAmt),
-            tax:Math.round(netTax),
-            paymentStatus,
+            billAmt:Math.round(netAmtTax),
             payments:Math.round(netPayment),
-            netDue,
             itemList:`${custId}_${billNo}_${billDate}`,
-            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand",
             balance: Math.round(lastBalance + netAmtTax - netPayment)
-        }),
+        })),
         (await sale.sync()).create({
             billStatus,
             customerId:custId,

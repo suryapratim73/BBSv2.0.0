@@ -820,3 +820,10 @@ button:disabled{
     border-radius: 15px;
     transform: translateX(-50%);
 }
+.half-width{
+    width: 50%;
+} 
+.half-width>div{
+    display: flex;
+    justify-content: space-between;
+}

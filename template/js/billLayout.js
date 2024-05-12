@@ -3,7 +3,7 @@ const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, appl
 const fs = require("fs");
 const uuid = require("uuid");
 
-
+// console.log({remote})
 const appDefault = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
 toggleDevTool(document);
 

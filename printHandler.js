@@ -67,7 +67,7 @@ ipcMain.on("show-print-modal",(e,...arg)=>{
     if(arg.some(obj=>"pageFit" in obj))
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = "./template/html/printDialog.html";
-    let parentWindow = BrowserWindow.fromId(e.sender.id);
+    let parentWindow = BrowserWindow.fromId((e?.sender?.id ?? getMainWindow().id));
     let windowOptions = {
         width: 400,
         height: 450,

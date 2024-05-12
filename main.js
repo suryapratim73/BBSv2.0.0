@@ -30,7 +30,6 @@ const {
   getLedgerModel,
   getBaseDir,
   print,
-  getStartDate,
   openFormatForDate,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON } = require("./template/js/common");
@@ -1614,6 +1613,7 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
   let contextMenuObj;
   try{
     if (mode === "billObj") {
+      return
       contextMenuObj = [
         {
           label: "View Bill",
@@ -2145,7 +2145,7 @@ ipcMain.on("app-registration", async (e, gst) => {
 async function updateCommon(){//This need a relook
   let data = {
     currentVersion:app.getVersion(),
-    path2file:path.resolve(app.getPath("appData"),`./BBS/${this.fileName}`),
+    path2file:path.relative(app.getPath("appData"),`./BBS/${this.fileName}`),
     time:Date.now(),
     updateDownloaded:true,
     versionDownloaded:this.version,
@@ -2205,17 +2205,17 @@ async function updateCommon(){//This need a relook
   else
   if(data.installMoment==="now" && process.platform==="win32"){
     // Try to run a bash or some shell script to update BBS
-    appLogger({
-      title:"Spawned path",
-      message:`"${path.resolve(data.path2file)}"`,
-      test:fs.existsSync(data.path2file)
-    });
     proc = spawn("updator.bat",[data.path2file],{
       shell:true,
       cwd:__dirname
     });
   }
   if(data.installMoment==="now"){
+    appLogger({
+      title:"Spawned path",
+      message:`"${path.resolve(data.path2file)}"`,
+      test:fs.existsSync(data.path2file)
+    });
     function helperfunc1(chunk){
       appLogger({
         title:this,
@@ -2568,17 +2568,29 @@ ipcMain.on("close",(e,label)=>{
 ipcMain.on("print-ledger",async (e,id,period,mode)=>{
   let ledgerSchema = mode==1?supplierLedgerSchema:customerLedgerSchema;
   let ledger = await getLedgerModel(id,ledgerSchema);
-  let startDate = getStartDate(period);
-  let entryArr = (await ledger.findAll({
-      where:{
-          date:{
-              [Op.between]:[startDate.toDateString(),new Date().toDateString()]
-          }
-      }
-  })).map(({dataValues})=>({...dataValues}));
+  let entryArr = (await ledger.findAll()).map(({dataValues})=>dataValues);
+  let startDate,endDate,date = new Date();
+  if(period==="0"){
+    startDate = new Date(date.getFullYear(),3,1);
+    endDate = date;
+  }
+  else
+  if(period==="1"){
+    startDate = new Date(date.getFullYear()-1,3,1);
+    endDate = new Date(date.getFullYear(),3,1);
+  }
+  else{
+    endDate = date;
+    startDate = entryArr[0].date;
+  }
+  let { balance:prevClose=0 } = [...entryArr.filter(({date})=>date<startDate)].pop() ?? {};
+  let { balance:ledgerBalance } = [...entryArr.filter(({date})=>date<endDate)].pop();
+  entryArr.map(({dataValues})=>({...dataValues}));
+  entryArr = entryArr.filter(obj=>obj.date>=startDate);
   let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
-  let path2pdf = ledgerPDF(entryArr,peopleObj,startDate);
-  ipcMain.emit("show-print-modal",path2pdf);
+  let path2pdf = ledgerPDF(entryArr,peopleObj,startDate,endDate,prevClose,ledgerBalance);
+  console.log({path2pdf})
+  // ipcMain.emit("show-print-modal",path2pdf);
 });
 
 ipcMain.handle("billing-format-ipc",(e,data)=>{
@@ -2854,13 +2866,8 @@ async function dbMigrator(){
     let _sequelize = new Sequelize({
       dialect:"sqlite",
       storage:path.resolve(appPath,"./db/bbs_replica.db"),
-      logging:function(msg){
-        let fd = getLoggerFD("dbLogs.txt");
-        fs.appendFile(fd,msg+"\n",(err)=>{
-          console.log(err);
-        });
-      },
-      transactionType:"IMMEDIATE"
+      transactionType:"IMMEDIATE",
+      logging:false
     });
     await _sequelize.sync();
     console.log("Connected to replica db");
@@ -2886,7 +2893,7 @@ async function dbMigrator(){
         let ledgerModel = await getLedgerModel(id,schema);
         await ledgerModel.sync();
         if(_ledgerModel){
-          let ledger = await (await _ledgerModel.sync()).findAll().map?.(({dataValues})=>dataValues);
+          let ledger = (await (await _ledgerModel.sync()).findAll()).map?.(({dataValues})=>dataValues);
           if(!(ledger instanceof Array)) return;
           await ledgerModel.bulkCreate(ledger,{returning:true});
           return
@@ -2912,7 +2919,7 @@ async function dbMigrator(){
         return
       }
       catch(err){
-        // console.log({err,line:2841});
+        console.log({err,line:2841});
         return;
       }
     }
@@ -3016,6 +3023,7 @@ async function dbMigrator(){
       process.appStatus = "normal";
       win.setProgressBar(-1);
       fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
+      fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas.js"),path.resolve(appPath,"./model/dynamicSchemas_replica.js"));
       app.relaunch();
       app.exit();
     })

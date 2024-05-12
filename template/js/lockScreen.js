@@ -13,11 +13,11 @@ const fs = require("fs");
 toggleDevTool(document);
 
 let selectedUser;
-
 ipcRenderer.invoke("get-policy").then((policyObj) => {
   if ("wallpaper" in policyObj && policyObj.wallpaper !== "") {
+    let path2wallpaper = /[\\]/.test(policyObj.wallpaper) ? policyObj.wallpaper.replaceAll("\\","/") : policyObj.wallpaper;
     if (fs.existsSync(policyObj.wallpaper))
-      document.body.style.backgroundImage = `url('${policyObj.wallpaper}')`;
+      document.body.style.backgroundImage = `url('${path2wallpaper}')`;
     else
       document.body.style.backgroundImage = `url("../../images/default-wallpaper.svg")`;
   } else

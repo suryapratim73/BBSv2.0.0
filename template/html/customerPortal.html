@@ -51,6 +51,7 @@
             <button data-cmd="update-profile" class="main-ui-btn">
               Update Profile
             </button>
+            <button data-cmd="pay" class="main-ui-btn" >Add Payment</button>
             <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">
               Back
             </button>
@@ -351,19 +352,11 @@
         <div id="first-section">
           <h1>Add Payment</h1>
           <div>
-            <p>The bill amount is:</p>
-            <p class="highlight-1"></p>
-          </div>
-          <div>
             <div>
               <label for="paymode">Payment Mode </label>
             </div>
             <div>
-              <select
-                name="paymode"
-                id="paymode"
-                onchange="setPayFeilds(event)"
-              >
+              <select name="paymode" id="paymode" onchange="setPayFeilds(event)" >
                 <option value="cash" selected>Cash</option>
                 <option value="cheque">Cheque</option>
                 <option value="net">Net Banking</option>
@@ -373,7 +366,7 @@
         </div>
         <div>
           <button type="submit" class="main-ui-btn">Add Payment</button>
-          <button type="button" onclick="showBillPage()">Cancel</button>
+          <button type="button" onclick="closeModal()">Cancel</button>
         </div>
       </form>
     </template>
@@ -383,14 +376,7 @@
           <label for="payment">Payment amount: </label>
         </div>
         <div>
-          <input
-            type="text"
-            name="payment"
-            id="payment"
-            data-subtype="price"
-            data-type="Number"
-            onkeypress="validateInput(event)"
-          />
+          <input type="text" name="payment" id="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
         </div>
       </div>
     </template>
@@ -479,7 +465,6 @@
               type="text"
               name="bankTrnRef"
               id="bankTrnRef"
-              pattern="[^ ]"
             />
           </div>
         </div>
@@ -518,7 +503,6 @@
           <button data-cmd="add-item" class="main-ui-btn hide">
             Add Items
           </button>
-          <button data-cmd="pay" class="main-ui-btn hide">Add Payment</button>
           <button data-cmd="close" onclick="_closeModal()">Close</button>
           <button data-cmd="cancel-bill" class="main-ui-btn red">Cancel Bill</button>
         </div>
@@ -581,6 +565,22 @@
         <p class="customer-p name">Ajanta Commercial Corporation</p>
         <p class="customer-p balance">8872</p>
       </div>
+    </template>
+    <template id="ledger-modal-content-template">
+      <form onsubmit="handlePrint(event)">
+        <div>
+            <label for="ledger-period">Please select the period of ledger.</label>
+            <select id="ledger-period" name="ledger-period">
+                <option value="0">Current financial year</option>
+                <option value="1">Last financial year</option>
+                <option value="2">All year</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="main-ui-btn">Print</button>
+            <button type="button" data-name="cancel" onclick="closeModal(event)">Cancel</button>
+        </div>
+    </form>
     </template>
     <!-- datalists -->
     <datalist id="stock-names"></datalist>

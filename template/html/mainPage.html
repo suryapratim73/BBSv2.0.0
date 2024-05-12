@@ -20,7 +20,7 @@
         </div>
         <div>
             <p data-cmd="settings">Settings</p>
-            <p data-cmd="help">Help</p>
+            <!-- <p data-cmd="help">Help</p> -->
             <p data-cmd="logout">Logout</p>
             <p data-cmd="lock">Lock</p>
         </div>
@@ -231,9 +231,9 @@
                             <p class="bill purchase" data-show="app-settings" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
                             <p data-cmd="session-management" data-show="app-settings" data-msg="Configure lock behaviour and session persistence.">Session management</p>
                             <p data-cmd="appearance-management" data-show="app-settings" data-msg="Configure app appearance and theming of BBS..">Appearance management</p>
-                            <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p>
+                            <!-- <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p> -->
                             <p class="bill purchase" data-cmd="backup-manager" data-show="app-settings" data-msg="Local or cloud based backup settings.">Backup manager</p>
-                            <p class="bill purchase" data-cmd="registration" data-show="app-settings" data-msg="App registration.">App registration</p>
+                            <!-- <p class="bill purchase" data-cmd="registration" data-show="app-settings" data-msg="App registration.">App registration</p> -->
                         </div>
                     </div>
                     <div class="settings hide" data-mode="company-settings" id="company-settings">
@@ -246,7 +246,7 @@
                         <h2>Bill settings</h2>
                         <div class="settings-div">
                             <p data-cmd="company-profile" data-show="billing-settings" data-msg="Edit company profile.">Company profile</p>
-                            <p data-cmd="bill-template" data-show="billing-settings" data-msg="The selected bill template will be used for all bill printing.">Select bil template</p>
+                            <p data-cmd="bill-template" data-show="billing-settings" data-msg="The selected bill template will be used for all bill printing.">Select bill template</p>
                             <p data-cmd="bill-no" data-show="billing-settings" data-msg="Define bill number format and set bill no">Invoice numbering</p>
                         </div>
                     </div>
@@ -648,8 +648,9 @@
                     <label for="applyTemplate">Choose template</label>
                 </div>
                 <div>
-                    <select name="applyTemplate" data-cmd="applyTemplate" data-target="choosefile" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
-                        <option value="false">Default</option>
+                    <select name="applyTemplate" data-cmd="applyTemplate" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                        <option value="default1" selected>Default 1</option>
+                        <option value="default2">Default 2</option>
                         <option value="choosefile">Choose a file</option>
                     </select>
                 </div>
@@ -661,6 +662,43 @@
                 <div>
                     <input type="text" name="file" id="file">
                     <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})">Choose</button>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="applyEmblem">Use Emblem</label>
+                </div>
+                <div>
+                    <select name="applyEmblem" data-cmd="applyEmblem" data-target="choosefile-2" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                        <option value="false" selected>No</option>
+                        <option value="choosefile-2">Choose a file</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hide" data-show="choosefile-2">
+                <div>
+                    <label for="file-2">Select a file</label>
+                </div>
+                <div>
+                    <input type="text" name="emblem" id="file-2">
+                    <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})">Choose</button>
+                </div>
+            </div>
+            <div>
+                <div><label for="captions">Set captions</label></div>
+            </div>
+            <div class="half-width">
+                <div>
+                    <label for="caption-1">First copy</label>
+                    <input type="text" name="first" id="caption-1">
+                </div>
+                <div>
+                    <label for="caption-2">Second copy</label>
+                    <input type="text" name="second" id="caption-2">
+                </div>
+                <div>
+                    <label for="caption-3">Third copy</label>
+                    <input type="text" name="third" id="caption-3">
                 </div>
             </div>
             <div>

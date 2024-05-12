@@ -40,17 +40,17 @@ module.exports = mainWindow=>{
                     click: ()=>checkForUpdates("manual"),
                     accelerator: "Shift+F5"
                 },
-                {
-                    label: "Help",
-                    submenu: [
-                        {
-                            label: "BBS Manual"
-                        },
-                        {
-                            label: "Open BBS Official Website"
-                        }
-                    ]
-                },
+                // {
+                //     label: "Help",
+                //     submenu: [
+                //         {
+                //             label: "BBS Manual"
+                //         },
+                //         {
+                //             label: "Open BBS Official Website"
+                //         }
+                //     ]
+                // },
                 { type: "separator" },
                 {
                     label: "Lock",
@@ -116,22 +116,22 @@ module.exports = mainWindow=>{
             submenu:[
                 {
                     label: "View Stock",
-                    accelerator: "Shift+T+S",
+                    // accelerator: "Shift+T+S",
                     click: ()=>appStateComplianceEnforcement(displayStock(mainWindow),"block-non-sp-key")
                 },
                 {
                     label: "Check Payments",
-                    accelerator: "Shift+T+P",
+                    // accelerator: "Shift+T+P",
                     click: ()=>appStateComplianceEnforcement(checkOutPayments(mainWindow),"block-non-sp-key")
                 },
                 {
                     label: "Check Purchases",
-                    accelerator: "T+P",
+                    // accelerator: "T+P",
                     click: ()=>appStateComplianceEnforcement(showPurchase(mainWindow),"block-non-sp-key")
                 },
                 {
                     label:"Show Sales",
-                    accelerator:"T+S",
+                    // accelerator:"T+S",
                     click: ()=>appStateComplianceEnforcement(showSales(mainWindow),"block-non-sp-key")
                 }
             ]
@@ -139,18 +139,18 @@ module.exports = mainWindow=>{
         {// Tools menu
             label:"Tools and Analytics",
             submenu: [
-                {
-                    label: "GST Summary",
-                    click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow))
-                },
-                {
-                    label: "Business Statistics",
-                    click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow))
-                },
-                {
-                    label: "GST Return JSON"
-                },
-                {type:"separator"},
+                // {
+                //     label: "GST Summary",
+                //     click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow))
+                // },
+                // {
+                //     label: "Business Statistics",
+                //     click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow))
+                // },
+                // {
+                //     label: "GST Return JSON"
+                // },
+                // {type:"separator"},
                 {
                     label: "Generate Road Challan",
                     click: ()=>appStateComplianceEnforcement(genRoadChallan(mainWindow))
@@ -178,20 +178,20 @@ module.exports = mainWindow=>{
                     click: ()=>appStateComplianceEnforcement(scheduleManager(mainWindow)),
                     accelerator: "F6"
                 },
-                {type:"separator"},
-                {
-                    label: "BBS Remote"
-                }
+                // {type:"separator"},
+                // {
+                //     label: "BBS Remote"
+                // }
             ]
         },
         {// Admin menu
             label: "Admin",
             submenu: [
-                {
-                    label:"Stock Return Registor",
-                    click: ()=>appStateComplianceEnforcement(handleReturn())
-                },
-                { type: "separator" },
+                // {
+                //     label:"Stock Return Registor",
+                //     click: ()=>appStateComplianceEnforcement(handleReturn())
+                // },
+                // { type: "separator" },
                 {
                     label: "Employee Portal",
                     click: ()=>appStateComplianceEnforcement(employeePortal(mainWindow))

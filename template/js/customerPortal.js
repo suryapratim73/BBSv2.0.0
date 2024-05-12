@@ -18,7 +18,12 @@ let customerList = [],
     spinner = drawSpinner(document),
     itemList = [], stockList, timer,
     bills,
-    ledgerEntries = [];
+    ledgerEntries = [],
+    currentPage;
+
+const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+    ];
 
 
 async function initPage(){
@@ -30,6 +35,7 @@ async function initPage(){
         option.textContent = key;
         document.getElementById("unit-dl").appendChild(option);
     });
+    currentPage = 1;
 }
 initPage();
 
@@ -179,11 +185,13 @@ async function loadLedgerTable(_name){
     // spinner.remove(window);
     selectedCustomer = customerList.find(({name})=>name===_name);
     page2BTNS.dataset.id = selectedCustomer.id;
+    page2BTNS.dataset.name = selectedCustomer.name;
     phones = JSON.parse(selectedCustomer.phones);
-    this.classList.add("hide");
+    this?.classList?.add("hide");
     let ledgerDiv = document.getElementById("ledger-div-template").content.cloneNode(true).querySelector("div");
     let sideDiv = document.getElementById("chart-div");
     sideDiv.classList.add("page2-sidebar");
+    removeAllElem("#page2-side-panel")
     let customerDiv = document.getElementById("card-template").content.cloneNode(true).querySelector("div");    
     [...customerDiv.querySelectorAll(".col-1")]
     .forEach(p=>{
@@ -198,17 +206,26 @@ async function loadLedgerTable(_name){
             }).reduce((acc,str)=>acc+str,"");
     });
     ledgerEntries = await ipcRenderer.invoke("get-full-customer-ledger",selectedCustomer.id);
-    
+    removeAllElem("#ledger-div")
     //Implement realtime Ledger update logic
 
     let tbody = ledgerDiv.querySelector("#tbody");
     ledgerEntries.forEach(obj=>{
-        let {date,billNo,billAmt,tax,delivery,payments,balance,itemList,entryNo} = obj;
+        let {date,billNo,billAmt,type,payments,balance,itemList,entryNo} = obj;
         let row = document.createElement("div");
+        let particular,drcr;
+        if(type==="sale"){
+            particular = `Sale: Bill Number:${billNo}`;
+            drcr = `${billAmt-payments} Dr`;
+        }
+        else{
+            particular = `Payment: Rs.${payments}`;
+            drcr = `${payments} Cr`;
+        }
         row.innerHTML = `
             <p class="col eq-space">${new Date(date).toLocaleDateString("en-GB")}</p>
-            <p class="col eq-space">${billNo}</p>
-            <p class="col eq-space">${Math.round(billAmt+tax)}</p>
+            <p class="col eq-space">${particular}</p>
+            <p class="col eq-space">${drcr}</p>
             <p class="col eq-space">${balance}</p>
         `;
         row.classList.add("row");
@@ -217,7 +234,8 @@ async function loadLedgerTable(_name){
         row.dataset.entryNo = entryNo;
         tbody.appendChild(row);
     });
-    this.after(ledgerDiv);
+    document.getElementById("customer-list").after(ledgerDiv);
+    document.getElementById("bill-table")?.classList?.add("hide");
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);
     sideDiv.appendChild(customerDiv);
@@ -234,6 +252,7 @@ async function loadLedgerTable(_name){
 
 document.getElementById("customer-list").addEventListener("click",function(e){
     if(!e.target.classList.contains("customer-div") && !e.target.classList.contains("customer-p")) return;
+    currentPage = 1;
     let name = (e.target.classList.contains("customer-div") ? e.target.children[0] : e.target.parentNode.querySelector(".customer-p.name")).textContent;
     loadLedgerTable.call(this,name);
     document.querySelector("#form>div:last-child").classList.add("hide");
@@ -261,41 +280,18 @@ function closeModal(){
         itemList = [];
 }
 
-async function refreshGraphAndLedger(topLine,id){
-    let ledgerRow = document.querySelector("#ledger-div .body.row");
-    if(ledgerRow && topLine){
-        let row = document.createElement("div");
-        row.className = "body row";
-        row.innerHTML = `
-            <p class="col eq-space">${topLine.date.toLocaleDateString("en-GB")}</p>
-            <p class="col eq-space">${topLine.billNo}</p>
-            <p class="col eq-space">${Math.round(Number(topLine.billAmt)+Number(topLine.tax)+Number(topLine.deliveryCharge))}</p>
-            <p class="col eq-space">${topLine.payments}</p>
-            <p class="col eq-space">${topLine.balance}</p>
-        `;
-        ledgerRow.before(row);
-    }
+async function refreshGraphAndLedger(name,id){
+    loadLedgerTable(name)
     await drawGraphs(id);
 }
 
 async function addPayment(e){
     e.preventDefault();
     let payObj = Object.fromEntries(new FormData(e.target).entries());
-    const { name,billNo,id,billAmt,billDate } = e.target.dataset;
+    const { name,id } = e.target.dataset;
     try{
-        let {lastBalance,netDue,topLine,payment} = await ipcRenderer.invoke("add-payment",name,billNo,payObj,id,billAmt);
-        let billRow = document.querySelector(`#bill-table .body.row[data-item-list='${id}_${billNo}_${billDate}']`);
-        if(billRow){
-            billRow.querySelector("p:nth-child(4)").textContent = payment;
-            billRow.querySelector("p:nth-child(5)").textContent = netDue;
-            billRow.dataset.payment = payment;
-            if(payObj.paymode==="cash" && netDue===0){
-                billRow.dataset.paymentStatus = "true";
-                billRow.querySelector("p:nth-child(5)").classList.remove("unpaid");
-                billRow.querySelector("p:nth-child(5)").classList.add("paid");
-            }
-        }
-        await refreshGraphAndLedger(topLine,id);
+        await ipcRenderer.invoke("add-payment",name,payObj,id);
+        await refreshGraphAndLedger(name,id);
     }
     catch(err){
         console.log(err);
@@ -303,32 +299,32 @@ async function addPayment(e){
     closeModal();
 }
 
-function utilCMD(e){
-    let bodyRow = e.target.parentNode.parentNode;
-    let billAmt = bodyRow.querySelector("p:nth-child(3)").textContent;
-    let oldPayment = bodyRow.querySelector("p:nth-child(4)").textContent;
-    let cmd = e.target.dataset.cmd;
-    let [id,billNo,billDate] = bodyRow.dataset.itemList.split("_")
-    let {name} = customerList.find((custObj)=>custObj.id===id);
-    if(cmd==="open")
-        ipcRenderer.send("open-ext",name,billDate,billNo);
-    else
-    if(cmd==="print")
-        ipcRenderer.send("print",name,billDate,billNo);
-    else{
-        if(oldPayment>=Math.round(billAmt)) return;
-        let cover = document.createElement("div");
-        cover.classList.add("cover");
-        let modal = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("div");
-        let form = modal.querySelector("form");
-        form.dataset.billAmt = billAmt;
-        form.dataset.id = id;
-        form.dataset.name = name;
-        form.dataset.billNo = billNo;
-        document.body.appendChild(cover);
-        document.body.appendChild(modal);
-    }
-}
+// function utilCMD(e){
+//     let bodyRow = e.target.parentNode.parentNode;
+//     let billAmt = bodyRow.querySelector("p:nth-child(3)").textContent;
+//     let oldPayment = bodyRow.querySelector("p:nth-child(4)").textContent;
+//     let cmd = e.target.dataset.cmd;
+//     let [id,billNo,billDate] = bodyRow.dataset.itemList.split("_")
+//     let {name} = customerList.find((custObj)=>custObj.id===id);
+//     if(cmd==="open")
+//         ipcRenderer.send("open-ext",name,billDate,billNo);
+//     else
+//     if(cmd==="print")
+//         ipcRenderer.send("print",name,billDate,billNo);
+//     else{
+//         if(oldPayment>=Math.round(billAmt)) return;
+//         let cover = document.createElement("div");
+//         cover.classList.add("cover");
+//         let modal = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("div");
+//         let form = modal.querySelector("form");
+//         form.dataset.billAmt = billAmt;
+//         form.dataset.id = id;
+//         form.dataset.name = name;
+//         form.dataset.billNo = billNo;
+//         document.body.appendChild(cover);
+//         document.body.appendChild(modal);
+//     }
+// }
 
 function billPageInit(){
     document.querySelector("#ledger-div").classList.add("hide");    
@@ -358,6 +354,8 @@ function billPageInit(){
     document.getElementById("graph-container").classList.remove("hide");
     bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
         let row = document.createElement("div");
+        if(billNo==="spot")
+            billNo = monthNames[billDate.getMonth()];
         row.innerHTML = `
             <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${billNo}</p>
@@ -367,7 +365,7 @@ function billPageInit(){
         `;
         row.classList.add("row");
         row.classList.add("body");
-        row.dataset.itemList = billItemTable;
+        row.dataset.itemList = billItemTable.replace("spot",monthNames[billDate.getMonth()]);
         row.dataset.paymentStatus = paymentStatus?paymentStatus:false;
         row.dataset.billStatus = billStatus;
         row.dataset.billAmt = billAmt;
@@ -439,6 +437,18 @@ page2BTNS.addEventListener("click",async function(e){
     else
     if(e.target.dataset.cmd==="new-bill")
         ipcRenderer.send("new-bill",selectedCustomer);
+    else
+    if(e.target.dataset.cmd==="pay"){
+        let modal = createModal("add-payment-modal");
+        let { name,id } = {...e.target.parentNode.dataset};
+        let addPaymentForm = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("form");
+        modal.appendChild(addPaymentForm);
+        addPaymentForm.dataset.id = id;
+        addPaymentForm.dataset.name = name;
+        let cashSegment = document.getElementById("cash-feild-template").content.cloneNode(true).querySelector("div");
+        addPaymentForm.querySelector("#first-section").appendChild(cashSegment);
+        document.body.appendChild(modal);
+    }
     else{
         [...document.getElementById("filter-option").children].forEach(div=>div.classList.remove("selected"));
         let elem = e.target.nodeName!=="DIV"?e.target.parentNode:e.target;
@@ -520,8 +530,6 @@ async function showBillOptions(e){
     let tbody = modalContent.querySelector("#tbody");
     const { itemList,paymentStatus,billStatus } = bodyRow.dataset;
     if(!itemList) return;
-    if(paymentStatus==="false")
-        modalContent.querySelector("[data-cmd='pay']").classList.remove("hide");
     if(billStatus==="open")
         modalContent.querySelector("[data-cmd='add-item']").classList.remove("hide");
     let [ custId,billNo,billDate ] = itemList.split("_");
@@ -558,21 +566,6 @@ function billUtils(e){
         modal.dataset.custId = id;
         modal.dataset.billNo = billNo;
         modal.dataset.billDate = billDate;
-    }
-    else
-    if(cmd==="pay"){
-        document.getElementById("bill-option-content").classList.add("hide");
-        let modal = document.getElementById("bill-option-modal");
-        let addPaymentForm = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("form");
-        modal.appendChild(addPaymentForm);
-        addPaymentForm.dataset.billAmt = billAmt;
-        addPaymentForm.dataset.id = id;
-        addPaymentForm.dataset.name = name;
-        addPaymentForm.dataset.billNo = billNo;
-        addPaymentForm.dataset.billDate = billDate;
-        modal.querySelector(`.highlight-1`).textContent = Math.round(billAmt - payment);
-        let cashSegment = document.getElementById("cash-feild-template").content.cloneNode(true).querySelector("div");
-        modal.querySelector("#first-section").appendChild(cashSegment);
     }
     else
     if(cmd==="cancel-bill"){

@@ -87,20 +87,10 @@ ipcMain.on("print",(e,name,billDate,billNo)=>{
     }).bind(printDialog()))
 });
 
-ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
+ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
-    let {payment,paymode} = payObj;
+    let {payment} = payObj;
     payment = Number(payment);
-    let {payment:oldPay} = (await (await sale.sync()).findOne({
-        where:{
-            [Op.and]:[
-                {customerId:id},
-                {billNo}
-            ]
-        },
-        attributes:["payment"]
-    })).dataValues;
-    oldPay = Number(oldPay)
     let lastBalance = (await (customerLedger.findOne({
         attributes:["balance"],
         order:[
@@ -108,25 +98,13 @@ ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
         ]
     })))?.dataValues.balance ?? 0;
     lastBalance = Number(lastBalance);
-    billAmt = Number(billAmt);
-    let netDue = Math.round(billAmt - oldPay - payment);
     try{
         Promise.all([
-            sale.update({
-                payment:Math.round(oldPay+payment),
-                paymentStatus:netDue===0 && paymode==="cash" ? true : false
-            },{
-                where:{
-                    [Op.and]:[
-                        {customerId:id},
-                        {billNo}
-                    ]
-                }
-            }),
             (await customerLedger.sync()).create({
-                date:new Date(),
-                billNo,
+                date:payObj.paymode==="cash" ? new Date() : payObj["pay-dt"],
+                type:"payment",
                 payments:payment,
+                itemList:JSON.stringify(payObj),
                 balance:Math.round(lastBalance - payment),
             }),
             (await inPayments.sync()).create({
@@ -136,7 +114,25 @@ ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
                 moreInfo:payObj
             })
         ]);
-        appLogger("received payment",JSON.stringify({name,billNo,payment}));
+        let { netPayment } = (await inPayments.findAll({
+            where:{id},
+            attributes:[[sequelize.fn("SUM",sequelize.col("payment")),"netPayment"]]
+        })).map(({dataValues})=>dataValues).pop();
+        (await sale.findAll({
+            where:{ customerId:id }
+        })).map(({dataValues})=>dataValues)
+        .forEach(({billAmt,entryNo,paymentStatus})=>{
+            if(netPayment>=billAmt){
+                paymentStatus==false && sale.update({
+                    netDue:0,
+                    paymentStatus:true
+                },{
+                    where:{ entryNo }
+                });
+                netPayment -= billAmt;
+            }
+        })
+        appLogger("received payment",JSON.stringify({name,payment}));
         let topLine = (await (customerLedger.findOne({
             order:[
                 ["entryNo","DESC"]
@@ -148,8 +144,7 @@ ipcMain.handle("add-payment",async (e,name,billNo,payObj,id,billAmt)=>{
             message: "Customer payment registered successfully."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("customer-payment",JSON.stringify({billNo,payment}));
-        return {payment:payment+oldPay,netDue,topLine};
+        return {topLine};
     }
     catch(err){
         return err;

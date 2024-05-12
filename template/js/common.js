@@ -1,4 +1,4 @@
-let {ipcRenderer,app,remote} = require("electron");
+let {ipcRenderer,app} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
@@ -203,35 +203,8 @@ exports.roundOffTo2DecimalPlace = function(num){
 }
 
 exports.printModal = function printModal(customId=""){
-    let modal = document.createElement("div");    
-    modal.classList.add("modal");
-    let cover = document.createElement("div");    
-    cover.classList.add("cover");
-    modal.id = customId;
-    modal.innerHTML = `
-            <form onsubmit="handlePrint(event)">
-                <div>
-                    <label for="ledger-period">Please select the period of ledger.</label>
-                    <select id="ledger-period" name="ledger-period">
-                        <option value="0">1 month</option>
-                        <option value="2">3 month</option>
-                        <option value="5">6 month</option>
-                        <option value="11">1 year</option>
-                    </select>
-                </div>
-                <div>
-                    <button type="submit" class="main-ui-btn">Print</button>
-                    <button type="button" data-name="cancel">Cancel</button>
-                </div>
-            </form>
-    `;
-    document.body.appendChild(cover);
-    document.body.appendChild(modal);
-    document.querySelector('[data-name="cancel"]').addEventListener("click",function closeModal(){
-        document.body.removeChild(cover);        
-        document.body.removeChild(modal);
-        this.removeEventListener("click",closeModal);        
-    })
+    let modal = createModal(customId);
+    modal.appendChild(document.getElementById("ledger-modal-content-template").content.cloneNode(true).querySelector("form"));
 }
 
 exports.drawBarGraph = function drawBarGraph(optionObj){
@@ -1008,7 +981,11 @@ exports.applyTheme = async function(e,theme){
         this.documentElement.style.setProperty("--theme-text-color",text);
         this.documentElement.style.setProperty("--theme-shadow-color",shadow);
     }
-    if(!applyBackgroundImage) return;
+    if(!applyBackgroundImage){
+        // Remove Background image
+        this.body.style.backgroundImage = "unset";
+        return;
+    }
     if(file.endsWith("svg")){
         let svg = await ipcRenderer.invoke("get-svg",file);
         svg = new DOMParser().parseFromString(svg,'text/html').body;
@@ -1049,7 +1026,7 @@ exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['
 function policyPathCommmon(relPath,_path){
     let policyPath = __dirname; 
     if(!app)
-        app = remote?.app;
+        app = typeof remote!="undefined" ? remote.app : app;
     if(process.env.APP_ENV==="DEV"){
         policyPath = __dirname;
         policyPath = path.resolve(policyPath,relPath,_path);

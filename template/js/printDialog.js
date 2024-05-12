@@ -65,7 +65,7 @@ function printcmd(e){
     [...e.srcElement].forEach(elem=>{
         if(elem.type==="checkbox" && !elem.checked) return;
         if(elem.checked)
-            captions.push(elem.value);
+            captions.push({[elem.dataset.copy]:elem.value});
     });
     printObj.printer = e.target["printer-list"].value;
     printObj.copies = e.target["no-of-copies"].value;

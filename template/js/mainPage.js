@@ -119,7 +119,7 @@ async function initScheduleDiv(){
 }
 
 async function overviewPageInit(){
-    let {stocks=[],unPaidBills=[]} = global.appStatus==="normal" ? await ipcRenderer.invoke("get-overview-content") : {};
+    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content");
     let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
     let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
     dtEventDiv.querySelector("h1").textContent = dt;
@@ -484,13 +484,27 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="bill-template"){
                 compInfo = await ipcRenderer.invoke("get-company-info");
-                let { billTemplate:{ file,applyTemplate } } = compInfo;
+                let { file,applyTemplate,applyEmblem=false,emblem="",captions=[ {first:"Original Buyer's Copy"}, {second:"Transporter's Copy"}, {third:'Book Copy'} ] } = compInfo.billTemplate;
                 if(applyTemplate){
                     form.querySelector(`[name="applyTemplate"] option[value="${applyTemplate===true?'choosefile':'false'}"]`)
                     .setAttribute("selected",true);
                     form.querySelector(`[data-show="choosefile"]`).classList.remove("hide");
                     form.querySelector(`#file`).value = file;
                 }
+                else
+                if(file==="default2")
+                    form.querySelector(`[name="applyTemplate"] option[value="default2"]`)
+                    .setAttribute("selected",true);
+                if(applyEmblem){
+                    form.querySelector(`[name="applyEmblem"] option[value="choosefile-2"]`)
+                    .setAttribute("selected",true);
+                    form.querySelector(`[data-show="choosefile-2"]`).classList.remove("hide");
+                    form.querySelector(`#file-2`).value = emblem;
+                }
+                captions.forEach(obj=>{
+                    let key = Object.keys(obj)[0];
+                    form.querySelector(`input[name="${key}"]`).value = obj[key];
+                });
             }
             else
             if(cmd==="company-profile"){
@@ -706,7 +720,15 @@ async function saveSettings(e){
     }
     else
     if(cmd==="select-bill-template"){
-        data.applyTemplate = data.applyTemplate === "choosefile" ? true : false;
+        if(data.applyTemplate === "choosefile")
+            data.applyTemplate = true;
+        else{
+            data.file = data.applyTemplate;
+            data.applyTemplate = false;
+        }
+        data.applyEmblem = data.applyEmblem=="choosefile-2";
+        data.captions = ["first","second","third"].map(key=>({[key]:data[key]}));
+        ["first","second","third"].forEach(key=>Reflect.deleteProperty(data,key));
         ipcRenderer.send("company-profile-info",{billTemplate:data});
     }
     else
