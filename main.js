@@ -2189,8 +2189,8 @@ async function updateCommon(){//This need a relook
       })
     }
   }
-  if(data.installMoment==="now")
-    app.quit();
+  // if(data.installMoment==="now")
+  //   app.quit();
   let proc;
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
@@ -2211,10 +2211,13 @@ async function updateCommon(){//This need a relook
     });
   }
   if(data.installMoment==="now"){
-    appLogger({
-      title:"Spawned path",
-      message:`"${path.resolve(data.path2file)}"`,
-      test:fs.existsSync(data.path2file)
+    proc.on("spawn",()=>{
+      appLogger({
+        title:"Spawned updator",
+        message:`"${path.resolve(data.path2file)}"`,
+        test:fs.existsSync(data.path2file)
+      });
+      app.quit()
     });
     function helperfunc1(chunk){
       appLogger({
