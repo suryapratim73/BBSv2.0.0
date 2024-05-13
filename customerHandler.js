@@ -537,7 +537,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
                     ["entryNo","DESC"]
                 ]
             }))).dataValues;
-            e.sender.send("close-modal",topLine);
+            e.sender.send("close-modal",topLine,{id});
         }
         else
             appLogger({title:"Error removing event",message:"Event not found"})

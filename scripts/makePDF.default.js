@@ -34,7 +34,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
 }
 
 async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
-    let { emblem="",applyEmblem=false } = saleConfig.billTemplate;
+    let { emblem="",applyEmblem=false } = (saleConfig.billTemplate ?? {});
     if(emblem==="")
         return;
     if(applyEmblem===false) return;

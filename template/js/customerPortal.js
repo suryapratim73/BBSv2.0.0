@@ -280,18 +280,13 @@ function closeModal(){
         itemList = [];
 }
 
-async function refreshGraphAndLedger(name,id){
-    loadLedgerTable(name)
-    await drawGraphs(id);
-}
-
 async function addPayment(e){
     e.preventDefault();
     let payObj = Object.fromEntries(new FormData(e.target).entries());
     const { name,id } = e.target.dataset;
     try{
         await ipcRenderer.invoke("add-payment",name,payObj,id);
-        await refreshGraphAndLedger(name,id);
+        await loadLedgerTable(name);
     }
     catch(err){
         console.log(err);
@@ -568,18 +563,8 @@ function billUtils(e){
         modal.dataset.billDate = billDate;
     }
     else
-    if(cmd==="cancel-bill"){
-        console.log({netDue})
-        ipcRenderer.invoke("cancel-bill",id,billNo,billDate,billAmt)
-        .then(()=>{
-            console.log("OK")
-            // Add on success logic
-        })
-        .catch((err)=>{
-            console.log(err)
-            // Handle failure/error
-        })
-    }
+    if(cmd==="cancel-bill")
+        ipcRenderer.invoke("cancel-bill",id,billNo,billDate,billAmt);
 }
 
 function handlePrint(e){
@@ -716,10 +701,10 @@ function addItem2Bill(){
     });
 }
 
-ipcRenderer.on("close-modal",async (e,topLine)=>{
-    await refreshGraphAndLedger(topLine,selectedCustomer.id);
+ipcRenderer.on("close-modal", ()=>{
     billPageInit.call(page2BTNS);
     _closeModal();
+    loadLedgerTable(selectedCustomer.name)
 });
 
 function showBillPage(){

@@ -2209,7 +2209,9 @@ async function updateCommon(){//This need a relook
     });
   }
   if(data.installMoment==="now"){
-    app.quit()
+    setTimeout(()=>{
+      app.quit()
+    },2000)
     proc.on("spawn",()=>{
       appLogger({
         title:"Spawned updator",
