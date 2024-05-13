@@ -2145,7 +2145,7 @@ ipcMain.on("app-registration", async (e, gst) => {
 async function updateCommon(){//This need a relook
   let data = {
     currentVersion:app.getVersion(),
-    path2file:path.relative(app.getPath("appData"),`./BBS/${this.fileName}`),
+    path2file:path.resolve(app.getPath("appData"),`./BBS/${this.fileName}`),
     time:Date.now(),
     updateDownloaded:true,
     versionDownloaded:this.version,
