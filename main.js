@@ -2189,8 +2189,6 @@ async function updateCommon(){//This need a relook
       })
     }
   }
-  if(data.installMoment==="now")
-    app.quit();
   let proc;
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
@@ -2211,6 +2209,7 @@ async function updateCommon(){//This need a relook
     });
   }
   if(data.installMoment==="now"){
+    app.quit()
     proc.on("spawn",()=>{
       appLogger({
         title:"Spawned updator",
