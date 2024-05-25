@@ -66,7 +66,7 @@
       "publish": [
         {
           "provider": "generic",
-          "url": "http://192.168.0.104:3030/os/linux/",
+          "url": "http://code.mbtcverse.com:3030/os/linux/",
           "publishAutoUpdate": true
         }
       ]
@@ -89,7 +89,7 @@
     "nsis": {
       "oneClick": true,
       "allowElevation": true,
-      "runAfterFinish": true,
+      "runAfterFinish": false,
       "shortcutName": "BBS",
       "allowToChangeInstallationDirectory": false
     },
@@ -110,5 +110,5 @@
     "asar": false,
     "afterPack": "scripts/afterpack.js"
   },
-  "homepage": "http://192.168.0.111/home/git/BBS.git"
+  "homepage": "http://code.mbtcverse.com/"
 }

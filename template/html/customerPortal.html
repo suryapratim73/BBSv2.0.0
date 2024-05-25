@@ -243,14 +243,14 @@
           </div>
         </div>
         <div>
-          <button onclick="proceedToPage2()">Add Items</button>
+          <button onclick="addItem2Bill(event)" class="main-ui-btn">Update</button>
           <button onclick="showBillPage()">Cancel</button>
         </div>
       </div>
     </template>
     <template id="body-row-template">
       <div class="body row">
-        <div class="col eq-space"><p></p></div>
+        <div class="col eq-space"><p class="slno"></p></div>
         <div class="col eq-space">
           <input type="text" data-name="name" list="stock-names" />
         </div>
@@ -265,7 +265,7 @@
         </div>
         <div class="col eq-space">
           <input
-            data-name="qty"
+            data-name="quantity"
             type="text"
             data-type="Number"
             data-subtype="price"
@@ -277,7 +277,7 @@
         </div>
         <div class="col eq-space">
           <input
-            data-name="standardSellPrice"
+            data-name="rate"
             type="text"
             data-type="Number"
             data-subtype="price"
@@ -320,31 +320,6 @@
         <button data-cmd="DELETE" type="button" tabindex="-1">
           Delete Row
         </button>
-      </div>
-    </template>
-    <template id="add-item-modal-page2-template">
-      <div id="add-item-page2" class="page page2">
-        <div>
-          <h2>Do you like to close the bill from future item addition?</h2>
-          <div>
-            <label>Bill Status</label>
-          </div>
-          <div>
-            <div>
-              <label for="open">Open</label>
-              <input type="radio" id="open" name="billStatus" />
-            </div>
-            <div>
-              <label for="close">Close</label>
-              <input type="radio" id="close" name="billStatus" />
-            </div>
-          </div>
-        </div>
-        <div>
-          <button onclick="addItem2Bill()">Proceed</button>
-          <button onclick="back2page1()">Back</button>
-          <button onclick="showBillPage()">Cancel</button>
-        </div>
       </div>
     </template>
     <template id="add-payment-template">
@@ -500,8 +475,8 @@
         <div id="bill-option-BTNs" onclick="billUtils(event)">
           <button data-cmd="open" class="main-ui-btn">Open</button>
           <button data-cmd="print" class="main-ui-btn">Print</button>
-          <button data-cmd="add-item" class="main-ui-btn hide">
-            Add Items
+          <button data-cmd="add-item" class="main-ui-btn">
+            Edit Bill
           </button>
           <button data-cmd="close" onclick="_closeModal()">Close</button>
           <button data-cmd="cancel-bill" class="main-ui-btn red">Cancel Bill</button>
@@ -562,8 +537,8 @@
     </template>
     <template id="customer-div-template">
       <div class="customer-div">
-        <p class="customer-p name">Ajanta Commercial Corporation</p>
-        <p class="customer-p balance">8872</p>
+        <p class="customer-p name"></p>
+        <p class="customer-p balance"></p>
       </div>
     </template>
     <template id="ledger-modal-content-template">

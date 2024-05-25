@@ -525,8 +525,6 @@ async function showBillOptions(e){
     let tbody = modalContent.querySelector("#tbody");
     const { itemList,paymentStatus,billStatus } = bodyRow.dataset;
     if(!itemList) return;
-    if(billStatus==="open")
-        modalContent.querySelector("[data-cmd='add-item']").classList.remove("hide");
     let [ custId,billNo,billDate ] = itemList.split("_");
     [...await ipcRenderer.invoke("get-bill-items-portal",custId,billNo,billDate)]
     .forEach((obj,i)=>{
@@ -541,7 +539,7 @@ async function showBillOptions(e){
     });
 }
 
-function billUtils(e){
+async function billUtils(e){
     const {cmd} = e.target.dataset;
     let opt = document.getElementById("bill-option-content");
     if(!opt) return;
@@ -561,6 +559,21 @@ function billUtils(e){
         modal.dataset.custId = id;
         modal.dataset.billNo = billNo;
         modal.dataset.billDate = billDate;
+        let itemList = await ipcRenderer.invoke("get-bill-items-portal",id,billNo,billDate);
+        modal.dataset.itemList = JSON.stringify(itemList);
+        let bodyRowTemp = document.getElementById("body-row-template").content;
+        itemList.forEach((item,i)=>{
+            let bodyRow = bodyRowTemp.cloneNode(true).querySelector("div");
+            div.querySelector("#tbody .row-control-div").before(bodyRow);
+            bodyRow.querySelector("p.slno").textContent = i+1;
+            [...bodyRow.querySelectorAll("input")]
+            .forEach(inp=>{
+                inp.value = item[inp.dataset.name];
+            });
+            let tax = item.igst==0?2*item.sgst:item.igst;
+            bodyRow.querySelector(".amt").textContent = item.quantity * item.rate;
+            bodyRow.querySelector(".amt-with-tax").textContent = (item.quantity * item.rate)*(1+tax/100);
+        })
     }
     else
     if(cmd==="cancel-bill")
@@ -629,14 +642,6 @@ function deleteRow(e){
     }
 }
 
-function proceedToPage2(){
-    document.querySelector("#bill-option-modal .page1").classList.add("hide");
-    if(!document.querySelector("#bill-option-modal .page2"))
-        document.querySelector("#bill-option-modal").appendChild(document.getElementById("add-item-modal-page2-template").content.cloneNode(true));
-    else
-        document.querySelector("#bill-option-modal .page2").classList.remove("hide");
-}
-
 function back2page1(){
     [...document.querySelectorAll("#bill-option-modal .page")]
     .forEach((page,i)=>{
@@ -647,58 +652,30 @@ function back2page1(){
     });
 }
 
-function addItem2Bill(){
-    let modal = document.querySelector("#bill-option-modal");
-    let {custId,billNo,billDate} = modal.dataset;
-    [...document.querySelectorAll("#bill-option-modal .page")]
-    .forEach((page,i)=>{
-        if(i==0){
-            [...page.querySelectorAll(".body.row")]
-            .forEach(row=>{
-                let rowNo = row.querySelector("p").textContent;
-                let rowId = uuid.v5(rowNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
-                let itemObj = itemList.find(obj=>obj.rowId===rowId);
-                [...row.querySelectorAll("input")]
-                .forEach(input=>{
-                    itemObj[input.dataset.name] = input.value;
-                });
-                let selectedStock = stockList.find(obj=>obj.name===itemObj.name);
-                if(selectedStock)
-                    itemObj.type = selectedStock.type;
-            });
-        }
-        else{
-            [...page.querySelectorAll("input")]
-            .forEach(input=>{
-                if(input.checked){
-                    let newItemObj = {
-                        custId,
-                        billNo,
-                        billDate,
-                        billStatus:input.id,
-                        itemList
-                    };
-                    let total = Math.round(itemList.reduce((acc,{standardSellPrice,qty,cgst,sgst,igst})=>{
-                        let amt = Number(standardSellPrice) * Number(qty);
-                        let tax = Number(igst)>0 ? Number(igst) : Number(cgst) + Number(sgst);
-                        acc += amt * (1+tax/100);
-                        return acc;
-                    },0));
-                    let bodyRow = document.querySelector(`#bill-table [data-item-list='${custId}_${billNo}_${billDate}']`);
-                    let no1 = Number(bodyRow.querySelector("p:nth-child(3)").textContent);
-                    let no2 = Number(bodyRow.querySelector("p:nth-child(5)").textContent);
-                    bodyRow.querySelector("p:nth-child(3)").textContent = no1 + total;
-                    bodyRow.querySelector("p:nth-child(5)").textContent = no2 + total;
-                    bodyRow.dataset.billStatus = input.id;
-                    bodyRow.dataset.paymentStatus = "false";
-                    bodyRow.dataset.billAmt = no1 + total;
-                    bodyRow.querySelector("p:nth-child(5)").classList.remove("paid");
-                    bodyRow.querySelector("p:nth-child(5)").classList.add("unpaid");
-                    ipcRenderer.send("add-item-to-bill",newItemObj);
-                }
-            })
-        }
+function addItem2Bill(e){
+    let modal = e.path.find(elem=>elem.id==="bill-option-modal");
+    let olditemList = JSON.parse(modal.dataset.itemList);
+    let { custId,billNo,billDate } = modal.dataset;
+    let objProto = Object.keys(olditemList[0]).map(key=>({key,type:typeof olditemList[0][key]})) 
+    let newitemList = [];
+    [...modal.querySelectorAll(".page1 .body.row")]
+    .forEach((bodyRow,i)=>{
+        let itemObj = {};
+        objProto
+        .forEach(({key,type})=>{
+            let input = bodyRow.querySelector(`[data-name="${key}"]`);
+            let val;
+            if(input)
+                val = type=="number" ? Number(input.value) : input.value;
+            else
+                val = type==="boolean" ? false : null;
+            itemObj[key] = val;
+            itemObj.itemNo = i+1;
+        });
+        newitemList.push(itemObj);
     });
+    ipcRenderer.send("add-item-to-bill",olditemList,newitemList,{billNo,billDate,custId});
+    // _closeModal();
 }
 
 ipcRenderer.on("close-modal", ()=>{

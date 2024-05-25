@@ -138,6 +138,12 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     })
     let match = stockList.find(obj=>obj.id===id);
     match.quantity -= qty*multiplier;
+    let customerSpPrices = match.specialPrice?.filter(obj=>obj.customerId==custId)?.slice(0,5);
+    match.specialPrice = match.specialPrice?.filter(obj=>obj.customerId!=custId);
+    match.specialPrice = [
+        ...match.specialPrice,
+        ...customerSpPrices
+    ]
     match.specialPrice?.push({
         customerId:custId,
         rate,
@@ -158,6 +164,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
+    console.log(phones)
     if("presets" in process && process?.presets?.target==="salePage")
         process.presets = {};
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())

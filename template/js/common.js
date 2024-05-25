@@ -1114,7 +1114,6 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                     bodyRow.querySelector(`input[data-name="igst"]`).value = Number(selectedItem.pInfo.taxSlab);
                     bodyRow.querySelector(`input[data-name="sgst"]`).value = "";
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = "";
-                    console.log(selectedItem.pInfo.taxSlab)
                 }
                 else{
                     bodyRow.querySelector(`input[data-name="igst"]`).value = "";
@@ -1150,12 +1149,23 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     }
     else
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
-        let {address,phones,gst,moreInfo} = match;
+        let {address,phones="[]",gst,moreInfo="{}"} = (match ?? {});
         customer = {...match};
-        document.querySelector("[data-name='address']").value = address;
-        document.querySelector("[data-name='phones']").value = JSON.parse(phones)[0];
-        document.querySelector("[data-name='gst']").value = gst;
-        document.querySelector("[data-name='email']").value = JSON.parse(moreInfo).email;
+        let dl = document.createElement("datalist");
+        document.body.appendChild(dl)
+        dl.id = "customer-phones";
+        let phone = JSON.parse(phones);
+        document.querySelector("[data-name='address']").value = address ?? "";
+        document.querySelector("[data-name='phones']").value = phone?.[0] ?? "";
+        document.querySelector("[data-name='gst']").value = gst ?? "";
+        document.querySelector("[data-name='email']").value = JSON.parse(moreInfo)?.email ?? "";
+        if(phone instanceof Array)
+            phone.forEach(ph=>{
+                let option = document.createElement("option");
+                option.value = ph;
+                option.textContent = ph;
+                dl.appendChild(option)
+            });
     }
     else
     if(e.target.dataset.name==="transportName"){// Done

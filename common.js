@@ -70,7 +70,12 @@ async function getLedgerModel(id,ledgerSchema,_sequelize){
         inst = _sequelize;
     supplierLedger = await (inst.define(supplierLedger,ledgerSchema,{
         freezeTableName: true,
-        timestamps: false
+        timestamps: false,
+        setterMethods:{
+            updateBalance(updtVal){
+                this.setDataValue("balance",this.getDataValue("balance")+updtVal);
+            }
+        }
     }).sync());
     return supplierLedger
 }

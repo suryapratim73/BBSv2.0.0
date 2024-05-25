@@ -237,13 +237,13 @@ function phoneRegExpInp(text){
     return text;
 }
 
-function advanceSet(target=[],newValue){
+function advanceSet(target,newValue){
     if(typeof target==="string")
-        target = [target];
+        target = JSON.parse(target);
     target.push(newValue);
-    return target
-            .filter((val,index,self)=>index===self.findIndex(_val=>new RegExp(phoneRegExpInp(val)).test(_val)))
-            .map(val=>val.replace("\\",""));
+    return Array.from(new Set(target))
+            // .filter((val,index,self)=>index===self.findIndex(_val=>new RegExp(phoneRegExpInp(val)).test(_val)))
+            // .map(val=>val.replace("\\",""));
 }
 
 function page4Init(){
@@ -284,7 +284,7 @@ function proceedOrFinishHandler(e){
                         alert("GST number may be not valid. You may consider a recheck.");
                 }// GST Validation
                 igstFlag = gst!="" && Number(gst.match(/\d\d/)?.[0])!=Number(_gst.match(/\d\d/)?.[0]);
-                customer = {...customer,...formObjs};
+                customer = {...customer,...formObjs,phones:customer.phones};
                 if(!("id" in customer))
                     customer.id = uuid.v5(customer.name+"_customer","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
                 customer.phones = advanceSet(customer.phones,formObjs.phones);
@@ -514,8 +514,8 @@ function cancelAction(){
 ipcRenderer.on("get-current-step",cancelAction);
 
 function addPhone(e){
-    let customerPhoneInput = document.getElementById("customer-phone");
-    customer.phones = advanceSet(customer?.phones,customerPhoneInput.value);
+    let customerPhoneInput = document.getElementById("phones");
+    customer.phones = advanceSet((customer?.phones ?? []),customerPhoneInput.value);
     customerPhoneInput.value = "";
     customerPhoneInput.focus();
     customerPhoneInput.setAttribute("placeholder","Add new phone number");
@@ -537,17 +537,19 @@ function displaySection(){
             catch(err){
                 sorted = [];
             }
-            sorted.filter(obj=>obj.customerId===customer.id)
-            .sort((obj1,obj2)=>{
-                if(new Date(obj1.billDate)<new Date(obj2.billDate))
-                    return 1;
-                else
-                if(new Date(obj1.billDate)==new Date(obj2.billDate))
-                    return 0;
-                else
-                    return -1
-            });
+            sorted = sorted.filter(obj=>(obj.customerId==customer.id))
+                    .sort((obj1,obj2)=>{
+                        if(new Date(obj1.billDate)<new Date(obj2.billDate))
+                            return 1;
+                        else
+                        if(new Date(obj1.billDate)==new Date(obj2.billDate))
+                            return 0;
+                        else
+                            return -1
+                    });
             p.textContent = sorted?.[0]?.rate ?? 0;
+            console.clear()
+            console.log(sorted.slice(0,5),sorted)
         }
         else
         if(p.dataset.name==="quantity" && selectedItem.type!=="service"){
@@ -568,8 +570,14 @@ function displaySection(){
                 p.classList.remove("red");
         }
         else
-        if(p.dataset.name==="standardSellPrice")
-            p.textContent = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
+        if(p.dataset.name==="standardSellPrice"){
+            let rate = Number(selectedItem.standardSellPrice);
+            if(rate===NaN)
+                rate = 0;
+            else
+                rate = Math.round(rate);
+            p.textContent = roundOffTo2DecimalPlace(rate);
+        }
         else
             p.textContent = selectedItem[p.dataset.name] ?? ""; 
     });

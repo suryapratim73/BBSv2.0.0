@@ -255,6 +255,11 @@ async function createWindow() {
     try{
       if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
         fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
+      let files = fs.readdirSync(path.resolve(app.getPath("documents"),"./Bills/"))
+      files.filter(file=>/_temp/.test(file))
+      .forEach(file=>{
+        fs.unlinkSync(path.resolve(app.getPath("documents"),"./Bills/"+file))
+      })
     }
     catch(err){
       appLogger({
@@ -2211,7 +2216,7 @@ async function updateCommon(){//This need a relook
   if(data.installMoment==="now"){
     setTimeout(()=>{
       app.quit()
-    },2000)
+    },2000);
     proc.on("spawn",()=>{
       appLogger({
         title:"Spawned updator",

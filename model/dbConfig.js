@@ -131,6 +131,12 @@ module.exports = {
         setterMethods:{
             closeBill(){
                 this.setDataValue("billStatus","open");
+            },
+            setValues({del_billAmt,del_netAmt,del_tax}){
+                this.setDataValue("billAmt",this.getDataValue("billAmt")+del_billAmt);
+                this.setDataValue("netAmt",this.getDataValue("netAmt")+del_netAmt);
+                this.setDataValue("tax",this.getDataValue("tax")+del_tax);
+                this.setDataValue("netDue",this.getDataValue("netDue")+Math.round(del_billAmt))
             }
         }
     }),

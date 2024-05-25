@@ -10,7 +10,7 @@ const { emblemMaker } = require('../lib/common');
 // let path2
 if(process.APP_ENV==="DEV"){}
 
-function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true){
+function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true,temp){
     let docOpts = {
         margin,
         autoFirstPage
@@ -25,10 +25,11 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     }
     const doc = new PDFDocument(docOpts);
     let pdfPath = app.getPath("documents");
+    let ext = temp===true ? "_temp" : "";
     if(!fs.existsSync(pdfPath+"/Bills/"))
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
-    doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}.pdf`)));
+    doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}${ext}.pdf`)));
     pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}.pdf`);
     return {doc,pdfPath};
 }
@@ -44,7 +45,7 @@ async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
     doc.image(imgDataURL, x, y,{height:imgWidth});
 }
 
-exports.billPDF = async function(billObj){
+exports.billPDF = async function(billObj,temp=false){
     const {billMeta,customer,orderItems} = billObj;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin } = saleConfig;
@@ -52,10 +53,10 @@ exports.billPDF = async function(billObj){
         let { main } = require("../lib/execCustomTemplate");
         let data = fs.readFileSync(saleConfig.billTemplate.file);
         let template = JSON.parse(data.toString());
-        const {doc,pdfPath} = initBillPDF(billObj,template);   
+        const {doc,pdfPath} = initBillPDF(billObj,template,true,temp);   
         return main(doc,pdfPath,billObj,template);
     }
-    const {doc,pdfPath} = initBillPDF({...billObj,margin},null,false);
+    const {doc,pdfPath} = initBillPDF({...billObj,margin},null,false,temp);
     const {printObj:{captions}={captions:["Original Buyer's Copy"]}} = billMeta;
     let topY,bottomY,factor,myEmitter = new EventEmitter();
     myEmitter.on("pageAdded",async caption=>{

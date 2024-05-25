@@ -9,6 +9,7 @@ const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
+const { billPDF } = require("./scripts/makePDF.default");
 
 
 exports.customerPortal = mainWindow =>{
@@ -72,16 +73,48 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
-    shell.openExternal(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))
-    .then(console.log)
-    .catch((err)=>{
-        console.log("Failed to open",err)
-    });
+    if(fs.existsSync(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))){
+        shell.openExternal(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))
+        .then(console.log)
+        .catch((err)=>{
+            console.log("Failed to open",err)
+        });
+    }
+    else
+        dialog.showErrorBox("Unable to open the PDF file","The file you're trying to open don't exist.")
 });
 
-ipcMain.on("print",(e,name,billDate,billNo)=>{
-    let path2pdf = path.join(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}`);
-    ipcMain.once("print-obj",(function(e,printObj){
+ipcMain.on("print",async(e,name,billDate,billNo)=>{
+    let saleObj = (await sale.findOne({
+        where:{
+            name,
+            billNo,
+            billDate:new Date(billDate)
+        }
+    })).dataValues;
+    let { customerId,delivery,tax,billAmt } = saleObj;
+    let billItemModel = await getBillModel(customerId,billNo,billDate,billItemSchema)
+    let orderItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
+    let customerObj = await customer.findOne({
+        where:{
+            id:customerId
+        }
+    });
+    ipcMain.once("print-obj",(async function(e,printObj){
+        let billMeta = {
+        ...saleObj,
+        netTax:tax,
+        netAmtTax:billAmt,
+        printObj,
+        billDate,
+        };
+        billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
+            let caption,key = Object.keys(obj).pop();
+            caption = obj[key];
+            acc.push(caption);
+            return acc;    
+        },[]);
+        let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems},true);
         print({printObj,path2pdf});
         this.close();
     }).bind(printDialog()))
@@ -329,92 +362,86 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
         return customerList.find(obj=>obj.id===id);
 });
 
-ipcMain.on("add-item-to-bill",async (e,newItemObj)=>{
-    let {custId:id,billNo,billStatus,itemList,billDate} = newItemObj;
+ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,custId:id})=>{
     billNo = Number(billNo);
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
-    let {amt,amtWithTax} = itemList.reduce((acc,{qty,standardSellPrice,cgst,sgst,igst})=>{
-        standardSellPrice = Number(standardSellPrice);
-        qty = Number(qty);
-        let _tax = Number(igst)>0?Number(igst):Number(sgst) + Number(cgst);
-        acc.amt += qty * standardSellPrice;
-        acc.amtWithTax += roundOffTo2DecimalPlace(qty * standardSellPrice * (1+_tax/100));
-        return acc;
-    },{amt:0,amtWithTax:0});
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
-    let lastBalance = (await ((await customerLedger.sync()).findOne({
-        attributes:["balance"],
-        order:[
-            ["entryNo","DESC"]
-        ]
-    })))?.dataValues.balance ?? 0;
-    let {netDue,billAmt:lastAmt,tax:lastTax} = (await (await sale.sync()).findOne({
+    let billObj = await sale.findOne({
         where:{
-            [Op.and]:[
-                {customerId:id},
-                {billNo}
-            ]
-        },
-        attributes:["netDue","billAmt","tax"]
-    })).dataValues;
-    Promise.all([
-        ...itemList.map(({name,hsn,type,qty:quantity,standardSellPrice,unit,cgst,sgst,igst})=>{
-            return billItemModel.create({
-                name,
-                type,
-                hsn,
-                quantity,
-                unit,
-                rate:Number(standardSellPrice),
-                tax: Number(igst)>0?Number(igst):Number(cgst)+Number(sgst)
-            });
-        }),
-        sale.update({
-            billAmt:lastAmt + amtWithTax,
-            tax:lastTax + amtWithTax - amt,
-            billStatus,
-            netDue,
-            paymentStatus:false
-        },{
-            where:{
-                billNo
+            customerId:id,
+            billNo,
+            billDate:new Date(billDate)
+        }
+    });
+    let { billAmt:_billAmt,netAmt:_netAmt,tax:_tax } =  olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
+        let tax = igst>0 ? igst : 2*sgst;
+        acc.netAmt += quantity*rate;
+        acc.billAmt += quantity*rate*(1+tax/100);
+        acc.tax += quantity*rate*tax/100;
+        return acc;
+    },{ billAmt:0,netAmt:0,tax:0 });
+    let { billAmt,netAmt,tax } =  newitemList.reduce((acc,{igst,sgst,quantity,rate})=>{
+        let tax = igst>0 ? igst : 2*sgst;
+        acc.netAmt += quantity*rate;
+        acc.billAmt += quantity*rate*(1+tax/100);
+        acc.tax += quantity*rate*tax/100;
+        return acc;
+    },{ billAmt:0,netAmt:0,tax:0 });
+    let entries = (await customerLedger.findAll({
+        where:{
+            date:{
+                [Op.gte]:new Date(billDate)
+            },
+            billNo:{
+                [Op.gte]:billNo
             }
+        }
+    }));
+    Promise.all([
+        //Sale Table update
+        ()=>{
+            billObj.setValues = {del_billAmt:billAmt-_billAmt,del_netAmt:netAmt-_netAmt,del_tax:tax-_tax};
+            return billObj.save();
+        },
+        //Customer Ledger update
+        ...entries.map(entry=>{
+            entry.updateBalance = billAmt-_billAmt;
+            return entry.save()
         }),
-        ...itemList.map(async ({qty,name})=>{
-            if(!name) return;
-            let selectedStock = await stock.findOne({
+        //Stock update
+        ...olditemList.map(async itemObj=>{
+            (await billItemModel.findOne({
                 where:{
-                    name
+                    name:itemObj.name
+                }
+            })).destroy();
+            let stockInst = stock.findOne({
+                where:{
+                    name:itemObj.name
                 }
             });
-            selectedStock.reduceStock = qty;
-            return selectedStock.save();
+            stockInst.reduceStock = -itemObj.quantity;
+            return stockInst.save();
         }),
-        customerLedger.create({
-            billStatus,
-            date:billDate,
-            billNo,
-            billAmt:lastAmt + amtWithTax,
-            tax:amtWithTax-amt,
-            netDue,
-            itemList:`${id}_${billNo}_${billDate}`,
-            balance: Math.round(lastBalance +  amtWithTax)
+        ...newitemList.map(async itemObj=>{
+            billItemModel.create({
+                ...itemObj
+            });
+            let stockInst = stock.findOne({
+                where:{
+                    name:itemObj.name
+                }
+            });
+            stockInst.reduceStock = itemObj.quantity;
+            return stockInst.save();
         })
     ])
     .then(async ()=>{
-        let msg = {
-            type: "info",
-            title: "Bill saved",
-            message: "Items added to the bill."
-        };
-        dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("sale",JSON.stringify({billNo,itemList}));
-        let topLine = (await (customerLedger.findOne({
-            order:[
-                ["entryNo","DESC"]
-            ]
-        }))).dataValues;
-        e.sender.send("close-modal",topLine);
+        dialog.showMessageBox({
+            title:"Bill updated",
+            message:"Bill updated"
+        });
+        e.sender.send("close-modal");
     })
     .catch(console.log)
 });
@@ -476,6 +503,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
     billNo = Number(billNo);
     billDate = new Date(billDate);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    // console.log({billItems})
     return Promise.all([
         // Delete billItemModel
         sequelize.dropSchema(`${id}_${billNo}_${billDate}`),
@@ -496,8 +524,9 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
                 }
             }
         ),
+        // customerLedger.update()
         // Restore reduced stock
-        ...billItems.map(async ({qty,name})=>{
+        ...billItems.map(async ({quantity:qty,name})=>{
             if(!name) return;
             let selectedStock = await stock.findOne({
                 where:{
@@ -538,6 +567,18 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
                 ]
             }))).dataValues;
             e.sender.send("close-modal",topLine,{id});
+            ipcMain.emit("refresh-stocklist");
+            let entries = await customerLedger.findAll({
+                where:{
+                    date:{
+                        [Op.gte]:new Date(billDate)
+                    }
+                }
+            });
+            entries.forEach(entry=>{
+                entry.updateBalance = -Math.round(Number(billAmt));
+                entry.save()
+            })
         }
         else
             appLogger({title:"Error removing event",message:"Event not found"})

@@ -37,7 +37,7 @@
                     <label for="phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" />
+                    <input type="text" list="customer-phones" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" />
                     <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
                 </div>
             </div>
@@ -333,7 +333,7 @@
             <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
             <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
-            <div class="col md"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col md"><input data-name="standardSellPrice" list="rate-list" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p class="amt"></p></div>
             <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            

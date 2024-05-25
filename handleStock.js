@@ -180,5 +180,10 @@ ipcMain.handle("refresh-stocklist",()=>{
     return queryStock();
 });
 
+ipcMain.on("refresh-stocklist",()=>{
+    stockList = [];
+    return queryStock();
+});
+
 exports.stockList = stockList;
 exports.queryStock = queryStock;
