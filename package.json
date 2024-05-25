@@ -107,7 +107,7 @@
       "!config/",
       "!.vscode"
     ],
-    "asar": false,
+    "asar": true,
     "afterPack": "scripts/afterpack.js"
   },
   "homepage": "http://code.mbtcverse.com/"
