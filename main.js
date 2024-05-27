@@ -60,13 +60,12 @@ const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
-const { spawn,execFile } = require("child_process");
+const { spawn } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
-const { title } = require("process");
 
 const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
