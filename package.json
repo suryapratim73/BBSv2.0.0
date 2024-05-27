@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.16.0",
+  "version": "2.16.1",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -79,8 +79,7 @@
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ],
