@@ -6,7 +6,6 @@ module.exports = function(ctx){
         hostname:"code.mbtcverse.com",
         path:`/upload/version=${version}`,
         method:"POST",
-        port:3030,
         protocol:"http:"
     },res=>{
         res.addListener("data",(data)=>{
@@ -15,7 +14,7 @@ module.exports = function(ctx){
         })
     });
     req.on("error",err=>{
-        console.log({err})
+        console.log({file:"afterpackjs",err})
     });
     req.write("");
 }
