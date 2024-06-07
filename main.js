@@ -249,7 +249,7 @@ async function createWindow() {
           });
         })
       });
-    // Removing replica DB when it served it purpose.
+    // Removing replica DB when it served it purpose.    
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{
       if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
@@ -2238,7 +2238,7 @@ function downloadUpdate(appVersion){
   appLogger({
     message:"Downloading update"
   });
-  let fileWriter, downloadURL,fileName;
+  let fileWriter, downloadURL,fileName,mainWin = getMainWindow();
   if(process.platform==="linux"){
     fileName = `bbs_${appVersion}_amd64.deb`;
     fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
@@ -2255,10 +2255,16 @@ function downloadUpdate(appVersion){
     // mac case
   }
   axios.get(downloadURL,{
-    responseType:"stream"
+    responseType:"stream",
+    onDownloadProgress(e){
+      let total = parseFloat(e.currentTarget.responseHeaders['Content-Length'])
+      let current = e.currentTarget.response.length;
+      updateProgressbar(mainWin,current,total);
+    }
   })
   .then(resp=>{
-    if(resp.ok) appLogger({message:"Response received from server"})
+    if(resp.ok) appLogger({message:"Response received from server"});
+    mainWin.setProgressBar(-1);
     return new Promise((res,rej)=>{
       resp.data.pipe(fileWriter);
       fileWriter.on("error",(err)=>{
@@ -2314,12 +2320,12 @@ async function checkForUpdates(flag="auto") {
     });
   }
   appLogger({message:"Checking for update"});
-  let { isOnline, appVersion, err } = await new Promise((res) => {
+  let { isOnline, appVersion, err, changelog } = await new Promise((res) => {
     mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
     ipcMain.on(
       "check-for-update-response",
-      (e, { isOnline = false, appVersion, err }) => {
-        res({ isOnline, appVersion, err });
+      (e, { isOnline = false, appVersion, err, changelog }) => {
+        res({ isOnline, appVersion, err, changelog });
       }
     );
   });
@@ -2355,7 +2361,9 @@ async function checkForUpdates(flag="auto") {
       message = "A minor feature update is available for download.";
     if (resp===3)
       message = "Bug fix available for download.";
-    message += ` Please visit ${UPDATE_REST}/changelogs for more details.`;
+    changelog.forEach(log=>{
+
+    });
     
     if(resp===0){
       if(flag!=="auto")
@@ -2370,6 +2378,7 @@ async function checkForUpdates(flag="auto") {
       title: "Update available for download",
       message,
       buttons: ["Download", "Cancel"],
+      noLink:true
     });
     if (response === 1) return;
     // If app is not already updated.

@@ -7,10 +7,10 @@ module.exports = function(ctx){
         path:`/upload/version=${version}`,
         method:"POST",
         port:3030,
-        protocol:"http:"
+        protocol:"https:"
     },res=>{
         res.addListener("data",(data)=>{
-            console.log({msg:"Response from update server"})
+            console.log({msg:"afterpack.js:Response from update server"})
             console.log(data.toString())
         })
     });

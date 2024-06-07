@@ -30,7 +30,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
     doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}${ext}.pdf`)));
-    pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}.pdf`);
+    pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}${ext}.pdf`);
     return {doc,pdfPath};
 }
 

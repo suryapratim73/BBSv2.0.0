@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.16.3",
+  "version": "2.16.4",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -104,10 +104,11 @@
       "!ext/",
       "!db/",
       "!config/",
-      "!.vscode"
+      "!.vscode",
+      "!changelog.json"
     ],
     "asar": false,
     "afterPack": "scripts/afterpack.js"
-  },
+},
   "homepage": "http://code.mbtcverse.com/"
 }

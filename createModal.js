@@ -72,3 +72,21 @@ exports.createModal = (windowOptions={},pathToHTML,{
 exports.getMainWindow = ()=>(windowList.find(win=>win.label==="Main")?.modal);
 
 exports.getTargetWindow = (label)=>(windowList.find(win=>win.label===label).modal);
+
+exports.createDialogBox = function(title,message,buttons,list){
+  let winOpts = {
+    width: 400,
+      height: 450,
+      resizable:false,
+      webPreferences: {
+        nodeIntegration: true,
+        devTools:true,
+      },
+      parent:BrowserWindow.getFocusedWindow(),
+      contextIsolation:true,
+      movable:false,
+      show:true,
+      modal:true,
+  }
+  // let win = new BrowserWindow(winOpts,)
+}

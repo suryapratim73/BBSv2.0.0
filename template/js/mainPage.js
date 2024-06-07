@@ -902,16 +902,20 @@ function revalidateInput(e){
 }
 
 ipcRenderer.on("check-for-update",async (e,UPDATE_REST,appVersion)=>{
+    let changelog = [];
     try{
         if(navigator.onLine){
             let resp = await fetch(UPDATE_REST+"version");
-            if(resp.ok)
-                appVersion = (await resp.json()).version;
+            if(resp.ok){
+                let obj = await resp.json();
+                appVersion = obj.version;
+                changelog = obj.changelog;
+            }
         }
-        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion});
+        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,changelog});
     }
     catch(err){
-        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,err});
+        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,err,changelog});
     }
 });
 

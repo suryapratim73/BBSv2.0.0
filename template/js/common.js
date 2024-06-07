@@ -846,8 +846,14 @@ exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
     return itemList;
 }
 
-exports.capitalize = function capitalize(str){
-    return str.charAt(0).toUpperCase() + str.slice(1);
+exports.capitalize = function capitalize(str,camelcase=false){
+    if(!camelcase)
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    else
+        return str.split(" ").reduce((acc,str)=>{
+            acc+=str.charAt(0).toUpperCase()+str.slice(1)+" ";
+            return acc;
+        },"")
 }
 
 exports.makeKey = function(key){
