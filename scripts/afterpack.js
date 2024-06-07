@@ -3,10 +3,10 @@ const http = require("http");
 module.exports = function(ctx){
     let { version } = ctx.packager.appInfo || {};
     let req = http.request({
-        hostname:"code.mbtcverse.com",
+        hostname:"localhost",
         path:`/upload/version=${version}`,
         method:"POST",
-        port:80,
+        port:3030,
         protocol:"http:"
     },res=>{
         res.addListener("data",(data)=>{
