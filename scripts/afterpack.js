@@ -6,6 +6,7 @@ module.exports = function(ctx){
         hostname:"code.mbtcverse.com",
         path:`/upload/version=${version}`,
         method:"POST",
+        port:80,
         protocol:"http:"
     },res=>{
         res.addListener("data",(data)=>{
