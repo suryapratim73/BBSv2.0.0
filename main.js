@@ -2362,7 +2362,7 @@ async function checkForUpdates(flag="auto") {
       message = "A minor feature update is available for download.";
     if (resp===3)
       message = "Bug fix available for download.";
-    changelog.forEach((log,i)=>{
+    changelog.highlights.forEach((log,i)=>{
       message += (i+1)+") "+log + ". "
     });
     
