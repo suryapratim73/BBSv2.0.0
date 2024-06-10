@@ -1156,7 +1156,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     else
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
         let {address,phones="[]",gst,moreInfo="{}"} = (match ?? {});
-        customer = {...match};
+        customer = {address,phones,gst,moreInfo,...match};
         let dl = document.createElement("datalist");
         document.body.appendChild(dl)
         dl.id = "customer-phones";

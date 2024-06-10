@@ -1,16 +1,13 @@
 {
     "version":"2.16.4",
     "highlights":[
-        "Fixed 'temp' bill PDF no print issue.",
-        "Added a update downlod progressbar",
-        "Added update highlight display",
-        "Minor improvements made on bill layouts."
+        "Fixed some billing issues",
+        "Added new seal feature in bill pdfs",
+        "Made supplier ledger compatible with new ledger format"
     ],
     "fullchange":[
-        "Fixed 'temp' bill PDF no print issue.",
-        "Added a update downlod progressbar",
-        "Added update highlight display",
-        "Added 'Order Ref' entry to bills",
-        "Camel cased number to word the amount in 2nd default layout"
+        "Fixed some billing issues",
+        "Added new seal feature in bill pdfs",
+        "Made supplier ledger compatible with new ledger format"
     ]
 }

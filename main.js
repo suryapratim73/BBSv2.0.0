@@ -51,7 +51,8 @@ const {
   user,
   schemas,
   finData,
-  customer
+  customer,
+  supplier
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
 const { Op, Sequelize, UUIDV4 } = require("sequelize");
@@ -67,7 +68,7 @@ const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
 
-const { billItemSchema,customerLedgerSchema } = dynamicSchemas;
+const { billItemSchema,customerLedgerSchema,supplierLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
   windowOptions = {
     width: 600,
@@ -2361,8 +2362,8 @@ async function checkForUpdates(flag="auto") {
       message = "A minor feature update is available for download.";
     if (resp===3)
       message = "Bug fix available for download.";
-    changelog.forEach(log=>{
-
+    changelog.forEach((log,i)=>{
+      message += (i+1)+") "+log + ". "
     });
     
     if(resp===0){
@@ -2605,8 +2606,7 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
   entryArr = entryArr.filter(obj=>obj.date>=startDate);
   let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
   let path2pdf = ledgerPDF(entryArr,peopleObj,startDate,endDate,prevClose,ledgerBalance);
-  console.log({path2pdf})
-  // ipcMain.emit("show-print-modal",path2pdf);
+  ipcMain.emit("show-print-modal",path2pdf);
 });
 
 ipcMain.handle("billing-format-ipc",(e,data)=>{

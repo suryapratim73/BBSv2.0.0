@@ -6,6 +6,10 @@ exports.supplierLedgerSchema = {
         autoIncrement: true,
         primaryKey: true
     },
+    type:{
+        type: DataTypes.TEXT,
+        defaultValue: "purchase"
+    },
     date:{
         type:DataTypes.DATE
     },

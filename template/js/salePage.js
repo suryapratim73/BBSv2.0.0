@@ -111,12 +111,6 @@ function helperFunc1(itemObj){
         else
             input.value = itemObj.sellUnit;
     });
-    let cgst = Number(bodyRow.querySelector(`[data-name="cgst"]`).value);
-    let sgst = Number(bodyRow.querySelector(`[data-name="sgst"]`).value);
-    let igst = Number(bodyRow.querySelector(`[data-name="igst"]`).value);
-    bodyRow.querySelector(`[data-name="igst"]`).value = igstFlag===false && igst>0 ? 0 : cgst + sgst;
-    bodyRow.querySelector(`[data-name="sgst"]`).value = igstFlag===false && igst>0 ? igst/2 : 0;
-    bodyRow.querySelector(`[data-name="cgst"]`).value = igstFlag===false && igst>0 ? igst/2 : 0;
     calculateAmounts();
 }
 
@@ -345,8 +339,19 @@ function proceedOrFinishHandler(e){
         currentStep++;
     }
     else
-    if(e.type==="click" && e.target.dataset.type==="back")
+    if(e.type==="click" && e.target.dataset.type==="back"){
         currentStep--;
+        if(currentStep===2){
+            orderItems.filter(obj=>!("name" in obj))
+            .forEach(obj=>{
+                let { sellId } = obj;
+                let bodyRow = document.querySelector(`.body.row[data-sell-id="${sellId}"]`);
+                obj.name = bodyRow.querySelector("input[data-name='name']").value;
+                obj.hsn = bodyRow.querySelector("input[data-name='hsn']").value;
+            });
+
+        }
+    }
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
 }
@@ -548,8 +553,6 @@ function displaySection(){
                             return -1
                     });
             p.textContent = sorted?.[0]?.rate ?? 0;
-            console.clear()
-            console.log(sorted.slice(0,5),sorted)
         }
         else
         if(p.dataset.name==="quantity" && selectedItem.type!=="service"){

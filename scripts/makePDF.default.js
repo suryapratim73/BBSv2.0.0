@@ -3,7 +3,7 @@ const fs = require("fs");
 const {app, dialog} = require("electron");
 const path = require("path");
 const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody, createHeader2, createFooter2, createBody2 } = require('../lib/buildPage.default');
-const { getsaleConfigPolicyPath } = require("../template/js/common");
+const { getsaleConfigPolicyPath, capitalize } = require("../template/js/common");
 const { EventEmitter } = require("events");
 const { emblemMaker } = require('../lib/common');
 
@@ -167,12 +167,13 @@ exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate,endDat
     for(let index = 0;index<entryArr.length;index++){
         let {date,billNo,billAmt,type,payments,balance,itemList} = entryArr[index],payParticular;
         rowObj.col1 = index+1;
-        if(type==="sale"){
+        if(["sale","purchase"].includes(type)){
             rowObj.col2 = date;//
-            rowObj.col3 = `Sale: Bill Number:${billNo}`;
-            rowObj.col4 = `${billAmt-payments} Dr`;
+            rowObj.col3 = `${capitalize(type)}: Bill Number:${billNo}`;
+            rowObj.col4 = `${billAmt-payments} ${type==="sale" ? "Dr" : "Cr"}`;
         }
-        else{
+        else
+        if(type==="payment"){
             try{
                 let payObj = JSON.parse(`${itemList}`);
                 rowObj.col2 = new Date(payObj.paymode==="cash" ? new Date() : payObj["pay-dt"])//.toLocaleDateString("en-IN");
@@ -184,6 +185,22 @@ exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate,endDat
                 }
                 rowObj.col3 = payParticular;
                 rowObj.col4 = payments+" Cr";
+            }
+            catch(err){
+                console.log(err)
+            }
+        }
+        else
+        if(type==="out-payment"){
+            try{
+                let payObj = JSON.parse(`${itemList}`);
+                rowObj.col2 = new Date(payObj.payDate)//.toLocaleDateString("en-IN");
+                if(payObj.ref=="cash")
+                    payParticular = "Payment made by cash";
+                else
+                    payParticular = `Payment reference: ${payObj.ref}`
+                rowObj.col3 = payParticular;
+                rowObj.col4 = payments+" Dr";
             }
             catch(err){
                 console.log(err)

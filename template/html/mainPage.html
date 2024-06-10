@@ -675,12 +675,32 @@
                     </select>
                 </div>
             </div>
+            <div>
+                <div>
+                    <label for="applySeal">Use Seal</label>
+                </div>
+                <div>
+                    <select name="applySeal" data-cmd="applySeal" data-target="choosefile-3" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                        <option value="false" selected>No</option>
+                        <option value="choosefile-3">Choose a file</option>
+                    </select>
+                </div>
+            </div>
             <div class="hide" data-show="choosefile-2">
                 <div>
                     <label for="file-2">Select a file</label>
                 </div>
                 <div>
                     <input type="text" name="emblem" id="file-2">
+                    <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})">Choose</button>
+                </div>
+            </div>
+            <div class="hide" data-show="choosefile-3">
+                <div>
+                    <label for="file-3">Select a file</label>
+                </div>
+                <div>
+                    <input type="text" name="seal" id="file-3">
                     <button class="main-ui-btn" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})">Choose</button>
                 </div>
             </div>

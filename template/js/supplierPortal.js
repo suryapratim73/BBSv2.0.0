@@ -231,9 +231,10 @@ async function addPayment(e){
     let payDate = e.target.payDate.value;
     let payAmt = Number(e.target.payAmt.value);
     let billAmt = Number(e.target.querySelector("div").dataset.billAmt);
+    let ref = e.target.ref.value;
     let paymentStatus = payAmt===billAmt?true:false;
     let id = supplierBills.dataset.id;
-    let transStatus = await ipcRenderer.invoke("add-out-payment",{billNo,billAmt,payDate,payAmt,paymentStatus,id});
+    let transStatus = await ipcRenderer.invoke("add-out-payment",{billNo,ref,billAmt,payDate,payAmt,paymentStatus,id});
     if(transStatus){
         let selectedDiv = supplierBills.querySelector(`[data-bill-no="${billNo}"]`);
         if(selectedDiv && payAmt===billAmt)

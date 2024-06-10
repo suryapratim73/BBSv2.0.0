@@ -150,10 +150,12 @@ ipcMain.handle("add-out-payment",async (e,obj)=>{
             }),
             supplierLedger.create({
                 date: payDate,
+                type:"out-payment",
                 billNo,
                 billAmt,
                 paymentStatus,
                 payments: payAmt,
+                itemList:JSON.stringify(obj),
                 balance:Math.round(lastBalance - payAmt)
             })
         ]);

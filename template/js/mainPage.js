@@ -484,7 +484,7 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="bill-template"){
                 compInfo = await ipcRenderer.invoke("get-company-info");
-                let { file,applyTemplate,applyEmblem=false,emblem="",captions=[ {first:"Original Buyer's Copy"}, {second:"Transporter's Copy"}, {third:'Book Copy'} ] } = compInfo.billTemplate;
+                let { file,applyTemplate,applyEmblem=false,emblem="",applySeal,seal,captions=[ {first:"Original Buyer's Copy"}, {second:"Transporter's Copy"}, {third:'Book Copy'} ] } = compInfo.billTemplate;
                 if(applyTemplate){
                     form.querySelector(`[name="applyTemplate"] option[value="${applyTemplate===true?'choosefile':'false'}"]`)
                     .setAttribute("selected",true);
@@ -500,6 +500,12 @@ async function showForm(e,cmd,show,prevData={}){
                     .setAttribute("selected",true);
                     form.querySelector(`[data-show="choosefile-2"]`).classList.remove("hide");
                     form.querySelector(`#file-2`).value = emblem;
+                }
+                if(applySeal){
+                    form.querySelector(`[name="applySeal"] option[value="choosefile-3"]`)
+                    .setAttribute("selected",true);
+                    form.querySelector(`[data-show="choosefile-3"]`).classList.remove("hide");
+                    form.querySelector(`#file-3`).value = seal;
                 }
                 captions.forEach(obj=>{
                     let key = Object.keys(obj)[0];
@@ -727,6 +733,7 @@ async function saveSettings(e){
             data.applyTemplate = false;
         }
         data.applyEmblem = data.applyEmblem=="choosefile-2";
+        data.applySeal = data.applySeal=="choosefile-3";
         data.captions = ["first","second","third"].map(key=>({[key]:data[key]}));
         ["first","second","third"].forEach(key=>Reflect.deleteProperty(data,key));
         ipcRenderer.send("company-profile-info",{billTemplate:data});

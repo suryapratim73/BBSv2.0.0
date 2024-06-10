@@ -88,6 +88,10 @@
                 <div><input type="text" name="billNo" list="billNo-list" onchange="assignBillAmt(event)"></div>
             </div>
             <div>
+                <div><label for="ref">Transaction Reference</label></div>
+                <div><input type="text" name="ref" id="ref"></div>
+            </div>
+            <div>
                 <div><label for="payDate">Choose Date</label></div>
                 <div><input type="date" id="payDate" name="payDate"></div>
             </div>
@@ -200,5 +204,21 @@
             <button onclick="closeModal()">Close</button>
         </div>
     </template>
+    <template id="ledger-modal-content-template">
+        <form onsubmit="handlePrint(event)">
+          <div>
+              <label for="ledger-period">Please select the period of ledger.</label>
+              <select id="ledger-period" name="ledger-period">
+                  <option value="0">Current financial year</option>
+                  <option value="1">Last financial year</option>
+                  <option value="2">All year</option>
+              </select>
+          </div>
+          <div>
+              <button type="submit" class="main-ui-btn">Print</button>
+              <button type="button" data-name="cancel" onclick="closeModal(event)">Cancel</button>
+          </div>
+      </form>
+      </template>
 </body>
 </html>
