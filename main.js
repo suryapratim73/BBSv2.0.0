@@ -281,12 +281,25 @@ async function createWindow() {
         if(fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json")){
           let updateConf = JSON.parse((fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json")).toString());
           let resp = versionChecker(updateConf.currentVersion,updateConf.versionDownloaded);
-          if(resp>0 && schemaValidator()===true){
+          if(resp>0){
+            [
+              {ext:"./",file:"schema.js"},
+              {ext:"./",file:"schema_replica.js"},
+              {ext:"./",file:"dbConf.json"},
+              {ext:"./model/",file:"dynamicSchemas.js"},
+              {ext:"./model/",file:"dynamicSchemas_replica.js"}]
+            .forEach(({file,ext})=>{
+                fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
+            });
+            updateConf.currentUser = app.getVersion();
+            fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
+          }
+          if(schemaValidator()===true){
+            if(!fs.existsSync(path.resolve(appPath,"./model/")))
+              fs.mkdirSync(path.resolve(appPath,"./model"));
             mainWindow.setProgressBar(0,{mode:"normal"});
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
-            updateConf.currentUser = app.getVersion();
-            fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
           }
         }
       }
@@ -2832,17 +2845,17 @@ ipcMain.on("open-event",(e,evObj)=>{
 
 // DB Migration for non-breaking model changes only
 function schemaValidator(){
-  let path2config = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
-  path2config = path.resolve(path2config,"./dbConf.json");
+  let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+  let path2config = path.resolve(appPath,"./model/dbConf.json");
   if(fs.existsSync(path2config)){
     let { dbMigrated=true } = JSON.parse(fs.readFileSync(path2config)?.toString() ?? "{}");
     if(dbMigrated)
       return false;
   }
-  let { schemas:_schemas } = require("./model/dbConfig_replica");
-  let { schemas } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require("./model/dynamicSchemas_replica");
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
+  let { schemas:_schemas } = require(path.resolve(appPath,"./model/dbConfig_replica"));
+  let { schemas } = require(path.resolve(appPath,"./model/dbConfig"));
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   if(schemas.length!=_schemas.length) return false;
   let schema_objs = Object.keys(schemas).map(schema=>({obj1:schemas[schema],obj2:_schemas[schema]}))
   let compareObj = [
@@ -2863,19 +2876,15 @@ function updateProgressbar(win,value,maxVal){
 }
 // dbMigrator()
 async function dbMigrator(){
-  let _models = require("./model/dbConfig_replica");
-  let { schemas,...models } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require("./model/dynamicSchemas_replica");
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require("./model/dynamicSchemas");
+  let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+  let _models = require(path.resolve(appPath,"./model/dbConfig_replica"));
+  let { schemas,...models } = require(path.resolve(appPath,"./model/dbConfig"));
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
   });
-  let appPath;
-  if(process.env.APP_ENV==="DEV")
-      appPath = __dirname;
-  else
-      appPath = app.getPath("appData")+"/BBS";
   try{
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"),"a+");
     appLogger({title:"db copied successfully"});
@@ -3033,7 +3042,6 @@ async function dbMigrator(){
       })
     ])
     .then(async ()=>{
-      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
       path2config = path.resolve(appPath,"./dbConf.json");
       fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";

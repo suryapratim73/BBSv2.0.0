@@ -72,24 +72,6 @@ sequelize.authenticate()
 .catch((err)=>{
     console.error(err)
 });
-if(process.env.APP_ENV==="PROD"){
-    try{
-        if(!fs.existsSync(path.resolve(appPath,"./model/")))
-            fs.mkdirSync(path.resolve(appPath,"./model"));
-        [
-            {ext:"../",file:"schema.js"},
-            {ext:"../",file:"schema_replica.js"},
-            {ext:"../",file:"dbConf.json"},
-            {ext:"./",file:"dynamicSchemas.js"},
-            {ext:"./",file:"dynamicSchemas_replica.js"}]
-        .forEach(({file,ext})=>{
-            fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
-        });
-    }
-    catch(err){
-        throw err;
-    }
-}
 
 const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path.resolve(appPath,"./model/schema.js")).init(DataTypes,UUIDV4);
 
