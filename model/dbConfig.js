@@ -76,10 +76,9 @@ if(process.env.APP_ENV==="PROD"){
     try{
         if(!fs.existsSync(path.resolve(appPath,"./model/")))
             fs.mkdirSync(path.resolve(appPath,"./model"));
-        ["schema.js","schema_replica.js","dbConf.json"]
+        ["schema.js","schema_replica.js","dbConf.json","dynamicSchemas.js","dynamicSchemas_replica.js"]
         .forEach(file=>{
-            if(!(fs.existsSync(path.resolve(appPath,"./model/"+file))))
-                fs.copyFileSync(path.resolve(__dirname,"../",`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
+            fs.copyFileSync(path.resolve(__dirname,"../",`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
         });
     }
     catch(err){

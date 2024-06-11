@@ -1,15 +1,9 @@
 {
-    "version":"2.16.6",
+    "version":"2.16.7",
     "highlights":[
-        "Fixed some billing issues",
-        "Added new seal feature in bill pdfs",
-        "Made supplier ledger compatible with new ledger format",
         "db migration issue fixed"
     ],
     "fullchange":[
-        "Fixed some billing issues",
-        "Added new seal feature in bill pdfs",
-        "Made supplier ledger compatible with new ledger format",
         "db migration issue fixed"
     ]
 }

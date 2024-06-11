@@ -3033,7 +3033,7 @@ async function dbMigrator(){
       })
     ])
     .then(async ()=>{
-      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/model/") : __dirname;
+      let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
       path2config = path.resolve(appPath,"./dbConf.json");
       fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
