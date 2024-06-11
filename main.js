@@ -2257,11 +2257,11 @@ function downloadUpdate(appVersion){
   }
   axios.get(downloadURL,{
     responseType:"stream",
-    onDownloadProgress(e){
-      let total = parseFloat(e.currentTarget.responseHeaders['Content-Length'])
-      let current = e.currentTarget.response.length;
-      updateProgressbar(mainWin,current,total);
-    }
+    // onDownloadProgress(e){
+    //   let total = parseFloat(e.currentTarget.responseHeaders['Content-Length'])
+    //   let current = e.currentTarget.response.length;
+    //   updateProgressbar(mainWin,current,total);
+    // }
   })
   .then(resp=>{
     if(resp.ok) appLogger({message:"Response received from server"});
