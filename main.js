@@ -2867,14 +2867,12 @@ function schemaValidator(){
     if(dbMigrated)
       return false;
   }
+  let { schemas:_schemas } = require("./model/dbConfig_replica");
+  let { schemas } = require("./model/dbConfig");
   appLogger({
     title:"DB Migration status",
-    message:{
-      path:path.resolve(__dirname,"./model/dbConfig_replica")
-    }
+    message:"Problem is not in line 2874"
   })
-  let { schemas:_schemas } = require(path.resolve(__dirname,"./model/dbConfig_replica"));
-  let { schemas } = require(path.resolve(__dirname,"./model/dbConfig"));
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
   let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   if(schemas.length!=_schemas.length) return false;
@@ -2898,8 +2896,8 @@ function updateProgressbar(win,value,maxVal){
 // dbMigrator()
 async function dbMigrator(){
   let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-  let _models = require(path.resolve(__dirname,"./model/dbConfig_replica"));
-  let { schemas,...models } = require(path.resolve(__dirname,"./model/dbConfig"));
+  let _models = require("./model/dbConfig_replica");
+  let { schemas,...models } = require("./model/dbConfig");
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
   let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   let win = getMainWindow();
