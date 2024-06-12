@@ -309,7 +309,7 @@ async function createWindow() {
           appLogger({
             title:"DB Migration status",
             message:{
-              app
+              schemaValidator:schemaValidator()
             }
           });
           if(schemaValidator()===true){
@@ -318,6 +318,9 @@ async function createWindow() {
             mainWindow.setProgressBar(0,{mode:"normal"});
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
+            appLogger({
+              title:"DB Migration Complete"
+            })
           }
         }
       }
