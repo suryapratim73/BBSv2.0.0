@@ -2867,6 +2867,12 @@ function schemaValidator(){
     if(dbMigrated)
       return false;
   }
+  appLogger({
+    title:"DB Migration status",
+    message:{
+      path:path.resolve(__dirname,"./model/dbConfig_replica")
+    }
+  })
   let { schemas:_schemas } = require(path.resolve(__dirname,"./model/dbConfig_replica"));
   let { schemas } = require(path.resolve(__dirname,"./model/dbConfig"));
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
