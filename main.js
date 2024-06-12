@@ -56,7 +56,6 @@ const {
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
 const { Op, Sequelize, UUIDV4,DataTypes } = require("sequelize");
-const dynamicSchemas = require("./model/dynamicSchemas")(DataTypes);
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
@@ -68,9 +67,13 @@ const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
 
+
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+
+const dynamicSchemas = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 const { billItemSchema,customerLedgerSchema,supplierLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
-  windowOptions = {
+windowOptions = {
     width: 600,
     height: 400,
     resizable: false,

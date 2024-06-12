@@ -15,7 +15,7 @@ const { DataTypes } = require("sequelize");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-const { customerLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
+const { customerLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 
 
 let closeFlag = false,

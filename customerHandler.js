@@ -14,7 +14,7 @@ const path = require("path");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __sdirname;
 
-const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
+const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 
 exports.customerPortal = mainWindow =>{
     return ()=>{

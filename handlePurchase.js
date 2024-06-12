@@ -8,11 +8,12 @@ const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
+const { DataTypes } = require("sequelize");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-const { supplierLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
+const { supplierLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 let windowOptions = {
     width: 800,
     height: 600,
