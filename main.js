@@ -319,7 +319,7 @@ async function createWindow() {
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
             appLogger({
-              title:"DB Migration Complete"
+              title:"-------DB Migration Complete-------"
             })
           }
         }
@@ -3074,7 +3074,12 @@ async function dbMigrator(){
       fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
       fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas.js"),path.resolve(appPath,"./model/dynamicSchemas_replica.js"));
       appLogger({
-        title:"-----------DB Migration Complete------------"
+        title:"-----------DB Migration Complete------------",
+        message:"Relaunching app",
+        typeoffuncs:{
+          relaunch:typeof app.relaunch,
+          exit:typeof app.exit
+        }
       })
       app.relaunch();
       app.exit();
