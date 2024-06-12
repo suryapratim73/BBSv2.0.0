@@ -282,6 +282,10 @@ async function createWindow() {
           let updateConf = JSON.parse((fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json")).toString());
           let resp = versionChecker(updateConf.currentVersion,updateConf.versionDownloaded);
           if(resp>0){
+            appLogger({
+              title:"DB Migration initiation",
+              message:"Copying schema files"
+            });
             [
               {ext:"./",file:"schema.js"},
               {ext:"./",file:"schema_replica.js"},
@@ -291,9 +295,19 @@ async function createWindow() {
             .forEach(({file,ext})=>{
                 fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
             });
+            appLogger({
+              title:"DB Migration status",
+              message:"Copy successful and updating updtConf.json file"
+            })
             updateConf.currentUser = app.getVersion();
             fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
           }
+          appLogger({
+            title:"DB Migration status",
+            message:{
+              schemaValidator:schemaValidator()
+            }
+          });
           if(schemaValidator()===true){
             if(!fs.existsSync(path.resolve(appPath,"./model/")))
               fs.mkdirSync(path.resolve(appPath,"./model"));
