@@ -287,9 +287,9 @@ async function createWindow() {
               message:"Copying schema files"
             });
             [
-              {ext:"./model/",file:"schema.js"},
-              {ext:"./model/",file:"schema_replica.js"},
-              {ext:"./model/",file:"dbConf.json"},
+              {ext:"./",file:"schema.js"},
+              {ext:"./",file:"schema_replica.js"},
+              {ext:"./",file:"dbConf.json"},
               {ext:"./model/",file:"dynamicSchemas.js"},
               {ext:"./model/",file:"dynamicSchemas_replica.js"},
               {ext:"./model/",file:"dbConfig_replica.js.js"}
