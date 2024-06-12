@@ -309,7 +309,7 @@ async function createWindow() {
           appLogger({
             title:"DB Migration status",
             message:{
-              schemaValidator:schemaValidator()
+              app
             }
           });
           if(schemaValidator()===true){
@@ -3070,6 +3070,9 @@ async function dbMigrator(){
       win.setProgressBar(-1);
       fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
       fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas.js"),path.resolve(appPath,"./model/dynamicSchemas_replica.js"));
+      appLogger({
+        title:"-----------DB Migration Complete------------"
+      })
       app.relaunch();
       app.exit();
     })
