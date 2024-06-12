@@ -1,16 +1,20 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { createModal, getMainWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
-const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const path = require("path");
-const { Op } = require("sequelize");
+const { Op,DataTypes } = require("sequelize");
 const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
 const { billPDF } = require("./scripts/makePDF.default");
+const path = require("path");
 
+
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __sdirname;
+
+const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
 
 exports.customerPortal = mainWindow =>{
     return ()=>{

@@ -1,9 +1,8 @@
-const { ipcMain, dialog, Menu } = require("electron");
+const { ipcMain, dialog, Menu, app } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
 const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo } = require("./common");
-const { customerLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
@@ -12,7 +11,11 @@ const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
 const uuid = require("uuid");
 const { printPDF } = require("./main");
-const { Op } = require("sequelize");
+const { DataTypes } = require("sequelize");
+
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+
+const { customerLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
 
 
 let closeFlag = false,

@@ -2,13 +2,17 @@ const { ipcMain,BrowserWindow } = require("electron");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
-const { supplierLedgerSchema, billItemSchema } = require("./model/dynamicSchemas");
 const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
+const path = require("path");
 
+
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+
+const { supplierLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
 let windowOptions = {
     width: 800,
     height: 600,
