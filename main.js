@@ -292,7 +292,7 @@ async function createWindow() {
               {ext:"./",file:"dbConf.json"},
               {ext:"./model/",file:"dynamicSchemas.js"},
               {ext:"./model/",file:"dynamicSchemas_replica.js"},
-              {ext:"./model/",file:"dbConfig_replica.js.js"}
+              {ext:"./model/",file:"dbConfig_replica.js"}
             ]
             .forEach(({file,ext})=>{
                 fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
