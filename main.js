@@ -291,8 +291,7 @@ async function createWindow() {
               {ext:"./",file:"schema_replica.js"},
               {ext:"./",file:"dbConf.json"},
               {ext:"./model/",file:"dynamicSchemas.js"},
-              {ext:"./model/",file:"dynamicSchemas_replica.js"},
-              {ext:"./model/",file:"dbConfig_replica.js"}
+              {ext:"./model/",file:"dynamicSchemas_replica.js"}
             ]
             .forEach(({file,ext})=>{
                 fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
@@ -2893,8 +2892,8 @@ function updateProgressbar(win,value,maxVal){
 // dbMigrator()
 async function dbMigrator(){
   let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-  let _models = require(path.resolve(appPath,"./model/dbConfig_replica"));
-  let { schemas,...models } = require(path.resolve(appPath,"./model/dbConfig"));
+  let _models = require(path.resolve(__dirname,"./model/dbConfig_replica"));
+  let { schemas,...models } = require(path.resolve(__dirname,"./model/dbConfig"));
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
   let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   let win = getMainWindow();
