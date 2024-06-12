@@ -2867,8 +2867,8 @@ function schemaValidator(){
     if(dbMigrated)
       return false;
   }
-  let { schemas:_schemas } = require(path.resolve(appPath,"./model/dbConfig_replica"));
-  let { schemas } = require(path.resolve(appPath,"./model/dbConfig"));
+  let { schemas:_schemas } = require(path.resolve(__dirname,"./model/dbConfig_replica"));
+  let { schemas } = require(path.resolve(__dirname,"./model/dbConfig"));
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"));
   let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"));
   if(schemas.length!=_schemas.length) return false;
