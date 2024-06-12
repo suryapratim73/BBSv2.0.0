@@ -2872,9 +2872,13 @@ function schemaValidator(){
   }
   let { schemas:_schemas } = require("./model/dbConfig_replica");
   let { schemas } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"))(DataTypes);
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
   if(schemas.length!=_schemas.length) return false;
+  appLogger({
+    title:"DB Migration status",
+    message:"Passed 2880"
+  })
   let schema_objs = Object.keys(schemas).map(schema=>({obj1:schemas[schema],obj2:_schemas[schema]}))
   let compareObj = [
     ...schema_objs,
@@ -2897,8 +2901,8 @@ async function dbMigrator(){
   let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
   let _models = require("./model/dbConfig_replica");
   let { schemas,...models } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica"))(DataTypes);
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas"))(DataTypes);
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
   let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
