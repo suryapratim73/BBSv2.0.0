@@ -423,7 +423,7 @@ async function createWindow() {
     else
       appLogger({
         title:"Error",
-        message:String(err),
+        message:err,
         func:"Trying to login error"
       });
   }
