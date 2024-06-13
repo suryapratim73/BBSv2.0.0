@@ -304,6 +304,8 @@ async function createWindow() {
               message:"Copy successful and updating updtConf.json file"
             })
             updateConf.currentUser = app.getVersion();
+            updateConf.updateComplete = true;
+            updateConf.currentVersion = app.getVersion();
             fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
           }
           appLogger({
