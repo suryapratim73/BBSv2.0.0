@@ -9,10 +9,9 @@ const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = re
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
 const { billPDF } = require("./scripts/makePDF.default");
-const path = require("path");
 
 
-let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __sdirname;
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 

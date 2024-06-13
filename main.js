@@ -1,7 +1,7 @@
 global.shouldWait = true;
 require("dotenv").config({path:__dirname+"/.env"});
 const {
-  app,
+  app={},
   BrowserWindow,
   Menu,
   globalShortcut,
@@ -420,12 +420,14 @@ async function createWindow() {
       }
       return mainWindow;
     }
-    else
+    else{
+      console.log(err)
       appLogger({
         title:"Error",
-        message:err,
+        message:String(err),
+        test:{app},
         func:"Trying to login error"
-      });
+      });}
   }
 }
 

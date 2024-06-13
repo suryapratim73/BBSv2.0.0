@@ -1,11 +1,14 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
-const { Op } = require("sequelize");
+const { Op,DataTypes } = require("sequelize");
 const { createModal, getMainWindow } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
-const { billItemSchema, supplierLedgerSchema } = require("./model/dynamicSchemas");
 const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
+const path = require("path");
 
 
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+
+const { billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 const suppliers = [];
 
 let windowOptions = {
