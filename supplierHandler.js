@@ -1,4 +1,4 @@
-const { ipcMain, dialog, BrowserWindow } = require("electron");
+const { ipcMain, dialog, BrowserWindow,app } = require("electron");
 const { Op,DataTypes } = require("sequelize");
 const { createModal, getMainWindow } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");

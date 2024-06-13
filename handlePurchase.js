@@ -1,4 +1,4 @@
-const { ipcMain,BrowserWindow } = require("electron");
+const { ipcMain,BrowserWindow,app } = require("electron");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
