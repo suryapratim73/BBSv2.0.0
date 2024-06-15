@@ -43,9 +43,8 @@ exports.init = function(DataTypes){
                 autoIncrement: true,
                 primaryKey: true
             },
-            type:{
-                type: DataTypes.TEXT,
-                defaultValue: "sale"
+            billStatus:{
+                type:DataTypes.BOOLEAN
             },
             date:{
                 type:DataTypes.DATE
@@ -56,15 +55,33 @@ exports.init = function(DataTypes){
             billAmt:{
                 type:DataTypes.INTEGER
             },
+            tax:{
+                type:DataTypes.INTEGER
+            },
+            paymentStatus:{
+                type:DataTypes.BOOLEAN
+            },
             payments:{
                 type:DataTypes.INTEGER,
+            },
+            netDue:{
+                type:DataTypes.INTEGER,
+                defaultValue:0
             },
             itemList:{
                 type:DataTypes.TEXT
             },
+            delivery:{
+                type:DataTypes.JSON,
+                defaultValue:"hand"
+            },
             balance:{
                 type:DataTypes.INTEGER,
                 defaultValue:0
+            },
+            returnable:{
+                type: DataTypes.BOOLEAN,
+                defaultValue: true
             }
         },
         billItemSchema : {

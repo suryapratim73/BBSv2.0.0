@@ -1,9 +1,10 @@
 {
-    "version":"2.16.7",
+    "version":"2.16.8",
     "highlights":[
-        "db migration issue fixed"
+        "Added dwnload progressbar"
     ],
     "fullchange":[
-        "db migration issue fixed"
+        "Added dwnload progressbar",
+        "Added download cancel button"
     ]
 }

@@ -564,12 +564,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
             else
                 saleConfig.availableBillNo.push(billNo);
             fs.writeFileSync(path2config,JSON.stringify(saleConfig));
-            let topLine = (await (customerLedger.findOne({
-                order:[
-                    ["entryNo","DESC"]
-                ]
-            }))).dataValues;
-            e.sender.send("close-modal",topLine,{id});
+            e.sender.send("close-modal");
             ipcMain.emit("refresh-stocklist");
             let entries = await customerLedger.findAll({
                 where:{

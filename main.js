@@ -2295,11 +2295,12 @@ function downloadUpdate(appVersion){
   }
   axios.get(downloadURL,{
     responseType:"stream",
-    // onDownloadProgress(e){
-    //   let total = parseFloat(e.currentTarget.responseHeaders['Content-Length'])
-    //   let current = e.currentTarget.response.length;
-    //   updateProgressbar(mainWin,current,total);
-    // }
+    onDownloadProgress(e){
+      let total = e.total;
+      let current = e.loaded;
+      updateProgressbar(mainWin,current,total,"Downloading update...");
+    },
+    // signal:new AbortController()
   })
   .then(resp=>{
     if(resp.ok) appLogger({message:"Response received from server"});
@@ -2899,17 +2900,17 @@ function schemaValidator(){
     return false;
 }
 
-function updateProgressbar(win,value,maxVal){
+function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait..."){
   win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
-  win.webContents.send("execute-progressbar",Math.round(value/maxVal)*100);
+  win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),text);
 }
 // dbMigrator()
 async function dbMigrator(){
-  let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+  debugger
   let _models = require("./model/dbConfig_replica");
   let { schemas,...models } = require("./model/dbConfig");
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+  console.log({_billItemSchema})
   let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
@@ -2935,6 +2936,7 @@ async function dbMigrator(){
     let _sales = (await _models.sale.findAll({attributes:[["customerId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
     let _purchases = (await _models.purchase.findAll({attributes:[["supplierId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
     let totaltables = tables.length + cust_ids.length + supp_ids.length + _sales.length + _purchases.length + 1;
+    // return console.log({cust_ids});
     // Resetting main db
     updateProgressbar(win,0,totaltables);
     let progress = 1;

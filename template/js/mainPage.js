@@ -1232,8 +1232,8 @@ async function manageBank(e){
     }
 }
 
-ipcRenderer.on("execute-progressbar",(e,val)=>{
-    createORexecuteProgressbar(val,`DB migration in progress,please wait...`)
+ipcRenderer.on("execute-progressbar",(e,val,text)=>{
+    createORexecuteProgressbar(val,text)
 });
 
 let itemFormContent = function(form){
