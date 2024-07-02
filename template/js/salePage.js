@@ -20,7 +20,7 @@ let nameDatalist = document.createElement("datalist"),
     footer = document.querySelector("footer"),
     bodyRow,timer,currentBillNo,
     probableGrps = [],
-    availableBillNoDL = document.createElement("datalist"),igstFlag;
+    availableBillNoDL = document.createElement("datalist"),igstFlag,preset;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -49,18 +49,30 @@ async function init(){
         option.textContent = key==="Bag"?"Bag (=50 Kg)":key;
         unitDatalist.appendChild(option);
     });
+    preset = await ipcRenderer.invoke("get-presets");
+    if(preset && preset?.target==="salePage"){
+        customer = preset.customer;
+        if("billMeta" in preset)
+            billMeta = {...preset.billMeta};
+        if("itemList" in preset)
+            orderItems = preset.itemList.map(itemObj=>{
+                return {
+                    ...itemObj,
+                    qty:itemObj.quantity,
+                    sellUnit:itemObj.unit
+                }
+            });
+    }
+    else
+        preset = undefined;
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
-    setFooter();
+    if(typeof preset!=="undefined" && preset?.target==="salePage")
+        while(preset.currentStep>currentStep)
+            document.querySelector(`[data-type="proceed"]`).click();
     document.body.appendChild(unitDatalist);
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj);
-    let preset = await ipcRenderer.invoke("get-presets");
-    if(preset && preset?.target==="salePage"){
-        customer = preset.customer;
-        reInitFormData();
-        document.querySelector(`[data-type="proceed"]`).click();
-    }
 }
 init().catch((err)=>{
     console.log(err)
@@ -114,7 +126,7 @@ function helperFunc1(itemObj){
     calculateAmounts();
 }
 
-function reInitFormData(){
+async function reInitFormData(){
     let main = document.querySelector("main");
     [ customer, billMeta, orderItems ]
     .forEach(obj=>{
@@ -173,8 +185,8 @@ function reInitFormData(){
                 main.querySelector("input[data-name='transportContact']").value = obj.transportContact ?? "";
             }
             //Step 4
-            if(!("payment" in billMeta)) return;
-            billMeta.payment.forEach((payObj,i)=>{
+            if(!("payment" in billMeta) || ("paymentStatus" in billMeta && billMeta.paymentStatus==false)) return;
+            billMeta.payment?.forEach?.((payObj,i)=>{
                 if(i===0)
                     showPaymentMode({value:payObj.type});
                 Object.keys(payObj)
@@ -198,12 +210,12 @@ async function mainForm(){
     let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
     document.querySelector("main").appendChild(page);
     if(currentStep===2 && !page2initialized){
-        document.querySelector(`[data-name="billDate"]`).valueAsDate = new Date();
-        billMeta.billDate = document.querySelector(`[data-name="billDate"]`).value;
-        currentBillNo = await ipcRenderer.invoke("get-sale-bill-number");
+        billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : new Date();
+        document.querySelector(`[data-name="billDate"]`).valueAsDate = billMeta.billDate;
+        currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
         if(availableBillNo.length>0){
             let input = document.getElementById("bill-number-regular");
-            input.setAttribute("list","available-bill-no-div");
+            input?.setAttribute("list","available-bill-no-div");
         }
         billMeta.billNo = currentBillNo;
         billMeta.billType = "regular";
@@ -244,7 +256,7 @@ function page4Init(){
     let netAmtTax = Math.round(billMeta.netAmtTax);
     document.querySelector("#summary-div .highlight").textContent = Math.round(netAmtTax);
     document.querySelector("[data-name='netAmtTaxDel']").textContent = netAmtTax;
-    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,obj)=>acc+obj.payment,0):0;
+    let netPayment = "payment" in billMeta ? billMeta.payment.reduce?.((acc,obj)=>acc+obj.payment,0):0;
     if(netAmtTax-netPayment>0){
         document.querySelector(`[data-name="dueAmt"]`).textContent = netAmtTax-netPayment;
         document.querySelector(`[data-name="return"]`).textContent = 0;
@@ -298,10 +310,10 @@ function proceedOrFinishHandler(e){
         else{
             probableGrps = [];
             orderItems.forEach(async itemObj=>{
-                ["sgst","cgst","igst"].forEach(key=>{
-                    if(itemObj[key]===0)
-                        Reflect.deleteProperty(itemObj,key);
-                });
+                // ["sgst","cgst","igst"].forEach(key=>{
+                //     if(itemObj[key]===0)
+                //         Reflect.deleteProperty(itemObj,key);
+                // });
                 let grpObj = probableGrps.find(obj=>obj.rate===itemObj.rate);
                 if(itemObj.type!=="grp"){
                     if(!grpObj)
@@ -322,10 +334,7 @@ function proceedOrFinishHandler(e){
                         }
                     });
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
-                    Object.keys(obj)
-                    .forEach(key=>{
-                        itemObj[key] = obj[key];
-                    });
+                    itemObj.id = obj.id
                 }
             });
             if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
@@ -624,6 +633,10 @@ ipcRenderer.on("print-obj",(e,printObj)=>{
 
 async function saveExit(){
     let dbInitialized = await ipcRenderer.invoke("db-init-status");
+    if(typeof preset!=="undefined" && dbInitialized){
+        ipcRenderer.send('cancel-sale-bill',currentStep)
+        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta);
+    }
     if(dbInitialized)
         ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
     else

@@ -315,7 +315,7 @@ exports.renderPieChart = function(canvas,startAngle=0,endAngle,fillStyle,strokeS
     ctx.fillStyle = !fillStyle ? `hsl(${endAngle*57.29},100%,70%)` : fillStyle;
     ctx.strokeStyle = !strokeStyle ? `white` : strokeStyle;
     ctx.lineTo(width/2,height/2);
-    ctx.closePath();
+    // ctx.closePath();
     ctx.arc(width/2,height/2,width/2-8,startAngle,endAngle,false);
     ctx.fill();
     ctx.stroke();
@@ -1295,7 +1295,7 @@ exports.showPaymentMode = function(e){
 }
 
 exports.reassignSummaryDivFeilds = function(){
-    let netPayment = "payment" in billMeta ? billMeta.payment.reduce((acc,payObj)=>acc + payObj.payment,0):0;
+    let netPayment = "payment" in billMeta ? billMeta.payment.reduce?.((acc,payObj)=>acc + payObj.payment,0):0;
     let deliveryCharge = billMeta.deliveryType==="hand"?0:Number(billMeta.transportCharge);
     document.querySelector("[data-name='paymentAmt']").textContent = netPayment;
     if(Math.sign(deliveryCharge + billMeta.netAmtTax - netPayment)<=0){
@@ -1562,13 +1562,23 @@ exports.upperCaseInput = function(e){
         e.preventDefault();
 }
 
-exports.createORexecuteProgressbar = function(value=0,msg){
+exports.createORexecuteProgressbar = function(value=0,{text,text2,cancelObj:{useCancel,cancelBtnText,cancelToken}}){
     let progressbar = document.getElementById("progressbar");
     if(!progressbar)
         progressbar = document.body.appendChild(document.getElementById("progressbar-template").content.cloneNode(true).querySelector("div"));
     progressbar.querySelector("#progress").value = value;
-    progressbar.querySelector("#progress-text").textContent = msg;
+    progressbar.querySelector("#progress-text").textContent = text;
+    progressbar.querySelector("#progress-context").textContent = text2;
     progressbar.querySelector("#percentage").textContent = `${value}%`;
+    if(useCancel){
+        let cancelBTN = progressbar.querySelector("#progress-cancel-btn");
+        cancelBTN.classList.remove("hide");
+        cancelBTN.textContent = cancelBtnText;
+        cancelBTN.addEventListener("click",async ()=>{
+            await ipcRenderer.invoke(cancelToken);
+            progressbar.remove();
+        })
+    }
     if(value===100)
         progressbar.remove();
 }
@@ -1624,4 +1634,13 @@ exports.textRollAnnimation = function(e){
             });
         });
     }
+}
+
+exports.traverseParent = function traverseParent(elem,matchClass){
+    if(elem===document.body)
+        return false;
+    if(elem.parentNode.classList.contains(matchClass))
+        return elem.parentNode;
+    else
+        return traverseParent(elem.parentNode,matchClass);
 }

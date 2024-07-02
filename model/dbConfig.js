@@ -73,7 +73,12 @@ sequelize.authenticate()
     console.error(err)
 });
 
-const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path.resolve(appPath,"./model/schema.js")).init(DataTypes,UUIDV4);
+let path2schema = path.resolve(appPath,"./model/schema.js");
+
+if(!fs.existsSync(path2schema))
+    path2schema = "../schema.js";
+
+const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path2schema).init(DataTypes,UUIDV4);
 
 module.exports = {
     supplier: sequelize.define("supplier",supplier,{
@@ -118,7 +123,7 @@ module.exports = {
             closeBill(){
                 this.setDataValue("billStatus","open");
             },
-            setValues({del_billAmt,del_netAmt,del_tax}){
+            updateBillValues: function({del_billAmt,del_netAmt,del_tax}){
                 this.setDataValue("billAmt",this.getDataValue("billAmt")+del_billAmt);
                 this.setDataValue("netAmt",this.getDataValue("netAmt")+del_netAmt);
                 this.setDataValue("tax",this.getDataValue("tax")+del_tax);

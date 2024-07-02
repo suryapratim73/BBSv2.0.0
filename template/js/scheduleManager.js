@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, drawSpinner, capitalize, applySpinner, noDataPlaceholder, bodyRowInpFillup, bodyRow, tableFillupHelper, removeAllElem, appendToHost, applyTheme } = require("../js/common");
+const { toggleDevTool, drawSpinner, capitalize, applySpinner, noDataPlaceholder, bodyRowInpFillup, bodyRow, tableFillupHelper, removeAllElem, appendToHost, applyTheme, traverseParent } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -22,14 +22,14 @@ applySpinner(async ()=>{
 });
 
 function clickHandler(e,evObj){
-    if(!("cmd" in e.target.dataset) && !(e.path.find(elem=>elem.classList?.contains("tbody")))) return;
-    let { cmd } = (e.path?.find(elem=>elem.classList?.contains("tbody")) ?? e.target).dataset;
+    if(!("cmd" in e.target.dataset) && !(traverseParent(e.target,"tbody"))) return;
+    let { cmd } = traverseParent(e.target,"tbody").dataset ?? e.target.dataset;
     if(cmd==="open-event"){
         currentStep = 2;
         removeAllElem(".page");
         appendToHost(`#page-${currentStep}-template`,document.body,"div");
         if(!evObj)
-            evObj = JSON.parse(e.path.find(elem=>elem.classList.contains("body") && elem.classList.contains("row")).dataset.obj);
+            evObj = JSON.parse(traverseParent(e.target,"row").dataset.obj);
         Object.keys(evObj)
         .forEach(key=>{
             if(["id","user","color"].includes(key)) return;

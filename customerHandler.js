@@ -1,5 +1,5 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
-const { createModal, getMainWindow } = require("./createModal");
+const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
@@ -20,11 +20,7 @@ exports.customerPortal = mainWindow =>{
         let windowOptions = {
             width: 800,
             height: 600,
-            parent:mainWindow,
-            webPreferences: {
-                nodeIntegration: true,
-                enableRemoteModule: true
-            }
+            parent:mainWindow
         }   
         let pathToHTML = "./template/html/customerPortal.html";
         createModal(windowOptions,pathToHTML,{
@@ -169,18 +165,14 @@ ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
             }
         })
         appLogger("received payment",JSON.stringify({name,payment}));
-        let topLine = (await (customerLedger.findOne({
-            order:[
-                ["entryNo","DESC"]
-            ]
-        }))).dataValues;
         let msg = {
             type: "info",
             title: "Payment Added",
             message: "Customer payment registered successfully."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        return {topLine};
+        
+        return;
     }
     catch(err){
         return err;
@@ -365,15 +357,13 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
         return customerList.find(obj=>obj.id===id);
 });
 
-ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,custId:id})=>{
+ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,customerId:id,entryNo})=>{
     billNo = Number(billNo);
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billObj = await sale.findOne({
         where:{
-            customerId:id,
-            billNo,
-            billDate:new Date(billDate)
+            entryNo
         }
     });
     let { billAmt:_billAmt,netAmt:_netAmt,tax:_tax } =  olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
@@ -383,7 +373,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
         acc.tax += quantity*rate*tax/100;
         return acc;
     },{ billAmt:0,netAmt:0,tax:0 });
-    let { billAmt,netAmt,tax } =  newitemList.reduce((acc,{igst,sgst,quantity,rate})=>{
+    let { billAmt,netAmt,tax } =  newitemList.reduce((acc,{igst,sgst,qty:quantity,rate})=>{
         let tax = igst>0 ? igst : 2*sgst;
         acc.netAmt += quantity*rate;
         acc.billAmt += quantity*rate*(1+tax/100);
@@ -392,24 +382,26 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
     },{ billAmt:0,netAmt:0,tax:0 });
     let entries = (await customerLedger.findAll({
         where:{
-            date:{
-                [Op.gte]:new Date(billDate)
-            },
-            billNo:{
-                [Op.gte]:billNo
-            }
+            [Op.and]:[
+                {date:{
+                    [Op.gte]:new Date(billDate)
+                }},
+                {billNo:{
+                    [Op.gte]:billNo
+                }}
+            ]
         }
     }));
     Promise.all([
         //Sale Table update
-        ()=>{
-            billObj.setValues = {del_billAmt:billAmt-_billAmt,del_netAmt:netAmt-_netAmt,del_tax:tax-_tax};
+        (()=>{
+            billObj.updateBillValues = {del_billAmt:billAmt-_billAmt,del_netAmt:netAmt-_netAmt,del_tax:tax-_tax};
             return billObj.save();
-        },
-        //Customer Ledger update
+        })(),
+        // Customer Ledger update
         ...entries.map(entry=>{
             entry.updateBalance = billAmt-_billAmt;
-            return entry.save()
+            return entry.save();
         }),
         //Stock update
         ...olditemList.map(async itemObj=>{
@@ -418,7 +410,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
                     name:itemObj.name
                 }
             })).destroy();
-            let stockInst = stock.findOne({
+            let stockInst = await stock.findOne({
                 where:{
                     name:itemObj.name
                 }
@@ -428,14 +420,22 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
         }),
         ...newitemList.map(async itemObj=>{
             billItemModel.create({
-                ...itemObj
+                name:itemObj.name,
+                hsn:itemObj.hsn,
+                quantity:itemObj.qty,
+                unit:itemObj.sellUnit,
+                rate:itemObj.rate,
+                cgst:itemObj.cgst,
+                sgst:itemObj.sgst,
+                igst:itemObj.igst,
+                tax:itemObj.igst>0?itemObj.igst:2*itemObj.cgst
             });
-            let stockInst = stock.findOne({
+            let stockInst = await stock.findOne({
                 where:{
-                    name:itemObj.name
+                    id:itemObj.id
                 }
             });
-            stockInst.reduceStock = itemObj.quantity;
+            stockInst.reduceStock = itemObj.qty;
             return stockInst.save();
         })
     ])
@@ -444,7 +444,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
             title:"Bill updated",
             message:"Bill updated"
         });
-        e.sender.send("close-modal");
+        getTargetWindow("customer-portal").webContents.send("close-modal");
     })
     .catch(console.log)
 });

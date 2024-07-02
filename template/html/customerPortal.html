@@ -13,7 +13,7 @@
       <div id="canvas-container">
         <canvas width="200" height="200"></canvas>
       </div>
-      <p>Sale distribution pie chart</p>
+      <p>Credit distribution pie chart</p>
       <p>* Click on color to bring customer into view</p>
     </div>
     <div id="right-div">
@@ -211,108 +211,6 @@
           <canvas id="bill-graph"></canvas>
           <canvas id="payment-graph"></canvas>
         </div>
-      </div>
-    </template>
-    <template id="add-item-template">
-      <div class="page page1">
-        <div id="table">
-          <div class="row head">
-            <div class="col eq-space"><p>Sl No.</p></div>
-            <div class="col eq-space"><p>Particular</p></div>
-            <div class="col eq-space"><p>HSN No</p></div>
-            <div class="col eq-space"><p>Quantity</p></div>
-            <div class="col eq-space"><p>Unit</p></div>
-            <div class="col eq-space"><p>Rate</p></div>
-            <div class="col eq-space"><p>Amount</p></div>
-            <div class="col eq-space"><p>CGST</p></div>
-            <div class="col eq-space"><p>SGST</p></div>
-            <div class="col eq-space"><p>IGST</p></div>
-            <div class="col eq-space"><p>Total</p></div>
-          </div>
-          <div
-            id="tbody"
-            class="hide-scrollbar"
-            onclick="deleteRow(event)"
-            onmouseover="showDeleteBTN(event)"
-            oninput="calculateAmounts(event)"
-            onchange="selectionHandler(event)"
-          >
-            <div class="row row-control-div" id="add-item">
-              <button type="button" onclick="addRow(event)">+</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <button onclick="addItem2Bill(event)" class="main-ui-btn">Update</button>
-          <button onclick="showBillPage()">Cancel</button>
-        </div>
-      </div>
-    </template>
-    <template id="body-row-template">
-      <div class="body row">
-        <div class="col eq-space"><p class="slno"></p></div>
-        <div class="col eq-space">
-          <input type="text" data-name="name" list="stock-names" />
-        </div>
-        <div class="col eq-space">
-          <input
-            data-name="hsn"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space">
-          <input
-            data-name="quantity"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space">
-          <input data-name="unit" type="text" list="unit-dl" />
-        </div>
-        <div class="col eq-space">
-          <input
-            data-name="rate"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space"><p class="amt"></p></div>
-        <div class="col eq-space">
-          <input
-            data-name="cgst"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space">
-          <input
-            data-name="sgst"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space">
-          <input
-            data-name="igst"
-            type="text"
-            data-type="Number"
-            data-subtype="price"
-            onkeypress="validateInput2(event)"
-          />
-        </div>
-        <div class="col eq-space"><p class="amt-with-tax"></p></div>
       </div>
     </template>
     <template id="body-row-options-template">

@@ -72,10 +72,6 @@ ipcMain.on("show-print-modal",(e,...arg)=>{
         width: 400,
         height: 450,
         resizable:false,
-        webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-        },
         parent:parentWindow,
         contextIsolation:true,
         movable:false,
@@ -112,10 +108,6 @@ exports.printDialog = function(cb){
         width: 400,
         height: 450,
         resizable:false,
-        webPreferences: {
-            nodeIntegration: true,
-            devTools:true
-        },
         parent:BrowserWindow.getFocusedWindow(),
         contextIsolation:true,
         movable:false,

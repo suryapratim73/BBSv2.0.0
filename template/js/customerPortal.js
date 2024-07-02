@@ -43,24 +43,15 @@ ipcRenderer.invoke("init-theme").then(applyTheme.bind(document,null));
 
 ipcRenderer.on("apply-theme",applyTheme.bind(document));
 
-function rgbToHex(r, g, b){
-    if (r > 255 || g > 255 || b > 255)
-        throw "Invalid color component";
-    return ((r << 16) | (g << 8) | b).toString(16);
-}
-
 document.querySelector("#canvas-container").addEventListener("click",function(e){
     ctx.restore();
     drawPieChart();
-    let {x,y} = e;
+    let {offsetX:x,offsetY:y} = e;
     canvas = e.target;
-    y -= canvas.offsetTop;
     ctx = canvas.getContext("2d");
-    let imgData = ctx.getImageData(x,y,1,1).data;
-    let hex = "#" + ("000000" + rgbToHex(imgData[0], imgData[1], imgData[2])).slice(-6);
-    [...document.querySelectorAll(".customer-div")].forEach(div=>div.style.borderColor = "black");
-    let {id,startAngle,endAngle} = colorCode.find(({color})=>color===hex) ?? {};
-    if(!id) return;
+    let angle = Math.atan2(100-y,x-100);
+    angle = Math.abs(angle>0 ? 2*Math.PI - angle : angle);
+    let {id,startAngle,endAngle} = colorCode.find(({startAngle,endAngle})=>(angle>=startAngle && angle<=endAngle)) ?? {};
     let customerDiv = document.querySelector(`[data-cust-id="${id}"]`)
     customerDiv.scrollIntoView(false);
     customerDiv.style.borderColor = "red";
@@ -552,28 +543,8 @@ async function billUtils(e){
     else if(cmd==="print")
         ipcRenderer.send("print",name,billDate,billNo);
     else if(cmd==="add-item"){
-        document.getElementById("bill-option-content").classList.add("hide");
-        let modal = document.getElementById("bill-option-modal");
-        let div = document.getElementById("add-item-template").content.cloneNode(true).querySelector("div");
-        modal.appendChild(div);
-        modal.dataset.custId = id;
-        modal.dataset.billNo = billNo;
-        modal.dataset.billDate = billDate;
         let itemList = await ipcRenderer.invoke("get-bill-items-portal",id,billNo,billDate);
-        modal.dataset.itemList = JSON.stringify(itemList);
-        let bodyRowTemp = document.getElementById("body-row-template").content;
-        itemList.forEach((item,i)=>{
-            let bodyRow = bodyRowTemp.cloneNode(true).querySelector("div");
-            div.querySelector("#tbody .row-control-div").before(bodyRow);
-            bodyRow.querySelector("p.slno").textContent = i+1;
-            [...bodyRow.querySelectorAll("input")]
-            .forEach(inp=>{
-                inp.value = item[inp.dataset.name];
-            });
-            let tax = item.igst==0?2*item.sgst:item.igst;
-            bodyRow.querySelector(".amt").textContent = item.quantity * item.rate;
-            bodyRow.querySelector(".amt-with-tax").textContent = (item.quantity * item.rate)*(1+tax/100);
-        })
+        ipcRenderer.send("edit-bill",id,billNo,billDate,itemList);
     }
     else
     if(cmd==="cancel-bill")
@@ -619,29 +590,6 @@ function calculateAmounts(e){
         bodyRow.querySelector("p.amt-with-tax").textContent = roundOffTo2DecimalPlace(rate * qty * (1 + (tax/100)));
 }
 
-function addRow(e){
-    let bodyRow = document.getElementById("body-row-template").content.cloneNode(true).querySelector(".body.row");
-    document.getElementById("add-item").before(bodyRow);
-    [...document.querySelectorAll("#bill-option-modal .page .body.row")]
-    .forEach((row,i)=>{
-        row.querySelector("p").textContent = i + 1;
-    });
-    let indexNo = bodyRow.querySelector("p").textContent;
-    itemList = itemList.filter(obj=>obj.rowId!==uuid.v5(indexNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8"));
-    itemList.push({rowId:uuid.v5(indexNo,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")});
-}
-
-function deleteRow(e){
-    if(e.target.nodeName==="BUTTON" && e.target.dataset.cmd==="DELETE"){
-        let bodyRow = e.target.parentNode.parentNode;
-        bodyRow.remove();
-        [...document.querySelectorAll("#add-item-modal .body.row")]
-        .forEach((row,i)=>{
-            row.querySelector("p").textContent = i+1;
-        });
-    }
-}
-
 function back2page1(){
     [...document.querySelectorAll("#bill-option-modal .page")]
     .forEach((page,i)=>{
@@ -652,30 +600,8 @@ function back2page1(){
     });
 }
 
-function addItem2Bill(e){
-    let modal = e.path.find(elem=>elem.id==="bill-option-modal");
-    let olditemList = JSON.parse(modal.dataset.itemList);
-    let { custId,billNo,billDate } = modal.dataset;
-    let objProto = Object.keys(olditemList[0]).map(key=>({key,type:typeof olditemList[0][key]})) 
-    let newitemList = [];
-    [...modal.querySelectorAll(".page1 .body.row")]
-    .forEach((bodyRow,i)=>{
-        let itemObj = {};
-        objProto
-        .forEach(({key,type})=>{
-            let input = bodyRow.querySelector(`[data-name="${key}"]`);
-            let val;
-            if(input)
-                val = type=="number" ? Number(input.value) : input.value;
-            else
-                val = type==="boolean" ? false : null;
-            itemObj[key] = val;
-            itemObj.itemNo = i+1;
-        });
-        newitemList.push(itemObj);
-    });
-    ipcRenderer.send("add-item-to-bill",olditemList,newitemList,{billNo,billDate,custId});
-    // _closeModal();
+function progressCancel(e){
+    ipcRenderer.send("cancel-"+e.target.dataset.cancelToken);
 }
 
 ipcRenderer.on("close-modal", ()=>{

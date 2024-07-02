@@ -22,10 +22,10 @@ exports.createModal = (windowOptions={},pathToHTML,{
       webPreferences: {
         nodeIntegration: true,
         devTools:true,
-        partition
+        partition,
+        contextIsolation:false,
       },
       parent:BrowserWindow.getFocusedWindow(),
-      contextIsolation:true,
       movable:false,
       show:false,
       modal:false,

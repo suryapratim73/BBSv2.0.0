@@ -1006,11 +1006,15 @@
     <template id="progressbar-template">
         <div id="progressbar" class="progressbar">
             <div>
-                <label id="progress-text" for="progress"></label>
+                <h2 id="progress-text" for="progress"></h2>
+                <p id="progress-context"></p>
                 <span id="percentage"></span>
             </div>
             <div>
                 <progress id="progress" max="100"></progress>
+            </div>
+            <div>
+                <button id="progress-cancel-btn" class="hide">Cancel</button>
             </div>
         </div>
     </template>

@@ -9,10 +9,6 @@ let windowOptions = {
     width: 600,
     height: 400,
     resizable:false,
-    webPreferences: {
-      nodeIntegration: true,
-      devTools:true
-    },
     show:false,
     contextIsolation:true
   };

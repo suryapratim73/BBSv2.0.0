@@ -7,11 +7,7 @@ const {stock} = require("./model/dbConfig");
 let stockList = [],
     windowOptions = {
         width: 800,
-        height: 600,
-        webPreferences: {
-            nodeIntegration: true,
-            enableRemoteModule: true
-        }
+        height: 600
     };
 
 exports.displayStock = mainWindow =>{
@@ -113,17 +109,18 @@ ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
 });
 
 ipcMain.handle("create-stock",async (e,itemObj)=>{
-    let tax = 1 + ("igst" in itemObj ? itemObj.igst : itemObj.sgst + itemObj.cgst)/100;
-    let buyPrice = Math.round(itemObj.rate/tax);
-    if(!buyPrice)
-        buyPrice = 0;
-    itemObj = await stock.create({
-        name:itemObj.name,
-        hsn:itemObj.hsn,
-        buyPrice
+    itemObj = await stock.findOrCreate({
+        where:{
+            name:itemObj.name,
+        },
+        defaults:{
+            name:itemObj.name,
+            hsn:itemObj.hsn,
+            buyPrice:0
+        }
     });
-    stockList.push(new People(itemObj.dataValues));
-    return itemObj.dataValues;
+    ipcMain.emit("refresh-stocklist");
+    return itemObj[0].dataValues;
 });
 
 ipcMain.on("item-pinfo",async (e,id,key,value)=>{

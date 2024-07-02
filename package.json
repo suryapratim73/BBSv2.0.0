@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.16.7",
+  "version": "2.17.0",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -31,9 +31,9 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "electron": "^11.5.0",
-    "electron-builder": "^23.6.0",
-    "nodemon": "^2.0.22"
+    "electron": "^31.0.1",
+    "electron-builder": "^24.13.3",
+    "nodemon": "^3.1.3"
   },
   "browserslist": {
     "production": [
@@ -52,7 +52,7 @@
     "productName": "Bigbyte Business Service",
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
-    "nodeVersion": "16.20.2",
+    "nodeVersion": "22.3.0",
     "linux": {
       "target": [
         {
@@ -72,7 +72,9 @@
       ]
     },
     "deb": {
-      "fpm": ["--after-upgrade=updator.sh"]
+      "fpm": [
+        "--after-upgrade=updator.sh"
+      ]
     },
     "win": {
       "target": [
@@ -109,6 +111,6 @@
     ],
     "asar": false,
     "afterPack": "scripts/afterpack.js"
-},
+  },
   "homepage": "http://code.mbtcverse.com/"
 }

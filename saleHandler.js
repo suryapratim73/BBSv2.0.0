@@ -22,11 +22,7 @@ let closeFlag = false,
     saleWindow,
     windowOptions = {
         width: 800,
-        height: 600,
-        webPreferences: {
-            nodeIntegration: true,
-            enableRemoteModule: true
-        }
+        height: 600
     };
 
 exports.saleWindow = ()=>{
@@ -41,7 +37,7 @@ exports.saleWindow = ()=>{
         saleWindow?.on("close",(e)=>{
             if(!closeFlag){
                 e.preventDefault();
-                e.sender.send("get-current-step");
+                saleWindow.send("get-current-step");
             } else
                 closeFlag = false;
             getMainWindow().webContents.send("update-content");

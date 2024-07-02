@@ -15,7 +15,7 @@ const {
   crashReporter,
   powerMonitor,
   Notification,
-  shell
+  shell,
 } = require("electron");
 const {
   billNoCounter,
@@ -36,6 +36,8 @@ const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
+
+
 let {
   createModal,
   getTargetWindow,
@@ -80,9 +82,9 @@ windowOptions = {
     webPreferences: {
       nodeIntegration: true,
       devTools: true,
+      contextIsolation: false,
     },
     show: false,
-    contextIsolation: true,
   },
   currentUser,
   totpTimer,
@@ -166,7 +168,7 @@ async function createWindow() {
     y: winState.y,
     minWidth: 800,
     minHeight: 600,
-    title: "BBSv2.0.0",
+    title: "BBSv2"
   };
   windowOptions.resizable = true;
   windowOptions.maximizable = true;
@@ -194,7 +196,7 @@ async function createWindow() {
     if (authCookies.length > 0) {
       let cookieObj = authCookies[0];
       let _user = JSON.parse(cookieObj.value);
-      if (_user && cookieObj.expirationDate > Date.now()) {
+      if (_user && cookieObj.expirationDate > Date.now()/1000) {
         let { id, name, secret, role, session, sessionTime, usePasswd } = _user;
         currentUser = new User(
           id,
@@ -256,8 +258,8 @@ async function createWindow() {
     // Removing replica DB when it served it purpose.    
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{
-      if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
-        fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
+      // if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
+      //   fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
       let files = fs.readdirSync(path.resolve(app.getPath("documents"),"./Bills/"))
       files.filter(file=>/_temp/.test(file))
       .forEach(file=>{
@@ -320,9 +322,6 @@ async function createWindow() {
             mainWindow.setProgressBar(0,{mode:"normal"});
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
-            appLogger({
-              title:"-------DB Migration Complete-------"
-            })
           }
         }
       }
@@ -427,7 +426,6 @@ async function createWindow() {
       appLogger({
         title:"Error",
         message:String(err),
-        test:{app},
         func:"Trying to login error"
       });}
   }
@@ -1117,7 +1115,7 @@ ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd, lockOnIdle:_
     }
     currentUser.usePasswd = usePasswd;
     await createSession(
-      Date.now() + currentUser.sessionTime - currentUser.lastLogin
+      Date.now()/1000 + currentUser.sessionTime - currentUser.lastLogin
     );
     await user.update({ usePasswd }, { where: { id: currentUser.id } });
   } catch (err) {
@@ -1179,7 +1177,7 @@ async function createSession(time) {
     name: "bbs_auth",
     value: JSON.stringify(currentUser),
     url: "http://localhost",
-    expirationDate: Date.now() + time,
+    expirationDate: (new Date().getTime()/1000 + time),
   };
   let mainWin = getMainWindow();
   let ses = mainWin.webContents.session;
@@ -1200,15 +1198,15 @@ ipcMain.handle("create-login-session", async (e, { expiry }) => {
     await user.update(
       {
         session: true,
-        sessionTime: Number(expiry) * 1000 * 60 * 60,
+        sessionTime: Number(expiry) * 60 * 60,
       },
       {
         where: { id: currentUser.id },
       }
     );
     currentUser.session = true;
-    currentUser.sessionTime = Number(expiry) * 1000 * 60 * 60;
-    await createSession(Number(expiry) * 1000 * 60 * 60);
+    currentUser.sessionTime = Number(expiry) * 60 * 60;
+    await createSession(Number(expiry) * 60 * 60);
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"Create-login-session-ipc"});
     return err;
@@ -1230,7 +1228,7 @@ ipcMain.handle("remove-auth-session", async () => {
     await ses.cookies.remove("http://localhost", "bbs_auth");
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"Remove-auth-session-ipc"});
-    return error;
+    return err;
   }
 });
 
@@ -2278,6 +2276,9 @@ function downloadUpdate(appVersion){
     message:"Downloading update"
   });
   let fileWriter, downloadURL,fileName,mainWin = getMainWindow();
+  let abortController = new AbortController();
+  let cancelToken = uuid.v4();
+
   if(process.platform==="linux"){
     fileName = `bbs_${appVersion}_amd64.deb`;
     fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
@@ -2293,14 +2294,22 @@ function downloadUpdate(appVersion){
   if(process.platform==="darwin"){
     // mac case
   }
+
+  ipcMain.handleOnce(cancelToken,()=>{
+    abortController.abort("Aborted by user");
+    if(fs.existsSync(app.getPath("appData")+`/BBS/${fileName}`))
+      fs.rmSync(app.getPath("appData")+`/BBS/${fileName}`)
+    return
+  });
+
   axios.get(downloadURL,{
     responseType:"stream",
     onDownloadProgress(e){
       let total = e.total;
       let current = e.loaded;
-      updateProgressbar(mainWin,current,total,"Downloading update...");
+      updateProgressbar(mainWin,current,total,"Downloading update...","",{useCancel:true,cancelBtnText:"Cancel",cancelToken});
     },
-    // signal:new AbortController()
+    signal:abortController.signal
   })
   .then(resp=>{
     if(resp.ok) appLogger({message:"Response received from server"});
@@ -2684,12 +2693,8 @@ function lockOnIdle(){
 ipcMain.on("call-scheduler",()=>{
   let pathToHTML = "./template/html/scheduler.html";
   let windowOptions = {
-      webPreferences: {
-          nodeIntegration: true,
-          devTools:true
-      },
-      parent:getMainWindow(),
-      movable:true
+    parent:getMainWindow(),
+    movable:true
   }
   createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true});
 });
@@ -2883,10 +2888,6 @@ function schemaValidator(){
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
   let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
   if(schemas.length!=_schemas.length) return false;
-  appLogger({
-    title:"DB Migration status",
-    message:"Passed 2880"
-  })
   let schema_objs = Object.keys(schemas).map(schema=>({obj1:schemas[schema],obj2:_schemas[schema]}))
   let compareObj = [
     ...schema_objs,
@@ -2900,13 +2901,12 @@ function schemaValidator(){
     return false;
 }
 
-function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait..."){
+function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait...",text2="",cancelObj={useCancel:false}){
   win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
-  win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),text);
+  win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),{text,text2,cancelObj});
 }
 // dbMigrator()
 async function dbMigrator(){
-  debugger
   let _models = require("./model/dbConfig_replica");
   let { schemas,...models } = require("./model/dbConfig");
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
@@ -2915,9 +2915,12 @@ async function dbMigrator(){
   appLogger({
     title:"Taking Backup"
   });
+  updateProgressbar(win,1,2,"DB migration in progress,please wait...","Taking backups")
   try{
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"),"a+");
+    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_backup.db"),"a+");
     appLogger({title:"db copied successfully"});
+    updateProgressbar(win,2,2,"DB migration in progress,please wait...","db copied successfully")
     let _sequelize = new Sequelize({
       dialect:"sqlite",
       storage:path.resolve(appPath,"./db/bbs_replica.db"),
@@ -2936,11 +2939,10 @@ async function dbMigrator(){
     let _sales = (await _models.sale.findAll({attributes:[["customerId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
     let _purchases = (await _models.purchase.findAll({attributes:[["supplierId","id"],"billNo","billDate"]})).map(({dataValues})=>dataValues);
     let totaltables = tables.length + cust_ids.length + supp_ids.length + _sales.length + _purchases.length + 1;
-    // return console.log({cust_ids});
     // Resetting main db
-    updateProgressbar(win,0,totaltables);
+    updateProgressbar(win,0,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
     let progress = 1;
-    updateProgressbar(win,progress,totaltables);
+    updateProgressbar(win,progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
     async function helperfunc1(id,_schema,schema,mode=2){
       try{
         if(mode===1)
@@ -3025,7 +3027,7 @@ async function dbMigrator(){
       catch(err){
         console.log(err);
       } finally{
-        updateProgressbar(win,++progress,totaltables);
+        updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
       }
     }
     Promise.allSettled([
@@ -3038,7 +3040,7 @@ async function dbMigrator(){
           } catch (err) {
             console.log(err);
           } finally {
-            updateProgressbar(win,++progress,totaltables);
+            updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
         }
         return
@@ -3052,7 +3054,7 @@ async function dbMigrator(){
           } catch (err) {
             console.log(err);
           } finally {
-            updateProgressbar(win,++progress,totaltables);
+            updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
         }
         return
@@ -3066,7 +3068,7 @@ async function dbMigrator(){
           } catch (err) {
             console.log(err)
           } finally{
-            updateProgressbar(win,++progress,totaltables);
+            updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
         }
         return;
@@ -3077,16 +3079,22 @@ async function dbMigrator(){
       fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
       win.setProgressBar(-1);
+      appLogger({
+        title:"DB Migration Status",
+        message:"Saving a copy of old schemas"
+      })
+      fs.copyFileSync(path.resolve(appPath,"./model/schema_replica.js"),path.resolve(appPath,"./model/old_schema.js"));
+      fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas_replica.js"),path.resolve(appPath,"./model/old_dynamic_schema.js"));
+      appLogger({
+        title:"DB Migration Status",
+        message:"Applying new changes to old schemas"
+      })
       fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
       fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas.js"),path.resolve(appPath,"./model/dynamicSchemas_replica.js"));
       appLogger({
         title:"-----------DB Migration Complete------------",
-        message:"Relaunching app",
-        typeoffuncs:{
-          relaunch:typeof app.relaunch,
-          exit:typeof app.exit
-        }
-      })
+        message:"Relaunching app"
+      });
       app.relaunch();
       app.exit();
     })
@@ -3117,7 +3125,34 @@ ipcMain.on("new-bill",async (e,customerObj)=>{
   Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
   process.presets = {
     customer:customerObj,
-    target:"salePage"
+    target:"salePage",
+    currentStep:2
+  };
+});
+
+ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
+  if(!["all", "admin", "bill"].includes(currentUser.role)) return;
+  let saleObj = (await sale.findOne({
+    where:{
+      [Op.and]:[
+        {customerId},
+        {billNo:Number(billNo)},
+        {billDate:new Date(billDate)}
+      ]
+    }
+  }))?.dataValues;
+  let customerObj = (await customer.findOne({
+    where:{
+      id:customerId
+    }
+  }))?.dataValues;
+  Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
+  process.presets = {
+    customer:customerObj,
+    billMeta:saleObj,
+    itemList,
+    target:"salePage",
+    currentStep:3
   };
 });
 
@@ -3145,4 +3180,4 @@ ipcMain.on("booted",async (e)=>{
       e.sender.send("product-info-fillup-modal",products);
     })
   }
-})
+});

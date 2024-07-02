@@ -16,11 +16,7 @@ let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData")
 const { supplierLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
 let windowOptions = {
     width: 800,
-    height: 600,
-    webPreferences: {
-        nodeIntegration: true,
-        enableRemoteModule: true
-    }
+    height: 600
 } 
 exports.addPurchase = mainWindow=>{
     return ()=>{
