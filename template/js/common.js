@@ -1140,10 +1140,13 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             if(key==="standardSellPrice"){
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
                 if(selectedItem.specialPrice!==""){
-                    let list = JSON.parse(selectedItem.specialPrice).filter(obj=>obj.customerId===customer.id);
+                    let list = JSON.parse(selectedItem.specialPrice)
+                                .filter(obj=>obj.customerId===customer.id)
+                                .map(obj=>({...obj,name:obj.rate}));
                     let dl = document.createElement("datalist");
                     dl.id = "rate-list";
-                    // appendToDL("",dl,true,null,list)
+                    removeAllElem("#rate-list")
+                    appendToDL("",dl,true,null,[],list)
                 }
             }
             bodyRow.dataset[key] = match[key];

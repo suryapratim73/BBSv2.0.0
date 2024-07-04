@@ -32,7 +32,7 @@ exports.customerPortal = mainWindow =>{
                     // this.webContents.toggleDevTool();
                 });
             }
-        }).openDevTools();
+        });//.openDevTools();
     }
 }
 

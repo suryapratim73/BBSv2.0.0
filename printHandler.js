@@ -59,7 +59,7 @@ ipcMain.handle("get-printers",()=>{
         case "darwin":
             return checkPrintersOnLinuxOrMac("mac");
         default:
-            return getMainWindow().webContents.getPrinters()
+            return getMainWindow().webContents.getPrintersAsync()
     }
 });
 
