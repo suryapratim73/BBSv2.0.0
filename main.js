@@ -17,6 +17,8 @@ const {
   Notification,
   shell,
 } = require("electron");
+// in the main process:, initializing remote for renderer
+require('@electron/remote/main').initialize()
 const {
   billNoCounter,
   getLastBillNo,
@@ -738,6 +740,7 @@ app.on("ready", async () => {
       if (process.platform === "linux") setLinuxThemeObserver();
       await initTheme();
     } catch (err) {
+      // console.log(err)
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });

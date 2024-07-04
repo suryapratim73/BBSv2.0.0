@@ -21,7 +21,7 @@ exports.customerPortal = mainWindow =>{
             width: 800,
             height: 600,
             parent:mainWindow
-        }   
+        }
         let pathToHTML = "./template/html/customerPortal.html";
         createModal(windowOptions,pathToHTML,{
             maxWinCount:1,
@@ -32,7 +32,7 @@ exports.customerPortal = mainWindow =>{
                     // this.webContents.toggleDevTool();
                 });
             }
-        });
+        }).openDevTools();
     }
 }
 

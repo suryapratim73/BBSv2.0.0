@@ -1,4 +1,4 @@
-let {ipcRenderer,app, remote} = require("electron");
+let {ipcRenderer,app} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
 require("dotenv").config();
@@ -874,7 +874,7 @@ exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,
             acc = list[path];
             return acc;
         },[]);
-    list.forEach(obj=>{
+    list?.forEach(obj=>{
         let option = document.createElement("option");
         for(let key in obj){
             if(key==="name"){
@@ -1032,13 +1032,13 @@ exports.chooseFile = async function (e,filterObj = {name: 'Images',extensions:['
 function policyPathCommmon(relPath,_path){
     let policyPath = __dirname; 
     if(!app)
-        app = typeof remote!="undefined" ? remote.app : app;
+        app = require("@electron/remote").app;
     if(process.env.APP_ENV==="DEV"){
         policyPath = __dirname;
         policyPath = path.resolve(policyPath,relPath,_path);
     }
     else
-        policyPath = path.resolve((app ?? remote.app).getPath("appData")+"/BBS",_path);
+        policyPath = path.resolve(app.getPath("appData")+"/BBS",_path);
     // dialog.showMessageBox({
     //     title:"Path to JSON",
     //     message:policyPath
@@ -1137,8 +1137,15 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             if(key==="unit" && selectedItem.type==="service")
                 input.value = selectedItem.unit;
             else
-            if(key==="standardSellPrice")
+            if(key==="standardSellPrice"){
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
+                if(selectedItem.specialPrice!==""){
+                    let list = JSON.parse(selectedItem.specialPrice).filter(obj=>obj.customerId===customer.id);
+                    let dl = document.createElement("datalist");
+                    dl.id = "rate-list";
+                    // appendToDL("",dl,true,null,list)
+                }
+            }
             bodyRow.dataset[key] = match[key];
         }
         if(match && Object.keys(match).length>2)

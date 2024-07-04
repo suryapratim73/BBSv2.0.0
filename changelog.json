@@ -1,14 +1,10 @@
 {
-    "version":"2.17.0",
+    "version":"2.17.1",
     "highlights":[
-        "Now Bill edit mode opens in default sale register",
-        "Security improvements"
+        "FIX: New Electron version compatibility issue fixed."
     ],
     "fullchange":[
-        "Added download cancel button",
-        "Now Bill edit mode opens in default sale register",
-        "Electron and NodeJs version update",
-        "Piechart customer selection issue fixed.",
-        "File address error fixed."
+        "FIX: New Electron version compatibility issue fixed.",
+        "Special price datalist added."
     ]
 }

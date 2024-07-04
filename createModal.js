@@ -11,7 +11,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
   maxWinCount,
   label,
   partition="persist:bbs_auth",
-  cb
+  cb,
+  enableWebContents=true
 }={})=>{
   let modal;
   let { getAppPolicyPath } = require("./template/js/common");
@@ -24,6 +25,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
         devTools:true,
         partition,
         contextIsolation:false,
+        enableRemoteModule: true
       },
       parent:BrowserWindow.getFocusedWindow(),
       movable:false,
@@ -48,6 +50,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
     modal = new BrowserWindow(windowOptions);
   if(modal){
     modal.removeMenu();
+    if(enableWebContents)
+      require("@electron/remote/main").enable(modal.webContents);
     modal.on("ready-to-show",function(){
       if(show)
         modal.show();
