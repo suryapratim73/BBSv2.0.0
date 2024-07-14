@@ -75,7 +75,12 @@ const { queryStock } = require("./handleStock");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-const dynamicSchemas = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+
+if(!(fs.existsSync(dynamicSchemaPath)))
+  dynamicSchemaPath = "./model/dynamicSchemas.js";
+
+const dynamicSchemas = require(dynamicSchemaPath).init(DataTypes);
 const { billItemSchema,customerLedgerSchema,supplierLedgerSchema } = dynamicSchemas;
 let closeFlag = false,
 windowOptions = {
@@ -308,7 +313,7 @@ async function createWindow() {
               {ext:"./model/",file:"dynamicSchemas_replica.js"}
             ]
             .forEach(({file,ext})=>{
-                fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file),"a+");
+              fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file));
             });
             appLogger({
               title:"DB Migration status",

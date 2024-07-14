@@ -8,10 +8,10 @@ const fs = require("fs");
 const path = require("path");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
 
-if(fs.existsSync(dynamicSchemaPath))
-    dynamicSchemaPath = "./model/dynamicSchemas";
+if(!(fs.existsSync(dynamicSchemaPath)))
+    dynamicSchemaPath = "./model/dynamicSchemas.js";
 
 const { supplierLedgerSchema,customerLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
 
