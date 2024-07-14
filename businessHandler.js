@@ -5,13 +5,15 @@ const { getLedgerModel } = require("./common");
 const { Op, DataTypes } = require("sequelize");
 const { getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
+const path = require("path");
 
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas").init(DataTypes);
+let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
 
 if(fs.existsSync(dynamicSchemaPath))
     dynamicSchemaPath = "./model/dynamicSchemas";
 
-const { supplierLedgerSchema,customerLedgerSchema } = require(dynamicSchemaPath);
+const { supplierLedgerSchema,customerLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
 
 let windowOptions = {
     width: 800,

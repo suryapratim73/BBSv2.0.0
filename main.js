@@ -96,7 +96,7 @@ windowOptions = {
   dbInitialized = false,
   unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
   idleLockTimer,appLocked = true,
-  appIcon = nativeImage.createFromPath("./logo.png");
+  appIcon = nativeImage.createFromPath("./logo256.png");
 const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
   ];
