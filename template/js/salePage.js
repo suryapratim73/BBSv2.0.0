@@ -111,6 +111,9 @@ function helperFunc1(itemObj){
     main.querySelector("#add-item > button").click();
     bodyRow = main.querySelector("#tbody .body.row:nth-last-child(2)");
     selectedItem = itemObj;
+    let sellId = bodyRow.dataset.sellId;
+    if(!("sellId" in itemObj))
+        itemObj.sellId = sellId;
     [...bodyRow.querySelectorAll("input")]
     .forEach(input=>{
         let key = input.dataset.name;

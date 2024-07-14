@@ -13,7 +13,12 @@ const { DataTypes } = require("sequelize");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-const { supplierLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
+
+if(fs.existsSync(dynamicSchemaPath))
+    dynamicSchemaPath = "./model/dynamicSchemas";
+
+const { supplierLedgerSchema, billItemSchema } = require(dynamicSchemaPath).init(DataTypes);
 let windowOptions = {
     width: 800,
     height: 600

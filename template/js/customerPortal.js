@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent } = require("../js/common");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
@@ -421,6 +421,16 @@ page2BTNS.addEventListener("click",async function(e){
         });
     }
     else
+    if(e.target.dataset.cmd==="add-balance"){
+        let custId = traverseParent(e.target,"btn-container").dataset.id;
+        removeAllElem("#opening-balance-modal");
+        let modal = document.getElementById("opening-balance-modal-template").content.cloneNode(true).querySelector("div");
+        document.body.appendChild(modal);
+        modal.classList.remove("hide");
+        modal.querySelector("input").focus();
+        modal.querySelector("form").dataset.id = custId;
+    }
+    else
     if(e.target.dataset.cmd==="new-bill")
         ipcRenderer.send("new-bill",selectedCustomer);
     else
@@ -621,4 +631,11 @@ function setPayFeilds(e){
     removeAllElem(".removable-section");
     let paySegment = document.getElementById(`${payMode}-feild-template`).content.cloneNode(true).querySelector("div");
     document.getElementById("first-section").appendChild(paySegment);
+}
+
+function updateLedger(e){
+    e.preventDefault();
+    let custId = e.target.dataset.id;
+    let balance = Number(e.target.balance.value);
+    ipcRenderer.send("add-opening-balance",custId,balance);
 }

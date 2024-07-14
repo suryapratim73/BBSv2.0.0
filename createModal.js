@@ -1,4 +1,4 @@
-const {BrowserWindow, dialog} = require("electron");
+const {BrowserWindow, dialog, nativeImage} = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -34,6 +34,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
       ...windowOptions
   };
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  let appIcon = nativeImage.createFromPath("./logo.png");
+  windowOptions.icon = appIcon//.resize({height:1024,width:1024});
   if(maxWinCount){
     if(windowList.filter(obj=>obj.label===label).length<maxWinCount){
       modal = new BrowserWindow(windowOptions);

@@ -19,7 +19,7 @@
     <div id="right-div">
       <div id="searchbar">
         <div id="form">
-          <div class="hide" id="btn-container">
+          <div class="hide btn-container" id="btn-container">
             <button data-cmd="new-bill" class="main-ui-btn">New Bill</button>
             <button
               data-cmd="bills"
@@ -51,6 +51,7 @@
             <button data-cmd="update-profile" class="main-ui-btn">
               Update Profile
             </button>
+            <button data-cmd="add-balance">Add Opening Balance</button>
             <button data-cmd="pay" class="main-ui-btn" >Add Payment</button>
             <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">
               Back
@@ -454,6 +455,20 @@
             <button type="button" data-name="cancel" onclick="closeModal(event)">Cancel</button>
         </div>
     </form>
+    </template>
+    <template id="opening-balance-modal-template">
+      <div class="modal hide" id="opening-balance-modal">
+        <form onsubmit="updateLedger(event)" data-cmd="add-opening-balance">
+          <div>
+            <div><label for="balance">Add Opening Balance</label></div>
+            <div><input type="text" name="balance" id="balance" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+          </div>
+          <div>
+            <button type="submit">Update</button>
+            <button type="button" onclick="document.getElementById('opening-balance-modal').classList.add('hide')">Cancel</button>
+          </div>
+        </form>
+      </div>
     </template>
     <!-- datalists -->
     <datalist id="stock-names"></datalist>

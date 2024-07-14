@@ -4,11 +4,17 @@ const { createModal, getMainWindow } = require("./createModal");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
 const path = require("path");
+const fs = require("fs");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-const { billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
+
+if(fs.existsSync(dynamicSchemaPath))
+    dynamicSchemaPath = "./model/dynamicSchemas";
+
+const { billItemSchema, supplierLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
 const suppliers = [];
 
 let windowOptions = {

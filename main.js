@@ -16,9 +16,10 @@ const {
   powerMonitor,
   Notification,
   shell,
+  nativeImage
 } = require("electron");
 // in the main process:, initializing remote for renderer
-require('@electron/remote/main').initialize()
+require('@electron/remote/main').initialize();
 const {
   billNoCounter,
   getLastBillNo,
@@ -94,10 +95,14 @@ windowOptions = {
   firstBoot = false,
   dbInitialized = false,
   unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
-  idleLockTimer,appLocked = true;
+  idleLockTimer,appLocked = true,
+  appIcon = nativeImage.createFromPath("./logo.png");
 const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
   ];
+
+// appIcon = appIcon.resize({height:1024,width:1024});
+// appIcon.addRepresentation({scaleFactor:10})
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -243,7 +248,9 @@ async function createWindow() {
         dialog.showMessageBox({
           title:"Info",
           message:strtMsg,
-          buttons:["Ok"]
+          buttons:["Ok"],
+          noLink:true,
+          icon:appIcon
         });
         spawn("rm -r ~/.config/BBS/*.deb",{
           shell:true,
@@ -454,6 +461,7 @@ exports.billDesignerWindow = (mainWindow) => {
                 let { canceled, filePaths } = await dialog.showOpenDialog({
                   defaultPath: app.getPath("documents"),
                   filters: [{ name: "JSON Files", extensions: ["json"] }],
+                  icon:appIcon
                 });
                 if (canceled) return;
                 fs.readFile(filePaths[0], (err, data) => {
@@ -854,7 +862,9 @@ async function autoPrintMonthlyBills(){// Lookup required
         let resp = await dialog.showMessageBox({
           title:"Auto-print invoices",
           message:"Bills ready for auto-print. Start printing now?",
-          buttons: [ "Print now","Remind me later","Don't print" ]
+          buttons: [ "Print now","Remind me later","Don't print" ],
+          noLink:true,
+          icon:appIcon
         });
         if(resp.response===2){
           return 
@@ -863,7 +873,8 @@ async function autoPrintMonthlyBills(){// Lookup required
         if(resp.response===1)
           dialog.showMessageBox({
             title:"Auto-print postponed",
-            message:"We will remind you to auto-print montly bill after an hour."
+            message:"We will remind you to auto-print montly bill after an hour.",
+            icon:appIcon
           })
         setTimeout(()=>{
           if(scheduledTime===0){
@@ -933,6 +944,7 @@ ipcMain.on("open-salary-modal", (e) => {
       type: "info",
       title: "Salary registered",
       message: "Salary registered successfully.",
+      icon:appIcon
     };
     dialog.showMessageBox(BrowserWindow.getFocusedWindow(), msg);
     e.sender.send("attendance-registered");
@@ -1543,6 +1555,7 @@ ipcMain.on("save-bill-template", async (e, page, saveAs = false) => {
         title: "Success",
         message: "Successfully saved bill layout.",
         type: "info",
+        icon:appIcon
       });
     });
   } catch (err) {
@@ -1561,6 +1574,8 @@ ipcMain.handle("new-template-response", async (e, page) => {
       detail:
         "Changes in document will be earesed unless you save. A new untittled document will be created.",
       buttons: ["Save", "Don't save"],
+      noLink:true,
+      icon:appIcon
     });
   } catch (err) {
     return err;
@@ -1589,6 +1604,7 @@ ipcMain.on("company-profile-info", async (e, data) => {
         title: "Success",
         message: "Company profile updated.",
         type: "info",
+        icon:appIcon
       });
     }
   );
@@ -1625,7 +1641,9 @@ ipcMain.handle("manage-company-bank",async (e,obj,flag)=>{
         let { response } = await dialog.showMessageBox({
           title:"Bank entry deletion",
           message:"Are you sure you want to delete this bank information?",
-          buttons:["Yes","Cancel"]
+          buttons:["Yes","Cancel"],
+          noLink:true,
+          icon:appIcon
         });
         if(response===1)
           return false;
@@ -1878,7 +1896,8 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
             window.webContents.send("update-content");
             dialog.showMessageBox({
               title:"Order removed",
-              message:"Order removed"
+              message:"Order removed",
+              icon:appIcon
             });
           },
         },
@@ -1980,6 +1999,7 @@ ipcMain.on("save-theme-setting", async (e, data) => {
         title: "Success",
         message: "Appearance setting saved.",
         type: "info",
+        icon:appIcon
       });
       if (process.platform === "linux") setLinuxThemeObserver();
       initTheme();
@@ -2004,6 +2024,7 @@ ipcMain.on("save-theme", (e, themeObj) => {
           title: "Theme applied",
           type: "info",
           message: "Applied default theme.",
+          icon:appIcon
         });
         if (process.platform === "linux") setLinuxThemeObserver();
         initTheme();
@@ -2084,7 +2105,8 @@ ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
   if(items.length===0){
     dialog.showMessageBox({
       title:"Nothing picked",
-      message:"Please select something to backup."
+      message:"Please select something to backup.",
+      icon:appIcon
     });
     return false;
   }
@@ -2211,7 +2233,9 @@ async function updateCommon(){//This need a relook
   let resp = await dialog.showMessageBox({
     title:"Download complete",
     message:"Update download complete, do you want to install now?",
-    buttons:["Install Now","Later"]
+    buttons:["Install Now","Later"],
+    noLink:true,
+    icon:appIcon
   });
   if(resp.response===1){
     data.installMoment = "later";
@@ -2369,6 +2393,7 @@ async function checkForUpdates(flag="auto") {
     return dialog.showMessageBox(mainWin, {
       title: "Unauthorized",
       message: "Only Admin and user with role 'all' can check for update.",
+      icon:appIcon
     });
   }
   appLogger({message:"Checking for update"});
@@ -2391,13 +2416,15 @@ async function checkForUpdates(flag="auto") {
     if(flag!=="auto")
       return dialog.showMessageBox({
         title:"Failed to connect",
-        message: "Update server is offline. Check later."
+        message: "Update server is offline. Check later.",
+        icon:appIcon
       });
   }
   if (isOnline === false)
     return dialog.showMessageBox(mainWin, {
       title: "No Connection",
       message: "Failed to connect to update server.",
+      icon:appIcon
     });
   // Parse and santize appVersion
   if (
@@ -2421,7 +2448,8 @@ async function checkForUpdates(flag="auto") {
       if(flag!=="auto")
         return dialog.showMessageBox({
           title:"No new update",
-          message: "Application is at latest release version"
+          message: "Application is at latest release version",
+          icon:appIcon
         });// App is already updated.
       else
         return;
@@ -2430,7 +2458,8 @@ async function checkForUpdates(flag="auto") {
       title: "Update available for download",
       message,
       buttons: ["Download", "Cancel"],
-      noLink:true
+      noLink:true,
+      icon:appIcon
     });
     if (response === 1) return;
     // If app is not already updated.
@@ -2467,7 +2496,8 @@ autoUpdater.on("update-available", () => {
   appLogger({message:"Starting install"});
   dialog.showMessageBox({
     title:"Update available --auto",
-    message:"Testing auto-updator on generic server."
+    message:"Testing auto-updator on generic server.",
+    icon:appIcon
   })
   // autoUpdater.quitAndInstall();
 });
@@ -2779,7 +2809,8 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
     if((flag==="a" || flag==="e") && showMsg===true){
       dialog.showMessageBox({
         title:"Event saved",
-        message:"Notification and action scheduled at the event time."
+        message:"Notification and action scheduled at the event time.",
+        icon:appIcon
       });
       flag==="a" && BrowserWindow.fromId(e.sender.id).close();
     }
@@ -2787,7 +2818,8 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
     if(flag==="r" && showMsg===true)
       dialog.showMessageBox({
         title:"Event removed",
-        message:"Event removed."
+        message:"Event removed.",
+        icon:appIcon
       });
     if(showMsg===true)
       BrowserWindow.fromId(e.frameId).webContents.send("update-content");
@@ -3176,7 +3208,9 @@ ipcMain.on("booted",async (e)=>{
     dialog.showMessageBox({
       title:"Product attributes found missing",
       message:"Some of your item has missing attributes like GST rate. Would you like to fill them up now?",
-      buttons:["Sure","Later"]
+      buttons:["Sure","Later"],
+      noLink:true,
+      icon:appIcon
     }).then(({response})=>{
       if(response===1) return;
       // else show popup to fill in neccessary product information.

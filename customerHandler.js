@@ -12,8 +12,12 @@ const { billPDF } = require("./scripts/makePDF.default");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
 
-const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+if(fs.existsSync(dynamicSchemaPath))
+    dynamicSchemaPath = "./model/dynamicSchemas";
+
+const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
 
 exports.customerPortal = mainWindow =>{
     return ()=>{
@@ -580,5 +584,40 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
         }
         else
             appLogger({title:"Error removing event",message:"Event not found"})
+    })
+});
+
+ipcMain.on("add-opening-balance",async (e,id,balance)=>{
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    let updtObj = {
+        type:"opening-balance",
+        date:new Date(new Date().getFullYear(),3,1),
+        balance
+    },delta = balance;
+    let entry1 = await customerLedger.findOne({
+        where:{
+            type:"opening-balance"
+        }
+    });
+    if(entry1){
+        let _balance = entry1.dataValues.balance;
+        delta = balance - _balance;
+        await entry1.update(updtObj,{
+            where:{
+                type:"opening-balance" 
+            }
+        });
+    }
+    else
+        await customerLedger.create(updtObj);
+    let entries = await customerLedger.findAll();
+    Promise.all([
+        ...entries.filter(obj=>obj.dataValues.type!=="opening-balance").map(entry=>{
+            entry.updateBalance = delta;
+            return entry.save();
+        })
+    ])
+    .then(()=>{
+        getTargetWindow("customer-portal").webContents.send("close-modal");
     })
 });

@@ -14,8 +14,12 @@ const { printPDF } = require("./main");
 const { DataTypes } = require("sequelize");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas");
 
-const { customerLedgerSchema, billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
+if(fs.existsSync(dynamicSchemaPath))
+    dynamicSchemaPath = "./model/dynamicSchemas";
+
+const { customerLedgerSchema, billItemSchema } = require(dynamicSchemaPath).init(DataTypes);
 
 
 let closeFlag = false,

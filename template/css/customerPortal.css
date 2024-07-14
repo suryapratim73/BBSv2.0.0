@@ -455,3 +455,11 @@ option{
     margin-left: auto;
     color: red;
 }
+#opening-balance-modal{
+    width: min-content;
+    height: min-content;
+    display: block;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
