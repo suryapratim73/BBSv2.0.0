@@ -34,7 +34,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
       ...windowOptions
   };
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
-  let appIcon = nativeImage.createFromPath("./logo256.png");
+  let appIcon = nativeImage.createFromPath(path.resolve(__dirname,"./logo256.png"));
   windowOptions.icon = appIcon//.resize({height:1024,width:1024});
   if(maxWinCount){
     if(windowList.filter(obj=>obj.label===label).length<maxWinCount){

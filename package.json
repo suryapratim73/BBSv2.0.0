@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.17.3",
+  "version": "2.17.4",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -68,6 +68,7 @@
         }
       ],
       "category": "Office",
+      "icon":"./logo.png",
       "publish": [
         {
           "provider": "generic",
@@ -90,7 +91,8 @@
           ]
         }
       ],
-      "publisherName": "Codemint"
+      "publisherName": "Codemint",
+      "icon":"./logo.png"
     },
     "nsis": {
       "oneClick": true,
