@@ -6,6 +6,7 @@ const { Op, DataTypes } = require("sequelize");
 const { getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
+const { app } = require("electron");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
