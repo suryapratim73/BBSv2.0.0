@@ -68,6 +68,7 @@
         }
       ],
       "category": "Office",
+      "icon":"./logo256.png",
       "publish": [
         {
           "provider": "generic",
@@ -91,7 +92,7 @@
         }
       ],
       "publisherName": "Codemint",
-      "icon":"./logo.png"
+      "icon":"./logo256.png"
     },
     "nsis": {
       "oneClick": true,
