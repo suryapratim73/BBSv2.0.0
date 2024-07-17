@@ -660,7 +660,7 @@ app.on("ready", async () => {
             //check for files
             if (!fs.existsSync(path.resolve(rootPath, fPath))) {
               if (type === "config") {
-                let schema;
+                let schema = {};
                 if (fileName === "policy.json") schema = policyJsonSchema;
                 else if (fileName === "saleConfig.json") schema = saleConfigSchema;
                 else if (fileName === "appDefault.json") schema = appDefaultSchema;

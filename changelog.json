@@ -1,9 +1,9 @@
 {
-    "version":"2.17.4",
+    "version":"2.17.5",
     "highlights":[
-        "Fixed logo address error"
+        "BBS first startup fatal error fixed."
     ],
     "fullchange":[
-        "Fixed logo address error"
+        "BBS first startup fatal error fixed"
     ]
 }
