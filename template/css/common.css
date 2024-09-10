@@ -395,7 +395,7 @@ button.selected{
 .blue-toast-box{
     /* background: #afafff; */
     color: blue;
-    right: calc(1rem - var(--adj-right , 20%)) !important;
+    /* right: calc(1rem - var(--adj-right , 20%)) !important; */
 }
 .red-toast-box{
     background: #ffc5c5;

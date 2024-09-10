@@ -139,18 +139,19 @@ module.exports = mainWindow=>{
         {// Tools menu
             label:"Tools and Analytics",
             submenu: [
-                // {
-                //     label: "GST Summary",
-                //     click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow))
-                // },
-                // {
-                //     label: "Business Statistics",
-                //     click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow))
-                // },
+                {
+                    label: "GST Summary",
+                    click: ()=>appStateComplianceEnforcement(createGSTSummaryWindow(mainWindow))
+                },
+                {
+                    label: "Business Statistics",
+                    click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow)),
+                    accelerator:"F7"
+                },
                 // {
                 //     label: "GST Return JSON"
                 // },
-                // {type:"separator"},
+                {type:"separator"},
                 {
                     label: "Generate Road Challan",
                     click: ()=>appStateComplianceEnforcement(genRoadChallan(mainWindow))

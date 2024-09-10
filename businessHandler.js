@@ -7,6 +7,8 @@ const { getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const { app } = require("electron");
+// require('@electron/remote/main').initialize();
+
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
@@ -18,11 +20,7 @@ const { supplierLedgerSchema,customerLedgerSchema } = require(dynamicSchemaPath)
 
 let windowOptions = {
     width: 800,
-    height: 600,
-    webPreferences: {
-        nodeIntegration: true,
-        enableRemoteModule: true
-    }
+    height: 600
 }
 
 exports.createGSTSummaryWindow = mainWindow => {
@@ -31,7 +29,7 @@ exports.createGSTSummaryWindow = mainWindow => {
         createModal(windowOptions,"./template/html/gstSummaryPage.html",{
             maxWinCount:1,
             label:"GST-Summary"
-        });
+        })//.webContents.openDevTools();
     }
 }
 
@@ -41,12 +39,12 @@ exports.createBusinessStatPage = mainWindow => {
         createModal(windowOptions,"./template/html/businessStat.html",{
             maxWinCount:1,
             label:"Business-Stat"
-        });
+        });//.webContents.openDevTools();
     }
 }
 
 async function calcNetTax(table,startDate,endDate){
-    let {tax} = (await table.findOne({
+    let tax = (await table.findOne({
         where:{
             billDate:{
                 [Op.between]:[startDate,endDate]
@@ -55,36 +53,60 @@ async function calcNetTax(table,startDate,endDate){
         attributes:[
             [sequelize.fn("SUM",sequelize.col("tax")),"tax"]
         ]
-    })).dataValues;   
+    })).dataValues?.tax ?? 0;   
     return tax;
 }
 
 ipcMain.on("get-all-gst-current-month",async e=>{
-    let financialYearStartDate = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString()).financialYearStartDate;
+    let { gstInterval,financialYearStartDate } = process.presets;
     let startDate = new Date(),endDate = new Date();
-    let [dt,mnth] = financialYearStartDate.split("/");
+    let [dt,mnth] = financialYearStartDate.toLocaleDateString("en-IN").split("/");
     let financialYearCommissionDt = new Date();
     financialYearCommissionDt.setMonth(+mnth-1,+dt);
     let financialYearTerminationDt = new Date(financialYearCommissionDt);
     let monthlyGSTs = [];
     financialYearTerminationDt.setFullYear(financialYearCommissionDt.getFullYear()+1,financialYearCommissionDt.getMonth(),0);
-    startDate.setDate(1);
-    endDate.setMonth(startDate.getMonth()+1,0);
-    if((endDate - startDate)/(1000*60*60*24)>31) throw new Error("Period Calculator code NOT Working!!");
-    // console.log({startDate,endDate})
+    if(gstInterval===1){
+        startDate.setDate(1);
+        endDate.setMonth(startDate.getMonth()+1,0);
+    }
+    else{
+        let multiplier = Math.floor((startDate.getMonth()-financialYearCommissionDt.getMonth())/gstInterval);
+        startDate.setMonth(financialYearCommissionDt.getMonth()+3*multiplier,1);
+        endDate.setMonth(startDate.getMonth()+3,0);
+    }
+    // if((endDate - startDate)/(1000*60*60*24)>31) throw new Error("Period Calculator code NOT Working!!");
     let inTax = await calcNetTax(sale,startDate,endDate); 
     let outTax = await calcNetTax(purchase,startDate,endDate);
     // console.log("\x1b[31m%s\x1b[31m",{inTax,outTax,startDate:startDate.toDateString(),endDate:endDate.toDateString()})
     e.sender.send("get-all-gst-current-month-response",{outTax,inTax});
     startDate = new Date(financialYearCommissionDt.toDateString());
-    for(let i=0;i<12;i++){
-        endDate = new Date(startDate.toDateString());
-        endDate.setMonth(startDate.getMonth()+1,0);
-        inTax = await calcNetTax(sale,startDate,endDate) ?? 0; 
-        outTax = await calcNetTax(purchase,startDate,endDate) ?? 0;
+    for(let i=0;i<12/gstInterval;i++){
+        if(gstInterval===1){
+            endDate = new Date(startDate.toDateString());
+            endDate.setMonth(startDate.getMonth()+1,0);
+            inTax = await calcNetTax(sale,startDate,endDate); 
+            outTax = await calcNetTax(purchase,startDate,endDate);
+            startDate.setMonth(endDate.getMonth()+1,1);
+            monthlyGSTs.push({inTax,outTax,month:startDate.getMonth()-1})        
+        }
+        else{
+            let multiplier = Math.floor((startDate.getMonth()-financialYearCommissionDt.getMonth())/gstInterval);
+            startDate.setMonth(financialYearCommissionDt.getMonth()+3*multiplier,1);
+            endDate.setMonth(startDate.getMonth()+3,0);
+            inTax = await calcNetTax(sale,startDate,endDate); 
+            outTax = await calcNetTax(purchase,startDate,endDate);
+            // console.log({
+            //     inTax,
+            //     outTax,
+            //     startDate:startDate.toLocaleDateString("en-IN"),
+            //     endDate:endDate.toLocaleDateString("en-IN")
+            // })
+            startDate.setMonth(endDate.getMonth()+1,1)
+            monthlyGSTs.push({inTax,outTax,month:`${gstInterval} quater`});
+        }
+        if(startDate.getMonth()>new Date().getMonth()) break;
         // console.log("\x1b[33m%s\x1b[33m",{inTax,outTax,startDate:startDate.toDateString(),endDate:endDate.toDateString()})
-        monthlyGSTs.push({inTax,outTax,month:startDate.getMonth()})        
-        startDate.setMonth(endDate.getMonth()+1,1);
     }
     e.sender.send("monthly-gst",monthlyGSTs);
 });
@@ -99,9 +121,9 @@ async function getPeriodicSalePurchase(table,where,attributes){
 
 ipcMain.on("get-total-sale-purchase",async (e,period)=>{
     let startDate;
-    let financialYearStartDate = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString()).financialYearStartDate;
+    let financialYearStartDate = new Date((JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())?.financialYearStartDate ?? new Date(new Date().getFullYear(),3,1))).toLocaleDateString("en-IN");
     if(period===7)
-        startDate = new Date(Date.now()-(period+(new Date()).getHours()/24)*24*60*60*1000);
+        startDate = new Date(Date.now()-((period-1)+(new Date()).getHours()/24)*24*60*60*1000);
     else{
         startDate = new Date();
         let [dt,mnth] = financialYearStartDate.split("/");
@@ -120,7 +142,7 @@ ipcMain.on("get-total-sale-purchase",async (e,period)=>{
         },
         paymentStatus:false
     },
-    attributes = period===7 ? ["billDate","billAmt"] : ["billAmt"];
+    attributes = period===7 ? ["billDate","billAmt","billDate"] : ["billAmt","billDate"];
     try{
         let sales = await getPeriodicSalePurchase(sale,where,attributes);
         let purchases = await getPeriodicSalePurchase(purchase,where,attributes);
@@ -141,4 +163,24 @@ ipcMain.on("get-total-sale-purchase",async (e,period)=>{
     catch(err){
         console.log(err)
     }
+});
+
+ipcMain.handle("get-sale-purchase-by-date",async (e,date=new Date())=>{
+    let sales = (await sale.findAll({
+        where:{
+            billDate:{
+                [Op.between]:[date-date.getHours()*60*60*1000,date]
+            }
+        },
+        attributes:["billAmt"]
+    })).map(({dataValues})=>dataValues);
+    let purchases = (await purchase.findAll({
+        where:{
+            billDate:{
+                [Op.between]:[date-date.getHours()*60*60*1000,date]
+            }
+        },
+        attributes:["billAmt"]
+    })).map(({dataValues})=>dataValues);
+    return { sales,purchases }
 });

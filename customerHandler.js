@@ -49,7 +49,12 @@ ipcMain.on("get-customer",async e=>{
             attributes:["balance"],
             order:[
                 ["entryNo","DESC"]
-            ]
+            ],
+            where:{
+                type:{
+                    [Op.ne]:"opening-balance"
+                }
+            }
         }))?.dataValues ?? {};
         let netPurchase = (await sale.findOne({
             where:{

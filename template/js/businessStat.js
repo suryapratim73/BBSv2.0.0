@@ -9,7 +9,22 @@ let weekObj = ["Mon","Tues","Wed","Thurs","Fri","Sat","Sun"];
 let startAngle = 0,endAngle = 0,sum = 0,total = 0;
 let spinner = drawSpinner(document);
 
-ipcRenderer.send("get-total-sale-purchase",7);
+async function init(){
+    ipcRenderer.send("get-total-sale-purchase",7);
+    let dailyStatDiv = document.getElementById("daily-stat-div");
+    dailyStatDiv.querySelector("#day").valueAsDate = new Date();
+    initDailyStatBlock();
+}
+init();
+
+async function initDailyStatBlock(){
+    let date = document.getElementById("day").valueAsDate;
+    let { sales,purchases } = await ipcRenderer.invoke("get-sale-purchase-by-date",date);
+    let netSale = Math.round(sales.reduce((acc,{billAmt})=>(acc+billAmt),0));
+    let netPurchase = Math.round(purchases.reduce((acc,{billAmt})=>(acc+billAmt),0));
+    document.querySelector("h3[data-name='sale']").textContent = "Rs. "+netSale;
+    document.querySelector("h3[data-name='purchase']").textContent = "Rs. "+netPurchase;
+}
 
 function getOptionObj(
     {canvas,period=7,fillStyle,strokeStyle,i,text,fontSize=20,ht}){
@@ -50,6 +65,7 @@ ipcRenderer.on("get-total-sale-purchase-response",(e,{sales,purchases,outPayment
     netWeeklyPayment = outPaymentObjs.reduce((acc,{payment,date})=>reduceFunction(acc,{amt:payment,date}),{total:0}),
     dayOfWeek = (new Date()).getDay()-1,
     prevDays = [];
+    dayOfWeek = dayOfWeek<0 ? 6 : dayOfWeek;
     weekObj = weekObj.map((day,i)=>{
         if(i>dayOfWeek)
             return day;
@@ -58,7 +74,8 @@ ipcRenderer.on("get-total-sale-purchase-response",(e,{sales,purchases,outPayment
             todayPurchase = netWeeklyPurchase[day] ?? 0;
             todayInPayment = netWeeklyCash[day] ?? 0;
             todayOutPayment = netWeeklyPayment[day] ?? 0;
-            return day;
+            prevDays.push(day);
+            return;
         }
         else{
             prevDays.push(day);

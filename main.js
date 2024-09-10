@@ -582,6 +582,8 @@ function paySalary(refWindow) {
 }
 
 app.on("ready", async () => {
+  if(typeof process.presets==="undefined")
+    process.presets = {};
   console.log("ready event")
   let policyJsonSchema = {
     "noReturn": 120,
@@ -757,7 +759,33 @@ app.on("ready", async () => {
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });
+  // Condition App basewd on policies
+  setAppPrsets();
 });
+
+function setAppPrsets(){
+  let policy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  let policy2 = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  if("financialYearStartDate" in policy){
+    process.presets.financialYearStartDate = new Date(policy.financialYearStartDate);
+    process.presets.gstInterval = policy.gstInterval;
+  }
+  else{
+    process.presets.gstInterval = 1;
+    process.presets.financialYearStartDate = new Date(dt.getFullYear(),3,1);
+  }
+  let dt = new Date();
+  process.monthElapsed = dt.getMonth()===0 ? 11 : dt.getMonth()-1;
+  BrowserWindow.getAllWindows()
+  .forEach(win=>{
+    win.webContents.send("refresh-data");
+  });
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays"]
+  .forEach(key=>{
+    if(key in policy2)
+      process.presets[key] = policy2[key];
+  })
+}
 
 function checkIfMonthPassed(lastDt=Date){
   return true;//Remove after test
@@ -1622,6 +1650,31 @@ ipcMain.handle("get-company-info", () => {
       res(JSON.parse(data.toString()));
     });
   });
+});
+
+async function savePolicyCommon(polPath,data,e){
+  let win = BrowserWindow.fromId(e.frameId);
+  let policy = JSON.parse(fs.readFileSync(polPath()).toString());
+  policy = {
+    ...policy,
+    ...data
+  };
+  fs.writeFileSync(polPath(),JSON.stringify(policy));
+  setAppPrsets();
+  dialog.showMessageBox(win, {
+    title: "Success",
+    message: "Policy updated.",
+    type: "info",
+    icon:appIcon
+  });
+}
+
+ipcMain.on("save-policy-settings",async (e,data)=>{
+  savePolicyCommon(getAppPolicyPath,data,e);
+});
+
+ipcMain.on("save-policy",async (e,data)=>{
+  savePolicyCommon(getUserPolicyPath,data,e);
 });
 
 ipcMain.on("dbl-click-resp",(e,obj,mode)=>{
@@ -2720,8 +2773,8 @@ module.exports.checkForUpdates = checkForUpdates;
 
 // Inactivity tracker
 function lockOnIdle(){
-  // console.log("lockOnIdle called")
-  let state = powerMonitor.getSystemIdleState(this.idleTime);
+  // console.log("lockOnIdle called",this.idleTime)
+  let state = powerMonitor.getSystemIdleState((this?.idleTime ?? 1));
   let time = powerMonitor.getSystemIdleTime();
   if(state==="idle" && time>this.idleTime+5)
     ipcMain.emit("lock");

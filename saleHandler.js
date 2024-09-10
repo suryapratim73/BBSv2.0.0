@@ -556,3 +556,27 @@ ipcMain.on("set-listener-order-manager",(e)=>{
 ipcMain.handle("get-order",(e,orderId)=>{
     return JSON.parse(fs.readFileSync(orderId).toString());
 });
+
+function traverseDate(date,annualHolidays,weeklyHolidays){
+    if((annualHolidays.find(dt=>dt.getDate()===date.getDate() && dt.getMonth()===date.getMonth())) || weeklyHolidays.includes(date.getDay())){
+        date.setDate(date.getDate()-1);
+        traverseDate(date,annualHolidays,weeklyHolidays)
+    }
+    else
+        return date;
+}
+
+ipcMain.handle("get-date",async ()=>{
+    let date = new Date();
+    let dayArray = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    let annualHolidays = process.presets.annualHolidays.split(",").map(dt=>dt.trim())
+                        .map(dt=>{
+                            let [ dd,mm,yyyy ] = dt.split("/");
+                            mm--;
+                            return new Date(yyyy,mm,dd)
+                        });
+    let weeklyHolidays = process.presets.weeklyHolidays.split(",").map(day=>day.trim())
+                        .map(day=>dayArray.findIndex(entry=>entry===day));
+    date = traverseDate(date,annualHolidays,weeklyHolidays);
+    return date;
+})

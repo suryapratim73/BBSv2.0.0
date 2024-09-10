@@ -50,10 +50,10 @@ exports.createModal = (windowOptions={},pathToHTML,{
   }
   else
     modal = new BrowserWindow(windowOptions);
+  if(modal && enableWebContents)
+    require("@electron/remote/main").enable(modal.webContents);
   if(modal){
     modal.removeMenu();
-    if(enableWebContents)
-      require("@electron/remote/main").enable(modal.webContents);
     modal.on("ready-to-show",function(){
       if(show)
         modal.show();

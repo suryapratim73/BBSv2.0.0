@@ -436,7 +436,27 @@ async function showForm(e,cmd,show,prevData={}){
                 let formats = ["custom","billNo","fy/billNo","cabbr/fy/billNo",]
                 let formatIndex = +prevData.formats;
                 inp.value = (formatIndex===0 ? prevData['custom-format'] : formats[formatIndex]);
-                // console.log(prevData)
+            }
+        }
+        else
+        if(["annualHolidays","weeklyHolidays"].includes(cmd)){
+            let inp = document.querySelector("#company-setting .left-sec "+(cmd==="weeklyHolidays" ? "select" : "input"));
+            if(cmd==="annualHolidays"){
+                let date = inp.valueAsDate;
+                let dates = document.getElementById(cmd+"-textarea").value;
+                if(dates==="")
+                    document.getElementById(cmd+"-textarea").value = date.toLocaleDateString("en-IN");
+                else
+                    document.getElementById(cmd+"-textarea").value += "," + date.toLocaleDateString("en-IN");
+            }
+            else{
+                let dayArray = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+                let dayIndex = inp.value;
+                let offdays = document.getElementById(cmd+"-textarea").value;
+                if(offdays==="")
+                    document.getElementById(cmd+"-textarea").value = dayArray[dayIndex];
+                else
+                    document.getElementById(cmd+"-textarea").value += "," + dayArray[dayIndex];
             }
         }
         else{ // Settings with presets
@@ -636,6 +656,33 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="set-2-factor-auth")
                 enableOrDisableQR();
+            else
+            if(cmd==="gst-setting"){
+                let policy = await ipcRenderer.invoke("get-app-policy");
+                if(!("financialYearStartDate" in policy)) return;
+                ["gstInterval","financialYearStartDate"]
+                .forEach(key=>{
+                    let select = form.querySelector(`[name="${key}"]`);
+                    if(key === "financialYearStartDate"){
+                        let mnth = new Date(policy.financialYearStartDate).getMonth();
+                        select.querySelector(`[value="010${mnth}"]`).setAttribute("selected",true);
+                    }
+                    else
+                    if(key==="gstInterval")
+                        select.querySelector(`[value="${policy.gstInterval}"]`).setAttribute("selected",true);
+                })
+            }
+            else
+            if(cmd==="company-setting"){
+                let policy = await ipcRenderer.invoke("get-policy");
+                form["ret-days"].value = policy.noReturn;
+                form.creditLimitDays.value = policy.creditLimitDays;
+                ["annualHolidays","weeklyHolidays"]
+                .forEach(key=>{
+                    if(key in policy)
+                        document.getElementById(key+"-textarea").value = policy[key];
+                });
+            }
         }
     }
     else
@@ -794,6 +841,19 @@ async function saveSettings(e){
         if(resp)
             showToastNotification("Billing preference saved.",["animation-common","move-left","blue-toast-box"],"main");
     }
+    else
+    if(cmd==="gst-setting"){
+        let dt = new Date();
+        if(data.financialYearStartDate==="0100")
+            data.financialYearStartDate = new Date(dt.getFullYear(),0,1);
+        else
+            data.financialYearStartDate = new Date(dt.getFullYear(),3,1);
+        data.gstInterval = Number(data.gstInterval);
+        ipcRenderer.send("save-policy-settings",data);
+    }
+    else
+    if(cmd==="company-setting")
+        ipcRenderer.send("save-policy",data);
     showForm(null,"back",show);
 }
 
@@ -947,7 +1007,7 @@ function dblClickHandler(e){
 
 function changeHandler(e){
     if("target" in e.target.dataset && e.target.dataset.target==="idleTime"){
-        let form = e.path.find(elem=>elem.id==="lock-screen");
+        let form = document.getElementById("lock-screen");
         if(e.target.value==="true")
             form.idleTime.removeAttribute("disabled");
         else

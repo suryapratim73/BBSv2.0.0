@@ -4,6 +4,7 @@ body{
     flex-direction: column;
     padding: 0.5rem;
     overflow: auto;
+    height: fit-content;
 }
 h1,h3{
     color: black;
@@ -61,4 +62,20 @@ h1,h3{
     display: flex;
     justify-content: space-evenly;
     margin-top: 0.5rem;
+}
+#daily-stat-div{
+    flex-direction: column;
+}
+#daily-stat-div div{
+    display: flex;
+}
+#daily-stat-div>div{
+    justify-content: space-between;
+    align-items: baseline;
+}
+#daily-stat-div>div>div{
+    gap: 1rem;
+}
+#daily-stat-div>div>div>div{
+    flex-direction: column;
 }

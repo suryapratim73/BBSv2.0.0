@@ -213,7 +213,7 @@ async function mainForm(){
     let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
     document.querySelector("main").appendChild(page);
     if(currentStep===2 && !page2initialized){
-        billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : new Date();
+        billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : await ipcRenderer.invoke("get-date");
         document.querySelector(`[data-name="billDate"]`).valueAsDate = billMeta.billDate;
         currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
         if(availableBillNo.length>0){
@@ -290,7 +290,7 @@ function proceedOrFinishHandler(e){
                         func:"proceedOrFinishHandler function"
                     });
                     if(!flag)
-                        alert("GST number may be not valid. You may consider a recheck.");
+                        showToastNotification("GST number may be not valid. You may consider a recheck.",["animation-common","move-left","red-toast-box"],document.body);
                 }// GST Validation
                 igstFlag = gst!="" && Number(gst.match(/\d\d/)?.[0])!=Number(_gst.match(/\d\d/)?.[0]);
                 customer = {...customer,...formObjs,phones:customer.phones};

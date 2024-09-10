@@ -215,8 +215,7 @@
         <div id="settings-div" class="mode-content">
             <nav onclick="switchSettingsNav(event)">
                 <p data-mode="app-settings" class="selected">App</p>
-                <!-- <p data-mode="company-settings">Company</p> -->
-                <p data-mode="billing-settings">Billing</p>
+                <p data-mode="billing-settings">Company & Billing</p>
             </nav>
             <main id="main">
                 <h1>Settings</h1>
@@ -246,8 +245,10 @@
                         <h2>Bill settings</h2>
                         <div class="settings-div">
                             <p data-cmd="company-profile" data-show="billing-settings" data-msg="Edit company profile.">Company profile</p>
-                            <p data-cmd="bill-template" data-show="billing-settings" data-msg="The selected bill template will be used for all bill printing.">Select bill template</p>
+                            <p data-cmd="bill-template" data-show="billing-settings" data-msg="Setting related to Bill PDF customization.">Bill template</p>
                             <p data-cmd="bill-no" data-show="billing-settings" data-msg="Define bill number format and set bill no">Invoice numbering</p>
+                            <p data-cmd="gst-setting" data-show="billing-settings" data-msg="Define filing GST Intervals,financial year and other relevant Informations">GST Settings</p>
+                            <p data-cmd="company-setting" data-show="billing-settings" data-msg="Define company policies and holidays">Company Settings</p>
                         </div>
                     </div>
                 </div>
@@ -723,6 +724,96 @@
             </div>
             <div>
                 <button class="main-ui-btn" type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="gst-setting-template">
+        <form onsubmit="saveSettings(event)" class="page1" id="gst-setting" data-cmd="gst-setting" data-show="billing-settings">
+            <div>
+                <div>
+                    <label for="fin-start">Financial year start Date</label>
+                </div>
+                <div>
+                    <select name="financialYearStartDate" id="fin-start">
+                        <option value="0103">1st of April</option>
+                        <option value="0100">1st of January</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="gst-interval">GST Filing Interval</label>
+                </div>
+                <div>
+                    <select name="gstInterval" id="gst-interval">
+                        <option value="1">Monthly</option>
+                        <option value="3">Quaterly</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button class="main-ui-btn page1" type="submit">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="company-setting-template">
+        <form onsubmit="saveSettings(event)" class="page1" id="company-setting" data-cmd="company-setting" data-show="billing-settings">
+            <div>
+                <div class="left-sec">
+                    <div>
+                        <label for="add-date">Add Annual Holidays</label>
+                    </div>
+                    <div>
+                        <input type="date" id="add-date">
+                        <button type="button" data-cmd="annualHolidays">Add To Annual Holidays</button>
+                    </div>
+                </div>
+                <div id="annualHolidays" class="right-sec">
+                    <textarea name="annualHolidays" id="annualHolidays-textarea" spellcheck="false" placeholder="Write comma separated dates in dd/mm/yyyy. Note any invalid entries will be scrapped."></textarea>
+                </div>
+            </div>
+            <div>
+                <div class="left-sec">
+                    <div>
+                        <label for="add-date">Add Weekly Holidays</label>
+                    </div>
+                    <div>
+                        <select>
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
+                        </select>
+                        <button type="button" data-cmd="weeklyHolidays">Add To Weekly Holidays</button>
+                    </div>
+                </div>
+                <div id="weeklyHolidays" class="right-sec">
+                    <textarea name="weeklyHolidays" id="weeklyHolidays-textarea" spellcheck="false" placeholder="Write weekly off-days."></textarea>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="ret-days">Add Maxium Returnable Days</label>
+                </div>
+                <div>
+                    <input type="text" id="ret-days" name="noReturn" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"> <i> Days</i>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="creditLimitDays">Default Customer Credit Period</label>
+                </div>
+                <div>
+                    <input type="text" name="creditLimitDays" id="creditLimitDays" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"><i> Days</i>
+                </div>
+            </div>
+            <div>
+                <button class="main-ui-btn page1" type="submit">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
             </div>
         </form>

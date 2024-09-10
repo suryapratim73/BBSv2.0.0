@@ -362,11 +362,17 @@ exports.showToastNotification = function(msg,className,container,adjX=8,adjRight
         document.body.appendChild(toast);
     }
     finally{
+        debugger
         let { height } = toast.getBoundingClientRect();
         [...document.querySelectorAll(".toast-div")].forEach(toast=>{
             toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;
         });
         toast.classList.remove("hide");
+        let { width } = toast.getBoundingClientRect();
+        if(typeof className==="object" && className?.includes("move-left"))
+            toast.style.right = `${-width+adjX}px`;
+        else
+            toast.style.left = `${-width+adjX}px`;
         let toastTimers = [];
         [...document.querySelectorAll(".toast-div")].forEach((toast,index,self)=>{
             if(index>4)

@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,roundOffTo2DecimalPlace,drawBarGraph,drawSpinner, applyTheme } = require("../js/common");
+const { toggleDevTool,roundOffTo2DecimalPlace,drawBarGraph,drawSpinner, applyTheme, removeAllElem } = require("../js/common");
 
 
 toggleDevTool(document);
@@ -30,6 +30,7 @@ ipcRenderer.on("monthly-gst",(e,monthlyGSTs)=>{
     const gstHistogram = document.getElementById("gst-histogram");
     // const gstHistogram = document.createElement("canvas");
     const ctx = gstHistogram.getContext("2d");
+    ctx.clearRect(0,0,gstHistogram.width,gstHistogram.height);
     let netGST = monthlyGSTs.reduce((acc,{inTax,outTax})=>{
         acc.netGST += (inTax - outTax)>0?roundOffTo2DecimalPlace(inTax - outTax):0;
         acc.netInGST += roundOffTo2DecimalPlace(inTax);
@@ -52,6 +53,10 @@ ipcRenderer.on("monthly-gst",(e,monthlyGSTs)=>{
             text:month };
         drawBarGraph(optionObj);
         ht = Math.abs(Math.round((roundOffTo2DecimalPlace(inTax)/netGST.netInGST)*gstHistogram.height));
+        // console.log({inGSTHistogram,outGSTHistogram})
+
+        // inGSTHistogram?.getContext("2d").clearRect(0,0,inGSTHistogram?.width,inGSTHistogram?.height)
+        // outGSTHistogram?.getContext("2d").clearRect(0,0,outGSTHistogram?.width,outGSTHistogram?.height)
         optionObj.canvas = !inGSTHistogram?null:inGSTHistogram;
         optionObj.ctx = null;
         optionObj.ht = ht;
@@ -69,4 +74,9 @@ ipcRenderer.on("monthly-gst",(e,monthlyGSTs)=>{
     document.getElementById("inGST-graph-div").appendChild(inGSTHistogram);
     document.getElementById("outGST-graph-div").appendChild(outGSTHistogram);
     spinner.remove(window);
+});
+
+ipcRenderer.on("refresh-data",()=>{
+    removeAllElem("#inGST-graph-div>canvas,#outGST-graph-div>canvas");
+    ipcRenderer.send("get-all-gst-current-month");
 })

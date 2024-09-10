@@ -45,5 +45,47 @@
             </div>
         </section>
     </main>
+    <template id="bill-view-modal-template">
+        <div id="bill-view-modal">
+            <div id="sec-1">
+                <div data-name="name" class="bill-header">
+                    <h3 class="label">Customer: </h3>
+                    <h3 class="value"></h3>
+                </div>
+                <div data-name="gst" class="bill-header">
+                    <h3 class="label">GST: </h3>
+                    <h3 class="value"></h3>
+                </div>
+                <div data-name="billDate" class="bill-header">
+                    <h3 class="label">Bill Date: </h3>
+                    <h3 class="value"></h3>
+                </div>
+                <div data-name="billNo" class="bill-header">
+                    <h3 class="label">Bill No: </h3>
+                    <h3 class="value"></h3>
+                </div>
+            </div>
+            <div id="sec-2" class="table">
+                <div class="head row">
+                    <p class="col eq-space">Sl No</p>
+                    <p class="col eq-space">Particular</p>
+                    <p class="col eq-space">Quantity</p>
+                    <p class="col eq-space">Rate</p>
+                </div>
+                <div id="tbody"></div>
+            </div>
+            <div id="sec-3">
+                <button onclick="closeModal(event)">Close</button>
+            </div>
+        </div>
+    </template>
+    <template id="body-row-template">
+        <div class="body row">
+            <p data-name="slno" class="eq-space col"></p>
+            <p data-name="name" class="eq-space col"></p>
+            <p data-name="quantity" class="eq-space col"></p>
+            <p data-name="rate" class="eq-space col"></p>
+        </div>
+    </template>
 </body>
 </html>

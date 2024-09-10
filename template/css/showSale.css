@@ -98,3 +98,31 @@ main{
     height: 65%;
     overflow: auto;
 }
+#bill-modal{
+    display: flex;
+}
+.cover{
+    background: transparent;
+}
+.bill-header{
+    display: flex;
+}
+.label{
+    flex: 1;
+}
+.value{
+    flex: 4;
+}
+#bill-view-modal{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+#bill-view-modal>div{
+    padding-left: 0;
+}
+#sec-3>button{
+    padding: 0.5rem;
+}
