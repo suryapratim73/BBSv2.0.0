@@ -58,7 +58,7 @@ async function calcNetTax(table,startDate,endDate){
 }
 
 ipcMain.on("get-all-gst-current-month",async e=>{
-    let { gstInterval,financialYearStartDate } = process.presets;
+    let { gstInterval=1,financialYearStartDate=new Date((new Date()).getFullYear(),3,1) } = process.presets;
     let startDate = new Date(),endDate = new Date();
     let [dt,mnth] = financialYearStartDate.toLocaleDateString("en-IN").split("/");
     let financialYearCommissionDt = new Date();

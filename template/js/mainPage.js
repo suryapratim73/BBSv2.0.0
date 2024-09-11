@@ -659,7 +659,6 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="gst-setting"){
                 let policy = await ipcRenderer.invoke("get-app-policy");
-                if(!("financialYearStartDate" in policy)) return;
                 ["gstInterval","financialYearStartDate"]
                 .forEach(key=>{
                     let select = form.querySelector(`[name="${key}"]`);

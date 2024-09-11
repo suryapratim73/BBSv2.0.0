@@ -1,16 +1,9 @@
 {
-    "version":"2.18.0",
+    "version":"2.18.1",
     "highlights":[
-        "Business overview page",
-        "GST overview page",
-        "GST Stat Page added and fixed",
-        "Quick view bill from Sale table",
-        "Now add business days and holidays",
-        "Fixed toast notification placing bug"
+        "File/Folder address issue solved"
     ],
     "fullchange":[
-        "Business overview page",
-        "GST overview page",
-        "GST Stat Page added and fixed"
+        "File/Folder address issue solved"
     ]
 }
