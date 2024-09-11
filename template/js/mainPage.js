@@ -662,6 +662,7 @@ async function showForm(e,cmd,show,prevData={}){
                 ["gstInterval","financialYearStartDate"]
                 .forEach(key=>{
                     let select = form.querySelector(`[name="${key}"]`);
+                    if(!(key in policy)) return;
                     if(key === "financialYearStartDate"){
                         let mnth = new Date(policy.financialYearStartDate).getMonth();
                         select.querySelector(`[value="010${mnth}"]`).setAttribute("selected",true);

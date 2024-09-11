@@ -569,13 +569,13 @@ function traverseDate(date,annualHolidays,weeklyHolidays){
 ipcMain.handle("get-date",async ()=>{
     let date = new Date();
     let dayArray = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-    let annualHolidays = (process.presets.annualHolidays.split(",").map(dt=>dt.trim())
+    let annualHolidays = (process.presets.annualHolidays?.split(",").map(dt=>dt.trim())
                         .map(dt=>{
                             let [ dd,mm,yyyy ] = dt.split("/");
                             mm--;
                             return new Date(yyyy,mm,dd)
                         }) ?? []);
-    let weeklyHolidays = (process.presets.weeklyHolidays.split(",").map(day=>day.trim())
+    let weeklyHolidays = (process.presets.weeklyHolidays?.split(",").map(day=>day.trim())
                         .map(day=>dayArray.findIndex(entry=>entry===day)) ?? []);
     date = traverseDate(date,annualHolidays,weeklyHolidays);
     return date;
