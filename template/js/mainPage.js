@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -1000,7 +1000,7 @@ ipcRenderer.on("update-content",async ()=>{
 });
 
 function dblClickHandler(e){
-    let elem = e.path.find(elem=>elem.classList.contains("body") && elem.classList.contains("row"));
+    let elem = traverseParent(e.target,"body") && elem.classList.contains("row");
     if(elem)
         ipcRenderer.send("dbl-click-resp",JSON.parse(elem.dataset.obj),1);
 }
@@ -1022,7 +1022,7 @@ function changeHandler(e){
 }
 
 function openScheduleManager(e){
-    let selectedP = e.path.find(elem=>elem.nodeName==="P");
+    let selectedP = traverseParent(e.target,null,"P");
     if(!selectedP) return;
     let evObj = JSON.parse(selectedP.dataset.obj);
     ipcRenderer.send("open-event",evObj);
@@ -1060,6 +1060,11 @@ function reverseCamelCase(str){
 }
 
 ipcRenderer.send("get-notification");
+
+ipcRenderer.on("check-notification",()=>{
+    ipcRenderer.send("get-notification");
+});
+
 ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
     removeAllElem(".notification-group");
     let notificationHost = document.getElementById("notification-div");
@@ -1108,7 +1113,28 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
             }
             else
             if(job.type==="Error"){
-                description = "An Error occured performing last operation. Contact developer to show your error."
+                description = "An Error occured performing last operation. Contact developer to show your error."+job.error;
+                showToastNotification("Error occoured, check notification",["animation-common","move-left","red-toast-box"]);
+            }
+            else
+            if(job.type==="app-update"){
+                description = "An update is available for download and install. Please update BBS to enjoy latest features and fixes. Update highlights are listed below:";
+                let ul = notificationDiv.querySelector("ul");
+                ul.classList.remove("hide");
+                job.changeLogArr.forEach(log=>{
+                    let li = document.createElement("li");
+                    li.textContent = log;
+                    ul.appendChild(li);
+                });
+                [...notificationDiv.querySelectorAll(".btn-container>button")]
+                .forEach(btn=>{
+                    if(btn.dataset.cmd==="update-now"){
+                        btn.classList.remove("hide");
+                        btn.dataset.version = job.version;
+                    }
+                    else
+                        btn.classList.add("hide");
+                });
             }
             notificationDiv.querySelector('[data-col="description"]').textContent = description;
             collateUpdator(tagGrp,arr,i,job);
@@ -1130,7 +1156,7 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
 
 function execRetractHandler(e){
     if(e.target.nodeName!=="DIV"){
-        let container = e.path.find(elem=>elem.classList.contains("retractable-div-container"));
+        let container = traverseParent(e.target,"retractable-div-container");
         let retractableDiv = container.querySelector(".retractable-div");
         container.classList.toggle("expand");
         [...document.querySelectorAll(`#${container.id} .notification`)]
@@ -1155,7 +1181,7 @@ function notificationAction(e){
     let cmd = e.target.dataset.cmd;
     clear2ndRemovable();
     if(cmd==="delete-all"){
-        let noticeGrp = e.path.find(elem=>elem.classList.contains("notification-group")),tag;
+        let noticeGrp = traverseParent(e.target,"notification-group"),tag;
         let regex = /(?<![A-Z])(?<!^)[A-Z]{1}/g;
         // console.log(regex.test(noticeGrp.id.split("-group")[0]))
         if(regex.test(noticeGrp.id.split("-group")[0]))
@@ -1172,7 +1198,7 @@ function notificationAction(e){
     }
     else
     if(cmd==="delete"){
-        let notification = e.path.find(elem=>elem.classList.contains("notification"));
+        let notification = traverseParent(e.target,"notification");
         let evObj = JSON.parse(notification.dataset.obj);
         ipcRenderer.send("manage-schedule",evObj.id,"exp-r",false);
         notification.classList.add("animation-common");
@@ -1192,12 +1218,20 @@ function notificationAction(e){
         removeAllElem(".notification-group");
     else
     if(cmd==="postpone"){
-        let notification = e.path.find(elem=>elem.classList.contains("notification"));
-        let noticeDiv = e.path.find(elem=>elem.classList.contains("retractable-div"));
+        let notification = traverseParent(e.target,"notification");
+        let noticeDiv = traverseParent(e.target,"retractable-div");
         let form = appendToHost("#postpone-template",notification);
         let evObj = JSON.parse(notification.dataset.obj);
         form.dataset.obj = JSON.stringify(evObj);
         noticeDiv.style.height = notification.scrollHeight + "px";
+    }
+    else
+    if(cmd==="update-now"){
+        let noticeGrp = traverseParent(e.target,"notification-group");
+        noticeGrp.classList.add("animation-common");
+        noticeGrp.classList.add("vanish");
+        noticeGrp.remove();
+        ipcRenderer.send("start-update",e.target.dataset.version);
     }
 }
 
@@ -1236,7 +1270,7 @@ function addFeilds(e){
 
 async function addBank(e){
     let compInfo = await ipcRenderer.invoke("get-company-info");
-    let form = e.path.find(elem=>elem.nodeName==="FORM");
+    let form = traverseParent(e.target,null,"FORM");
     let bank = form.name.value;
     let branch = form.branch.value;
     let accNo = form['acc-no'].value;
@@ -1271,7 +1305,7 @@ async function manageBank(e){
     e.preventDefault();
     let btn = e.target;
     let cmd = btn.dataset.cmd;
-    let div = e.path.find(elem=>elem.classList.contains("bank-info"));
+    let div = traverseParent(e.target,"bank-info");
     let obj = JSON.parse(div.dataset.obj);
     if(cmd==="delete"){
         let resp = await ipcRenderer.invoke("manage-company-bank",obj,"delete");
@@ -1284,7 +1318,7 @@ async function manageBank(e){
     if(cmd==="edit"){
         div.remove();
         await ipcRenderer.invoke("manage-company-bank",obj,"auto-delete");
-        div = e.path.find(elem=>elem.classList.contains("bank-form"))
+        div = traverseParent(e.target,"bank-form");
         div.querySelector("input[name='name']").value = obj.bank;
         div.querySelector("input[name='branch']").value = obj.branch;
         div.querySelector("input[name='acc-no']").value = obj.accNo;

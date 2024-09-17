@@ -60,23 +60,23 @@ exports.billPDF = async function(billObj,temp=false){
     const {printObj:{captions}={captions:["Original Buyer's Copy"]}} = billMeta;
     let topY,bottomY,factor,myEmitter = new EventEmitter();
     myEmitter.on("pageAdded",async caption=>{
-        let { width,height } = doc.page;
-        factor = width/20;
+        let { width } = doc.page;
+        factor = (width-margin)/20;
         createHeader2(doc,billMeta,customer,caption);
         topY = doc.y;
         bottomY = createFooter2(doc,billMeta,customer,margin);
-        doc.moveTo(0,topY).lineTo(0,bottomY);
-        doc.moveTo(width,topY).lineTo(width,bottomY);
+        doc.moveTo(margin,topY).lineTo(margin,bottomY);
+        doc.moveTo((width-margin),topY).lineTo((width-margin),bottomY);
         // Column partitions
-        let xPos = Math.ceil(6+doc.widthOfString("S.N."));
+        let xPos = Math.ceil(margin+6+doc.widthOfString("S.N."));
         doc
         .moveTo(xPos,topY).lineTo(xPos,bottomY)
-        .moveTo(width/2,topY).lineTo(width/2,bottomY)
-        .moveTo(width/2+2*factor,topY).lineTo(width/2+2*factor,bottomY)
-        .moveTo(width/2+4*factor,topY).lineTo(width/2+4*factor,bottomY)
-        .moveTo(width/2+5*factor,topY).lineTo(width/2+5*factor,bottomY)
-        .moveTo(width/2+7*factor,topY).lineTo(width/2+7*factor,bottomY)
-        .moveTo(width/2+8*factor,topY).lineTo(width/2+8*factor,bottomY);
+        .moveTo((width-margin)/2,topY).lineTo((width-margin)/2,bottomY)
+        .moveTo((width-margin)/2+2*factor,topY).lineTo((width-margin)/2+2*factor,bottomY)
+        .moveTo((width-margin)/2+4*factor,topY).lineTo((width-margin)/2+4*factor,bottomY)
+        .moveTo((width-margin)/2+5*factor,topY).lineTo((width-margin)/2+5*factor,bottomY)
+        .moveTo((width-margin)/2+7*factor,topY).lineTo((width-margin)/2+7*factor,bottomY)
+        .moveTo((width-margin)/2+8*factor,topY).lineTo((width-margin)/2+8*factor,bottomY);
     });
     myEmitter.on("newPage",(caption)=>{
         doc.addPage();
@@ -86,7 +86,7 @@ exports.billPDF = async function(billObj,temp=false){
         let {defaultFontFamily,defaultFontSize } = saleConfig;
         doc.font(defaultFontFamily).fontSize(defaultFontSize).moveDown();
     });
-    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===false && saleConfig.billTemplate.file==="default2"){
+    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===false && saleConfig.billTemplate.file==="default2"){// For Krishna Da
         for(let x=0;x<captions.length;x++){
             let caption = captions[x];
             myEmitter.emit("newPage",caption);

@@ -89,7 +89,7 @@ ipcMain.handle("get-sale-bill-number",()=>{
 });
 
 ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
-    if(currentStep>1)
+    if(currentStep>1 && process.presets?.target!="salePage")
         reduceBillNo();
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
@@ -167,7 +167,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    console.log(phones)
     if("presets" in process && process?.presets?.target==="salePage")
         process.presets = {};
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
@@ -560,13 +559,13 @@ ipcMain.handle("get-order",(e,orderId)=>{
 function traverseDate(date,annualHolidays,weeklyHolidays){
     if((annualHolidays.find(dt=>dt.getDate()===date.getDate() && dt.getMonth()===date.getMonth())) || weeklyHolidays.includes(date.getDay())){
         date.setDate(date.getDate()-1);
-        traverseDate(date,annualHolidays,weeklyHolidays)
+        return traverseDate(date,annualHolidays,weeklyHolidays)
     }
     else
         return date;
 }
 
-ipcMain.handle("get-date",async ()=>{
+ipcMain.handle("get-date", ()=>{
     let date = new Date();
     let dayArray = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
     let annualHolidays = (process.presets.annualHolidays?.split(",").map(dt=>dt.trim())

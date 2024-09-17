@@ -1,9 +1,19 @@
 {
-    "version":"2.18.1",
+    "version":"2.18.3",
     "highlights":[
-        "File/Folder address issue solved"
+        "Bill editing bugs fixed",
+        "Bill reprint bug fixed",
+        "Invoice Numbering pattern implemented",
+        "Margin issue in Bill Template Default 2 is fixed",
+        "Error reporting",
+        "Session management bug fixed"
     ],
     "fullchange":[
-        "File/Folder address issue solved"
+        "Bill editing bugs fixed",
+        "Bill reprint bug fixed",
+        "Invoice Numbering pattern implemented",
+        "Margin issue in Bill Template Default 2 is fixed",
+        "Error reporting",
+        "Session management bug fixed"
     ]
 }

@@ -11,7 +11,6 @@ const {
   MenuItem,
   session,
   nativeTheme,
-  autoUpdater,
   crashReporter,
   powerMonitor,
   Notification,
@@ -35,7 +34,7 @@ const {
   print,
   openFormatForDate,
 } = require("./common");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -180,7 +179,7 @@ async function createWindow() {
     y: winState.y,
     minWidth: 800,
     minHeight: 600,
-    title: "BBSv2"
+    title: "BBSv"+app.getVersion()
   };
   windowOptions.resizable = true;
   windowOptions.maximizable = true;
@@ -209,6 +208,12 @@ async function createWindow() {
       let cookieObj = authCookies[0];
       let _user = JSON.parse(cookieObj.value);
       if (_user && cookieObj.expirationDate > Date.now()/1000) {
+        appLogger({
+          title:"App Session Info",
+          message:{
+            "Time left":roundOffTo2DecimalPlace((cookieObj.expirationDate - Date.now()/1000)/(60*60))+" Hours"
+          }
+        });
         let { id, name, secret, role, session, sessionTime, usePasswd } = _user;
         currentUser = new User(
           id,
@@ -436,7 +441,6 @@ async function createWindow() {
       return mainWindow;
     }
     else{
-      console.log(err)
       appLogger({
         title:"Error",
         message:String(err),
@@ -1225,7 +1229,7 @@ async function createSession(time) {
     name: "bbs_auth",
     value: JSON.stringify(currentUser),
     url: "http://localhost",
-    expirationDate: (new Date().getTime()/1000 + time),
+    expirationDate: (Date.now()/1000 + time),
   };
   let mainWin = getMainWindow();
   let ses = mainWin.webContents.session;
@@ -1496,7 +1500,7 @@ ipcMain.on("app-login", async () => {
     if (currentUser.session) await createSession(currentUser.sessionTime);
     await user.update(
       {
-        lastLogin: Date.now(),
+        lastLogin: Date.now()/1000,
       },
       {
         where: { id: currentUser.id },
@@ -2266,7 +2270,7 @@ ipcMain.on("app-registration", async (e, gst) => {
 });// Incomplete
 
 //App update logic
-async function updateCommon(){//This need a relook
+async function updateCommon(){
   let data = {
     currentVersion:app.getVersion(),
     path2file:path.resolve(app.getPath("appData"),`./BBS/${this.fileName}`),
@@ -2299,6 +2303,7 @@ async function updateCommon(){//This need a relook
     data.installMoment = "later";
     return;
   }
+  ipcMain.emit("manage-schedule",null,"app-update","exp-all",false);
   appLogger({
     message:"Trying to install update."
   });
@@ -2412,7 +2417,6 @@ function downloadUpdate(appVersion){
   })
   .then(updateCommon.bind({fileName,version:appVersion}))
   .catch(err=>{
-    console.error("Error",err);
     appLogger({
       title:"Error",
       message:String(err),
@@ -2446,7 +2450,7 @@ function versionChecker(version1,version2,log=true){
 
 async function checkForUpdates(flag="auto") {
   let { UPDATE_REST } = process.env;
-  let mainWin = getMainWindow();
+  let mainWin = getMainWindow(),changeLogArr = [];
   if (!["admin", "all"].includes(currentUser.role)) {
     return dialog.showMessageBox(mainWin, {
       title: "Unauthorized",
@@ -2457,6 +2461,9 @@ async function checkForUpdates(flag="auto") {
   appLogger({message:"Checking for update"});
   let { isOnline, appVersion, err, changelog } = await new Promise((res) => {
     mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
+    setTimeout(()=>{
+      mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
+    },5000)
     ipcMain.on(
       "check-for-update-response",
       (e, { isOnline = false, appVersion, err, changelog }) => {
@@ -2498,10 +2505,21 @@ async function checkForUpdates(flag="auto") {
       message = "A minor feature update is available for download.";
     if (resp===3)
       message = "Bug fix available for download.";
-    changelog.highlights.forEach((log,i)=>{
-      message += (i+1)+") "+log + ". "
+    changelog.highlights?.forEach((log,i)=>{
+      message += (i+1)+") "+log + ". ";
+      changeLogArr.push(log);
     });
-    
+    let evObj = {
+      label:`Update Available`,
+      type: "app-update",
+      time: new Date(),
+      tag: "app-update",
+      version:appVersion,
+      color: "#A020F0",
+      changeLogArr
+    }
+    ipcMain.emit("manage-schedule","app-update",evObj,"exp-a",false);
+    mainWin.webContents.send("check-notification");
     if(resp===0){
       if(flag!=="auto")
         return dialog.showMessageBox({
@@ -2550,22 +2568,9 @@ async function checkForUpdates(flag="auto") {
   }
 }
 
-autoUpdater.on("update-available", () => {
-  appLogger({message:"Starting install"});
-  dialog.showMessageBox({
-    title:"Update available --auto",
-    message:"Testing auto-updator on generic server.",
-    icon:appIcon
-  })
-  // autoUpdater.quitAndInstall();
+ipcMain.on("start-update",(e,appVersion)=>{
+  downloadUpdate(appVersion);
 });
-
-// autoUpdater.on("error",(err)=>{
-//   appLogger({
-//     title:"Error",
-//     message:String(err)
-//   })
-// })
 
 // First Boot IPCs
 ipcMain.handle("db-init-status",()=>{
@@ -2795,7 +2800,7 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
   if(!fs.existsSync(path2scheduler)){
     dialog.showErrorBox({
       title:"Error saving event schedule",
-      content:"scheduler.json file missing"
+      message:"scheduler.json file missing"
     });
     appLogger({
       title:"Error saving event schedule",
@@ -2806,13 +2811,14 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
   try{
     let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
     let schedules = jsData.schedules;
+    if(!("expiredSchedules" in jsData))
+      jsData.expiredSchedules = [];
+    if(!("schedules" in jsData))
+      jsData.schedules = [];
     if(flag==="a"){
       data.user = currentUser;
       data.id = uuid.v4();
-      if(!("schedules" in jsData))
-        jsData.schedules = [ data ];
-      else
-        jsData.schedules.push(data);
+      jsData.schedules.push(data);
     }
     else
     if(flag==="r")
@@ -2831,12 +2837,12 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
     }
     else
     if(flag==="exp"){
-      if(!("expiredSchedules" in jsData))
-        jsData.expiredSchedules = [];
       jsData.expiredSchedules.push(schedules.find(obj=>obj.id===data));
       schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
     }
     else
+    if(flag==="exp-a" && !(jsData.expiredSchedules.find(ev=>ev.tag===e)))
+      jsData.expiredSchedules.push(data);
     if(flag==="exp-all")
       jsData.expiredSchedules = jsData.expiredSchedules.filter(evObj=>evObj.tag!==data);
     else
@@ -3240,13 +3246,17 @@ ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
     }
   }))?.dataValues;
   Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
-  process.presets = {
+  let presetObj = {
     customer:customerObj,
     billMeta:saleObj,
     itemList,
     target:"salePage",
     currentStep:3
   };
+  Object.keys(presetObj)
+  .forEach(key=>{
+    process.presets[key] = presetObj[key];
+  });
 });
 
 ipcMain.handle("get-presets",()=>{

@@ -823,7 +823,8 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
             dataModal.style.top = clientY+"px";
         else
             dataModal.style.top = clientY - this.getBoundingClientRect().top*0.3 + "px";
-        clearTimeout(timer);
+        
+        timer && clearTimeout(timer);
         timer = setTimeout(()=>{
             dataModal.remove();
         },2000);
@@ -1652,9 +1653,12 @@ exports.textRollAnnimation = function(e){
     }
 }
 
-exports.traverseParent = function traverseParent(elem,matchClass){
+exports.traverseParent = function traverseParent(elem,matchClass,checkNodeType){
     if(elem===document.body)
         return false;
+    if(checkNodeType && elem.parentNode.nodeName===checkNodeType)
+        return elem.parentNode;
+    else
     if(elem.parentNode.classList.contains(matchClass))
         return elem.parentNode;
     else

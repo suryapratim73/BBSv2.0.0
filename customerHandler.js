@@ -115,6 +115,10 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
         netAmtTax:billAmt,
         printObj,
         billDate,
+        shipGST:customerObj.gst,
+        shipPh:JSON.parse(customerObj.phones)[0],
+        shipAddr:customerObj.address,
+        shipTo:saleObj.name
         };
         billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
             let caption,key = Object.keys(obj).pop();
@@ -366,7 +370,8 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
         return customerList.find(obj=>obj.id===id);
 });
 
-ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,customerId:id,entryNo})=>{
+ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
+    let {billNo,billDate,customerId:id,entryNo} = billMeta;
     billNo = Number(billNo);
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
@@ -454,6 +459,10 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,{billNo,billDate,
             message:"Bill updated"
         });
         getTargetWindow("customer-portal").webContents.send("close-modal");
+        // This should replace the pdfFile
+        let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
+        if(printObj)
+            print({printObj,path2pdf});
     })
     .catch(console.log)
 });

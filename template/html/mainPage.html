@@ -781,13 +781,13 @@
                     </div>
                     <div>
                         <select>
-                            <option value="0">Monday</option>
-                            <option value="1">Tuesday</option>
-                            <option value="2">Wednesday</option>
-                            <option value="3">Thursday</option>
-                            <option value="4">Friday</option>
-                            <option value="5">Saturday</option>
-                            <option value="6">Sunday</option>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="0">Sunday</option>
                         </select>
                         <button type="button" data-cmd="weeklyHolidays">Add To Weekly Holidays</button>
                     </div>
@@ -923,10 +923,12 @@
         <div class="notification">
             <h3 data-col="label"></h3>
             <p data-col="description"></p>
+            <ul class="hide" data-col="logs"></ul>
             <p data-col="time"></p>
             <div class="btn-container">
                 <button data-cmd="delete">Dismiss</button>
                 <button data-cmd="postpone">Postpone reminder</button>
+                <button class="hide" data-cmd="update-now">Update</button>
             </div>
         </div>
     </template>
@@ -1015,7 +1017,7 @@
                     <label for="phones">Company phones</label>
                 </div>
                 <div>
-                    <input type="text" name="phones" id="phones">
+                    <input type="text" name="phones" id="phones" placeholder="Comma-separated list of phone numbers">
                 </div>
             </div>
         </div>

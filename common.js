@@ -1,5 +1,5 @@
 const { sequelize } = require("./model/dbConfig");
-const { dialog, BrowserWindow, app } = require("electron");
+const { dialog, BrowserWindow, app, ipcMain } = require("electron");
 const { ledgerPDF } = require("./scripts/makePDF.default");
 const { customer } = require("./model/dbConfig");
 const { Op } = require("sequelize");
@@ -174,20 +174,19 @@ exports.appLogger = function(...lines){
         });
     let mainWin = getMainWindow();
     let msg = lines[0];
-    if(msg.title==="Error")
-        mainWin.webContents.send(
-            "notification",
-            [
-                {
-                    tag:"Error",
-                    type:"Error",
-                    label:"Error",
-                    color:"#FF0000",
-                    time:new Date().toLocaleTimeString(),
-                    error:lineToAppend
-                }
-            ]
-        )//notifyJobs,showToast
+    // Error reporting notification 
+    if(/error/i.test(msg.title)){
+        let evObj = {
+            tag:"Error",
+            type:"Error",
+            label:"Error",
+            color:"#FF0000",
+            time:new Date(),
+            error:lineToAppend
+        };
+        ipcMain.emit("manage-schedule","Error",evObj,"exp-a",false);
+        mainWin.webContents.send("check-notification")//notifyJobs,showToast
+    }
 }
 
 class People{
@@ -228,12 +227,12 @@ class User{
             this.usePasswd = usePasswd;
     }
     login(){
-        this.lastLogin = Date.now();
+        this.lastLogin = Date.now()/1000;
         if(this.secret)
             this.verify = true;
     }
     logout(){
-        this.lastLogout = Date.now();
+        this.lastLogout = Date.now()/1000;
         this.verify = false;
     }
 }

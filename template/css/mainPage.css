@@ -344,6 +344,9 @@ button.hover{
     grid-row: 3/-2;
     overflow: auto;
 }
+.notification ul{
+    padding: 1rem;
+}
 #panel>div:last-child{
     grid-row: -2/-1;
     display: flex;
@@ -996,9 +999,6 @@ form#registration{
     left: 35vw;
     display: flex;
 }
-#product-info-fillup-modal h2{
-    
-}
 #product-info-fillup-modal form{
     width: 100%;
     height: 100%;
@@ -1009,19 +1009,4 @@ form#registration{
 #product-info-fillup-modal #container{
     flex: 2;
     overflow: auto;
-}
-#product-info-fillup-modal #container>div{
-
-}
-#product-info-fillup-modal #container>div>div{
-
-}
-#product-info-fillup-modal #container input{
-    
-}
-#product-info-fillup-modal .btn-container{
-
-}
-#product-info-fillup-modal .btn-container>button{
-    
 }

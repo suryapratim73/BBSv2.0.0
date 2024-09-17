@@ -631,14 +631,19 @@ function showPrintDialog(){
 
 ipcRenderer.on("print-obj",(e,printObj)=>{
     billMeta.printObj = printObj;
+    if(typeof preset!=="undefined" && preset.target==="salePage"){
+        ipcRenderer.send('cancel-sale-bill',currentStep);
+        printObj.customer = customer;
+        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer,printObj);
+    }
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
 
 async function saveExit(){
     let dbInitialized = await ipcRenderer.invoke("db-init-status");
-    if(typeof preset!=="undefined" && dbInitialized){
+    if(typeof preset!=="undefined" && preset.target==="salePage"){
         ipcRenderer.send('cancel-sale-bill',currentStep)
-        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta);
+        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer);
     }
     if(dbInitialized)
         ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
