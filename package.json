@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.18.3",
+  "version": "2.18.4",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -58,6 +58,7 @@
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
     "nodeVersion": "22.3.0",
+    "requestedExecutionLevel":"requireAdministrator",
     "linux": {
       "target": [
         {

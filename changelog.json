@@ -1,19 +1,15 @@
 {
-    "version":"2.18.3",
+    "version":"2.18.4",
     "highlights":[
-        "Bill editing bugs fixed",
-        "Bill reprint bug fixed",
-        "Invoice Numbering pattern implemented",
-        "Margin issue in Bill Template Default 2 is fixed",
-        "Error reporting",
-        "Session management bug fixed"
+        "Adding a shortcut button to open Bills folder",
+        "Record management as financial year",
+        "Adding context menu",
+        "Double click to open a bill"
     ],
     "fullchange":[
-        "Bill editing bugs fixed",
-        "Bill reprint bug fixed",
-        "Invoice Numbering pattern implemented",
-        "Margin issue in Bill Template Default 2 is fixed",
-        "Error reporting",
-        "Session management bug fixed"
+        "Adding a shortcut button to open Bills folder",
+        "Record management as financial year",
+        "Adding context menu",
+        "Double click to open a bill"
     ]
 }

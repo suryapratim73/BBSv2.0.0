@@ -362,7 +362,6 @@ exports.showToastNotification = function(msg,className,container,adjX=8,adjRight
         document.body.appendChild(toast);
     }
     finally{
-        debugger
         let { height } = toast.getBoundingClientRect();
         [...document.querySelectorAll(".toast-div")].forEach(toast=>{
             toast.style.top = `${toast.getBoundingClientRect().y + height + adjX}px`;

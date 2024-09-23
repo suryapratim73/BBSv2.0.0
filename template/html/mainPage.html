@@ -33,6 +33,7 @@
                     <h2>Overview</h2>
                     <div id="sale-purchase-btn-div">
                         <div>
+                            <button onclick="ipcRenderer.send('open-bills-folder')">Bills </button>
                             <button onclick="ipcRenderer.send('new-sale-purchase',1)">Create Sale</button>
                             <button class="fa-sharp fa-solid fa-caret-down drop-down-btn" onclick="document.querySelector('.drop-down').classList.toggle('hide');"></button>
                             <div>
@@ -86,7 +87,14 @@
                     <div class="tbody hide-scrollbar"></div>
                 </div>
                 <div class="table" id="expired-bill-table-div">
-                    <h3>Expired Bills</h3>
+                    <div>
+                        <h3>Expired Bills</h3>
+                        <select name="finYear" id="fin-year" onchange="overviewPageInit()">
+                            <option value="0" selected>Current Financial Year</option>
+                            <option value="1">Last Financial Year</option>
+                            <option value="2">All Financial Year</option>
+                        </select>
+                    </div>
                     <div class="row head">
                         <div class="col eq-space"><p data-col="billNo">Bill Number</p></div>
                         <div class="col eq-space"><p data-col="billDate">Bill Date</p></div>

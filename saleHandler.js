@@ -327,7 +327,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             itemList:`${custId}_${billNo}_${billDate}`,
             balance: Math.round(lastBalance + netAmtTax - netPayment)
         })),
-        (await sale.sync()).create({
+        (await sale.sync()).create({// Update Sale Table to make room for discVal
             billStatus,
             customerId:custId,
             name,

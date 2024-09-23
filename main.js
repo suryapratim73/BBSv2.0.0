@@ -952,7 +952,7 @@ function printPDF(path2pdf,printObj,job){
       default:
           dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
     }
-    job.updateStatus("OK");
+    job?.updateStatus("OK");
   }
   catch(err){
     appLogger({
@@ -994,9 +994,17 @@ exports.getCurrentLogin = function () {
 
 // Lander Page IPCs
 
-ipcMain.handle("get-overview-content", async () => {
+ipcMain.handle("get-overview-content", async (e,year) => {
   let { minStock,creditLimitDays } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
   if(!dbInitialized) return;
+  let strtDt = new Date(),endDt = new Date();
+  strtDt.setDate(1);
+  strtDt.setMonth(process.presets.financialYearStartDate.getMonth());
+  if(year===1){
+    endDt.setDate(strtDt.getDate() - 1);
+    endDt.setMonth(strtDt.getMonth() - 1);
+    strtDt.setFullYear(new Date().getFullYear()-1);
+  }
   let stocks = (
     await stock.findAll({
       where: {
@@ -1018,6 +1026,11 @@ ipcMain.handle("get-overview-content", async () => {
               ),
             },
           },
+          (year!=2) && { 
+            billDate:{
+              [Op.between]:[ strtDt,endDt ]
+            } 
+          }
         ],
       },
     })
@@ -1688,7 +1701,26 @@ ipcMain.on("dbl-click-resp",(e,obj,mode)=>{
     orderManager(window,function(){
       this.webContents.send("view-order",obj,2);
     })(); 
+  else
+  if(mode===2)
+    openBillPDFExt(obj);
 });
+
+function openBillPDFExt(billObj,mode=1){
+  if(!["billDate","billNo","name"].find(key=>key in billObj)) 
+    return appLogger({
+      title:"Error",
+      message:"Invalid JSON format in billObj"
+    });
+  let { billDate,billNo,name } = billObj;
+  billDate = openFormatForDate(new Date(billDate));
+  let fileName = `./${name}_${billDate}_${billNo}.pdf`.replace(" ","\ ");
+  let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
+  if(!fs.existsSync(path2file)) return;
+  if(mode===2)
+    return path2file;
+  shell.openExternal(path2file);
+}
 
 ipcMain.handle("manage-company-bank",async (e,obj,flag)=>{
   try{
@@ -1737,7 +1769,6 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
   let contextMenuObj;
   try{
     if (mode === "billObj") {
-      return
       contextMenuObj = [
         {
           label: "View Bill",
@@ -1747,16 +1778,26 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
           },
         },
         {
-          label: "Add Payment",
-          click: () => {
-            errIdentifier = "Add Payment";
-          },
-        },
-        {
-          label: "Notify",
+          label: "Open External",
+          click: () => openBillPDFExt(obj)
         },
         {
           label: "Print",
+          click:()=>{
+            let path2file = openBillPDFExt(obj,2);
+            if(!path2file)
+              return appLogger({
+                title:"Error: Failed to print",
+                message:"File doesn't exists."
+              });
+            let modal = printDialog(function(){
+              this.webContents.send("hide-label");
+            });
+            ipcMain.once("print-obj",(e,printObj)=>{
+              modal.close();
+              printPDF(path2file,printObj)
+            })
+          }
         },
       ];
     }
@@ -2485,12 +2526,18 @@ async function checkForUpdates(flag="auto") {
         icon:appIcon
       });
   }
-  if (isOnline === false)
+  if (isOnline === false){
+    appLogger({
+      title:"Error",
+      message:String(err),
+      func:"Check for update error"
+    });
     return dialog.showMessageBox(mainWin, {
       title: "No Connection",
       message: "Failed to connect to update server.",
       icon:appIcon
     });
+  }
   // Parse and santize appVersion
   if (
     appVersion &&
@@ -3285,4 +3332,9 @@ ipcMain.on("booted",async (e)=>{
       e.sender.send("product-info-fillup-modal",products);
     })
   }
+});
+
+ipcMain.on("open-bills-folder",()=>{
+  // Open Bills folder
+  shell.openExternal(path.resolve(app.getPath("documents"),"./Bills"));
 });

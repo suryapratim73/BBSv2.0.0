@@ -119,12 +119,13 @@ async function initScheduleDiv(){
 }
 
 async function overviewPageInit(){
-    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content");
+    let year = document.getElementById("fin-year").value
+    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content",Number(year));
     let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
     let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
     dtEventDiv.querySelector("h1").textContent = dt;
     dtEventDiv.querySelector("p").textContent = `${mnth}, ${yr}`;
-    removeAllElem(".no-data");
+    removeAllElem(".no-data,#expired-bill-table-div .tbody>.body.row");
     let billTbody = document.querySelector("#expired-bill-table-div .tbody");
     let cols = [...document.querySelectorAll("#expired-bill-table-div .row.head .col>p")].map(p=>p.dataset.col);
     if(unPaidBills.length>0)
@@ -1000,9 +1001,13 @@ ipcRenderer.on("update-content",async ()=>{
 });
 
 function dblClickHandler(e){
-    let elem = traverseParent(e.target,"body") && elem.classList.contains("row");
-    if(elem)
-        ipcRenderer.send("dbl-click-resp",JSON.parse(elem.dataset.obj),1);
+    let elem = traverseParent(e.target,"body");
+    if(!(elem && elem.classList.contains("row"))) return;
+    let identifier = elem.dataset.identifier;
+    if(identifier==="billObj"){
+        let billObj = JSON.parse(elem.dataset.obj);
+        ipcRenderer.send("dbl-click-resp",billObj,2);
+    }
 }
 
 function changeHandler(e){

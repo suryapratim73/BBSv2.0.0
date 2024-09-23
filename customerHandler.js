@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger } = require("./common");
+const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
@@ -109,6 +109,14 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
         }
     });
     ipcMain.once("print-obj",(async function(e,printObj){
+        let billDate = openFormatForDate(new Date(saleObj.billDate))
+        let billItemTable = await getBillModel(saleObj.customerId,saleObj.billNo,billDate,billItemSchema);
+        let itemList = (await billItemTable.findAll()).map(({dataValues})=>dataValues);
+        let netQty = itemList.reduce((acc,{quantity,unit})=>{
+            if(unit==="Kg")
+                acc+=quantity;
+            return acc;
+        },0);
         let billMeta = {
         ...saleObj,
         netTax:tax,
@@ -118,7 +126,10 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
         shipGST:customerObj.gst,
         shipPh:JSON.parse(customerObj.phones)[0],
         shipAddr:customerObj.address,
-        shipTo:saleObj.name
+        shipTo:saleObj.name,
+        netQty,
+        discVal:0,
+        transportName:saleObj.delivery?.transportName ?? "Hand"
         };
         billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
             let caption,key = Object.keys(obj).pop();

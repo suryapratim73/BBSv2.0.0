@@ -91,6 +91,10 @@ h1{
     font-size: 2.5rem;
     font-weight: 100;
 }
+#expired-bill-table-div>div:first-child{
+    display: flex;
+    justify-content: space-between;
+}
 .mode-content h3{
     color: var(--theme-text-color);
     background: var(--theme-secondary);
@@ -135,6 +139,9 @@ h1{
 }
 #sale-purchase-btn-div>button:active{
     box-shadow: none;
+}
+#sale-purchase-btn-div > div > button:nth-child(1){
+    margin-right: 0.5rem;
 }
 #sale-purchase-btn-div{
     display: flex;
@@ -688,8 +695,7 @@ form#set-2-factor-auth-form button{
     justify-content: space-between;
 }
 .side-divs p{
-    color: var(--theme-secondary);
-    background: var(--theme-primary-lighter);
+    background: none;
     margin-bottom: 0.15rem;
 }
 .page2>div>div{
