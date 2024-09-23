@@ -58,7 +58,6 @@
     "executableName": "BBS",
     "copyright": "Copyright © year Codemint",
     "nodeVersion": "22.3.0",
-    "requestedExecutionLevel":"requireAdministrator",
     "linux": {
       "target": [
         {
@@ -92,6 +91,7 @@
           ]
         }
       ],
+      "requestedExecutionLevel":"requireAdministrator",
       "publisherName": "Codemint",
       "icon":"./logo256.png"
     },
