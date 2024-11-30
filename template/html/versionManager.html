@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../js/versionManager.js" defer></script>
+    <link rel="stylesheet" href="../css/versionManager.css">
+    <title>Version Manager</title>
+</head>
+<body>
+    <header>
+        <h1>Version Manager</h1>
+        <div>
+            <label for="version-list">Select App Version: </label>
+            <select name="versionList" id="version-list" onchange="initMainDiv(event)"></select>
+        </div>
+    </header>
+    <main></main>
+    <template id="version-details-template">
+        <div id="version-details">
+            <div>
+                <h2></h2>
+                <div>
+                    <p>Version Highlights</p>
+                    <div>
+                        <ul></ul>
+                    </div>
+                </div>
+            </div>
+            <div onclick="btnCtrl(event)" id="ctrl-btn">
+                <button data-cmd="open-folder">Open Backup Folder</button>
+                <button data-cmd="restore">Restore version</button>
+                <button onclick="btnCtrl(event)" data-cmd="delete-version" id="delete-version-btn">Delete Version</button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

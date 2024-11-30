@@ -52,7 +52,7 @@ function execCMD(cmd,path2pdf,printer,copies,paperSize,printOrientation){
     });
 }
 
-ipcMain.handle("get-printers",()=>{
+ipcMain?.handle("get-printers",()=>{
     switch(process.platform){
         case "linux":
             return checkPrintersOnLinuxOrMac("linux");
@@ -63,7 +63,7 @@ ipcMain.handle("get-printers",()=>{
     }
 });
 
-ipcMain.on("show-print-modal",(e,...arg)=>{
+ipcMain?.on("show-print-modal",(e,...arg)=>{
     if(arg.some(obj=>"pageFit" in obj))
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = "./template/html/printDialog.html";
@@ -96,9 +96,9 @@ ipcMain.on("show-print-modal",(e,...arg)=>{
     ipcMain.once("print-obj",_print);
 });
 
-ipcMain.on("forward-printObj",(e,printObj,path2pdf)=>{
+ipcMain?.on("forward-printObj",(e,printObj,path2pdf)=>{
     modal.close();
-    e.sender.browserWindowOptions.parent.webContents.send("printObj",printObj);
+    getMainWindow().webContents.send("printObj",printObj);
     ipcMain.emit("printObj",{printObj,path2pdf});    
 });
 

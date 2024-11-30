@@ -1,15 +1,21 @@
 {
-    "version":"2.18.4",
+    "version":"2.19.0",
     "highlights":[
-        "Adding a shortcut button to open Bills folder",
-        "Record management as financial year",
-        "Adding context menu",
-        "Double click to open a bill"
+        "Removed UAC prompt for each launch",
+        "Common context menu for sale lists",
+        "All known Billing bugs fixed",
+        "App Version Manager Launched",
+        "New Widgets",
+        "Minimize/Restore with Ctrl+M, Switch active  window with Ctrl+Tab+Up"
     ],
     "fullchange":[
-        "Adding a shortcut button to open Bills folder",
-        "Record management as financial year",
-        "Adding context menu",
-        "Double click to open a bill"
+        "Removed UAC prompt for each launch",
+        "Common context menu for sale lists",
+        "All known Billing bugs fixed",
+        "Improved data sync across renderer",
+        "Data sorting by financial year",
+        "More SalePage bugs are fixed",
+        "App Version Manager Launched",
+        "New Widgets"
     ]
 }

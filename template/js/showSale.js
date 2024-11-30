@@ -1,11 +1,17 @@
-const {toggleDevTool,drawSpinner,searchHandler, scrollSymSet, applyTheme,createModal,closeModal, appendToHost,removeAllElem} = require("../js/common");
+const {toggleDevTool,drawSpinner,searchHandler, scrollSymSet, applyTheme,createModal,closeModal, appendToHost,removeAllElem, traverseParent, showToastNotification, contextMenuFunction} = require("../js/common");
 const {ipcRenderer} = require("electron");
 
 
 toggleDevTool(document);
 
 const header = document.querySelector("header"),salesArr = [];
+const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+    ];
 let spinner = drawSpinner(document),saleList = [];
+let tbody = document.querySelector("#tbody"),selectedRow;
+
+tbody.addEventListener("contextmenu",(e)=>contextMenuFunction(e,"Sale-Dsiplay"));
 
 header.addEventListener("click",function(e){
     const filterOptions = this.querySelector("#filter-options"),
@@ -65,33 +71,48 @@ document.body.addEventListener("click",async function(e){
 ipcRenderer.send("get-sales");
 
 ipcRenderer.on("get-sales-response",(e,sales)=>{
-    sales.forEach((saleObj,i)=>{
-        saleList.push(saleObj);
-        let bodyDiv = document.createElement("div");
-        bodyDiv.className = "row body";
-        let tbody = document.querySelector("#tbody");
-        tbody.appendChild(bodyDiv);
-        salesArr.push(saleObj);
-        Object.keys({i,...saleObj})
-        .forEach(key=>{
-            bodyDiv.dataset[key] = saleObj[key];
-            let p = document.createElement("p");
-            if(key==="billAmt" || key==="tax")
-                p.textContent = Math.round(saleObj[key]);
-            else
-            if(key==="billDate")
-                p.textContent = saleObj[key].toLocaleDateString("en-GB");
-            else
-            if(key==="billNo")
-                p.textContent = saleObj[key];
-            else
-            if(key==="i")
-                p.textContent = i+1;
-            p.className = `col eq-space`;
-            if(["billAmt","tax","billDate","billNo","i"].includes(key))
-                bodyDiv.appendChild(p);
+    let monthlySales = sales.reduce((acc,saleObj)=>{
+        let month = new Date(saleObj.billDate).getMonth();
+        acc[month] = [...(acc?.[month] ?? []),saleObj];
+        return acc; 
+    },{});
+    Object.keys(monthlySales)
+    .forEach(month=>{
+        let sales = monthlySales[month];
+        let monthDiv = document.createElement("div");
+        monthDiv.className = "row body monthly-div";
+        tbody.appendChild(monthDiv);
+        let h2 = document.createElement("h2");
+        monthDiv.appendChild(h2);
+        h2.textContent = monthNames[+month]
+        sales.forEach((saleObj,i)=>{
+            saleList.push(saleObj);
+            let bodyDiv = document.createElement("div");
+            bodyDiv.className = "row body";
+            monthDiv.appendChild(bodyDiv)
+            bodyDiv.dataset.billObj = JSON.stringify(saleObj);
+            salesArr.push(saleObj);
+            Object.keys({i,...saleObj})
+            .forEach(key=>{
+                bodyDiv.dataset[key] = saleObj[key];
+                let p = document.createElement("p");
+                if(key==="billAmt" || key==="tax")
+                    p.textContent = Math.round(saleObj[key]);
+                else
+                if(key==="billDate")
+                    p.textContent = saleObj[key].toLocaleDateString("en-GB");
+                else
+                if(key==="billNo")
+                    p.textContent = saleObj[key];
+                else
+                if(key==="i")
+                    p.textContent = i+1;
+                p.className = `col eq-space`;
+                if(["billAmt","tax","billDate","billNo","i"].includes(key))
+                    bodyDiv.appendChild(p);
+            });
+            bodyDiv.dataset.itemTable =saleObj.billItemTable;
         });
-        bodyDiv.dataset.itemTable =saleObj.billItemTable;
     });
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);
@@ -123,3 +144,14 @@ ipcRenderer.on("apply-theme",applyTheme.bind(document));
 function _searchHandler(e){
     searchHandler(e,saleList);
 }
+
+ipcRenderer.on("show-bill",(e,billObj)=>{
+    selectedRow.querySelector(".col").click();
+});
+
+ipcRenderer.on("msg-from-backend",(e,msg,type)=>{
+    let classList = ["animation-common","move-left","blue-toast-box"];
+    if(type==="error")
+        classList = ["animation-common","move-left","red-toast-box"];
+    showToastNotification(msg,classList);
+});

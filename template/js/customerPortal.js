@@ -1,5 +1,5 @@
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification } = require("../js/common");
 const { ipcRenderer } = require("electron");
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent } = require("../js/common");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
@@ -285,38 +285,15 @@ async function addPayment(e){
     closeModal();
 }
 
-// function utilCMD(e){
-//     let bodyRow = e.target.parentNode.parentNode;
-//     let billAmt = bodyRow.querySelector("p:nth-child(3)").textContent;
-//     let oldPayment = bodyRow.querySelector("p:nth-child(4)").textContent;
-//     let cmd = e.target.dataset.cmd;
-//     let [id,billNo,billDate] = bodyRow.dataset.itemList.split("_")
-//     let {name} = customerList.find((custObj)=>custObj.id===id);
-//     if(cmd==="open")
-//         ipcRenderer.send("open-ext",name,billDate,billNo);
-//     else
-//     if(cmd==="print")
-//         ipcRenderer.send("print",name,billDate,billNo);
-//     else{
-//         if(oldPayment>=Math.round(billAmt)) return;
-//         let cover = document.createElement("div");
-//         cover.classList.add("cover");
-//         let modal = document.getElementById("add-payment-template").content.cloneNode(true).querySelector("div");
-//         let form = modal.querySelector("form");
-//         form.dataset.billAmt = billAmt;
-//         form.dataset.id = id;
-//         form.dataset.name = name;
-//         form.dataset.billNo = billNo;
-//         document.body.appendChild(cover);
-//         document.body.appendChild(modal);
-//     }
-// }
-
 function billPageInit(){
     document.querySelector("#ledger-div").classList.add("hide");    
     let mainDiv = document.getElementById("main-section");
     removeAllElem("#bill-table")
     let billsDiv = document.createElement("div");
+    billsDiv.addEventListener("contextmenu",e=>{
+        selectedDiv = traverseParent(e.target,"row");
+        contextMenuFunction(e,"customer-portal")
+    });
     billsDiv.dataset.id = this.dataset.id;
     billsDiv.classList.add("table");
     billsDiv.id = "bill-table";
@@ -338,8 +315,10 @@ function billPageInit(){
     tbody.id = "tbody";
     billsDiv.appendChild(tbody);
     document.getElementById("graph-container").classList.remove("hide");
-    bills.forEach(({billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus})=>{
+    bills.forEach(billObj=>{
+        let {billAmt,billDate,billItemTable,billNo,billStatus,payment,paymentStatus} = billObj;
         let row = document.createElement("div");
+        row.dataset.billObj = JSON.stringify(billObj);
         if(billNo==="spot")
             billNo = monthNames[billDate.getMonth()];
         row.innerHTML = `
@@ -639,3 +618,17 @@ function updateLedger(e){
     let balance = Number(e.target.balance.value);
     ipcRenderer.send("add-opening-balance",custId,balance);
 }
+
+ipcRenderer.on("msg-from-backend",(e,msg,type,mode=0,obj)=>{
+    let classList = ["animation-common","move-left","blue-toast-box"];
+    if(type==="error")
+        classList = ["animation-common","move-left","red-toast-box"];
+    showToastNotification(msg,classList);
+    if(mode===1)
+        loadLedgerTable(obj.name);
+});
+
+ipcRenderer.on("show-bill",(e,billObj)=>{
+    if(selectedDiv)
+        selectedDiv.querySelector(".col").click();
+});

@@ -10,6 +10,7 @@ const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
 const { billDesignerWindow, getCurrentLogin, checkForUpdates, scheduleManager } = require("./main");
+const { versionManager } = require("./versionManager");
 
 
 function appStateComplianceEnforcement(funcName,...params){
@@ -63,6 +64,11 @@ module.exports = mainWindow=>{
                     accelerator:"CommandOrControl+Shift+L"
                 },
                 { type: "separator" },
+                { 
+                    label:"Verson Manager",
+                    click: ()=>appStateComplianceEnforcement(versionManager),
+                    accelerator:"Shift+F2"
+                },
                 { role: "quit" }
             ]
         },

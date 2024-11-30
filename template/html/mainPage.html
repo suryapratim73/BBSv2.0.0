@@ -165,9 +165,17 @@
     </template>
     <template id="sale-page-template">
         <div class="mode-content" id="sale-div">
-            <div>
-                <h3>Order Queues</h3>
-                <div id="order-queue-container" onclick="slideQueueCard(event)"></div>
+            <div id="sale-div-content" onmouseenter="saleOverviewContext()" onmouseleave='document.getElementById("overview-context").classList.add("hide");document.getElementById("context-options").classList.add("hide")'>
+                <div id="overview-context" class="hide">
+                    <div class="icon-container" onclick="showContextOptions()">
+                        <i data-msg="Change widget" class="hover">&#8635;</i>
+                    </div>
+                    <div class="hide" id="context-options" onclick="updateSaleOverviewPreference(event)">
+                        <p data-name="orderQueue">Order Queues</p>
+                        <p data-name="monthly1x">Monthly Sale - Current Month</p>
+                        <p data-name="monthly3x">Monthly Sale - Last 3 Months</p>
+                    </div>
+                </div>
             </div>
             <div>
                 <div id="sale-graph-div">
@@ -185,6 +193,24 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </template>
+    <template id="sale-table-template">
+        <div id="sale-table" class="widget">
+            <div class="table">
+                <div class="row head">
+                    <p class="col eq-space" data-col="billDate">Date</p>
+                    <p class="col eq-space" data-col="name">Name</p>
+                    <p class="col eq-space" data-col="netAmt">Bill Amount</p>
+                    <p class="col eq-space" data-col="paymentStatus">Paid / Unpaid</p>
+                </div>
+                <div class="tbody hide-scrollbar"></div>
+            </div>
+        </div>
+    </template>
+    <template id="order-queue-container-template">
+        <div id="order-queue-container" class="widget" onclick="slideQueueCard(event)">
+            <h3>Order Queues</h3>
         </div>
     </template>
     <template id="purchase-page-template">

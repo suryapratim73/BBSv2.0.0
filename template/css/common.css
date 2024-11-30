@@ -483,9 +483,6 @@ button.selected{
     visibility: hidden;
     display: none;
 }
-.body.row:hover{
-    background: #f1f1f1;
-}
 .body.row:last-child{
     margin: 0;
 }

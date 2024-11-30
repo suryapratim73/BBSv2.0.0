@@ -114,6 +114,20 @@ exports.init = function(DataTypes){
             itemReturned:{
                 type: DataTypes.BOOLEAN,
                 defaultValue: false
+            },
+            desc:{
+                type:DataTypes.TEXT,
+                defaultValue:""
+            },
+            isGrouped:{
+                type:DataTypes.BOOLEAN,
+                defaultValue:false
+            },
+            grpId:{
+                type:DataTypes.UUID
+            },
+            grpName:{
+                type:DataTypes.TEXT
             }
         }
     }

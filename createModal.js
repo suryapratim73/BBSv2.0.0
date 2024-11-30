@@ -1,6 +1,7 @@
 const {BrowserWindow, dialog, nativeImage} = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { showTutorial } = require("./common");
 
 
 let windowList = [];
@@ -28,7 +29,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
         enableRemoteModule: true
       },
       parent:BrowserWindow.getFocusedWindow(),
-      movable:false,
+      // movable:false,
       show:false,
       modal:false,
       ...windowOptions

@@ -16,4 +16,4 @@ orders.json
 scheduler.json
 nodemon.json
 config/
-model/schema*.js
+updtConf.json

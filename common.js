@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require("fs");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
 const { getMainWindow } = require("./createModal");
+const { getsaleConfigPolicyPath } = require("./template/js/common");
 
 let customerList = [];
 
@@ -115,6 +116,21 @@ function getStartDate(period){
     return startDate;
 }
 
+function getFinYearStrtEndDt(year){
+    if(!("presets" in process) || !("financialYearStartDate" in process.presets)) return;
+    let strtDt = new Date(),endDt = new Date();
+    strtDt.setDate(1);
+    strtDt.setMonth(process.presets.financialYearStartDate.getMonth());
+    if(year===1){
+        endDt.setDate(strtDt.getDate() - 1);
+        endDt.setMonth(strtDt.getMonth() - 1);
+        strtDt.setFullYear(new Date().getFullYear()-1);
+    }
+    return { strtDt,endDt };
+}
+
+exports.getFinYearStrtEndDt = getFinYearStrtEndDt;
+
 exports.getStartDate = getStartDate;
 
 // ipcMain.on("printObj",print);
@@ -174,8 +190,10 @@ exports.appLogger = function(...lines){
         });
     let mainWin = getMainWindow();
     let msg = lines[0];
+    if(typeof msg.notify==="undefined")
+        msg.notify = true;
     // Error reporting notification 
-    if(/error/i.test(msg.title)){
+    if(/error/i.test(msg.title) && msg.notify){
         let evObj = {
             tag:"Error",
             type:"Error",
@@ -306,4 +324,18 @@ exports.openFormatForDate = function(date=Date){
                 acc = i===0 ? str : str+"-"+acc;
                 return acc;
             },"");
+}
+
+exports.captionReducer = function(arr){
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    let { billTemplate:{captions={}} } = saleConfig;
+    return arr.reduce((acc,obj)=>{
+        let caption,key = Object.keys(obj).pop();
+        if(captions.find(obj=>Object.keys(obj)[0]===key))
+            caption = captions[captions.findIndex(obj=>Object.keys(obj)[0]===key)][key];
+        else
+            caption = obj[key];
+        acc.push(caption);
+        return acc;    
+    },[]);
 }

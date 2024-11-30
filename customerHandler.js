@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate } = require("./common");
+const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
@@ -103,6 +103,32 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
     let { customerId,delivery,tax,billAmt } = saleObj;
     let billItemModel = await getBillModel(customerId,billNo,billDate,billItemSchema)
     let orderItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
+    let _orderItems = [...orderItems];
+    orderItems.forEach(itemObj=>{
+        if(itemObj.isGrouped){
+            let grpObj = _orderItems.find(obj=>obj.id===itemObj.grpId)
+            if(grpObj?.items?.length>0){
+                grpObj.items.push(itemObj);
+                grpObj.qty += itemObj.qty;
+            }
+            else
+                _orderItems.push({
+                    cgst:itemObj?.cgst,
+                    sgst:itemObj?.sgst,
+                    igst:itemObj?.igst,
+                    desc:itemObj.desc,
+                    hsn:itemObj.hsn,
+                    id:itemObj.grpId,
+                    items:[itemObj],
+                    name:itemObj.grpName,
+                    qty:itemObj.qty,
+                    rate:itemObj.rate,
+                    sellUnit:itemObj.unit,
+                    type:"grp"
+                });
+            _orderItems.splice(_orderItems.findIndex(obj=>obj.name===itemObj.name),1);
+        }
+    });
     let customerObj = await customer.findOne({
         where:{
             id:customerId
@@ -131,13 +157,8 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
         discVal:0,
         transportName:saleObj.delivery?.transportName ?? "Hand"
         };
-        billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
-            let caption,key = Object.keys(obj).pop();
-            caption = obj[key];
-            acc.push(caption);
-            return acc;    
-        },[]);
-        let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems},true);
+        billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
+        let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:_orderItems},true);
         print({printObj,path2pdf});
         this.close();
     }).bind(printDialog()))
@@ -471,6 +492,8 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         });
         getTargetWindow("customer-portal").webContents.send("close-modal");
         // This should replace the pdfFile
+        printObj.captions = captionReducer(printObj.captions);
+        billMeta.printObj = printObj;
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
         if(printObj)
             print({printObj,path2pdf});
@@ -646,3 +669,64 @@ ipcMain.on("add-opening-balance",async (e,id,balance)=>{
         getTargetWindow("customer-portal").webContents.send("close-modal");
     })
 });
+
+async function markBillAsPaid(obj,targetWin){
+    let billObj = this ? this : obj;
+    let saleObj = (await sale.findOne({
+        where:{
+            entryNo:billObj.entryNo
+        }
+    })).dataValues;
+    if(saleObj.paymentStatus)
+        return getTargetWindow(targetWin).webContents.send("msg-from-backend","Bill was already marked paid.");
+    let customerLedger = await getLedgerModel(billObj.customerId,customerLedgerSchema);
+    let lastBalance = (await (customerLedger.findOne({
+        attributes:["balance"],
+        order:[
+            ["entryNo","DESC"]
+        ]
+    })))?.dataValues.balance ?? 0;
+    let mainWin = getMainWindow();
+    mainWin.webContents.send("remove-row");
+    ipcMain.once("echo-exp-event",(e,expiredSchedules)=>{
+        let selectedEv = expiredSchedules.find((evObj)=>(evObj?.billObj?.id===billObj.customerId && Number(evObj?.billObj?.billNo)===billObj.billNo));
+        if(selectedEv)
+            ipcMain.emit("manage-schedule",null,selectedEv.id,"exp-r",false);
+        mainWin.webContents.send("check-notification");
+    });
+    ipcMain.emit("manage-schedule",null,null,"exp-echo",false);
+    Promise.all([
+      sale.update({
+        paymentStatus:true
+      },{
+        where:{
+          entryNo:billObj.entryNo
+        }
+      }),
+      inPayments.create({
+        payment:Number(billObj.billAmt),
+        id:billObj.customerId,
+        date:new Date(),
+        moreInfo:{
+            billNo:billObj.billNo
+        }
+      }),
+      (await customerLedger.sync()).create({
+        date:new Date(),
+        type:"payment",
+        payments:Math.round(billObj.billAmt),
+        balance:Math.round(lastBalance - Math.round(billObj.billAmt)),
+      })
+    ])
+    .then(()=>{
+        if(!targetWin)
+            mainWin.webContents.send("msg-from-backend","Payment added.");
+        else
+            getTargetWindow(targetWin).webContents.send("msg-from-backend","Payment added.","info",1,billObj);
+    })
+    .catch(err=>{
+        console.log(err)
+    });
+}
+
+exports.markBillAsPaid = markBillAsPaid;

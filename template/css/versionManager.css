@@ -1,0 +1,51 @@
+@import "../css/common.css";
+body{
+
+}
+header{
+    grid-row: 1 / 2;
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+}
+header>div{
+
+}
+header select{
+    width: 12rem;
+    padding: 0.5rem;
+    color: var(--theme-text-color);
+}
+button{
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+button:active{
+    background-color: var(--theme-text-color);
+    color: var(--theme-secondary);
+}
+main{
+    grid-row: 2 / -1;
+    grid-column: 1 / -1;
+    overflow: hidden;
+}
+#version-details{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+#version-details>div:first-child{
+    height: 100%;
+    width: 100%;
+}
+#version-details>div:first-child>div>div{
+    padding: 0 1rem;
+}
+#version-details ul{
+
+}
+#version-details li{
+
+}

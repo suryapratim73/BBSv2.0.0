@@ -2,7 +2,7 @@ const { ipcMain, dialog, Menu, app } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo, captionReducer, getFinYearStrtEndDt } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
@@ -11,7 +11,7 @@ const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
 const uuid = require("uuid");
 const { printPDF } = require("./main");
-const { DataTypes } = require("sequelize");
+const { DataTypes, Op } = require("sequelize");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
@@ -52,7 +52,7 @@ exports.saleWindow = ()=>{
 exports.showSales = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        saleWindow = createModal(windowOptions,"./template/html/showSale.html",{maxWinCount:1,label:"Sale-Dsiplay"});
+        createModal(windowOptions,"./template/html/showSale.html",{maxWinCount:1,label:"Sale-Dsiplay"});
     }
 }
 
@@ -110,11 +110,11 @@ function itemAnalyzer(orderItems){
     return itemList;
 }
 
-async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type},billModel,custId,billDate,billNo){
+async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type,desc=""},billModel,custId,billDate,billNo,grpTag=false,grpId,grpName,grpDesc){
     let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
-    await billModel.create({
+    let billModelObj = {
         name,
         type,
         hsn,
@@ -124,8 +124,16 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
         tax:tax*amt/100,
         sgst,
         cgst,
-        igst
-    })
+        igst,
+        desc
+    };
+    if(grpTag){
+        billModelObj.isGrouped = true;
+        billModelObj.grpId = grpId;
+        billModelObj.grpName = grpName;
+        billModelObj.desc = grpDesc;
+    }
+    await billModel.create(billModelObj);
     if(!id)
         return ipcMain.emit("create-stock",null,{name,hsn});
     let item = await stock.findOne({where:{id}});
@@ -190,16 +198,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         netAmtTax
     } = billMeta;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    let { billTemplate:{captions={}} } = saleConfig;
-    billMeta.printObj.captions = billMeta.printObj.captions.reduce((acc,obj)=>{
-        let caption,key = Object.keys(obj).pop();
-        if(captions.find(obj=>Object.keys(obj)[0]===key))
-            caption = captions[captions.findIndex(obj=>Object.keys(obj)[0]===key)][key];
-        else
-            caption = obj[key];
-        acc.push(caption);
-        return acc;    
-    },[]);
+    billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
     if(Number(billNo)===getLastBillNo()){
         setBillNo(Number(billNo));
         saleConfig.billNo = Number(billNo);
@@ -313,8 +312,10 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         ...orderItems
         .filter(obj=>obj.type!=="service")
         .map(obj=>{
-            if(obj.type==="grp")
-                return obj.items.map(obj=>helperFunc1(obj,billModel,custId,billDate,billNo));
+            if(obj.type==="grp"){
+                let grpId = uuid.v4();
+                return obj.items.map(_obj=>helperFunc1(_obj,billModel,custId,billDate,billNo,true,grpId,obj.name,obj.desc));
+            }
             else
                 return helperFunc1(obj,billModel,custId,billDate,billNo);
         }),//updating stock
@@ -424,7 +425,24 @@ ipcMain.handle("get-transporter",async ()=>{
 });
 
 ipcMain.on("get-sales",async e=>{
-    e.sender.send("get-sales-response",(await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues));
+    try{
+        let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getFullYear(),3,1)
+        let sales = (await (await sale.sync())
+        .findAll({
+            where:{
+                billDate:{
+                    [Op.gte]:dt
+                }
+            },
+            order:[["entryNo","DESC"]]
+        }))
+        .map(({dataValues})=>dataValues);
+        e.sender.send("get-sales-response",sales);
+    }
+    catch(err){
+        console.log(err)
+    }
+
 });
 
 ipcMain.handle("get-sales",async e=>{
@@ -559,7 +577,7 @@ ipcMain.handle("get-order",(e,orderId)=>{
 function traverseDate(date,annualHolidays,weeklyHolidays){
     if((annualHolidays.find(dt=>dt.getDate()===date.getDate() && dt.getMonth()===date.getMonth())) || weeklyHolidays.includes(date.getDay())){
         date.setDate(date.getDate()-1);
-        return traverseDate(date,annualHolidays,weeklyHolidays)
+        return traverseDate(date,annualHolidays,weeklyHolidays);
     }
     else
         return date;
@@ -567,7 +585,7 @@ function traverseDate(date,annualHolidays,weeklyHolidays){
 
 ipcMain.handle("get-date", ()=>{
     let date = new Date();
-    let dayArray = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    let dayArray = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     let annualHolidays = (process.presets.annualHolidays?.split(",").map(dt=>dt.trim())
                         .map(dt=>{
                             let [ dd,mm,yyyy ] = dt.split("/");

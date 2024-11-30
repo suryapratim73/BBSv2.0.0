@@ -126,3 +126,6 @@ main{
 #sec-3>button{
     padding: 0.5rem;
 }
+.monthly-div{
+    flex-direction: column;
+}

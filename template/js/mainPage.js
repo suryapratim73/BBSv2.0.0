@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -19,6 +19,7 @@ let themeObj = {
 };
 let currentMode = "overview",reducedBills = [],reducedPurchases = [];
 let mode = 1,loggedinUser,compInfo,hiddenSection,caroselTimer,tags;
+let selectedRow;
 
 toggleDevTool(document);
 
@@ -150,9 +151,10 @@ async function overviewPageInit(){
     initScheduleDiv();
 }
 
-async function salePageInit(){
-    let {bills=[],allBills=[]} = await ipcRenderer.invoke("get-sale-content") ?? {};
-    let orderQueueContainer = document.getElementById("order-queue-container");
+function showOrderQueue(bills){
+    let saleDivContent = document.getElementById("sale-div-content");
+    let orderQueueContainer = document.getElementById("order-queue-container-template").content.cloneNode(true).querySelector("div");
+    saleDivContent.appendChild(orderQueueContainer);
     if(bills.length===0)
         document.getElementById("order-queue-container").innerHTML = '<p class="item-obj">Create bill to show up here</p>';
     bills.forEach(({name,billNo,billItems},i)=>{
@@ -173,6 +175,62 @@ async function salePageInit(){
             billItemContainer.appendChild(itemObjDiv);
         });
     });
+}
+
+function saleOverviewContext(){
+    document.getElementById("overview-context").classList.remove("hide");
+
+}
+
+function showContextOptions(){
+    let ctxOptDiv = document.getElementById("context-options");
+    ctxOptDiv.classList.remove("hide");
+}
+
+async function updateSaleOverviewPreference(e){
+    let opt = e.target.dataset.name;
+    document.getElementById("context-options").classList.add("hide");
+    let {bills=[],allBills=[]} = await ipcRenderer.invoke("get-sale-content") ?? {};
+    ipcRenderer.send("update-preference",{preset:opt,currentMode,sec:"main"});
+    removeAllElem("#sale-div-content .widget");
+    if(opt==="orderQueue"){
+        console.log(bills)
+        showOrderQueue(bills);
+    }
+    else
+    if(opt==="monthly1x"){
+        overviewSaleTable(1,allBills);
+    }
+    else
+    if(opt==="monthly3x"){
+        overviewSaleTable(3,allBills);
+    }
+}
+
+function overviewSaleTable(mode,bills){
+    let saleDivContent = document.getElementById("sale-div-content");
+    appendToHost("#sale-table-template",saleDivContent,"DIV");
+    let currentMonth = new Date().getMonth(),arr,currentYear = new Date().getFullYear();
+    if(mode===1)
+        arr = bills.filter(obj=>obj.billDate.getMonth()===currentMonth && obj.billDate.getFullYear()===currentYear);
+    else
+    if(mode===3)
+        arr = bills.filter(obj=>obj.billDate.getMonth()>currentMonth-3 && obj.billDate.getFullYear()===currentYear);
+    tableFillupHelper(arr,".head.row p",".tbody",bodyRow,"billObj");
+}
+
+async function salePageInit(){
+    let {bills=[],allBills=[],preset} = await ipcRenderer.invoke("get-sale-content") ?? {};
+    // Show sale display widgets
+    if(preset==="orderQueue")
+        showOrderQueue(bills);
+    else
+    if(preset==="monthly1x")
+        overviewSaleTable(1,allBills);
+    else
+    if(preset==="monthly3x")
+        overviewSaleTable(3,allBills);
+    // For drawing graph
     reducedBills = reducedArr(allBills,"#sale-graph");
 }
 
@@ -288,10 +346,14 @@ function slideQueueCard(e){
     }
 }
 
-function updateChart(e,canvasId){
+async function updateChart(e,canvasId){
     if(e){
         let option = e.target.querySelector(`[value="${e.target.value}"]`);
         mode = Number(option.dataset.mode);
+        if(mode===3)
+            reducedBills = reducedArr((await ipcRenderer.invoke("get-sale-content",true)).allBills,"#sale-graph");
+        else    
+            reducedBills = reducedArr((await ipcRenderer.invoke("get-sale-content")).allBills,"#sale-graph");
     }
     let arr = canvasId==="#sale-graph" ? reducedBills : reducedPurchases;
     arr.forEach(([total,objs])=>{
@@ -885,19 +947,19 @@ ipcRenderer.on("error",(e,msg)=>{
 // Context Menu
 function showContextMenu(e){
     let elem = e.target;
-    let { x,y } = e;
     let parentNode;
     if(elem.classList.contains("col")){
         parentNode = elem.parentNode;
         let obj = JSON.parse(parentNode.dataset.obj);
-        ipcRenderer.send("show-context-menu",{mode:parentNode.dataset.identifier,x,y,obj});
+        selectedRow = parentNode;
+        ipcRenderer.send("show-context-menu",{mode:parentNode.dataset.identifier,obj});
     }
 }
 
 ipcRenderer.on("show-bill",async (e,selectedBill)=>{
     if(!selectedBill) return;
     let spinner = drawSpinner(document);
-    hiddenSection = document.getElementById("overview-div");
+    hiddenSection = document.querySelector(".mode-content");
     let modeHost = document.getElementById("mode-host");
     hiddenSection.classList.add("hide");
     let { billItemTable } = selectedBill;
@@ -1417,3 +1479,18 @@ async function prodFormAction(e){
         applySpinner(_closeModal)
     }
 }
+
+ipcRenderer.on("remove-row",()=>{
+    if(!selectedRow) return;
+    if(currentMode==="overview")
+        selectedRow.remove();
+    if(currentMode==="sale")
+        selectedRow.querySelector(".col:last-child").textContent = "Paid";
+});
+
+ipcRenderer.on("msg-from-backend",(e,msg,type)=>{
+    let classList = ["animation-common","move-left","blue-toast-box"];
+    if(type==="error")
+        classList = ["animation-common","move-left","red-toast-box"];
+    showToastNotification(msg,classList)
+});

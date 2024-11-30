@@ -823,7 +823,7 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
         else
             dataModal.style.top = clientY - this.getBoundingClientRect().top*0.3 + "px";
         
-        timer && clearTimeout(timer);
+        typeof timer!=="undefined" && clearTimeout(timer);
         timer = setTimeout(()=>{
             dataModal.remove();
         },2000);
@@ -1356,8 +1356,8 @@ exports.reduceOrder = function(){
         let obJKeys = Object.keys(obj);
         let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
             if(key in obj)
-                return acc + obj[key]
-            return acc
+                return acc + obj[key];
+            return acc;
         },0);
         if(keys.every(val=>obJKeys.includes(val))){
             if(!("discVal" in billMeta))
@@ -1425,7 +1425,7 @@ exports.bodyRow = function({obj,index,cols,key}){
     cols.forEach(col=>{
         let p = document.createElement("p");
         p.className = "col eq-space";
-        p.textContent = (/date/i.test(col)===true && obj[col] instanceof Date ? obj?.[col]?.toLocaleDateString('en-GB'): (typeof obj?.[col]==="number" ? Math.round(obj?.[col]) : obj?.[col])) ?? index+1;
+        p.textContent = (/date/i.test(col)===true && obj[col] instanceof Date ? obj?.[col]?.toLocaleDateString('en-GB'): (typeof obj?.[col]==="number" ? Math.round(obj?.[col]) : (col==="paymentStatus" ? (obj[col]===true ? "Paid" : "Unpaid") : obj?.[col]))) ?? index+1;
         div.appendChild(p);
     });
     return div;
@@ -1452,10 +1452,10 @@ exports.bodyRowInpFillup = itemObj=>{
     calculateAmounts();
 }
 
-exports.tableFillupHelper = function(arr,theadSelector,tbodySelector,bodyRowGen){
+exports.tableFillupHelper = function(arr,theadSelector,tbodySelector,bodyRowGen,key="itemObj"){
     let cols = [...document.querySelectorAll(theadSelector)].map(p=>p.dataset.col);
     let tbody = document.querySelector(tbodySelector);
-    arr.forEach((obj,index)=>tbody.appendChild(bodyRowGen({key:"itemObj",obj,cols,index})));
+    arr.forEach((obj,index)=>tbody.appendChild(bodyRowGen({key,obj,cols,index})));
 }
 
 exports.applySpinner = async cb =>{
@@ -1662,4 +1662,14 @@ exports.traverseParent = function traverseParent(elem,matchClass,checkNodeType){
         return elem.parentNode;
     else
         return traverseParent(elem.parentNode,matchClass);
+}
+
+exports.contextMenuFunction = (e,targetWin)=>{
+    selectedRow = traverseParent(e.target,"body");
+    let obj = JSON.parse(selectedRow.dataset.billObj);
+    ipcRenderer.send("show-context-menu",{mode:"billObj",obj,targetWin});
+}
+
+exports.showTutorial = function(doc){
+    // To demonstrate what is chnaged in perticular window
 }

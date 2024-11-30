@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.18.4",
+  "version": "2.19.0",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -91,7 +91,6 @@
           ]
         }
       ],
-      "requestedExecutionLevel":"requireAdministrator",
       "publisherName": "Codemint",
       "icon":"./logo256.png"
     },
@@ -115,6 +114,7 @@
       "!db/",
       "!config/",
       "!.vscode",
+      "!updtConf.json",
       "!changelog.json"
     ],
     "asar": false,

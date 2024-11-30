@@ -33,6 +33,7 @@ const {
   getBaseDir,
   print,
   openFormatForDate,
+  getFinYearStrtEndDt,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -70,6 +71,8 @@ const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
+const { markBillAsPaid } = require("./customerHandler");
+const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -251,29 +254,6 @@ async function createWindow() {
       `./template/html/${fileName}.html`,
       { maxWinCount: 1, label: "Main" }
     );
-    let strtMsg = process.argv.find(str=>str.startsWith("msg="));
-    if(strtMsg && typeof strtMsg==="string")
-      mainWindow.once("focus",()=>{
-        strtMsg=strtMsg.split("=").pop();
-        dialog.showMessageBox({
-          title:"Info",
-          message:strtMsg,
-          buttons:["Ok"],
-          noLink:true,
-          icon:appIcon
-        });
-        spawn("rm -r ~/.config/BBS/*.deb",{
-          shell:true,
-          stdio:["pipe","pipe","pipe"]
-        }).stdio.every(stream=>{
-          stream.on("data",(data)=>{
-            appLogger({
-              message:data,
-              title:"STDIO"
-            })
-          });
-        })
-      });
     // Removing replica DB when it served it purpose.    
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{
@@ -311,8 +291,8 @@ async function createWindow() {
               message:"Copying schema files"
             });
             [
-              {ext:"./",file:"schema.js"},
-              {ext:"./",file:"schema_replica.js"},
+              {ext:"./model",file:"schema.js"},
+              {ext:"./model",file:"schema_replica.js"},
               {ext:"./",file:"dbConf.json"},
               {ext:"./model/",file:"dynamicSchemas.js"},
               {ext:"./model/",file:"dynamicSchemas_replica.js"}
@@ -324,10 +304,6 @@ async function createWindow() {
               title:"DB Migration status",
               message:"Copy successful and updating updtConf.json file"
             })
-            updateConf.currentUser = app.getVersion();
-            updateConf.updateComplete = true;
-            updateConf.currentVersion = app.getVersion();
-            fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
           }
           appLogger({
             title:"DB Migration status",
@@ -342,6 +318,8 @@ async function createWindow() {
             mainWindow.webContents.send("execute-progressbar",0);
             await dbMigrator();
           }
+          if(resp>0 && !schemaValidator())
+            showUpdateSuccessMsg();
         }
       }
       catch(err){
@@ -700,11 +678,11 @@ app.on("ready", async () => {
         billNoCounter(billNo);
       });
       global.shouldWait = false;
-      // Adding tab switcher
+      // Adding tab switcher - global shortcuts
       let mainWindow = await createWindow();
       createNotifications();
       let focussedWindow = BrowserWindow.getFocusedWindow();
-      globalShortcut.register("CommandOrControl+Tab+Up", () => {
+      globalShortcut.register("CommandOrControl+Up", () => {
         if (mainWindow) {
           let brWindows = BrowserWindow.getAllWindows();
           brWindows = brWindows.filter((win) => win !== mainWindow);
@@ -714,13 +692,30 @@ app.on("ready", async () => {
           else index++;
           focussedWindow = brWindows?.[index];
           focussedWindow?.focus();
+          if(focussedWindow.isMinimized())
+            focussedWindow.restore();
         }
       });
       globalShortcut.register("CommandOrControl+F4",()=>{
         let win = BrowserWindow.getFocusedWindow();
         if(win && win!==mainWindow)
           win.close();
-      })
+      });
+      globalShortcut.register("CommandOrControl+M",()=>{
+        let win = BrowserWindow.getFocusedWindow();
+        if(win===mainWindow) 
+          win = BrowserWindow.getAllWindows().filter(win=>win.isMinimized());
+        if(!(win instanceof Array) && (!(win?.isMinimized()) && win?.isMinimizable())){
+          process.lastMinimizedWin = win;          
+          win.minimize();
+        }
+        else
+        if(win instanceof Array){
+          win = typeof process.lastMinimizedWin!=="undefined" ? win.find(_win=>_win===process.lastMinimizedWin) : win.pop();
+          win?.restore();
+          process.lastMinimizedWin = undefined;
+        }
+      });
       if(firstBoot) return;
       // Taking attendance
       let todaysAttendance = (
@@ -997,14 +992,9 @@ exports.getCurrentLogin = function () {
 ipcMain.handle("get-overview-content", async (e,year) => {
   let { minStock,creditLimitDays } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
   if(!dbInitialized) return;
-  let strtDt = new Date(),endDt = new Date();
-  strtDt.setDate(1);
-  strtDt.setMonth(process.presets.financialYearStartDate.getMonth());
-  if(year===1){
-    endDt.setDate(strtDt.getDate() - 1);
-    endDt.setMonth(strtDt.getMonth() - 1);
-    strtDt.setFullYear(new Date().getFullYear()-1);
-  }
+  let { strtDt=null,endDt=null } = getFinYearStrtEndDt(year) ?? {};
+  if(!strtDt)
+    year = 2;
   let stocks = (
     await stock.findAll({
       where: {
@@ -1064,8 +1054,10 @@ ipcMain.on("new-sale-purchase", (e, mode) => {
     e.sender.send("error", "Insufficient permission");
 });
 
-ipcMain.handle("get-sale-content", async () => {
+ipcMain.handle("get-sale-content", async (e,allYear=false) => {
   if(!dbInitialized) return;
+  if(allYear)
+    ;
   let queuedBills = (
     await sale.findAll({
       where: {
@@ -1094,8 +1086,43 @@ ipcMain.handle("get-sale-content", async () => {
     },
     []
   );
-  let allBills = (await sale.findAll()).map(({ dataValues }) => dataValues);
-  return { bills, allBills: allBills };
+  let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getMonth(),3,1);
+  let allBills = (await sale.findAll({
+  where: allYear==false ? {
+      billDate:{
+        [Op.gte]:dt 
+      }
+    } : null
+  })).map(({ dataValues }) => dataValues);
+  let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  let preset;
+  if(!("appPreset" in policy))
+    preset = "orderQueue";
+  else
+    preset = policy.appPreset.saleOverviewMain;
+  return { bills, allBills, preset };
+});
+
+ipcMain.on("update-preference",(e,{preset,currentMode,sec})=>{
+  let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  if(currentMode==="sale"){
+    // Sale overview page preference
+    if(!("appPreset" in policy))
+      policy.appPreset = {};
+    if(sec==="main")
+      policy.appPreset.saleOverviewMain = preset;
+  }
+  // Updating policy
+  fs.writeFile(getUserPolicyPath(),JSON.stringify(policy),(err)=>{
+    if(err)
+      appLogger({
+        title:"Error",
+        message:String(err),
+        func:"IPC call 'update-preference'"
+      });
+    else
+      e.sender.send("msg-from-backend","Preference saved");
+  })
 });
 
 ipcMain.handle("get-purchase-content", async () => {
@@ -1764,7 +1791,7 @@ ipcMain.handle("manage-company-bank",async (e,obj,flag)=>{
 });
 
 // Context Menu
-ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
+ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
   let window = BrowserWindow.fromId(e.frameId),errIdentifier;
   let contextMenuObj;
   try{
@@ -1774,7 +1801,10 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
           label: "View Bill",
           click: () => {
             errIdentifier = "View Bill";
-            window.webContents.send("show-bill",obj);
+            if(!targetWin)
+              window.webContents.send("show-bill",obj);
+            else
+              getTargetWindow(targetWin).webContents.send("show-bill",obj);
           },
         },
         {
@@ -1799,6 +1829,10 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
             })
           }
         },
+        {
+          label:"Mark as paid",
+          click:markBillAsPaid.bind(obj,null,targetWin)
+        }
       ];
     }
     else
@@ -2068,8 +2102,6 @@ ipcMain.on("show-context-menu", (e, { mode, x, y, obj }) => {
   let menu = Menu.buildFromTemplate(contextMenuObj);
   menu.popup({
     window,
-    x,
-    y,
     callback: () => {
       console.log("Context menu closed");
     },
@@ -2311,10 +2343,12 @@ ipcMain.on("app-registration", async (e, gst) => {
 });// Incomplete
 
 //App update logic
-async function updateCommon(){
+exports.updateCommon = updateCommon;
+
+async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   let data = {
     currentVersion:app.getVersion(),
-    path2file:path.resolve(app.getPath("appData"),`./BBS/${this.fileName}`),
+    path2file:path.resolve(app.getPath("appData"),relPath),
     time:Date.now(),
     updateDownloaded:true,
     versionDownloaded:this.version,
@@ -2323,26 +2357,19 @@ async function updateCommon(){
     platform:process.platform,
     fileName:this.fileName
   }
-  try{
-    fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(data));
-  }
-  catch(err){
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"updateCommon()"
-    })
-  }
-  let resp = await dialog.showMessageBox({
-    title:"Download complete",
-    message:"Update download complete, do you want to install now?",
-    buttons:["Install Now","Later"],
-    noLink:true,
-    icon:appIcon
-  });
-  if(resp.response===1){
-    data.installMoment = "later";
-    return;
+  recordDownloadedVersion(data);
+  if(showMsgFlag){
+    let resp = await dialog.showMessageBox({
+      title:"Download complete",
+      message:"Update download complete, do you want to install now?",
+      buttons:["Install Now","Later"],
+      noLink:true,
+      icon:appIcon
+    });
+    if(resp.response===1){
+      data.installMoment = "later";
+      return;
+    }
   }
   ipcMain.emit("manage-schedule",null,"app-update","exp-all",false);
   appLogger({
@@ -2514,11 +2541,12 @@ async function checkForUpdates(flag="auto") {
   });
   if (err) {
     // Logic for error Handling
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"Check for update error"
-    });
+    if(isOnline)
+      appLogger({
+        title:"Error",
+        message:String(err),
+        func:"Check for update error"
+      });
     if(flag!=="auto")
       return dialog.showMessageBox({
         title:"Failed to connect",
@@ -2530,7 +2558,8 @@ async function checkForUpdates(flag="auto") {
     appLogger({
       title:"Error",
       message:String(err),
-      func:"Check for update error"
+      func:"Check for update error",
+      notify:false
     });
     return dialog.showMessageBox(mainWin, {
       title: "No Connection",
@@ -2904,6 +2933,11 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
         jsData.schedules.push(evObj);
       }
     }
+    else
+    if(flag==="exp-echo"){
+      ipcMain.emit("echo-exp-event",null,jsData.expiredSchedules);
+      return;
+    }
     fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
     createNotifications();
     if(flag==="exp-u" && updateKey==="time")
@@ -3056,15 +3090,14 @@ async function dbMigrator(){
   let _models = require("./model/dbConfig_replica");
   let { schemas,...models } = require("./model/dbConfig");
   let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
-  console.log({_billItemSchema})
   let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
   });
   updateProgressbar(win,1,2,"DB migration in progress,please wait...","Taking backups")
   try{
-    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"),"a+");
-    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_backup.db"),"a+");
+    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"));
+    fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_backup.db"));
     appLogger({title:"db copied successfully"});
     updateProgressbar(win,2,2,"DB migration in progress,please wait...","db copied successfully")
     let _sequelize = new Sequelize({
@@ -3095,7 +3128,10 @@ async function dbMigrator(){
           return getLedgerModel(id,schema);
         let _ledgerModel = await getLedgerModel(id,_schema,_sequelize);
         let ledgerModel = await getLedgerModel(id,schema);
-        await ledgerModel.sync();
+        await ledgerModel.sync({
+          force:true,
+          alter:true
+        });
         if(_ledgerModel){
           let ledger = (await (await _ledgerModel.sync()).findAll()).map?.(({dataValues})=>dataValues);
           if(!(ledger instanceof Array)) return;
@@ -3117,13 +3153,16 @@ async function dbMigrator(){
         await _billModel.sync();
         let _itemList = (await _billModel.findAll()).map(({dataValues})=>dataValues);
         let billModel = await getBillModel(id,billNo,billDate,schema);
-        await billModel.sync();
+        await billModel.sync({
+          force:true,
+          alter:true
+        });
         if(!(_itemList instanceof Array)) return;
-        await billModel.bulkCreate(_itemList,{returning:true});
+        await (await billModel.sync()).bulkCreate(_itemList,{returning:true});
         return
       }
       catch(err){
-        console.log({err,line:2841});
+        console.log({err,line:"helperfunc2 catch block",cond:schema===billItemSchema});
         return;
       }
     }
@@ -3149,7 +3188,10 @@ async function dbMigrator(){
       .map(async (arr)=>{
         for(let i=0;i<arr.length;i++){
           let { id,billNo,billDate } = arr[i];
-          await helperfunc2(id,billNo,billDate,_billItemSchema,billItemSchema,1);
+          await (await helperfunc2(id,billNo,billDate,_billItemSchema,billItemSchema,1)).sync({
+            force:true,
+            alter:true
+          });
         }
         return;
       })

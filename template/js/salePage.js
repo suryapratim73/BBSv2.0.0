@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize, textRollAnnimation } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize, textRollAnnimation, traverseParent } =  require("../js/common");
 
 const uuid = require("uuid");
 let fs = require("fs");
@@ -176,7 +176,7 @@ async function reInitFormData(){
                         main.querySelector("#bill-status-open").setAttribute("checked",true);
                 }
                 if(key==="billDate")
-                    input.valueAsDate = new Date(obj.billDate);
+                    input.valueAsDate = obj.billDate;
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
                 main.querySelector("#bill-number-regular").value = billMeta.billNo;
@@ -212,22 +212,26 @@ async function mainForm(){
     removeAllElem("main *");
     let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
     document.querySelector("main").appendChild(page);
-    if(currentStep===2 && !page2initialized){
+    if(currentStep===2){
         billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : await ipcRenderer.invoke("get-date");
         document.querySelector(`[data-name="billDate"]`).valueAsDate = billMeta.billDate;
-        currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
+        if(!page2initialized){
+            currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
+            billMeta.billNo = currentBillNo;
+            billMeta.billType = "regular";
+            page2initialized = true;
+        }
+        else
+            currentBillNo = billMeta.billNo;
         if(availableBillNo.length>0){
             let input = document.getElementById("bill-number-regular");
             input?.setAttribute("list","available-bill-no-div");
         }
-        billMeta.billNo = currentBillNo;
-        billMeta.billType = "regular";
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
         document.querySelector('[data-name="shipTo"]').value = customer.name;
         document.querySelector('[data-name="shipAddr"]').value = customer.address;
         document.querySelector('[data-name="shipPh"]').value = customer.phones?.[0];
         document.querySelector('[data-name="shipGST"]').value = customer.gst;
-        page2initialized = true;
     }
     setFooter();
     if(currentStep===3){
@@ -251,8 +255,6 @@ function advanceSet(target,newValue){
         target = JSON.parse(target);
     target.push(newValue);
     return Array.from(new Set(target))
-            // .filter((val,index,self)=>index===self.findIndex(_val=>new RegExp(phoneRegExpInp(val)).test(_val)))
-            // .map(val=>val.replace("\\",""));
 }
 
 function page4Init(){
@@ -380,7 +382,7 @@ function showItemMergeOpts(){
 }
 
 function revealMoreGrpOpts(e,mode){
-    let page = e.path.find(elem=>elem.className==="page");
+    let page = traverseParent(e.target,"page");
     if(mode===1){
         ["#price-selector-div","#swap-btn","#old-grp","#create-grp-btn","#new-grp"]
         .forEach(id=>page.querySelector(id).classList.remove("hide"));
@@ -411,7 +413,7 @@ function revealMoreGrpOpts(e,mode){
 
 function swapItems(e){
     e.stopPropagation();
-    let page = e.path.find(elem=>elem.className==="page");
+    let page = traverseParent(e.target,"page");
     let newGrpHost = page.querySelector("#new-item-host");
     let prevGrpHost = page.querySelector("#old-item-host");
     [...page.querySelectorAll(".item")]
@@ -437,7 +439,7 @@ function swapItems(e){
 
 function createNewGrp(e){
     e.stopPropagation();
-    let page = e.path.find(elem=>elem.className==="page");
+    let page = traverseParent(e.target,"page");
     let newGrpHost = page.querySelector("#new-item-host");
     let selectedRate = Number(page.querySelector("select").value);
     let newGrpItems = [...newGrpHost.querySelectorAll(".item")].map(elem=>JSON.parse(elem.dataset.obj));
@@ -540,9 +542,8 @@ function addPhone(e){
 
 function displaySection(){
     if(currentStep!==3) return;
-    let df = document.getElementById("summary-div-template").content.cloneNode(true);
-    document.querySelector(".page #page3-summary-div")?.remove();
-    document.querySelector("#page-3").appendChild(df);
+    removeAllElem(".page #page3-summary-div");
+    appendToHost("#summary-div-template",document.querySelector("#page-3"),"DIV")
     let summaryDiv = document.querySelector("#page3-summary-div");
     [...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue")]
     .forEach(p=>{
