@@ -148,6 +148,11 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
         where:{id}
     })
     let match = stockList.find(obj=>obj.id===id);
+    if(!match){
+        match = {};
+        match.quantity = 0;
+        match.specialPrice = [];
+    }
     match.quantity -= qty*multiplier;
     let customerSpPrices = match.specialPrice?.filter(obj=>obj.customerId==custId)?.slice(0,5);
     match.specialPrice = match.specialPrice?.filter(obj=>obj.customerId!=custId);

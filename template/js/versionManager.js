@@ -11,7 +11,7 @@ ipcRenderer.send("get-version-contents");
 
 ipcRenderer.on("get-version-contents-response",(e,preVersions,currentVersion)=>{
     let select = document.getElementById("version-list");
-    // preVersions = preVersions.filter(({appVersion})=>appVersion!==currentVersion);
+    preVersions = preVersions.filter(({appVersion})=>appVersion!==currentVersion);
     if(preVersions.length===0)
         return noDataPlaceholder(main);
     preVersions.forEach((versionObj,i)=>{

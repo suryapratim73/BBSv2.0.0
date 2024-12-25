@@ -1,21 +1,11 @@
 {
-    "version":"2.19.0",
+    "version":"2.20.0",
     "highlights":[
-        "Removed UAC prompt for each launch",
-        "Common context menu for sale lists",
-        "All known Billing bugs fixed",
-        "App Version Manager Launched",
-        "New Widgets",
-        "Minimize/Restore with Ctrl+M, Switch active  window with Ctrl+Tab+Up"
+        "Data ordering reverse",
+        "More Sale Page bugs fixed",
+        "Bill edit bugs fixed"
     ],
     "fullchange":[
-        "Removed UAC prompt for each launch",
-        "Common context menu for sale lists",
-        "All known Billing bugs fixed",
-        "Improved data sync across renderer",
-        "Data sorting by financial year",
-        "More SalePage bugs are fixed",
-        "App Version Manager Launched",
-        "New Widgets"
+        
     ]
 }

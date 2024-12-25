@@ -143,7 +143,7 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
     spinner.remove(window);
 });
 
-async function drawGraphs(id){
+async function drawGraphs(id,reverseFlag=true){
     bills = await ipcRenderer.invoke("show-customer-bills",id);
     bills
     .reduce((acc,{billDate,billAmt})=>{
@@ -152,6 +152,8 @@ async function drawGraphs(id){
         return acc;
     },[[0 , []]])
     .forEach(([total,objs])=>{
+        if(reverseFlag)
+            objs = objs.reverse();
         const { canvas,reducedObjs } = drawLineGraph(total,objs,"#bill-graph","green","red",{yLegend:"Amount",lOffset:25,xLegend:"Date",yLegOffset:0.4});
         canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
     });
@@ -177,6 +179,8 @@ async function loadLedgerTable(_name){
     selectedCustomer = customerList.find(({name})=>name===_name);
     page2BTNS.dataset.id = selectedCustomer.id;
     page2BTNS.dataset.name = selectedCustomer.name;
+    if(!("phones" in selectedCustomer) || typeof selectedCustomer.phones==="undefined")
+        selectedCustomer.phones = "[]";
     phones = JSON.parse(selectedCustomer.phones);
     this?.classList?.add("hide");
     let ledgerDiv = document.getElementById("ledger-div-template").content.cloneNode(true).querySelector("div");

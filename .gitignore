@@ -17,3 +17,5 @@ scheduler.json
 nodemon.json
 config/
 updtConf.json
+model/dynamicSchemas_replica.js
+model/schema_replica.js

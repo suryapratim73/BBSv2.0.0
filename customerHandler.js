@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer } = require("./common");
+const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
@@ -73,7 +73,13 @@ ipcMain.on("get-customer",async e=>{
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
+    let { strtDt=null,endDt=null } = getFinYearStrtEndDt(0) ?? {};
     return (await (await customerLedger.sync()).findAll({
+        where:{
+            date:{
+                [Op.between]:[strtDt,endDt]
+            }
+        },
         order:[
             ["entryNo","DESC"]
         ]
@@ -225,8 +231,13 @@ ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
 });
 
 ipcMain.handle("show-customer-bills",async (e,id)=>{
+    let finYear = typeof process.presets.finYear!=="undefined" ? process.presets.finYear : 0;
+    let { strtDt=null,endDt=null } = getFinYearStrtEndDt(finYear) ?? {};
     return (await (await sale.sync()).findAll({
         where:{
+            billDate:{
+                [Op.between]:[strtDt,endDt]
+            },
             customerId:id
         },
         order:[["entryNo","DESC"]]

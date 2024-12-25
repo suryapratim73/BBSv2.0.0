@@ -2574,6 +2574,7 @@ async function checkForUpdates(flag="auto") {
     new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)
   ) {
     let resp = versionChecker(app.getVersion(),appVersion);
+    if(!resp) return;
     let message;
     if (resp===1)
       message = "A new version of BBS is available for download.";
@@ -3314,7 +3315,8 @@ ipcMain.on("new-bill",async (e,customerObj)=>{
   process.presets = {
     customer:customerObj,
     target:"salePage",
-    currentStep:2
+    currentStep:2,
+    finYear:0
   };
 });
 
