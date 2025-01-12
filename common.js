@@ -121,10 +121,12 @@ function getFinYearStrtEndDt(year){
     let strtDt = new Date(),endDt = new Date();
     strtDt.setDate(1);
     strtDt.setMonth(process.presets.financialYearStartDate.getMonth());
+    if(strtDt.getMonth()>new Date().getMonth())
+        strtDt.setFullYear(strtDt.getFullYear()-1)
     if(year===1){
         endDt.setDate(strtDt.getDate() - 1);
         endDt.setMonth(strtDt.getMonth() - 1);
-        strtDt.setFullYear(new Date().getFullYear()-1);
+        strtDt.setFullYear(strtDt.getFullYear()-1);
     }
     return { strtDt,endDt };
 }

@@ -239,21 +239,23 @@ async function createWindow() {
       }
     }
     firstBoot = true;
-    // const mainWindow = createModal(
-    //   windowOptions,
-    //   `./template/html/firstBoot.html`,
-    //   { maxWinCount: 1, label: "Main",show:true,
-    //     cb:function(){
-    //       this.webContents.send("first-launch");
-    //     } 
-    //   }
-    // );
     process.appStatus = "normal";
     const mainWindow = createModal(
       windowOptions,
       `./template/html/${fileName}.html`,
       { maxWinCount: 1, label: "Main" }
     );
+
+    if(!app.requestSingleInstanceLock())
+      app.quit();
+    else{
+      app.on("second-instance",()=>{
+        if(mainWindow.isMinimized())
+          mainWindow.restore();
+        mainWindow.focus();
+      });
+    }
+
     // Removing replica DB when it served it purpose.    
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{

@@ -460,13 +460,8 @@
                         <p>Previous Group</p>
                         <div id="old-item-host"></div>
                     </div>
-                    <button id="swap-btn" class="hide" onclick="swapItems(event)" type="button">Swap items</button>
-                    <div id="new-grp" class="hide">
-                        <p>New Group</p>
-                        <div id="new-item-host"></div>
-                    </div>
                 </div>
-                <button id="create-grp-btn" disabled class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
+                <button id="create-grp-btn" class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
             </div>
         </div>
     </template>
@@ -480,7 +475,15 @@
     </template>
     <template id="new-grp-label-form-template">
         <form onsubmit="addLabelToGrp(event)">
-            <input type="text" name="label" autofocus placeholder="Enter label of new group">
+            <div>
+                <div>
+                    <input type="text" name="label" autofocus placeholder="Enter label of new group">
+                </div>
+                <div>
+                    <button type="button" onclick="closeModal()">Cancel Grouping</button>
+                    <button type="submit">Confirm Grouping</button>
+                </div>
+            </div>
         </form>
     </template>
 </body>

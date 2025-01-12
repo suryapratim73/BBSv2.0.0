@@ -19,3 +19,5 @@ config/
 updtConf.json
 model/dynamicSchemas_replica.js
 model/schema_replica.js
+model/old_dynamic_schema.js
+model/old_schema.js

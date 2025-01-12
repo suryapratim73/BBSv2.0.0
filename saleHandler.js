@@ -190,6 +190,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         transportId="",
         transportAddress="",
         transportContact="",
+        transportGST="",
         netDue, 
         billNo, 
         billDate, 
@@ -349,8 +350,12 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
             billItemTable:`${custId}_${billNo}_${billDate}`,
             autoBill,
             orderRef,
-            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact}:"hand",
-            billformonth:monthNames[new Date().getMonth()]
+            delivery:deliveryType!=="hand"?{transportName,transportAddress,transportContact,deliveryType,transportGST}:"hand",
+            billformonth:monthNames[new Date().getMonth()],
+            shipTo:billMeta.shipTo,
+            shipAddr:billMeta.shipAddr,
+            shipPh:billMeta.shipPh,
+            shipGST:billMeta.shipGST
         })
     ])
     .then(async ()=>{

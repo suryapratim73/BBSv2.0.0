@@ -326,6 +326,18 @@ exports.init = function(DataTypes,UUIDV4){
             },
             billformonth:{
                 type:DataTypes.TEXT
+            },
+            shipTo:{
+                type:DataTypes.TEXT
+            },
+            shipAddr:{
+                type:DataTypes.TEXT
+            },
+            shipGST:{
+                type:DataTypes.TEXT
+            },
+            shipPh:{
+                type:DataTypes.TEXT
             }
         },
         outPaymentSchema : {

@@ -52,8 +52,14 @@ async function init(){
     preset = await ipcRenderer.invoke("get-presets");
     if(preset && preset?.target==="salePage"){
         customer = preset.customer;
-        if("billMeta" in preset)
+        if("billMeta" in preset){
             billMeta = {...preset.billMeta};
+            if(typeof billMeta.delivery==="object")
+                ["deliveryType","transportName","transportAddress","transportContact","transportGST"]
+                .forEach(key=>{
+                    billMeta[key] = billMeta.delivery?.[key];
+                });
+        }
         if("itemList" in preset)
             orderItems = preset.itemList.map(itemObj=>{
                 return {
@@ -176,7 +182,7 @@ async function reInitFormData(){
                         main.querySelector("#bill-status-open").setAttribute("checked",true);
                 }
                 if(key==="billDate")
-                    input.valueAsDate = obj.billDate;
+                    input.valueAsDate = typeof obj.billDate==="string" ? new Date(obj.billDate) : obj.billDate;
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
                 main.querySelector("#bill-number-regular").value = billMeta.billNo;
@@ -214,7 +220,7 @@ async function mainForm(){
     document.querySelector("main").appendChild(page);
     if(currentStep===2){
         billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : await ipcRenderer.invoke("get-date");
-        document.querySelector(`[data-name="billDate"]`).valueAsDate = billMeta.billDate;
+        document.querySelector(`[data-name="billDate"]`).valueAsDate = typeof billMeta.billDate==="string" ? new Date(billMeta.billDate) : billMeta.billDate;
         if(!page2initialized){
             currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
             billMeta.billNo = currentBillNo;
@@ -384,7 +390,7 @@ function showItemMergeOpts(){
 function revealMoreGrpOpts(e,mode){
     let page = traverseParent(e.target,"page");
     if(mode===1){
-        ["#price-selector-div","#swap-btn","#old-grp","#create-grp-btn","#new-grp"]
+        ["#price-selector-div","#old-grp","#create-grp-btn"]
         .forEach(id=>page.querySelector(id).classList.remove("hide"));
         let select = page.querySelector("#price-selector-div select");
         probableGrps.forEach(obj=>{
@@ -411,38 +417,39 @@ function revealMoreGrpOpts(e,mode){
     }
 }
 
-function swapItems(e){
-    e.stopPropagation();
-    let page = traverseParent(e.target,"page");
-    let newGrpHost = page.querySelector("#new-item-host");
-    let prevGrpHost = page.querySelector("#old-item-host");
-    [...page.querySelectorAll(".item")]
-    .map(elem=>{
-        let chkBox = elem.querySelector("input[type='checkbox']");
-        if(chkBox.checked)
-            return elem;
-    })
-    .filter(elem=>elem!==undefined)
-    .forEach(elem=>{
-        elem.querySelector("input[type='checkbox']").checked = false;
-        if(elem.parentNode===prevGrpHost)
-            newGrpHost.appendChild(elem);
-        else
-            prevGrpHost.appendChild(elem);
-    });
+// function swapItems(e){
+//     e.stopPropagation();
+//     let page = traverseParent(e.target,"page");
+//     let newGrpHost = page.querySelector("#new-item-host");
+//     let prevGrpHost = page.querySelector("#old-item-host");
+//     [...page.querySelectorAll(".item")]
+//     .map(elem=>{
+//         let chkBox = elem.querySelector("input[type='checkbox']");
+//         if(chkBox.checked)
+//             return elem;
+//     })
+//     .filter(elem=>elem!==undefined)
+//     .forEach(elem=>{
+//         elem.querySelector("input[type='checkbox']").checked = false;
+//         if(elem.parentNode===prevGrpHost)
+//             newGrpHost.appendChild(elem);
+//         else
+//             prevGrpHost.appendChild(elem);
+//     });
 
-    if([...newGrpHost.querySelectorAll(".item")].length>0)
-        document.getElementById("create-grp-btn").removeAttribute("disabled");
-    else
-        document.getElementById("create-grp-btn").setAttribute("disabled",true);
-}
+//     if([...newGrpHost.querySelectorAll(".item")].length>0)
+//         document.getElementById("create-grp-btn").removeAttribute("disabled");
+//     else
+//         document.getElementById("create-grp-btn").setAttribute("disabled",true);
+// }
 
 function createNewGrp(e){
     e.stopPropagation();
     let page = traverseParent(e.target,"page");
-    let newGrpHost = page.querySelector("#new-item-host");
     let selectedRate = Number(page.querySelector("select").value);
-    let newGrpItems = [...newGrpHost.querySelectorAll(".item")].map(elem=>JSON.parse(elem.dataset.obj));
+    let newGrpItems = [...document.querySelectorAll("#old-item-host .item>input")]
+                        .filter(item=>item.checked===true)
+                        .map(checkbox=>JSON.parse(checkbox.parentNode.dataset.obj));
     let qty = 0;
     newGrpItems.forEach(obj=>{
         let  grpObj = probableGrps.find(obj=>obj.rate===selectedRate);
@@ -451,27 +458,16 @@ function createNewGrp(e){
         qty+=obj.qty;
     });
     let newId = uuid.v4();
+    let desc = newGrpItems.reduce((acc,obj,i,self)=>{
+        acc += obj.name + "-" + obj.qty + obj.sellUnit;
+        if(i<self.length-1)
+            acc += ", ";
+        return acc;
+    },"");
     // Proceed by adding label for new group and aggregate qty for new group.
     let modal = createModal("new-grp-label");
     let child = appendToHost("#new-grp-label-form-template",modal,"FORM");
-    orderItems.push({
-        items:newGrpItems,
-        rate:selectedRate,
-        id:newId,
-        qty,
-        type:"grp",
-        ...["hsn","sellUnit","sgst","cgst","igst"].reduce((acc,key)=>{
-            if(key in newGrpItems[0] && newGrpItems[0][key])
-                acc[key] = newGrpItems[0][key];
-            return acc;
-        },{}),
-        desc:newGrpItems.reduce((acc,obj,i,self)=>{
-            acc += obj.name + "-" + obj.qty + obj.sellUnit;
-            if(i<self.length-1)
-                acc += ", ";
-            return acc;
-        },"")
-    });
+    child.dataset.obj = JSON.stringify({newGrpItems,selectedRate,newId,qty,desc});
     child.dataset.id = newId;
     modal.querySelector("input").focus();
     document.querySelector(".cover").addEventListener("click",closeModal)
@@ -519,11 +515,27 @@ function addLabelToGrp(e){
     e.preventDefault();
     let label = e.target.label.value;
     let newId = e.target.dataset.id;
-    let targetGrp = orderItems.find(obj=>obj.id===newId);
-    removeAllElem("#new-grp .item");
-    targetGrp.name = label;
+    let {desc,newGrpItems,qty,selectedRate} = JSON.parse(e.target.dataset.obj);
+    orderItems.push({
+        items:newGrpItems,
+        rate:selectedRate,
+        id:newId,
+        qty,
+        label,
+        type:"grp",
+        ...["hsn","sellUnit","sgst","cgst","igst"].reduce((acc,key)=>{
+            if(key in newGrpItems[0] && newGrpItems[0][key])
+                acc[key] = newGrpItems[0][key];
+            return acc;
+        },{}),
+        desc
+    });
+    [...document.querySelectorAll("#old-grp .item")]
+    .forEach(itemDiv=>{
+        if(itemDiv.querySelector("input").checked)
+            itemDiv.remove();
+    });
     closeModal();
-    // Adopt this new item grouping concept in backend
 }
 
 function cancelAction(){
