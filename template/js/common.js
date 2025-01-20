@@ -1363,7 +1363,9 @@ exports.reduceOrder = function(){
             if(!("discVal" in billMeta))
                 billMeta.discVal = 0;
             let res = unitMap.find(uObj=>obj.sellUnit in uObj);
-            let multiplier;
+            if(!res)
+                return acc;
+            let multiplier = 1;
             if(obj.type!=="service")
                 multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
             else

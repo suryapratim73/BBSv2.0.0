@@ -1,11 +1,9 @@
 {
-    "version":"2.19.1",
+    "version":"2.19.5",
     "highlights":[
-        "Data ordering reverse",
-        "More Sale Page bugs fixed",
-        "Bill edit bugs fixed"
+        "Billing bugs fix attempted"
     ],
     "fullchange":[
-        
+        "Billing bugs fix attempted"
     ]
 }
