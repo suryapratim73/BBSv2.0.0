@@ -94,7 +94,7 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
     if("presets" in process && process?.presets?.target==="salePage")
-        process.presets = {};
+        Reflect.deleteProperty(process.presets,"target");
 });
 
 function itemAnalyzer(orderItems){
@@ -181,7 +181,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
     if("presets" in process && process?.presets?.target==="salePage")
-        process.presets = {};
+        Reflect.deleteProperty(process.presets,"target");
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
         billStatus, 
@@ -436,7 +436,7 @@ ipcMain.handle("get-transporter",async ()=>{
 
 ipcMain.on("get-sales",async e=>{
     try{
-        let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getFullYear(),3,1)
+        let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getFullYear(),3,1);
         let sales = (await (await sale.sync())
         .findAll({
             where:{

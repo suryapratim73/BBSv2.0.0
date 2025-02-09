@@ -221,7 +221,7 @@ async function loadLedgerTable(_name){
             <p class="col eq-space">${new Date(date).toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${particular}</p>
             <p class="col eq-space">${drcr}</p>
-            <p class="col eq-space">${balance}</p>
+            <p class="col eq-space">${roundOffTo2DecimalPlace(balance)}</p>
         `;
         row.classList.add("row");
         row.classList.add("body");

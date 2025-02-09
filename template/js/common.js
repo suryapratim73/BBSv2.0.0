@@ -1160,6 +1160,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
         if(match && Object.keys(match).length>2)
             bodyRow.querySelector(`[data-name="qty"]`)?.focus();
         match.sellId = bodyRow.dataset.sellId;
+        match.type = (typeof match.type==="undefined" || match.type==='null') ? "goods" : match.type;
         orderItems = orderItems.filter(obj=>obj.sellId!==match.sellId);
         orderItems.push(match);
         if(selectedItem.id!==match.id)
@@ -1351,6 +1352,7 @@ exports.applyDiscount = function(e){
 }
 
 exports.reduceOrder = function(){
+    console.clear()
     return orderItems.reduce((acc,obj)=>{
         let keys = ["qty","sellUnit","rate"];
         let obJKeys = Object.keys(obj);
@@ -1359,26 +1361,27 @@ exports.reduceOrder = function(){
                 return acc + obj[key];
             return acc;
         },0);
-        if(keys.every(val=>obJKeys.includes(val))){
-            if(!("discVal" in billMeta))
-                billMeta.discVal = 0;
-            let res = unitMap.find(uObj=>obj.sellUnit in uObj);
-            if(!res)
-                return acc;
-            let multiplier = 1;
-            if(obj.type!=="service")
-                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            else
-            if(obj.type==="service" && obj.unit===Object.keys(res)[0])
-                multiplier = 1;
-            else
-            if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
-                multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-            if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
-                acc.netQty += obj.qty * multiplier;
-            acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;
-            acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
-        }
+        if(!("discVal" in billMeta))
+            billMeta.discVal = 0;
+        let res = unitMap.find(uObj=>obj.sellUnit in uObj);
+        if(!res)
+            return acc;
+        let multiplier = 1;
+        if(obj.type!=="service")
+            multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+        else
+        if(obj.type==="service" && obj.unit===Object.keys(res)[0])
+            multiplier = 1;
+        else
+        if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
+            multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
+        console.log({qty:obj.qty,multiplier,sellUnit:obj.sellUnit,type:obj.type})
+        if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
+            acc.netQty += obj.qty * multiplier;
+        acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;
+        acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
+        // if(keys.every(val=>obJKeys.includes(val))){
+        // }
         return acc;
     },{
         netQty:0,

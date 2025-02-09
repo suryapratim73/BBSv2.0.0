@@ -72,8 +72,11 @@ ipcMain.on("get-customer",async e=>{
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
-    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let { strtDt=null,endDt=null } = getFinYearStrtEndDt(0) ?? {};
+    // let bills = (await sale.findAll({ where:{ customerId:id } })).map(({dataValues})=>dataValues);
+    // let payments = (await inPayments.findAll({ where:{ id } })).map(({dataValues})=>dataValues);
+    // return [];
+    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     return (await (await customerLedger.sync()).findAll({
         where:{
             date:{
@@ -457,7 +460,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         })(),
         // Customer Ledger update
         ...entries.map(entry=>{
-            entry.updateBalance = billAmt-_billAmt;
+            entry.updateBalance = roundOffTo2DecimalPlace(billAmt-_billAmt);
             return entry.save();
         }),
         //Stock update
@@ -503,10 +506,12 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         });
         getTargetWindow("customer-portal").webContents.send("close-modal");
         // This should replace the pdfFile
+        if(typeof printObj==="undefined")
+            printObj = { captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}] };
         printObj.captions = captionReducer(printObj.captions);
         billMeta.printObj = printObj;
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
-        if(printObj)
+        if(printObj && Object.keys(printObj).length>1)
             print({printObj,path2pdf});
     })
     .catch(console.log)
@@ -647,38 +652,14 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
 });
 
 ipcMain.on("add-opening-balance",async (e,id,balance)=>{
-    let customerLedger = await getLedgerModel(id,customerLedgerSchema);
-    let updtObj = {
-        type:"opening-balance",
-        date:new Date(new Date().getFullYear(),3,1),
-        balance
-    },delta = balance;
-    let entry1 = await customerLedger.findOne({
-        where:{
-            type:"opening-balance"
-        }
+    let selectedCustomer = await customer.findOne({
+        where:{ id }
     });
-    if(entry1){
-        let _balance = entry1.dataValues.balance;
-        delta = balance - _balance;
-        await entry1.update(updtObj,{
-            where:{
-                type:"opening-balance" 
-            }
-        });
-    }
-    else
-        await customerLedger.create(updtObj);
-    let entries = await customerLedger.findAll();
-    Promise.all([
-        ...entries.filter(obj=>obj.dataValues.type!=="opening-balance").map(entry=>{
-            entry.updateBalance = delta;
-            return entry.save();
-        })
-    ])
-    .then(()=>{
-        getTargetWindow("customer-portal").webContents.send("close-modal");
-    })
+    selectedCustomer.dataValues.moreInfo.openingBalance = balance;
+    await customer.update(selectedCustomer.dataValues,{
+        where:{ id }
+    });
+    getTargetWindow("customer-portal").webContents.send("close-modal");
 });
 
 async function markBillAsPaid(obj,targetWin){

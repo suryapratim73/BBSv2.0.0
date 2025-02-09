@@ -246,10 +246,11 @@ async function createWindow() {
       { maxWinCount: 1, label: "Main" }
     );
 
-    if(!app.requestSingleInstanceLock())
+    if(process.env.APP_ENV!="DEV" && !app.requestSingleInstanceLock())
       app.quit();
     else{
       app.on("second-instance",()=>{
+        if(process.env.APP_ENV==="DEV") return;
         if(mainWindow.isMinimized())
           mainWindow.restore();
         mainWindow.focus();

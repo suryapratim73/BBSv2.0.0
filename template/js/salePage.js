@@ -610,7 +610,7 @@ function displaySection(){
             p.textContent = selectedItem[p.dataset.name] ?? ""; 
     });
     let reducedOrder = reduceOrder();
-    console.log(reducedOrder)
+    // console.log(reducedOrder)
     billMeta.netQty = reducedOrder.netQty;
     billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
     billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
