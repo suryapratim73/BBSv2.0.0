@@ -1353,9 +1353,7 @@ exports.applyDiscount = function(e){
 
 exports.reduceOrder = function(){
     console.clear()
-    return orderItems.reduce((acc,obj)=>{
-        let keys = ["qty","sellUnit","rate"];
-        let obJKeys = Object.keys(obj);
+    return orderItems.reduce((acc,obj,i,self)=>{
         let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
             if(key in obj)
                 return acc + obj[key];
@@ -1364,8 +1362,13 @@ exports.reduceOrder = function(){
         if(!("discVal" in billMeta))
             billMeta.discVal = 0;
         let res = unitMap.find(uObj=>obj.sellUnit in uObj);
-        if(!res)
+        if(!res){
+            console.log({
+                msg:"Returned for itemObj",
+                obj
+            });
             return acc;
+        }
         let multiplier = 1;
         if(obj.type!=="service")
             multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
@@ -1375,13 +1378,17 @@ exports.reduceOrder = function(){
         else
         if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
             multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-        console.log({qty:obj.qty,multiplier,sellUnit:obj.sellUnit,type:obj.type})
+        console.log({
+            qty:obj.qty,
+            multiplier,
+            sellUnit:obj.sellUnit,
+            type:obj.type,
+            length_orderItems:self.length
+        })
         if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
             acc.netQty += obj.qty * multiplier;
         acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;
         acc.netAmtTax += roundOffTo2DecimalPlace((obj.rate * obj.qty * (100-billMeta.discVal)/100) * (1 + tax/100)) ?? 0;
-        // if(keys.every(val=>obJKeys.includes(val))){
-        // }
         return acc;
     },{
         netQty:0,

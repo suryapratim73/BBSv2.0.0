@@ -34,6 +34,14 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
         ];
         fs.writeFileSync(path.resolve(backupFolderPath,"./fileList.json"),JSON.stringify(fileList));
         fileList.forEach(({filePath,fileName})=>{
+            appLogger({
+                title:"Trying to copy",
+                message:JSON.stringify({
+                    filePath,
+                    fileName,
+                    destnFolder:path.resolve(backupFolderPath,"./"+fileName)
+                })
+            })
             if(fs.existsSync(filePath))
                 fs.copyFileSync(filePath,path.resolve(backupFolderPath,"./"+fileName));
             else
