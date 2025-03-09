@@ -1,10 +1,8 @@
 {
-    "version":"2.19.8",
+    "version":"2.19.9",
     "highlights":[
-        "Billing bugs fix attempted",
-        "Version Manager bug fix attempted"
+        "Version Manager Bugs fix attempt"
     ],
     "fullchange":[
-        "Billing bugs fix attempted"
     ]
 }

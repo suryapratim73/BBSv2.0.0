@@ -2921,8 +2921,9 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
       schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
     }
     else
-    if(flag==="exp-a" && !(jsData.expiredSchedules.find(ev=>ev.tag===e)))
+    if(flag==="exp-a")
       jsData.expiredSchedules.push(data);
+    else
     if(flag==="exp-all")
       jsData.expiredSchedules = jsData.expiredSchedules.filter(evObj=>evObj.tag!==data);
     else
