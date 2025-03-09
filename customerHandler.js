@@ -77,7 +77,7 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
     // let payments = (await inPayments.findAll({ where:{ id } })).map(({dataValues})=>dataValues);
     // return [];
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
-    return (await (await customerLedger.sync()).findAll({
+    let ledgerEntries = (await (await customerLedger.sync()).findAll({
         where:{
             date:{
                 [Op.between]:[strtDt,endDt]
@@ -86,7 +86,8 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
         order:[
             ["entryNo","DESC"]
         ]
-    })).map(({dataValues})=>dataValues);    
+    })).map(({dataValues})=>dataValues);
+    return ledgerEntries;
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
@@ -513,6 +514,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
         if(printObj && Object.keys(printObj).length>1)
             print({printObj,path2pdf});
+        Reflect.deleteProperty(process.presets,"target");
     })
     .catch(console.log)
 });

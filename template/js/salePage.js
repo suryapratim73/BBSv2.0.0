@@ -129,8 +129,8 @@ function helperFunc1(itemObj){
             else
                 input.value = itemObj?.[key] ?? "";
         }
-        else
-            input.value = itemObj.sellUnit;
+        else{console.log({unit:itemObj.sellUnit})
+            input.value = itemObj.sellUnit;}
     });
     calculateAmounts();
 }
@@ -455,7 +455,7 @@ function createNewGrp(e){
         let  grpObj = probableGrps.find(obj=>obj.rate===selectedRate);
         grpObj.items.splice(grpObj.items.find(_obj=>_obj.id===obj.id),1);
         orderItems = orderItems.filter(_obj=>_obj.id!=obj.id);
-        qty+=obj.qty;
+        qty+=roundOffTo2DecimalPlace(obj.qty);
     });
     let newId = uuid.v4();
     let desc = newGrpItems.reduce((acc,obj,i,self)=>{
@@ -645,17 +645,24 @@ function showPrintDialog(){
 
 ipcRenderer.on("print-obj",(e,printObj)=>{
     billMeta.printObj = printObj;
-    if(typeof preset!=="undefined" && preset.target==="salePage"){
+    console.log({
+        message:"Response from print-modal",
+        printObj,
+        cond1: typeof preset!=="undefined" && preset?.target==="salePage",
+        cond1a:typeof preset!=="undefined",
+        cond1b: preset?.target==="salePage"
+    });
+    if(typeof preset!=="undefined" && preset?.target==="salePage" && preset.flag!=="new-bill"){
         ipcRenderer.send('cancel-sale-bill',currentStep);
         printObj.customer = customer;
-        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer,printObj);
+        return ipcRenderer.send("add-item-to-bill",preset?.itemList,orderItems,billMeta,customer,printObj);
     }
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
 
 async function saveExit(){
     let dbInitialized = await ipcRenderer.invoke("db-init-status");
-    if(typeof preset!=="undefined" && preset.target==="salePage"){
+    if(typeof preset!=="undefined" && preset.target==="salePage" && preset.flag!=="new-bill"){
         ipcRenderer.send('cancel-sale-bill',currentStep)
         return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer);
     }

@@ -510,8 +510,9 @@ async function showBillOptions(e){
     const { itemList,paymentStatus,billStatus } = bodyRow.dataset;
     if(!itemList) return;
     let [ custId,billNo,billDate ] = itemList.split("_");
-    [...await ipcRenderer.invoke("get-bill-items-portal",custId,billNo,billDate)]
-    .forEach((obj,i)=>{
+    let billItems =[...await ipcRenderer.invoke("get-bill-items-portal",custId,billNo,billDate)]
+    // console.log(billItems)
+    billItems.forEach((obj,i)=>{
         let row = document.getElementById("bill-body-row-template").content.cloneNode(true).querySelector("div");
         row.querySelector(`[data-name="slNo"]`).textContent = i + 1;
         for(let key in obj){
@@ -597,11 +598,17 @@ function progressCancel(e){
     ipcRenderer.send("cancel-"+e.target.dataset.cancelToken);
 }
 
-ipcRenderer.on("close-modal", ()=>{
+function refreshHelper(){
     billPageInit.call(page2BTNS);
-    _closeModal();
     loadLedgerTable(selectedCustomer.name)
+}
+
+ipcRenderer.on("close-modal", ()=>{
+    refreshHelper()
+    _closeModal();
 });
+
+ipcRenderer.on("reload-tables",refreshHelper)
 
 function showBillPage(){
     removeAllElem("#bill-option-modal .page");

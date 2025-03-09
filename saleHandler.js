@@ -119,7 +119,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
         type,
         hsn,
         quantity:qty,
-        sellUnit,
+        unit:sellUnit,
         rate:rate*multiplier,
         tax:tax*amt/100,
         sgst,
@@ -180,8 +180,16 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    if("presets" in process && process?.presets?.target==="salePage")
+    console.log({
+        cond: "presets" in process && process?.presets?.target==="salePage",
+        presets:process?.presets
+    })
+    if("presets" in process && process?.presets?.target==="salePage"){
+        getTargetWindow("customer-portal").webContents.send("reload-tables")
         Reflect.deleteProperty(process.presets,"target");
+    }
+    if("presets" in process && process?.presets?.flag==="new-bill")
+        Reflect.deleteProperty(process.presets,"flag");
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
         billStatus, 

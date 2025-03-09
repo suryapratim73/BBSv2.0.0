@@ -1345,7 +1345,6 @@ exports.applyDiscount = function(e){
     let reducedOrder = reduceOrder();
     billMeta.netAmt = reducedOrder.netAmt;
     billMeta.netAmtTax = reducedOrder.netAmtTax;
-    console.log(billMeta.netAmtTax , billMeta.netAmt)
     billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
     if(typeof page4Init==="function")
         page4Init();
@@ -1361,6 +1360,8 @@ exports.reduceOrder = function(){
         },0);
         if(!("discVal" in billMeta))
             billMeta.discVal = 0;
+        if(obj.sellUnit==="")
+            obj.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
         let res = unitMap.find(uObj=>obj.sellUnit in uObj);
         if(!res){
             console.log({

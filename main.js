@@ -3316,10 +3316,12 @@ ipcMain.on("new-bill",async (e,customerObj)=>{
   if (!["all", "admin", "bill"].includes(currentUser.role)) return;
   Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
   process.presets = {
+    ...process.presets,
     customer:customerObj,
     target:"salePage",
     currentStep:2,
-    finYear:0
+    finYear:0,
+    flag:"new-bill"
   };
 });
 
