@@ -73,19 +73,21 @@ ipcRenderer.send("get-sales");
 ipcRenderer.on("get-sales-response",(e,sales)=>{
     let monthlySales = sales.reduce((acc,saleObj)=>{
         let month = new Date(saleObj.billDate).getMonth();
-        acc[month] = [...(acc?.[month] ?? []),saleObj];
+        let year = new Date(saleObj.billDate).getFullYear();
+        acc[month+"_"+year] = [...(acc?.[month+"_"+year] ?? []),saleObj];
         return acc; 
     },{});
     Object.keys(monthlySales)
     .forEach(month=>{
+        let _month = Number(month.split("_")[0]);
         let sales = monthlySales[month];
         let monthDiv = document.createElement("div");
         monthDiv.className = "row body monthly-div";
         tbody.appendChild(monthDiv);
         let h2 = document.createElement("h2");
         monthDiv.appendChild(h2);
-        h2.textContent = monthNames[+month]
-        sales.forEach((saleObj,i)=>{
+        h2.textContent = monthNames[+_month]
+        sales.sort(({billDate},{billDate:_billDate})=>_billDate-billDate).forEach((saleObj,i)=>{
             saleList.push(saleObj);
             let bodyDiv = document.createElement("div");
             bodyDiv.className = "row body";

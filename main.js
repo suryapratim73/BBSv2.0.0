@@ -782,11 +782,11 @@ function setAppPrsets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst"]
   .forEach(key=>{
-    if(key in policy2)
-      process.presets[key] = policy2[key];
-  })
+    if(key in policy2 || key in policy)
+      process.presets[key] = policy2[key] ?? policy[key];
+  });
 }
 
 function checkIfMonthPassed(lastDt=Date){

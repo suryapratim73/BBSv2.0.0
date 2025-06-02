@@ -722,7 +722,7 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="gst-setting"){
                 let policy = await ipcRenderer.invoke("get-app-policy");
-                ["gstInterval","financialYearStartDate"]
+                ["gstInterval","financialYearStartDate","default_gst"]
                 .forEach(key=>{
                     let select = form.querySelector(`[name="${key}"]`);
                     if(!(key in policy)) return;
@@ -731,8 +731,7 @@ async function showForm(e,cmd,show,prevData={}){
                         select.querySelector(`[value="010${mnth}"]`).setAttribute("selected",true);
                     }
                     else
-                    if(key==="gstInterval")
-                        select.querySelector(`[value="${policy.gstInterval}"]`).setAttribute("selected",true);
+                        select.querySelector(`[value="${policy[key]}"]`).setAttribute("selected",true);
                 })
             }
             else

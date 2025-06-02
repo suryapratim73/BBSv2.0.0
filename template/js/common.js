@@ -8,7 +8,7 @@ const {
     APP_ENV
 } = process.env;
 
-let n;
+let n,presets;
 
 exports.toggleDevTool = function(document){
     document.addEventListener("keyup",e=>{
@@ -1115,6 +1115,9 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     }
     let match = {...e.target.list?.querySelector(`[value='${e.target.value.replace(/"/g,'\\"').replace(/'/g,"\\'")}']`)?.dataset};
     // if(!match || Object.keys(match).length==0) return;
+    if(typeof presets==="undefined")
+        presets = await ipcRenderer.invoke("get-presets");
+    let defaultGST = presets?.default_gst ?? 0;
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
         bodyRow = e.target.parentNode.parentNode;
@@ -1123,14 +1126,14 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             if(["sgst","cgst","igst"].includes(key) && typeof igstFlag!=="undefined"){
                 if(!("taxSlab" in selectedItem.pInfo)) continue;
                 if(igstFlag){
-                    bodyRow.querySelector(`input[data-name="igst"]`).value = Number(selectedItem.pInfo.taxSlab);
+                    bodyRow.querySelector(`input[data-name="igst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST);
                     bodyRow.querySelector(`input[data-name="sgst"]`).value = "";
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = "";
                 }
                 else{
                     bodyRow.querySelector(`input[data-name="igst"]`).value = "";
-                    bodyRow.querySelector(`input[data-name="sgst"]`).value = Number(selectedItem.pInfo.taxSlab)/2;
-                    bodyRow.querySelector(`input[data-name="cgst"]`).value = Number(selectedItem.pInfo.taxSlab)/2;
+                    bodyRow.querySelector(`input[data-name="sgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;
+                    bodyRow.querySelector(`input[data-name="cgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;
                 }
                 continue;
             }
@@ -1351,8 +1354,9 @@ exports.applyDiscount = function(e){
 }
 
 exports.reduceOrder = function(){
-    console.clear()
+    // console.clear()
     return orderItems.reduce((acc,obj,i,self)=>{
+        let sellId = obj.sellId;
         let tax = ["sgst","cgst","igst"].reduce((acc,key)=>{
             if(key in obj)
                 return acc + obj[key];
@@ -1361,13 +1365,15 @@ exports.reduceOrder = function(){
         if(!("discVal" in billMeta))
             billMeta.discVal = 0;
         if(obj.sellUnit==="")
-            obj.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
+            obj.sellUnit = document.querySelector(`.body.row[data-sell-id="${sellId}"]`).querySelector('[data-name="unit"]').value;
+        if(obj.qty===0)
+            obj.qty = Number(document.querySelector(`.body.row[data-sell-id="${sellId}"]`).querySelector('[data-name="qty"]').value);
         let res = unitMap.find(uObj=>obj.sellUnit in uObj);
         if(!res){
-            console.log({
-                msg:"Returned for itemObj",
-                obj
-            });
+            // console.log({
+            //     msg:"Returned for itemObj",
+            //     obj
+            // });
             return acc;
         }
         let multiplier = 1;
@@ -1379,13 +1385,14 @@ exports.reduceOrder = function(){
         else
         if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
             multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-        console.log({
-            qty:obj.qty,
-            multiplier,
-            sellUnit:obj.sellUnit,
-            type:obj.type,
-            length_orderItems:self.length
-        })
+        // console.log({
+        //     row:document.querySelector(`.body.row[data-sell-id="${sellId}"]`),
+        //     qty:obj.qty,
+        //     multiplier,
+        //     sellUnit:obj.sellUnit,
+        //     type:obj.type,
+        //     length_orderItems:self.length
+        // })
         if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
             acc.netQty += obj.qty * multiplier;
         acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;

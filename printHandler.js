@@ -67,7 +67,7 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
     if(arg.some(obj=>"pageFit" in obj))
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = "./template/html/printDialog.html";
-    let parentWindow = BrowserWindow.fromId((e?.sender?.id ?? getMainWindow().id));
+    let parentWindow = BrowserWindow.fromId((e.sender.id));
     let windowOptions = {
         width: 400,
         height: 450,
@@ -78,22 +78,26 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
         frame:false,
         titleBarStyle:"hidden"
     }
-    modal = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog"});
-    if(typeof e==="string"){
-        modal.addListener("show",()=>{
-            modal.webContents.send("hide-label",e);
-        })
-    }
-    modal.on("close",()=>{
-        ipcMain.removeListener("print-obj",_print);
+    createModal(windowOptions,pathToHTML,{
+        label:"Custom-Print-Dialog",// Trying to distinguish listeners from similar modal
+        cb:function(){
+            if(typeof e==="string"){
+                this.addListener("show",()=>{
+                    this.webContents.send("hide-label",e);
+                })
+            }
+            this.webContents.send("frame-id",this.id)
+            this.on("close",()=>{
+                ipcMain.removeListener("print-obj",_print);
+            });
+            ipcMain.once("print-obj"+this.id,_print.bind({parentWindow,modal:this}));
+        }
     });
     function _print(e,printObj){
-        modal.close();  
-        if(!(parentWindow instanceof BrowserWindow))
-            parentWindow = BrowserWindow.getFocusedWindow();
-        parentWindow.webContents.send("print-obj",printObj);
+        this.modal.close();  
+        if(this.parentWindow instanceof BrowserWindow)
+            this.parentWindow.webContents.send("print-obj",printObj);
     }
-    ipcMain.once("print-obj",_print);
 });
 
 ipcMain?.on("forward-printObj",(e,printObj,path2pdf)=>{

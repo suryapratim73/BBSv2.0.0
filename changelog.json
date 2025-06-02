@@ -1,8 +1,15 @@
 {
-    "version":"2.19.9",
+    "version":"2.19.10",
     "highlights":[
-        "Version Manager Bugs fix attempt"
+        "Version Manager file addressing bug fixed",
+        "More sale page bugs fixed",
+        "Adding global GST slab as default",
+        "Financial year management bug fixed"
     ],
     "fullchange":[
+        "Version Manager file addressing bug fixed",
+        "More sale page bugs fixed",
+        "Adding global GST slab as default",
+        "Financial year management bug fixed"
     ]
 }

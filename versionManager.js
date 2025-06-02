@@ -33,7 +33,7 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
             {fileName:"bbs_"+app.getVersion()+"_setup.exe",path2file:path.resolve(appPath,"./bbs_"+app.getVersion()+"_setup.exe")}
         ];
         fs.writeFileSync(path.resolve(backupFolderPath,"./fileList.json"),JSON.stringify(fileList));
-        fileList.forEach(({filePath,fileName})=>{
+        fileList.forEach(({path2file:filePath,fileName})=>{
             appLogger({
                 title:"Trying to copy",
                 message:JSON.stringify({
