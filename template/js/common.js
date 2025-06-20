@@ -1124,13 +1124,14 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
         selectedItem.pInfo = JSON.parse(selectedItem?.pInfo || "{}");
         for(let key in match){
             if(["sgst","cgst","igst"].includes(key) && typeof igstFlag!=="undefined"){
-                if(!("taxSlab" in selectedItem.pInfo)) continue;
+                // if(!("taxSlab" in selectedItem.pInfo)) continue;
                 if(igstFlag){
                     bodyRow.querySelector(`input[data-name="igst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST);
                     bodyRow.querySelector(`input[data-name="sgst"]`).value = "";
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = "";
                 }
                 else{
+                    console.log({taxSlab:selectedItem.pInfo.taxSlab,defaultGST,appliedTax:Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)})
                     bodyRow.querySelector(`input[data-name="igst"]`).value = "";
                     bodyRow.querySelector(`input[data-name="sgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;

@@ -1,15 +1,11 @@
 {
     "version":"2.19.10",
     "highlights":[
-        "Version Manager file addressing bug fixed",
-        "More sale page bugs fixed",
-        "Adding global GST slab as default",
-        "Financial year management bug fixed"
+        "Print dialog closure bug fixed",
+        "Salepage and bill edit page bug fix attempt"
     ],
     "fullchange":[
-        "Version Manager file addressing bug fixed",
-        "More sale page bugs fixed",
-        "Adding global GST slab as default",
-        "Financial year management bug fixed"
+        "Print dialog closure bug fixed",
+        "Salepage and bill edit page bug fix attempt"
     ]
 }

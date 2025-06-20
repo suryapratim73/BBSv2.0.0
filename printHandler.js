@@ -4,6 +4,7 @@ const { createModal, getMainWindow } = require("./createModal");
 const fs = require("fs");
 const { setTimeout } = require("timers");
 const path = require("path");
+const uuid = require("uuid");
 
 
 let modal,pageFit;
@@ -67,7 +68,7 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
     if(arg.some(obj=>"pageFit" in obj))
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = "./template/html/printDialog.html";
-    let parentWindow = BrowserWindow.fromId((e.sender.id));
+    let parentWindow = typeof e!="string" ? BrowserWindow.fromId((e.sender.id)) : BrowserWindow.getFocusedWindow();
     let windowOptions = {
         width: 400,
         height: 450,
@@ -78,15 +79,16 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
         frame:false,
         titleBarStyle:"hidden"
     }
+    let uid = uuid.v4();
     createModal(windowOptions,pathToHTML,{
-        label:"Custom-Print-Dialog",// Trying to distinguish listeners from similar modal
+        label:"Custom-Print-Dialog"+uid,// Trying to distinguish listeners from similar modal
         cb:function(){
             if(typeof e==="string"){
                 this.addListener("show",()=>{
                     this.webContents.send("hide-label",e);
                 })
             }
-            this.webContents.send("frame-id",this.id)
+            this.webContents.send("frame-id",this.id,uid)
             this.on("close",()=>{
                 ipcMain.removeListener("print-obj",_print);
             });

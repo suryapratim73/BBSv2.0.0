@@ -4,7 +4,7 @@ const { toggleDevTool, applyTheme } = require("../js/common");
 
 let printers = [],
     printerDatalist = document.getElementById("printer-names"),
-    selectedPrinter,pdfPath,frameId="";
+    selectedPrinter,pdfPath,frameId="",uid;
 
 toggleDevTool(document);
 
@@ -81,7 +81,7 @@ function printcmd(e){
 }
 
 document.querySelector('[data-name="print-cancel-btn"]').addEventListener("click",()=>{
-    ipcRenderer.send("close","Custom-Print-Dialog");
+    ipcRenderer.send("close","Custom-Print-Dialog"+uid);
 });
 
 ipcRenderer.on("hide-label",(e,path2pdf)=>{
@@ -90,6 +90,7 @@ ipcRenderer.on("hide-label",(e,path2pdf)=>{
     document.querySelector("fieldset:first-child").classList.add("hide");
 });
 
-ipcRenderer.on("frame-id",(e,id)=>{
+ipcRenderer.on("frame-id",(e,id,_uid)=>{
     frameId = id;
+    uid = _uid;
 });

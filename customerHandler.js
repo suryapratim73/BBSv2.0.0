@@ -493,7 +493,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             });
             let stockInst = await stock.findOne({
                 where:{
-                    id:itemObj.id
+                    name:itemObj.name
                 }
             });
             stockInst.reduceStock = itemObj.qty;

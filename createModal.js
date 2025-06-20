@@ -49,8 +49,10 @@ exports.createModal = (windowOptions={},pathToHTML,{
     else
       windowList.filter(obj=>obj.label===label)[0].modal.focus();
   }
-  else
+  else{
     modal = new BrowserWindow(windowOptions);
+    windowList.push({label,modal})
+  }
   if(modal && enableWebContents)
     require("@electron/remote/main").enable(modal.webContents);
   if(modal){
