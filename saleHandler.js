@@ -142,7 +142,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     await stock.update({
         pInfo:{
             ...item.pInfo,
-            taxSlab:tax
+            taxSlab:igst>0?igst:2*sgst
         }
     },{
         where:{id}

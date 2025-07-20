@@ -1,11 +1,9 @@
 {
-    "version":"2.19.10",
+    "version":"2.19.12",
     "highlights":[
-        "Print dialog closure bug fixed",
         "Salepage and bill edit page bug fix attempt"
     ],
     "fullchange":[
-        "Print dialog closure bug fixed",
         "Salepage and bill edit page bug fix attempt"
     ]
 }

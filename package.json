@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.19.11",
+  "version": "2.19.12",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
