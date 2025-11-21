@@ -20,51 +20,15 @@
       <div id="searchbar">
         <div id="form">
           <div class="hide btn-container" id="btn-container">
-            <button data-cmd="new-bill" class="main-ui-btn">New Bill</button>
-            <button
-              data-cmd="bills"
-              data-view="bills"
-              id="show-bill-BTN"
-              type="button"
-              class="main-ui-btn"
-            >
-              Show Bills
-            </button>
-            <button
-              data-cmd="ledger"
-              data-view="ledger"
-              id="show-ledger-BTN"
-              class="main-ui-btn hide"
-              type="button"
-            >
-              Show Ledger
-            </button>
-            <button
-              data-cmd="print-ledger"
-              data-view="bills"
-              id="print-ledger"
-              type="button"
-              class="main-ui-btn"
-            >
-              Print Ledger
-            </button>
-            <button data-cmd="update-profile" class="main-ui-btn">
-              Update Profile
-            </button>
-            <button data-cmd="add-balance" class="main-ui-btn">Add Opening Balance</button>
-            <button data-cmd="pay" class="main-ui-btn" >Add Payment</button>
-            <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">
-              Back
-            </button>
-            <button
-              data-cmd="filter"
-              data-view="ledger"
-              id="filter-btn"
-              class="main-ui-btn hide"
-              type="button"
-            >
-              Filter
-            </button>
+            <button data-cmd="new-bill" data-keymap="n" class="main-ui-btn">New Bill</button>
+            <button data-cmd="bills" data-keymap="b" data-view="bills" id="show-bill-BTN" type="button" class="main-ui-btn">Show Bills</button>
+            <button data-cmd="ledger" data-keymap="l" data-view="ledger" id="show-ledger-BTN" class="main-ui-btn hide" type="button">Show Ledger</button>
+            <button data-cmd="print-ledger" data-keymap="L" data-view="bills" id="print-ledger" type="button" class="main-ui-btn">Print Ledger</button>
+            <button data-cmd="update-profile" data-keymap="u" class="main-ui-btn">Update Profile</button>
+            <button data-cmd="add-balance" data-keymap="o" class="main-ui-btn">Add Opening Balance</button>
+            <button data-cmd="pay" data-keymap="p" class="main-ui-btn">Add Payment</button>
+            <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">Back</button>
+            <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide" type="button">Filter</button>
             <div id="filter-option" class="hide">
               <div class="selected">
                 <button

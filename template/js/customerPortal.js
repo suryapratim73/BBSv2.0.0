@@ -1,4 +1,4 @@
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper } = require("../js/common");
 const { ipcRenderer } = require("electron");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
@@ -19,7 +19,7 @@ let customerList = [],
     itemList = [], stockList, timer,
     bills,
     ledgerEntries = [],
-    currentPage;
+    currentPage,rows = [],rows2 = [];
 
 const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -27,7 +27,7 @@ const monthNames = ["January", "February", "March", "April", "May", "June",
 
 
 async function initPage(){
-    stockList = await appendToDL("get-stocks",document.getElementById("stock-names"))
+    stockList = await appendToDL("get-stocks",document.getElementById("stock-names"));
     unitMap.forEach(obj=>{
         let key = Object.keys(obj)[0];
         let option = document.createElement("option");
@@ -35,7 +35,6 @@ async function initPage(){
         option.textContent = key;
         document.getElementById("unit-dl").appendChild(option);
     });
-    currentPage = 1;
 }
 initPage();
 
@@ -98,6 +97,13 @@ function searchHandler(e){
             div.classList.remove("hide");
             [...div.children].forEach(div=>div.classList.remove("hide"));
         });
+    let blocks = [...document.querySelectorAll(".occupied")]
+                .filter(div=>!(div.classList.contains("hide")));
+    rows = blocks.map(block=>([...block.querySelectorAll(".customer-div")])).flat()
+                .filter(div=>!(div.classList.contains("hide")));
+    rows.forEach(row=>{
+        delete row.dataset.hasFocus;
+    });
 }
 
 ipcRenderer.send("get-customer");
@@ -123,6 +129,8 @@ function drawPieChart(){
 
 ipcRenderer.on("customer-list",(e,customerObj)=>{
     customerList = [];
+    currentPage = 1;
+    rows = [];
     removeAllElem("#customer-list .customer-div")
     customerObj.forEach(_customerList=>{
         customerList.push(_customerList);
@@ -134,11 +142,12 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
         let p = div.querySelector("p.name");
         p.textContent = name;
         p = div.querySelector("p.balance");
-        p.textContent = balance;
+        p.textContent = Math.round(balance);
         div.dataset.custId = id;
         selectedDiv.classList.remove("hide");
         total += netPurchase;
     });
+    document.querySelector("#form>div:last-child input").value = "";
     drawPieChart();
     spinner.remove(window);
 });
@@ -247,7 +256,7 @@ async function loadLedgerTable(_name){
 
 document.getElementById("customer-list").addEventListener("click",function(e){
     if(!e.target.classList.contains("customer-div") && !e.target.classList.contains("customer-p")) return;
-    currentPage = 1;
+    currentPage = 2;
     let name = (e.target.classList.contains("customer-div") ? e.target.children[0] : e.target.parentNode.querySelector(".customer-p.name")).textContent;
     loadLedgerTable.call(this,name);
     document.querySelector("#form>div:last-child").classList.add("hide");
@@ -301,6 +310,7 @@ function billPageInit(){
     billsDiv.dataset.id = this.dataset.id;
     billsDiv.classList.add("table");
     billsDiv.id = "bill-table";
+    billsDiv.classList.add("bill-table-2");
     billsDiv.addEventListener("click",showBillOptions.bind(billsDiv));
     let h1 = document.createElement("h1");
     h1.textContent = "Bills";
@@ -500,7 +510,8 @@ document.body.addEventListener("click",(e)=>{
 },true);
 
 async function showBillOptions(e){
-    let bodyRow = e.target.parentNode;
+    let bodyRow = e?.target?.parentNode ?? this;
+    console.log(bodyRow)
     if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) return;
     let modal = createModal("bill-option-modal");
     let modalContent = document.getElementById("bill-option-template").content.cloneNode(true).querySelector("#bill-option-content");
@@ -642,4 +653,87 @@ ipcRenderer.on("msg-from-backend",(e,msg,type,mode=0,obj)=>{
 ipcRenderer.on("show-bill",(e,billObj)=>{
     if(selectedDiv)
         selectedDiv.querySelector(".col").click();
+});
+
+document.addEventListener("keydown",e=>{
+    if(currentPage===1){
+        if(e.key==="ArrowUp" || e.key==="ArrowDown"){
+            if(rows.length===0)
+                rows = [...document.querySelectorAll(".customer-div")]
+            let focusssedRow = rows.find(row=>(row.dataset?.hasFocus=="1"));
+            let focussedIndex;
+            if(typeof focusssedRow==="undefined"){
+                focusssedRow = rows[0];
+                focusssedRow.dataset.hasFocus = 1;
+                focussedIndex = 0;
+                scrollHelper(rows,focussedIndex,e.key,true);
+            }
+            else{
+                focussedIndex = rows.findIndex(row=>(row.dataset?.hasFocus=="1"));
+                scrollHelper(rows,focussedIndex,e.key);
+            }
+        }
+        if(e.key==="Enter"){
+            rows.find(row=>(row.dataset?.hasFocus=="1")).click();
+        }
+    }
+    else
+    if(currentPage===2){
+        if(e.key==="Backspace")
+            document.querySelector("#btn-container button[data-cmd='back']").click();
+        else
+        if(e.key==="ArrowUp" || e.key==="ArrowDown"){
+            rows2 = rows2.length>0 ? rows2 : [...document.querySelectorAll("#bill-table .body.row")];
+            let focussedIndex = rows2.findIndex(row=>(row.dataset?.hasFocus=="1"));
+            let firstFlag = focussedIndex < 0;
+            focussedIndex = focussedIndex < 0 ? 0 : focussedIndex;
+            scrollHelper(rows2,focussedIndex,e.key,firstFlag);
+        }
+        else
+        if(e.ctrlKey){
+            [...document.querySelectorAll("#btn-container button[data-keymap]")]
+            .forEach(btn=>{
+                if(btn.classList.contains("hide")) return;
+                if(e.key===btn.dataset.keymap)
+                    btn.click();
+            });
+        }
+        else
+        if(e.key==="Enter"){
+            let row = rows2.find(row=>(row.dataset?.hasFocus=="1"));
+            showBillOptions.call(row);
+        }
+    }
+});
+
+document.addEventListener("mouseover",e=>{
+    let row = traverseParent(e.target,"customer-div","DIV");
+    if(row){
+        [...document.querySelectorAll(".customer-div")]
+        .forEach(_row=>{
+            if(_row===row){
+                row.dataset.hasFocus = 1;
+                row.classList.add("focus");
+            }
+            else{
+                delete _row.dataset.hasFocus;
+                _row.classList.remove("focus");
+            }
+        });
+    }
+    row = traverseParent(e.target,"bill-table-2","DIV")
+    if(row){
+        let selectedRow = traverseParent(e.target,"row","DIV");
+        rows2 = [...document.querySelectorAll("#bill-table .body.row")];
+        rows2.forEach(_row=>{
+            if(_row===selectedRow){
+                selectedRow.dataset.hasFocus = 1;
+                selectedRow.classList.add("focus");
+            }
+            else{
+                delete _row.dataset.hasFocus;
+                _row.classList.remove("focus");
+            }
+        });
+    }
 });

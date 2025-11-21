@@ -158,28 +158,28 @@ module.exports = mainWindow=>{
                 //     label: "GST Return JSON"
                 // },
                 {type:"separator"},
-                {
-                    label: "Generate Road Challan",
-                    click: ()=>appStateComplianceEnforcement(genRoadChallan(mainWindow))
-                },
-                {
-                    label: "Generate Voucher",
-                    click: ()=>appStateComplianceEnforcement(genVoucher(mainWindow))
-                },
-                {
-                    label: "Generate Payment Receipt",
-                    click: ()=>appStateComplianceEnforcement(genPayReceipt(mainWindow)),
-                },
-                {
-                    label: "Generate Requirement Slip",
-                    click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow))
-                },
-                {
-                    label: "Bill Layout Designer",
-                    click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow)),
-                    accelerator:"CommandOrControl+B"
+                // {
+                //     label: "Generate Road Challan",
+                //     click: ()=>appStateComplianceEnforcement(genRoadChallan(mainWindow))
+                // },
+                // {
+                //     label: "Generate Voucher",
+                //     click: ()=>appStateComplianceEnforcement(genVoucher(mainWindow))
+                // },
+                // {
+                //     label: "Generate Payment Receipt",
+                //     click: ()=>appStateComplianceEnforcement(genPayReceipt(mainWindow)),
+                // },
+                // {
+                //     label: "Generate Requirement Slip",
+                //     click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow))
+                // },
+                // {
+                //     label: "Bill Layout Designer",
+                //     click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow)),
+                //     accelerator:"CommandOrControl+B"
                     
-                },
+                // },
                 {
                     label: "Scheduler",
                     click: ()=>appStateComplianceEnforcement(scheduleManager(mainWindow)),

@@ -1,9 +1,15 @@
 {
-    "version":"2.19.12",
+    "version":"2.19.13",
     "highlights":[
-        "Salepage and bill edit page bug fix attempt"
+        "Auto-deletion of installer is removed",
+        "Bill auto 0 value bug fix attempted",
+        "Bill update memory issue fixed",
+        "Added keyboard control in Customer Portal"
     ],
     "fullchange":[
-        "Salepage and bill edit page bug fix attempt"
+        "Auto-deletion of installer is removed",
+        "Bill auto 0 value bug fix attempted",
+        "Bill update memory issue fixed",
+        "Added keyboard control in Customer Portal"
     ]
 }

@@ -420,6 +420,7 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
 ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
     let {billNo,billDate,customerId:id,entryNo} = billMeta;
     billNo = Number(billNo);
+    let deltaList = [];
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billObj = await sale.findOne({
@@ -427,6 +428,41 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             entryNo
         }
     });
+    // Calculating Bill Item Deltas Start
+    newitemList.forEach(itemObj=>{
+        //sellId,qty,rate
+        let _itemObj = olditemList.find(_itemObj=>_itemObj.name==itemObj.name);
+        if(_itemObj){
+            // previously declared items
+            if(Math.abs(_itemObj.quantity-itemObj.qty)>0 || Math.abs(_itemObj.rate-itemObj.rate)>0){
+                itemObj.quantity = itemObj.qty;
+                // Reflect.deleteProperty(itemObj,"qty")
+                deltaList.push({
+                    tag:"updated",
+                    itemObj,
+                    _itemObj
+                });
+            }
+        }
+        else{
+            // new items
+            deltaList.push({
+                tag:"new",
+                itemObj
+            });
+        }
+    });
+    // Check for deleted items
+    olditemList.forEach(itemObj=>{
+        let _itemObj = newitemList.find(_itemObj=>_itemObj.name==itemObj.name);
+        if(!_itemObj){
+            deltaList.push({
+                tag:"deleted",
+                itemObj
+            });
+        }
+    });
+    // Calculating Bill Item Deltas End
     let { billAmt:_billAmt,netAmt:_netAmt,tax:_tax } =  olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
         let tax = igst>0 ? igst : 2*sgst;
         acc.netAmt += quantity*rate;
@@ -456,7 +492,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
     Promise.all([
         //Sale Table update
         (()=>{
-            billObj.updateBillValues = {del_billAmt:billAmt-_billAmt,del_netAmt:netAmt-_netAmt,del_tax:tax-_tax};
+            billObj.setBillValues = {billAmt,netAmt,tax};
             return billObj.save();
         })(),
         // Customer Ledger update
@@ -465,39 +501,56 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             return entry.save();
         }),
         //Stock update
-        ...olditemList.map(async itemObj=>{
-            (await billItemModel.findOne({
-                where:{
-                    name:itemObj.name
-                }
-            })).destroy();
-            let stockInst = await stock.findOne({
-                where:{
-                    name:itemObj.name
-                }
-            });
-            stockInst.reduceStock = -itemObj.quantity;
-            return stockInst.save();
-        }),
-        ...newitemList.map(async itemObj=>{
-            billItemModel.create({
-                name:itemObj.name,
-                hsn:itemObj.hsn,
-                quantity:itemObj.qty,
-                unit:itemObj.sellUnit,
-                rate:itemObj.rate,
-                cgst:itemObj.cgst,
-                sgst:itemObj.sgst,
-                igst:itemObj.igst,
-                tax:itemObj.igst>0?itemObj.igst:2*itemObj.cgst
-            });
-            let stockInst = await stock.findOne({
-                where:{
-                    name:itemObj.name
-                }
-            });
-            stockInst.reduceStock = itemObj.qty;
-            return stockInst.save();
+        ...deltaList.map(async ({tag,itemObj,_itemObj={}})=>{
+            if(tag=="updated"){
+                (await billItemModel.update(itemObj,{
+                    where:{
+                        name:itemObj.name
+                    }
+                }))
+                let stockInst = await stock.findOne({
+                    where:{
+                        name:itemObj.name
+                    }
+                });
+                stockInst.reduceStock = itemObj.qty - _itemObj.quantity;
+                return stockInst.save();
+            }
+            else
+            if(tag=="new"){
+                billItemModel.create({
+                    name:itemObj.name,
+                    hsn:itemObj.hsn,
+                    quantity:itemObj.qty,
+                    unit:itemObj.sellUnit,
+                    rate:itemObj.rate,
+                    cgst:itemObj.cgst,
+                    sgst:itemObj.sgst,
+                    igst:itemObj.igst,
+                    tax:itemObj.igst>0?itemObj.igst:2*itemObj.cgst
+                });
+                let stockInst = await stock.findOne({
+                    where:{
+                        name:itemObj.name
+                    }
+                });
+                stockInst.reduceStock = itemObj.qty;
+                return stockInst.save();
+            }
+            else{
+                (await billItemModel.findOne({
+                    where:{
+                        name:itemObj.name
+                    }
+                })).destroy();
+                let stockInst = await stock.findOne({
+                    where:{
+                        name:itemObj.name
+                    }
+                });
+                stockInst.reduceStock = -itemObj.quantity;
+                return stockInst.save();
+            }
         })
     ])
     .then(async ()=>{

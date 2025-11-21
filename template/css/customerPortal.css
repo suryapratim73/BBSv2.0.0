@@ -102,12 +102,13 @@ body{
     margin: 0 0 0.5rem 0;
     border-radius: 3px;
 }
-.customer-div:hover{
-    background: var(--theme-primary);
+.customer-div:hover,.customer-div.focus,.body.row.focus{
+    background: var(--theme-primary) !important;
 }
-.customer-div:hover p,.customer-div:active p{
+.customer-div:hover p,.customer-div:active p,.customer-div.focus p, .body.row.focus p{
     color: var(--theme-text-color) !important;
     text-shadow: none !important;
+    background: var(--theme-primary) !important;
 }
 .customer-div:active{
     background: darkolivegreen;
@@ -191,10 +192,10 @@ body{
     margin: 0 0.5rem;
     font-size: 1.3rem;
 }
-.body:hover{
+/* .body:hover{
     background: greenyellow;
     border-radius: 5px;
-}
+} */
 .body.row p{
     color: black;
     text-align: center;

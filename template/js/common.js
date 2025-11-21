@@ -1131,7 +1131,6 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = "";
                 }
                 else{
-                    console.log({taxSlab:selectedItem.pInfo.taxSlab,defaultGST,appliedTax:Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)})
                     bodyRow.querySelector(`input[data-name="igst"]`).value = "";
                     bodyRow.querySelector(`input[data-name="sgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;
                     bodyRow.querySelector(`input[data-name="cgst"]`).value = Number(selectedItem?.pInfo?.taxSlab ?? defaultGST)/2;
@@ -1693,4 +1692,28 @@ exports.contextMenuFunction = (e,targetWin)=>{
 
 exports.showTutorial = function(doc){
     // To demonstrate what is chnaged in perticular window
+}
+
+exports.scrollHelper = function(arr,index,direction,firstFlag=false){
+    function scrollHelper2(firstIndex,secondIndex){
+        if(firstFlag)
+            index++;
+        arr[firstIndex].dataset.hasFocus = "1";
+        arr[firstIndex].focus();
+        arr[firstIndex].classList.add("focus");
+        if(firstIndex===0 && direction==="ArrowDown") return;
+        delete arr[secondIndex].dataset.hasFocus;
+        arr[secondIndex].classList.remove("focus");
+    }
+    if(direction==="ArrowUp" && index>0){
+        if(firstFlag)
+            index++;
+        scrollHelper2(--index,index+1);
+    }
+    else
+    if(direction==="ArrowDown" && index<arr.length){
+        if(firstFlag)
+            index--;
+        scrollHelper2(++index,index-1);
+    }
 }

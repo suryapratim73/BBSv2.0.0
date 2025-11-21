@@ -81,7 +81,7 @@ function printcmd(e){
 }
 
 document.querySelector('[data-name="print-cancel-btn"]').addEventListener("click",()=>{
-    ipcRenderer.send("close","Custom-Print-Dialog"+uid);
+    ipcRenderer.send("close","Custom-Print-Dialog"+(uid ?? ""));
 });
 
 ipcRenderer.on("hide-label",(e,path2pdf)=>{

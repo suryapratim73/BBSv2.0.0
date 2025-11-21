@@ -20,7 +20,7 @@ let nameDatalist = document.createElement("datalist"),
     footer = document.querySelector("footer"),
     bodyRow,timer,currentBillNo,
     probableGrps = [],
-    availableBillNoDL = document.createElement("datalist"),igstFlag,preset;
+    availableBillNoDL = document.createElement("datalist"),igstFlag,preset,nocFlag=true;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -320,11 +320,8 @@ function proceedOrFinishHandler(e){
         }// Step 1,2 & 4
         else{
             probableGrps = [];
+            nocFlag = true;
             orderItems.forEach(async itemObj=>{
-                // ["sgst","cgst","igst"].forEach(key=>{
-                //     if(itemObj[key]===0)
-                //         Reflect.deleteProperty(itemObj,key);
-                // });
                 let grpObj = probableGrps.find(obj=>obj.rate===itemObj.rate);
                 if(itemObj.type!=="grp"){
                     if(!grpObj)
@@ -334,7 +331,6 @@ function proceedOrFinishHandler(e){
                         })
                     else
                         grpObj.items.push(itemObj);
-                    // console.log(probableGrps)
                 }
                 if(!("id" in itemObj)){
                     [...document.querySelectorAll(".body.row")]
@@ -345,7 +341,22 @@ function proceedOrFinishHandler(e){
                         }
                     });
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
-                    itemObj.id = obj.id
+                    itemObj.id = obj.id;
+                }
+                if(itemObj.igst===0 && itemObj.sgst===0 && itemObj.cgst===0){
+                    nocFlag = false;
+                    showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                }
+                if(!igstFlag){// No 0 gst guarantee
+                    itemObj.sgst = itemObj.sgst>0 ? itemObj.sgst : preset.default_gst/2;
+                    itemObj.cgst = itemObj.sgst>0 ? itemObj.sgst : preset.default_gst/2;
+                }
+                else
+                    itemObj.igst = itemObj.igst>0 ? itemObj.igst : preset.default_gst;
+                if(itemObj.rate==0){
+                    nocFlag = false;
+                    document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="standardSellPrice"]`).focus();
+                    showToastNotification("Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
                 }
             });
             if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
@@ -356,7 +367,8 @@ function proceedOrFinishHandler(e){
             }
             probableGrps = probableGrps.filter(obj=>obj.items.length!==1)
         }// Step 3
-        currentStep++;
+        if(nocFlag)
+            currentStep++;
     }
     else
     if(e.type==="click" && e.target.dataset.type==="back"){
@@ -372,8 +384,10 @@ function proceedOrFinishHandler(e){
 
         }
     }
-    document.getElementById("page-header").innerHTML = stepDetail();
-    mainForm();
+    if(nocFlag){
+        document.getElementById("page-header").innerHTML = stepDetail();
+        mainForm();
+    }
 }
 
 function showItemMergeOpts(){

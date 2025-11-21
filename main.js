@@ -786,6 +786,8 @@ function setAppPrsets(){
   .forEach(key=>{
     if(key in policy2 || key in policy)
       process.presets[key] = policy2[key] ?? policy[key];
+    else
+      process.presets[key] = undefined;
   });
 }
 
@@ -2623,7 +2625,7 @@ async function checkForUpdates(flag="auto") {
       let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());
       if(updtConf.updateDownloaded && updtConf.versionDownloaded!==appVersion && fs.existsSync(updtConf.path2file)){
         // Older version of app setup exist. So deleting and downloading latest.
-        fs.rmSync(updtConf.path2file);
+        // fs.rmSync(updtConf.path2file);
         return downloadUpdate(appVersion);
       }
       else

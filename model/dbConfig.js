@@ -128,6 +128,11 @@ module.exports = {
                 this.setDataValue("netAmt",this.getDataValue("netAmt")+del_netAmt);
                 this.setDataValue("tax",this.getDataValue("tax")+del_tax);
                 this.setDataValue("netDue",this.getDataValue("netDue")+Math.round(del_billAmt))
+            },
+            setBillValues:function({billAmt,netAmt,tax}){
+                this.setDataValue("billAmt",billAmt);
+                this.setDataValue("netAmt",netAmt);
+                this.setDataValue("tax",tax);
             }
         }
     }),
