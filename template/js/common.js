@@ -1694,13 +1694,26 @@ exports.showTutorial = function(doc){
     // To demonstrate what is chnaged in perticular window
 }
 
-exports.scrollHelper = function(arr,index,direction,firstFlag=false){
+exports.scrollHelper = function(arr,index,direction,firstFlag=false,mainSection,secMainSection){
+    console.log({mainSection,secMainSection})
+    let mainSectionDOM = mainSection.getBoundingClientRect();
+    let alphabetDOM = secMainSection.getBoundingClientRect();
+
     function scrollHelper2(firstIndex,secondIndex){
         if(firstFlag)
             index++;
         arr[firstIndex].dataset.hasFocus = "1";
         arr[firstIndex].focus();
         arr[firstIndex].classList.add("focus");
+        arr[firstIndex].focus();
+        let firstElemDOM = arr[firstIndex].getBoundingClientRect();
+        let topDiff = firstElemDOM.top-mainSectionDOM.bottom;
+        if(topDiff>0)
+            mainSection.scrollBy(0,topDiff+firstElemDOM.height);
+        let bottomDiff = firstElemDOM.bottom - alphabetDOM.bottom;
+        if(bottomDiff<0){
+            mainSection.scrollBy(0,bottomDiff-firstElemDOM.height);
+        }
         if(firstIndex===0 && direction==="ArrowDown") return;
         delete arr[secondIndex].dataset.hasFocus;
         arr[secondIndex].classList.remove("focus");

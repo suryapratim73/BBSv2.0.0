@@ -658,6 +658,8 @@ ipcRenderer.on("show-bill",(e,billObj)=>{
 document.addEventListener("keydown",e=>{
     if(currentPage===1){
         if(e.key==="ArrowUp" || e.key==="ArrowDown"){
+            let mainSection = document.getElementById("customer-list");
+            let secMainSection = mainSection.querySelector(".occupied h1");
             if(rows.length===0)
                 rows = [...document.querySelectorAll(".customer-div")]
             let focusssedRow = rows.find(row=>(row.dataset?.hasFocus=="1"));
@@ -666,11 +668,11 @@ document.addEventListener("keydown",e=>{
                 focusssedRow = rows[0];
                 focusssedRow.dataset.hasFocus = 1;
                 focussedIndex = 0;
-                scrollHelper(rows,focussedIndex,e.key,true);
+                scrollHelper(rows,focussedIndex,e.key,true,mainSection,secMainSection);
             }
             else{
                 focussedIndex = rows.findIndex(row=>(row.dataset?.hasFocus=="1"));
-                scrollHelper(rows,focussedIndex,e.key);
+                scrollHelper(rows,focussedIndex,e.key,false,mainSection,secMainSection);
             }
         }
         if(e.key==="Enter"){
@@ -687,7 +689,9 @@ document.addEventListener("keydown",e=>{
             let focussedIndex = rows2.findIndex(row=>(row.dataset?.hasFocus=="1"));
             let firstFlag = focussedIndex < 0;
             focussedIndex = focussedIndex < 0 ? 0 : focussedIndex;
-            scrollHelper(rows2,focussedIndex,e.key,firstFlag);
+            let mainSection = document.getElementById("bill-table");// Work in progress
+            let secMainSection = mainSection.querySelector(".head.row")
+            scrollHelper(rows2,focussedIndex,e.key,firstFlag,mainSection,secMainSection);
         }
         else
         if(e.ctrlKey){

@@ -1,15 +1,9 @@
 {
-    "version":"2.19.13",
+    "version":"2.19.14",
     "highlights":[
-        "Auto-deletion of installer is removed",
-        "Bill auto 0 value bug fix attempted",
-        "Bill update memory issue fixed",
-        "Added keyboard control in Customer Portal"
+        "Company profile setter bug fixed"
     ],
     "fullchange":[
-        "Auto-deletion of installer is removed",
-        "Bill auto 0 value bug fix attempted",
-        "Bill update memory issue fixed",
-        "Added keyboard control in Customer Portal"
+        "Company profile setter bug fixed"
     ]
 }

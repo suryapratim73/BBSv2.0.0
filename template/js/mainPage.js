@@ -1336,11 +1336,15 @@ function addFeilds(e){
 
 async function addBank(e){
     let compInfo = await ipcRenderer.invoke("get-company-info");
-    let form = traverseParent(e.target,null,"FORM");
-    let bank = form.name.value;
-    let branch = form.branch.value;
-    let accNo = form['acc-no'].value;
-    let ifsc = form.ifsc.value;
+    let form = traverseParent(e.target,"form","Div");
+    form = [...form.querySelectorAll("input")].reduce((acc,input)=>{
+        acc[input.name]=input.value;
+        return acc;
+    },{});
+    let bank = form.name;
+    let branch = form.branch;
+    let accNo = form['acc-no'];
+    let ifsc = form.ifsc;
     let bankID = uuid.v5(`${bank}-${accNo}`,"6ba7b814-9dad-11d1-80b4-00c04fd430c8")
     let host = document.querySelector("#view #host .bank");
     let { bankDetails=[] } = compInfo;
