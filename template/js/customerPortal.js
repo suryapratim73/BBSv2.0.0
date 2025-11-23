@@ -190,7 +190,7 @@ async function loadLedgerTable(_name){
     page2BTNS.dataset.name = selectedCustomer.name;
     if(!("phones" in selectedCustomer) || typeof selectedCustomer.phones==="undefined")
         selectedCustomer.phones = "[]";
-    phones = JSON.parse(selectedCustomer.phones);
+    let phones = selectedCustomer.phones instanceof Array ? selectedCustomer.phones : JSON.parse(selectedCustomer.phones);
     this?.classList?.add("hide");
     let ledgerDiv = document.getElementById("ledger-div-template").content.cloneNode(true).querySelector("div");
     let sideDiv = document.getElementById("chart-div");
