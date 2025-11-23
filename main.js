@@ -3367,24 +3367,24 @@ ipcMain.on("booted",async (e)=>{
   let stockList = await queryStock();
   //standardSellPrice
   //pInfo : {}
-  let products = stockList.filter(obj=>(
-      !("skipFlag" in obj.pInfo) &&
-      (obj.standardSellPrice===0 || 
-      !("taxSlab" in obj.pInfo))
-    ));
-  if(products.length>0){
-    dialog.showMessageBox({
-      title:"Product attributes found missing",
-      message:"Some of your item has missing attributes like GST rate. Would you like to fill them up now?",
-      buttons:["Sure","Later"],
-      noLink:true,
-      icon:appIcon
-    }).then(({response})=>{
-      if(response===1) return;
-      // else show popup to fill in neccessary product information.
-      e.sender.send("product-info-fillup-modal",products);
-    })
-  }
+  // let products = stockList.filter(obj=>(
+  //     !("skipFlag" in obj.pInfo) &&
+  //     (obj.standardSellPrice===0 || 
+  //     !("taxSlab" in obj.pInfo))
+  //   ));
+  // if(products.length>0){
+  //   dialog.showMessageBox({
+  //     title:"Product attributes found missing",
+  //     message:"Some of your item has missing attributes like GST rate. Would you like to fill them up now?",
+  //     buttons:["Sure","Later"],
+  //     noLink:true,
+  //     icon:appIcon
+  //   }).then(({response})=>{
+  //     if(response===1) return;
+  //     // else show popup to fill in neccessary product information.
+  //     e.sender.send("product-info-fillup-modal",products);
+  //   })
+  // }
 });
 
 ipcMain.on("open-bills-folder",()=>{
