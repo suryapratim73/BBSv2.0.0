@@ -306,7 +306,7 @@ function proceedOrFinishHandler(e){
                     customer.id = uuid.v5(customer.name+"_customer","6ba7b814-9dad-11d1-80b4-00c04fd430c8");
                 customer.phones = advanceSet(customer.phones,formObjs.phones);
             }
-            else{
+            else{// Step 2 & 4
                 if("autoBill" in formObjs)
                     formObjs.autoBill = true;
                 if(billMeta.deliveryType==="transport" && !("transportId" in billMeta))
