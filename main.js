@@ -2349,7 +2349,6 @@ ipcMain.on("app-registration", async (e, gst) => {
 
 //App update logic
 exports.updateCommon = updateCommon;
-
 async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   let data = {
     currentVersion:app.getVersion(),
@@ -2579,7 +2578,9 @@ async function checkForUpdates(flag="auto") {
     new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)
   ) {
     let resp = versionChecker(app.getVersion(),appVersion);
-    if(!resp) return;
+    if(!resp) 
+      return;// (updateCommon.bind({fileName:"Bigbyte Business Service Setup 2.19.14.exe",version:"2.19.14"}))()
+
     let message;
     if (resp===1)
       message = "A new version of BBS is available for download.";
@@ -2619,7 +2620,7 @@ async function checkForUpdates(flag="auto") {
       noLink:true,
       icon:appIcon
     });
-    if (response === 1) return;
+    if (response === 1) return ;
     // If app is not already updated.
     try{
       let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());

@@ -42,8 +42,11 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
                     destnFolder:path.resolve(backupFolderPath,"./"+fileName)
                 })
             })
-            if(fs.existsSync(filePath))
+            if(fs.existsSync(filePath)){
                 fs.copyFileSync(filePath,path.resolve(backupFolderPath,"./"+fileName));
+                if(/setup/.test(fileName))
+                    fs.unlinkSync(filePath);
+            }
             else
                 appLogger({
                     title:"File Copy Error",
@@ -118,11 +121,11 @@ async function showUpdateSuccessMsg(){// Runs after update completion
         updateConf.currentVersion = app.getVersion();
         fs.writeFileSync(path.resolve(appPath,"./updtConf.json"),JSON.stringify(updateConf));
         fs.appendFileSync(path.resolve(appPath,"./logs/versionLogs.txt"),JSON.stringify(updtLogEntry)+"\n");
-        let installerFiles = fs.readdirSync(appPath,{withFileTypes:true}).filter(file=>file.isFile() && file.name.match(/bbs.+setup.exe/));
-        if(installerFiles instanceof Array && installerFiles.length>0)
-            installerFiles.forEach(file=>{
-                fs.unlinkSync(path.resolve(appPath,"./"+file.name));
-            });
+        // let installerFiles = fs.readdirSync(appPath,{withFileTypes:true}).filter(file=>file.isFile() && file.name.match(/bbs.+setup.exe/));
+        // if(installerFiles instanceof Array && installerFiles.length>0)
+        //     installerFiles.forEach(file=>{
+        //         fs.unlinkSync(path.resolve(appPath,"./"+file.name));
+        //     });
         dialog.showMessageBox({
             title:"Update Complete",
             message:"App has been updated, check versionManager for update details."
