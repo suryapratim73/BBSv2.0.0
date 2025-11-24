@@ -1,9 +1,11 @@
 {
-    "version":"2.19.17",
+    "version":"2.19.18",
     "highlights":[
-        "Default 2 updated as per reqest"
+        "Default Delivery mode in SalePage is set to transport",
+        "SVG requirement issue made optional"
     ],
     "fullchange":[
-        "Default 2 updated as per reqest"
+        "Default Delivery mode in SalePage is set to transport",
+        "SVG requirement issue made optional"
     ]
 }

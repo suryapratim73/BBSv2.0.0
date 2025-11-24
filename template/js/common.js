@@ -1000,6 +1000,7 @@ exports.applyTheme = async function(e,theme){
     }
     if(file.endsWith("svg")){
         let svg = await ipcRenderer.invoke("get-svg",file);
+        if(!svg) return;
         svg = new DOMParser().parseFromString(svg,'text/html').body;
         function traverseChild(node){
             node.removeAttribute("fill");

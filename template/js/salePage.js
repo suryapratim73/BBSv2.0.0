@@ -226,6 +226,7 @@ async function mainForm(){
             billMeta.billNo = currentBillNo;
             billMeta.billType = "regular";
             page2initialized = true;
+            assignDeliveryOptions({value:"transport"});
         }
         else
             currentBillNo = billMeta.billNo;

@@ -2222,6 +2222,7 @@ nativeTheme.addListener(
 );
 
 ipcMain.handle("get-svg", (e, filePath) => {
+  if(!fs.existsSync(filePath) || filePath=="" || typeof filePath==="undefined") return false;
   return fs.readFileSync(filePath).toString();
 });
 
