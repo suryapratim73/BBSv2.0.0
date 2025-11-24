@@ -1,11 +1,9 @@
 {
-    "version":"2.19.18",
+    "version":"2.19.19",
     "highlights":[
-        "Default Delivery mode in SalePage is set to transport",
-        "SVG requirement issue made optional"
+        "Customer portal edit feature crash issue fixed"
     ],
     "fullchange":[
-        "Default Delivery mode in SalePage is set to transport",
-        "SVG requirement issue made optional"
+        "Customer portal edit feature crash issue fixed"
     ]
 }

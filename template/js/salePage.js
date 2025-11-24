@@ -129,7 +129,7 @@ function helperFunc1(itemObj){
             else
                 input.value = itemObj?.[key] ?? "";
         }
-        else{console.log({unit:itemObj.sellUnit})
+        else{
             input.value = itemObj.sellUnit;}
     });
     calculateAmounts();
@@ -193,6 +193,9 @@ async function reInitFormData(){
                 main.querySelector("input[data-name='transportAddress']").value = obj.transportAddress ?? "";
                 main.querySelector("input[data-name='transportContact']").value = obj.transportContact ?? "";
             }
+            else
+            if(preset.target==="salePage" || obj.deliveryType==="hand")
+                main.querySelector("#delivery-mode option[value='hand']")?.setAttribute("selected",true);
             //Step 4
             if(!("payment" in billMeta) || ("paymentStatus" in billMeta && billMeta.paymentStatus==false)) return;
             billMeta.payment?.forEach?.((payObj,i)=>{
@@ -226,7 +229,10 @@ async function mainForm(){
             billMeta.billNo = currentBillNo;
             billMeta.billType = "regular";
             page2initialized = true;
-            assignDeliveryOptions({value:"transport"});
+            if(typeof preset==="undefined"){
+                document.querySelector("#delivery-mode option[value='transport']").setAttribute("selected",true);
+                assignDeliveryOptions({value:"transport"});
+            }
         }
         else
             currentBillNo = billMeta.billNo;

@@ -73,6 +73,7 @@ const AdmZip = require("adm-zip");
 const { queryStock } = require("./handleStock");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
+const { title } = require("process");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -3354,11 +3355,19 @@ ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
     target:"salePage",
     currentStep:3
   };
+  console.log()
   Object.keys(presetObj)
   .forEach(key=>{
     process.presets[key] = presetObj[key];
   });
 });
+
+ipcMain.on("msg-from-frontend",(e,msg)=>{
+  console.log({
+    title:"Message from Frontend",
+    message:msg
+  })
+})
 
 ipcMain.handle("get-presets",()=>{
   return process.presets;
