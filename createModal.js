@@ -1,7 +1,6 @@
 const {BrowserWindow, dialog, nativeImage} = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { showTutorial } = require("./common");
 
 
 let windowList = [];

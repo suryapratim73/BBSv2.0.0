@@ -1,7 +1,5 @@
-const { sequelize } = require("./model/dbConfig");
-const { dialog, BrowserWindow, app, ipcMain } = require("electron");
+const { dialog, BrowserWindow, app, ipcMain, Menu } = require("electron");
 const { ledgerPDF } = require("./scripts/makePDF.default");
-const { customer } = require("./model/dbConfig");
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
@@ -65,6 +63,7 @@ class FileHandler{
 let billNoGenInstance,loggerFH = [];
 
 async function getLedgerModel(id,ledgerSchema,_sequelize){
+    const { sequelize } = require("./model/dbConfig");
     let supplierLedger = `${id}Ledger`;
     let inst = sequelize;
     if(_sequelize)
@@ -84,6 +83,7 @@ async function getLedgerModel(id,ledgerSchema,_sequelize){
 exports.getLedgerModel = getLedgerModel;
 
 exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema,_sequelize){
+    const { sequelize } = require("./model/dbConfig");
     let itemListTable = `${id}_${billNo}_${billDate}`;
     let inst = sequelize;
     if(_sequelize)
@@ -279,6 +279,7 @@ exports.getBaseDir = function(){
 }
 
 exports.initCustomerList = async function(){
+    const { customer } = require("./model/dbConfig");
     try{
         (await (await customer.sync()).findAll())
         .map(({dataValues})=>dataValues)
@@ -341,3 +342,57 @@ exports.captionReducer = function(arr){
         return acc;    
     },[]);
 }
+
+exports.billDesignerWindow = (mainWindow) => {
+  return () => {
+    mainWindow.loadFile("./template/html/billLayout.html");
+    let menu = Menu.getApplicationMenu();
+    menu.append(
+      new MenuItem({
+        role: "fileMenu",
+        submenu: [
+          new MenuItem({
+            label: "New",
+            click: () => {
+              mainWindow.webContents.send("new-template");
+            },
+          }),
+          new MenuItem({
+            label: "Open",
+            click: async () => {
+              try {
+                let { canceled, filePaths } = await dialog.showOpenDialog({
+                  defaultPath: app.getPath("documents"),
+                  filters: [{ name: "JSON Files", extensions: ["json"] }],
+                  icon:appIcon
+                });
+                if (canceled) return;
+                fs.readFile(filePaths[0], (err, data) => {
+                  if (err) throw err;
+                  mainWindow.webContents.send(
+                    "set-opened-file",
+                    JSON.parse(data.toString()),
+                    filePaths[0]
+                  );
+                });
+              } catch (err) {
+                appLogger({title:"Error",message:String(err),func:"filepath read error"});
+              }
+            },
+          }),
+          new MenuItem({
+            label: "Save as",
+            click: () => mainWindow.webContents.send("save-as"),
+          }),
+          new MenuItem({
+            label: "Save & Exit",
+          }),
+        ],
+        enabled: true,
+        visible: true,
+        label: "File",
+      })
+    );
+    Menu.setApplicationMenu(menu);
+  };
+};

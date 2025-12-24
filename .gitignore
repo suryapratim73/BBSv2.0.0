@@ -19,3 +19,7 @@ config/
 updtConf.json
 model/old_dynamic_schema.js
 model/old_schema.js
+obsolete_files/
+model/*.json
+Backup/
+schemaManager.js

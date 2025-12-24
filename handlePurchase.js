@@ -9,16 +9,18 @@ const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const { DataTypes } = require("sequelize");
+const { deserializeSchema } = require("./model/schemaLoader");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
 if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.js";
+    dynamicSchemaPath = "./model/dynamicSchemas.json";
 
-const { supplierLedgerSchema, billItemSchema } = require(dynamicSchemaPath).init(DataTypes);
+const dynamicSchemaJson = fs.readFileSync(dynamicSchemaPath, 'utf8');
+const { supplierLedgerSchema, billItemSchema } = deserializeSchema(dynamicSchemaJson, DataTypes);
 let windowOptions = {
     width: 800,
     height: 600

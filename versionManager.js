@@ -6,7 +6,6 @@ const { appLogger } = require("./common");
 const fs = require("fs");
 const { default: axios } = require("axios");
 const readLine = require("readline");
-const { updateCommon } = require("./main");
 
 let windowOptions = {
     width: 800,
@@ -147,6 +146,7 @@ ipcMain.handle("get-app-path",()=>{
 
 ipcMain.on("btn-ctrl-backend",async (e,cmd,versionObj)=>{
     let backupFolderPath = path.resolve(appPath,"./Backup/version_"+versionObj.appVersion);
+    const { updateCommon } = require("./main");
     if(!(fs.existsSync(backupFolderPath))) return;
     let installerFile = path.resolve(backupFolderPath,"./"+"bbs_"+versionObj.appVersion+"_setup.exe")
     let relPath = path.relative(installerFile,app.getPath("appData"));
@@ -155,9 +155,17 @@ ipcMain.on("btn-ctrl-backend",async (e,cmd,versionObj)=>{
         fileList.forEach(({fileName,path2file})=>{
             let srcFilePath = path.resolve(backupFolderPath,"./"+fileName);
             let destFolder = path.resolve(path2file,"../"); 
-            fs.copyFileSync(srcFilePath,destFolder);
+            if(fs.existsSync(srcFilePath) && fs.existsSync(destFolder))
+                fs.copyFileSync(srcFilePath,destFolder);
         });
-        updateCommon.call({fileName:versionObj.fileName,version:versionObj.appVersion},false,relPath);
+        if(fs.existsSync(installerFile))
+            updateCommon.call({fileName:versionObj.fileName,version:versionObj.appVersion},false,relPath);
+        else
+            appLogger({
+                title:"Installer Missing",
+                message:"Installer file missing in backup folder, cannot proceed with downgrade. Path: "+installerFile,
+                func:"versionManager IPC restore"
+            })
     }
     else
     if(cmd==="open-folder")

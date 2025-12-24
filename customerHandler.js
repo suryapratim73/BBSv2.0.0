@@ -9,15 +9,17 @@ const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = re
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
 const { billPDF } = require("./scripts/makePDF.default");
+const { deserializeSchema } = require("./model/schemaLoader");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
 if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.js";
+    dynamicSchemaPath = "./model/dynamicSchemas.json";
 
-const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
+const dynamicSchemaJson = fs.readFileSync(dynamicSchemaPath, 'utf8');
+const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = deserializeSchema(dynamicSchemaJson, DataTypes);
 
 exports.customerPortal = mainWindow =>{
     return ()=>{

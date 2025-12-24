@@ -35,10 +35,11 @@ const {
   openFormatForDate,
   getFinYearStrtEndDt,
 } = require("./common");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath,deepCompareJSON, roundOffTo2DecimalPlace } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
+const crypto = require("crypto");
 
 
 let {
@@ -46,7 +47,7 @@ let {
   getTargetWindow,
   getMainWindow,
 } = require("./createModal");
-const {
+let {
   attendances,
   people,
   stock,
@@ -78,13 +79,30 @@ const { title } = require("process");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+const { deserializeSchema } = require("./model/schemaLoader");
 
-if(!(fs.existsSync(dynamicSchemaPath)))
-  dynamicSchemaPath = "./model/dynamicSchemas.js";
-
-const dynamicSchemas = require(dynamicSchemaPath).init(DataTypes);
-const { billItemSchema,customerLedgerSchema,supplierLedgerSchema } = dynamicSchemas;
+// Load dynamicSchemas from JSON (server-delivered)
+let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;
+try {
+    let dynamicSchemaJsonPath = path.resolve(appPath,"./model/dynamicSchemas.json");
+    
+    if(!fs.existsSync(dynamicSchemaJsonPath)){
+        throw new Error("dynamicSchemas.json not found.");
+    }
+    
+    // Deserialize JSON schema to Sequelize objects
+    const dynamicSchemaJson = fs.readFileSync(dynamicSchemaJsonPath, "utf-8");
+    dynamicSchemas = deserializeSchema(dynamicSchemaJson, DataTypes);
+    ({ billItemSchema, customerLedgerSchema, supplierLedgerSchema } = dynamicSchemas);
+} catch (err) {
+    console.error("Schema loading error:", err.message);
+    console.log("\n⚠️  Schema files not found!");
+    console.log("Please initialize schemas from server:");
+    console.log("  1. Set SCHEMA_SERVER_URL in .env file");
+    console.log("  2. App will auto-download schemas on first run\n");
+    // Set flag to trigger bootstrap dialog
+    global.needsSchemaBootstrap = true;
+}
 let closeFlag = false,
 windowOptions = {
     width: 600,
@@ -168,6 +186,31 @@ class Job{
 }
 
 async function createWindow() {
+  // Check if schemas need to be bootstrapped
+  if (global.needsSchemaBootstrap) {
+    // Attempt to initialize schemas
+    try {
+      let { serverSchema, serverDynamic } = await schemaDownloader();
+      saveSchemaLocally(serverSchema,serverDynamic);
+      appLogger("Bootstrap Case: ✅ Schemas downloaded successfully. Restarting app...");
+      app.relaunch();
+      app.exit(0);
+      return;
+    } catch (err) {
+      dialog.showErrorBox(
+        "Schema Download Failed",
+        `Failed to download schemas: ${err.message}\n\nPlease check:\n1. SCHEMA_SERVER_URL in .env\n2. Server is running and accessible\n3. Network connection`
+      );
+      appLogger({
+        title: "Schema Download Error",
+        message: String(err),
+        func: "createWindow schema download"
+      });
+      app.quit();
+      return;
+    }
+  }
+  
   let { width, height: workAreaHeight } = screen.getPrimaryDisplay().workArea;
   let { height } = screen.getPrimaryDisplay().size;
   let winState = winManager({
@@ -187,9 +230,6 @@ async function createWindow() {
   };
   windowOptions.resizable = true;
   windowOptions.maximizable = true;
-  if (process.platform === "linux") {
-    
-  }
   let fileName = "lockScreen";
   try{
     let userCount = (await user.findAll()).length;
@@ -247,6 +287,7 @@ async function createWindow() {
       { maxWinCount: 1, label: "Main" }
     );
 
+    // Single instance lock
     if(process.env.APP_ENV!="DEV" && !app.requestSingleInstanceLock())
       app.quit();
     else{
@@ -258,11 +299,9 @@ async function createWindow() {
       });
     }
 
-    // Removing replica DB when it served it purpose.    
+    // Removing temporary files.    
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{
-      // if(schemaValidator()===false && fs.existsSync(path.resolve(appPath,"./db/bbs_replica.db")))
-      //   fs.unlinkSync(path.resolve(appPath,"./db/bbs_replica.db"));
       let files = fs.readdirSync(path.resolve(app.getPath("documents"),"./Bills/"))
       files.filter(file=>/_temp/.test(file))
       .forEach(file=>{
@@ -273,69 +312,31 @@ async function createWindow() {
       appLogger({
         title:"Error",
         message:String(err),
-        func:"Deletion of replica db"
+        func:"Deletion of Temporary Files"
       })
     }
+
+    // Unregistering conflicting global shortcuts
     globalShortcut.unregister("CommandOrControl+Tab+Up");
     globalShortcut.unregister("CommandOrControl+F4");
-    if(process.env.APP_ENV==="DEV" && schemaValidator()===true){
-      mainWindow.setProgressBar(0,{mode:"normal"});
-      mainWindow.webContents.send("execute-progressbar",0);
-      process.appStatus = "db-migration";
-      await dbMigrator();
-    }
-    if(process.env.APP_ENV==="PROD"){
-      try{
-        if(fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json")){
-          let updateConf = JSON.parse((fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json")).toString());
-          let resp = versionChecker(updateConf.currentVersion,updateConf.versionDownloaded);
-          if(resp>0){
-            appLogger({
-              title:"DB Migration initiation",
-              message:"Copying schema files"
-            });
-            [
-              {ext:"./model",file:"schema.js"},
-              {ext:"./model",file:"schema_replica.js"},
-              {ext:"./",file:"dbConf.json"},
-              {ext:"./model/",file:"dynamicSchemas.js"},
-              {ext:"./model/",file:"dynamicSchemas_replica.js"}
-            ]
-            .forEach(({file,ext})=>{
-              fs.copyFileSync(path.resolve(__dirname,ext,`./${file}`),path.resolve(appPath,"./model/"+file));
-            });
-            appLogger({
-              title:"DB Migration status",
-              message:"Copy successful and updating updtConf.json file"
-            })
-          }
-          appLogger({
-            title:"DB Migration status",
-            message:{
-              schemaValidator:schemaValidator()
-            }
-          });
-          if(schemaValidator()===true){
-            if(!fs.existsSync(path.resolve(appPath,"./model/")))
-              fs.mkdirSync(path.resolve(appPath,"./model"));
-            mainWindow.setProgressBar(0,{mode:"normal"});
-            mainWindow.webContents.send("execute-progressbar",0);
-            await dbMigrator();
-          }
-          if(resp>0 && !schemaValidator())
-            showUpdateSuccessMsg();
-        }
-      }
-      catch(err){
-        appLogger({
-          title:"Schema Validation Error",
-          message:String(err)
-        });
-      }
-    }
+    
     mainWindow.maximize();
-    winState.manage(mainWindow);
-    return bootCommon(mainWindow)
+    winState.manage(mainWindow);     
+    bootCommon(mainWindow)
+
+    // Schema validation and migration
+    try{
+      if(currentUser && ["all","admin"].includes(currentUser.role))
+        dbInitialized = await schemaValidation_migrationHandler(mainWindow,appPath);
+    }
+    catch(err){
+      appLogger({
+        title:"Schema Validation Error",
+        message:String(err)
+      });
+    }
+
+    return mainWindow;
   }
   catch(err){
     if("name" in err && err.name==="SequelizeDatabaseError"){
@@ -431,59 +432,21 @@ async function createWindow() {
   }
 }
 
-exports.billDesignerWindow = (mainWindow) => {
-  return () => {
-    mainWindow.loadFile("./template/html/billLayout.html");
-    let menu = Menu.getApplicationMenu();
-    menu.append(
-      new MenuItem({
-        role: "fileMenu",
-        submenu: [
-          new MenuItem({
-            label: "New",
-            click: () => {
-              mainWindow.webContents.send("new-template");
-            },
-          }),
-          new MenuItem({
-            label: "Open",
-            click: async () => {
-              try {
-                let { canceled, filePaths } = await dialog.showOpenDialog({
-                  defaultPath: app.getPath("documents"),
-                  filters: [{ name: "JSON Files", extensions: ["json"] }],
-                  icon:appIcon
-                });
-                if (canceled) return;
-                fs.readFile(filePaths[0], (err, data) => {
-                  if (err) throw err;
-                  mainWindow.webContents.send(
-                    "set-opened-file",
-                    JSON.parse(data.toString()),
-                    filePaths[0]
-                  );
-                });
-              } catch (err) {
-                appLogger({title:"Error",message:String(err),func:"filepath read error"});
-              }
-            },
-          }),
-          new MenuItem({
-            label: "Save as",
-            click: () => mainWindow.webContents.send("save-as"),
-          }),
-          new MenuItem({
-            label: "Save & Exit",
-          }),
-        ],
-        enabled: true,
-        visible: true,
-        label: "File",
-      })
-    );
-    Menu.setApplicationMenu(menu);
-  };
-};
+async function schemaValidation_migrationHandler(mainWindow,appPath){
+  let migrateFlag = await schemaValidator();
+  if(migrateFlag === true){
+    if(!fs.existsSync(path.resolve(appPath,"./model/")))
+      fs.mkdirSync(path.resolve(appPath,"./model"));
+    mainWindow.setProgressBar(0,{mode:"normal"});
+    mainWindow.webContents.send("execute-progressbar",0);
+    await dbMigrator();
+    return false;
+  }
+  else{
+    mainWindow.webContents.send("update-content");
+    return true;
+  }
+}
 
 ipcMain.handle("get-users", async () => {
   if(dbInitialized)
@@ -500,7 +463,8 @@ ipcMain.handle("get-users", async () => {
 
 app.on("quit", async () => {
   try{
-    await sequelize.close()
+    if(dbInitialized)
+      await sequelize.close()
   }
   catch(err){
     appLogger({
@@ -720,7 +684,7 @@ app.on("ready", async () => {
           process.lastMinimizedWin = undefined;
         }
       });
-      if(firstBoot) return;
+      if(firstBoot || !dbInitialized) return;
       // Taking attendance
       let todaysAttendance = (
         await attendances.findOne({
@@ -992,7 +956,6 @@ ipcMain.on("open-salary-modal", (e) => {
 exports.getCurrentLogin = function () {
   return currentUser;
 };
-
 // Lander Page IPCs
 
 ipcMain.handle("get-overview-content", async (e,year) => {
@@ -1564,6 +1527,8 @@ ipcMain.on("app-login", async () => {
       clearInterval(idleLockTimer);
       idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
     }
+    if(["admin","all"].includes(currentUser.role))
+      dbInitialized = await schemaValidation_migrationHandler(getMainWindow(),appPath)
   }
 });
 
@@ -2381,19 +2346,6 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   appLogger({
     message:"Trying to install update."
   });
-  if(data.installMoment==="now" && fs.existsSync(path.resolve(app.getPath("appData"),"./model/schema.js"))){
-    try{
-      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema_replica.js"),"a+");
-      fs.rmSync(path.resolve(app.getPath("appData"),"./model/schema.js"),"a+");
-    }
-    catch(err){
-      appLogger({
-        title:"Error",
-        message:String(err),
-        func:"Trying to delete schema files to allow schema update after install."
-      })
-    }
-  }
   let proc;
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
@@ -2402,7 +2354,9 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     });
     proc = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
-      shell:true
+      shell:true,
+      detached:true,
+      stdio:'ignore'
     });
   }
   else
@@ -2410,28 +2364,26 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     // Try to run a bash or some shell script to update BBS
     proc = spawn("updator.bat",[data.path2file],{
       shell:true,
-      cwd:__dirname
+      cwd:__dirname,
+      detached:true,
+      windowsHide:true,
+      stdio:'ignore'
     });
   }
   if(data.installMoment==="now"){
+    // Unref the process to allow parent to exit independently
+    proc.unref();
+    
+    appLogger({
+      title:"Spawned updator",
+      message:`Process detached, app will quit in 1 second`,
+      filePath:data.path2file,
+      fileExists:fs.existsSync(data.path2file)
+    });
+    
     setTimeout(()=>{
       app.quit()
-    },2000);
-    proc.on("spawn",()=>{
-      appLogger({
-        title:"Spawned updator",
-        message:`"${path.resolve(data.path2file)}"`,
-        test:fs.existsSync(data.path2file)
-      });
-    });
-    function helperfunc1(chunk){
-      appLogger({
-        title:this,
-        message:Buffer.from(chunk).toString()
-      });
-    }
-    proc.stderr.on("data",helperfunc1.bind("updator.bat error"));
-    proc.stdout.on("data",helperfunc1.bind("Output from updator.bat"));
+    },1000);
   }
 }
 
@@ -3064,31 +3016,117 @@ ipcMain.on("open-event",(e,evObj)=>{
   }
 });
 
-// DB Migration for non-breaking model changes only
-function schemaValidator(){
+async function schemaDownloader(){
+  const { extractVersion } = require("./model/schemaLoader");
+  let [ serverSchema, serverDynamic ] = await new Promise(async (res,rej)=>{
+    res(Promise.all(["api/schema","api/dynamic-schema"].map(async (endpoint)=>{
+      try{
+        let schemaResp = await axios.get(process.env.SCHEMA_SERVER+endpoint,{
+          timeout: 10000,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        schemaResp = JSON.parse(schemaResp.data.schema);
+        if(typeof schemaResp.version!="undefined" && typeof schemaResp.version=="object")
+          schemaResp.version = extractVersion(schemaResp);
+        return schemaResp;//({[endpoint==="api/schema"?"serverSchema":"serverDynamic"]:schemaResp});
+      }
+      catch(err){
+        appLogger({
+          title:"Schema download error",
+          message:err,
+          func:"schemaDownloader"
+        });
+        rej(err);
+      }
+    })));
+  });
+  return { serverSchema,serverDynamic };
+}
+
+function saveSchemaLocally(serverSchema,serverDynamic){
   let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-  let path2config = path.resolve(appPath,"./model/dbConf.json");
-  if(fs.existsSync(path2config)){
-    let { dbMigrated=true } = JSON.parse(fs.readFileSync(path2config)?.toString() ?? "{}");
-    if(dbMigrated)
+  // Defining path to schema files
+  const currentDynamicPath = path.resolve(appPath, "./model/dynamicSchemas.json");
+  const currentSchemaPath = path.resolve(appPath, "./model/schema.json");
+  // Update current schemas with server schemas
+  fs.writeFileSync(currentSchemaPath, JSON.stringify(serverSchema));
+  fs.writeFileSync(currentDynamicPath, JSON.stringify(serverDynamic));
+}
+
+// DB Migration for non-breaking model changes only
+async function schemaValidator(){
+  let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+  // Defining path to schema files
+  const replicaDynamicPath = path.resolve(appPath, "./model/dynamicSchemas_replica.json");
+  const replicaSchemaPath = path.resolve(appPath, "./model/schema_replica.json");
+  const currentDynamicPath = path.resolve(appPath, "./model/dynamicSchemas.json");
+  const currentSchemaPath = path.resolve(appPath, "./model/schema.json");
+
+  // Read and parse all schemas
+  const currentDynamic = JSON.parse(fs.readFileSync(currentDynamicPath, 'utf8'));
+  const currentSchema = JSON.parse(fs.readFileSync(currentSchemaPath, 'utf8'));
+
+  // Fetch schema-hashes from server and check with local schema hashes
+  const currentDynamicHash = crypto.createHash('sha256').update(JSON.stringify(currentDynamic)).digest('hex');
+  const currentSchemaHash = crypto.createHash('sha256').update(JSON.stringify(currentSchema)).digest('hex');
+
+  try {
+    // Fetch latest schemas from server and update local files    
+    let { serverSchema,serverDynamic } = await schemaDownloader();
+    let serverSchemahash = crypto.createHash('sha256').update(JSON.stringify(serverSchema)).digest('hex');
+    let serverDynamicHash = crypto.createHash('sha256').update(JSON.stringify(serverDynamic)).digest('hex');
+    // If hashes match, no migration needed
+    if (currentDynamicHash === serverDynamicHash && currentSchemaHash === serverSchemahash) {
+      appLogger({ title: "No schema changes detected, migration not needed." });
       return false;
+    } else {
+      appLogger({ title: "Schema change detected, starting migration." });
+      
+      // Ask user confirmation for migration
+      let mainWin = getMainWindow();
+      let { response } = await dialog.showMessageBox(mainWin, {
+        type: 'warning',
+        buttons: ['Proceed', 'Cancel'],
+        defaultId: 0,
+        title: 'Schema Change Detected',
+        message: 'Schema changes have been detected. Do you want to proceed with the migration?',
+        detail: 'App will backup db before proceeding. Don\'t close the app during migration',
+        icon: appIcon,
+        noLink: true
+      });
+      if (response === 1) {
+        appLogger({ title: "Migration cancelled by user." });
+        dialog.showMessageBox({
+          type:"info",
+          title:"Schema Validation Postponed",
+          message:"Schema validation postponed. You may not be able to use some features of the application.We recommend you to download the schema at the earliest. We will remind you again on next app launch.",
+          icon:appIcon,
+          buttons:["OK"]
+        });
+        return false;
+      }
+      // user approved migration
+      // copy current schemas to replica if replica not exists
+      fs.copyFileSync(currentDynamicPath, replicaDynamicPath);
+      fs.copyFileSync(currentSchemaPath, replicaSchemaPath);
+      // Update current schemas with server schemas
+      saveSchemaLocally(serverSchema,serverDynamic);
+
+      appLogger({ 
+        title: "Proceeding with migration.", 
+        func: "schemaValidator" 
+      });
+      return true; // Migration needed
+    }
+  } catch (err) {
+    appLogger({
+      title: "Schema fetch error",
+      message: String(err),
+      func: "schemaValidator"
+    });
+
+    return false; // On error, skip migration
   }
-  let { schemas:_schemas } = require("./model/dbConfig_replica");
-  let { schemas } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
-  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas")).init(DataTypes);
-  if(schemas.length!=_schemas.length) return false;
-  let schema_objs = Object.keys(schemas).map(schema=>({obj1:schemas[schema],obj2:_schemas[schema]}))
-  let compareObj = [
-    ...schema_objs,
-    { obj1:customerLedgerSchema,obj2:_customerLedgerSchema },
-    { obj1:supplierLedgerSchema,obj2:_supplierLedgerSchema },
-    { obj1:billItemSchema,obj2:_billItemSchema }
-  ];
-  if(compareObj.find(({obj1,obj2})=>!(deepCompareJSON(obj1,obj2))))
-    return true;
-  else
-    return false;
 }
 
 function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait...",text2="",cancelObj={useCancel:false}){
@@ -3096,18 +3134,36 @@ function updateProgressbar(win,value,maxVal,text="DB migration in progress,pleas
   win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),{text,text2,cancelObj});
 }
 // dbMigrator()
-async function dbMigrator(){
-  let _models = require("./model/dbConfig_replica");
-  let { schemas,...models } = require("./model/dbConfig");
-  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = require(path.resolve(appPath,"./model/dynamicSchemas_replica")).init(DataTypes);
+// Migration is now handled by server schema updates and Sequelize sync
+async function dbMigrator(){// Work in progress, check the flow before testing
+  // Defining schema paths
+  let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
+  const replicaDynamicPath = path.resolve(appPath, "./model/dynamicSchemas_replica.json");
+  const replicaSchemaPath = path.resolve(appPath, "./model/schema_replica.json");
+  const currentDynamicPath = path.resolve(appPath, "./model/dynamicSchemas.json");
+  let backupDBPaths = [];
+
+  // Read and parse latest schemas
+  const replicaSchemas = fs.readFileSync(replicaSchemaPath, 'utf8');
+  const replicaDynamicSchemas = fs.readFileSync(replicaDynamicPath, 'utf8');
+  const currentDynamicSchemas = fs.readFileSync(currentDynamicPath, 'utf8');
   let win = getMainWindow();
   appLogger({
     title:"Taking Backup"
   });
+
+  delete require.cache[require.resolve("./model/dbConfig")];
+  const { sequelize,schemas,...models } = require("./model/dbConfig");
+  let { customerLedgerSchema,supplierLedgerSchema,billItemSchema } = deserializeSchema(currentDynamicSchemas,DataTypes,UUIDV4);
+  let { customerLedgerSchema:_customerLedgerSchema,supplierLedgerSchema:_supplierLedgerSchema,billItemSchema:_billItemSchema } = deserializeSchema(replicaDynamicSchemas,DataTypes,UUIDV4);
+  let { supplier,freight,people,customerSchema,stockSchema,saleSchema,purchaseSchema,outPaymentSchema,inPaymentSchema,returnRegister,serviceSchema,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = deserializeSchema(replicaSchemas,DataTypes,UUIDV4);
   updateProgressbar(win,1,2,"DB migration in progress,please wait...","Taking backups")
   try{
+    // Backing up main db before migration.
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_replica.db"));
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_backup.db"));
+    backupDBPaths.push(path.resolve(appPath,"./db/bbs_backup.db"));
+    backupDBPaths.push(path.resolve(appPath,"./db/bbs_replica.db"));
     appLogger({title:"db copied successfully"});
     updateProgressbar(win,2,2,"DB migration in progress,please wait...","db copied successfully")
     let _sequelize = new Sequelize({
@@ -3116,6 +3172,40 @@ async function dbMigrator(){
       transactionType:"IMMEDIATE",
       logging:false
     });
+    let _schemasMap = {
+      supplier,
+      freight,
+      people,
+      customer:customerSchema,
+      stock:stockSchema,
+      sale:saleSchema,
+      purchase:purchaseSchema,
+      outPayments:outPaymentSchema,
+      inPayments:inPaymentSchema,
+      returnRegister,
+      service:serviceSchema,
+      attendances:attendanceSchema,
+      requirement:requirementSchema,
+      user:userSchema,
+      financial_record:financialRecordSchema
+    }
+    let _models = {
+      supplier:_sequelize.define("supplier",supplier,{timestamps:false}),
+      freight:_sequelize.define("freight",freight,{timestamps:false}),
+      people:_sequelize.define("people",people,{timestamps:false}),
+      customer:_sequelize.define("customer",customerSchema,{timestamps:false}),
+      stock:_sequelize.define("stock",stockSchema,{timestamps:false}),
+      sale:_sequelize.define("sale",saleSchema,{timestamps:false}),
+      purchase:_sequelize.define("purchase",purchaseSchema,{timestamps:false}),
+      outPayments:_sequelize.define("outPayments",outPaymentSchema,{timestamps:false}),
+      inPayments:_sequelize.define("inPayments",inPaymentSchema,{timestamps:false}),
+      returnRegister:_sequelize.define("returnRegister",returnRegister,{timestamps:false}),
+      service:_sequelize.define("service",serviceSchema,{timestamps:false}),
+      attendances:_sequelize.define("attendances",attendanceSchema,{timestamps:false}),
+      requirement:_sequelize.define("requirement",requirementSchema,{timestamps:false}),
+      user:_sequelize.define("user",userSchema,{timestamps:false}),
+      financial_record:_sequelize.define("financial_record",financialRecordSchema,{timestamps:false})
+    };
     await _sequelize.sync();
     console.log("Connected to replica db");
     let tables = Object.keys(schemas);
@@ -3145,6 +3235,11 @@ async function dbMigrator(){
         if(_ledgerModel){
           let ledger = (await (await _ledgerModel.sync()).findAll()).map?.(({dataValues})=>dataValues);
           if(!(ledger instanceof Array)) return;
+          Object.keys(_schema).forEach(key=>{
+            if(!(key in schema)){
+              ledger.forEach(obj=>delete obj[key]);
+            }
+          });
           await ledgerModel.bulkCreate(ledger,{returning:true});
           return
         }
@@ -3168,6 +3263,11 @@ async function dbMigrator(){
           alter:true
         });
         if(!(_itemList instanceof Array)) return;
+        Object.keys(_schema).forEach(key=>{
+          if(!(key in schema)){
+            _itemList.forEach(obj=>delete obj[key]);
+          }
+        });
         await (await billModel.sync()).bulkCreate(_itemList,{returning:true});
         return
       }
@@ -3176,7 +3276,7 @@ async function dbMigrator(){
         return;
       }
     }
-    console.log({msg:"Dynamic model definition in pogress"})
+    appLogger({msg:"Dynamic model definition in progress"})
     await Promise.allSettled([
       ...[cust_ids]
       .map(async (arr)=>{
@@ -3206,24 +3306,39 @@ async function dbMigrator(){
         return;
       })
     ]);
-    console.log({msg:"Models defined"});
+    appLogger({msg:"Models defined"});
+    appLogger({title:"Applying schema changes to tables."});
     await sequelize.sync({
       force:true,
       alter:true
     })
-    .catch(console.log);
-    console.log({msg:"sequelize sync done"});
+    .catch(err=>appLogger({ title:"Sequelize Sync Error", message:String(err), func:"dbMigrator" }));
+    appLogger({msg:"sequelize sync done"});
     for (let i=0;i<tables.length;i++){
       let table = tables[i];
       if(table==="customers" || table=="customer")
         table = "customer";
       try{
         let data = (await _models[table]?.findAll())?.map(({dataValues})=>dataValues);
-        if(data)
+        if(data){
+          // This block written for reverse migration compatibility, data will be lost
+          // Testing needed: Working on reverse migration
+          Object.keys(_schemasMap[table]).forEach(key=>{
+            table = table==="customer" ? "customers" : table;
+            if(!(key in schemas[table])){
+              data.forEach(obj=>delete obj[key]);
+            }
+            table = table==="customers" ? "customer" : table;
+          });
           await models[table].bulkCreate(data,{returning:true});
+        }
       }
       catch(err){
-        console.log(err);
+        appLogger({
+          title:"Error migrating table "+table,
+          message:String(err),
+          func:"dbMigrator"
+        });
       } finally{
         updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
       }
@@ -3236,7 +3351,11 @@ async function dbMigrator(){
             let {id} = arr[i];
             await helperfunc1(id,_customerLedgerSchema,customerLedgerSchema);
           } catch (err) {
-            console.log(err);
+            appLogger({
+              title:"Error migrating customer ledger",
+              message:String(err),
+              func:"dbMigrator"
+            }); 
           } finally {
             updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
@@ -3250,7 +3369,11 @@ async function dbMigrator(){
             let {id} = arr[i];
             await helperfunc1(id,_supplierLedgerSchema,supplierLedgerSchema);
           } catch (err) {
-            console.log(err);
+            appLogger({
+              title:"Error migrating supplier ledger",
+              message:String(err),
+              func:"dbMigrator"
+            });
           } finally {
             updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
@@ -3264,7 +3387,11 @@ async function dbMigrator(){
             let { id,billNo,billDate } = arr[i];
             await helperfunc2(id,billNo,billDate,_billItemSchema,billItemSchema);
           } catch (err) {
-            console.log(err)
+            appLogger({
+              title:"Error migrating bill items",
+              message:String(err),
+              func:"dbMigrator"
+            });
           } finally{
             updateProgressbar(win,++progress,totaltables,"DB migration in progress,please wait...","Implementing schema changes to tables.");
           }
@@ -3273,28 +3400,88 @@ async function dbMigrator(){
       })
     ])
     .then(async ()=>{
-      path2config = path.resolve(appPath,"./dbConf.json");
-      fs.writeFileSync(path2config,JSON.stringify({dbMigrated:true}));
       process.appStatus = "normal";
       win.setProgressBar(-1);
+      
+      // Backup current schema_replica.json to versioned backup folder before overwriting
       appLogger({
         title:"DB Migration Status",
-        message:"Saving a copy of old schemas"
+        message:"Backing up old schema replicas"
       })
-      fs.copyFileSync(path.resolve(appPath,"./model/schema_replica.js"),path.resolve(appPath,"./model/old_schema.js"));
-      fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas_replica.js"),path.resolve(appPath,"./model/old_dynamic_schema.js"));
-      appLogger({
-        title:"DB Migration Status",
-        message:"Applying new changes to old schemas"
-      })
-      fs.copyFileSync(path.resolve(appPath,"./model/schema.js"),path.resolve(appPath,"./model/schema_replica.js"));
-      fs.copyFileSync(path.resolve(appPath,"./model/dynamicSchemas.js"),path.resolve(appPath,"./model/dynamicSchemas_replica.js"));
+      
+      try{
+        // Create version-specific directory
+        // Create schemaDir in backup folder if not exists and backup replica schemas for rollback
+        let { extractVersion } = require("./model/schemaLoader");
+        let schemaVersion = extractVersion(replicaSchemas);
+        let schemaBackupDir = path.resolve(appPath,"./Backup/schemas/"+schemaVersion);
+        if(!fs.existsSync(schemaBackupDir))
+          fs.mkdirSync(schemaBackupDir,{ recursive: true });
+        // Backup schema_replica.json
+        fs.copyFileSync(
+          replicaSchemaPath,
+          path.resolve(schemaBackupDir,"schema_replica.json")
+        );
+        appLogger({
+          title:"Schema Backup",
+          message:`Backed up schema v${schemaVersion} to Backup/schemas/v${schemaVersion}/ for rollback`
+        });
+        
+        // Backup dynamicSchemas_replica.json if it exists (OLD schema before migration)
+        let replicaDynamicPath = path.resolve(appPath,"./model/dynamicSchemas_replica.json");
+        if(fs.existsSync(replicaDynamicPath)){
+          fs.copyFileSync(
+            replicaDynamicPath,
+            path.resolve(schemaBackupDir,"dynamicSchemas_replica.json")
+          );
+          appLogger({
+            title:"Schema Backup",
+            message:`Backed up dynamicSchemas v${schemaVersion}`
+          });
+        }
+      }
+      catch(err){
+        appLogger({
+          title:"Schema Backup Error",
+          message:String(err),
+          func:"Schema backup during migration"
+        });
+      }
       appLogger({
         title:"-----------DB Migration Complete------------",
-        message:"Relaunching app"
+        message:"Terminating all ipcs and db connections to relaunch app."
       });
-      app.relaunch();
-      app.exit();
+      try {
+        ipcMain.eventNames().forEach(event=>{
+          ipcMain.removeAllListeners(event);
+        });
+        //Terminate db connections
+        await sequelize.close();
+        await _sequelize.close();
+        //Delete replica and backup db files
+        appLogger({
+          title:"Cleaning up backup and replica db files"
+        });
+        backupDBPaths.forEach(dbPath=>{
+          if(fs.existsSync(dbPath))
+            fs.unlinkSync(dbPath);
+        });
+        appLogger({
+          title:"Relaunching app in 3 seconds..."
+        });
+        setTimeout(()=>{
+          app.relaunch();
+          // clean exit
+          app.exit(0);
+        },3000);
+      } catch (error) {
+        appLogger({
+          title:"Error during app relaunch",
+          message:String(error),
+          func:"dbMigrator"
+        });
+      }
+      //Terminate all ipc and relaunch app
     })
   }
   catch(err){

@@ -9,13 +9,11 @@ const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHa
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
-const { billDesignerWindow, getCurrentLogin, checkForUpdates, scheduleManager } = require("./main");
 const { versionManager } = require("./versionManager");
-
+const { billDesignerWindow } = require("./common");
 
 function appStateComplianceEnforcement(funcName,...params){
-    let currentUser = getCurrentLogin();
-    if(!currentUser) return;
+    if(!global.user) return;
     let key = params.pop();
     if(process.appStatus==="block-non-sp-key" && key==="block-non-sp-key") return
     if(["lock","logout"].includes(key))
@@ -38,7 +36,10 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Check for update",
-                    click: ()=>checkForUpdates("manual"),
+                    click: ()=>{
+                        const { checkForUpdates } = require("./main");
+                        checkForUpdates("manual")
+                    },
                     accelerator: "Shift+F5"
                 },
                 // {
@@ -182,7 +183,10 @@ module.exports = mainWindow=>{
                 // },
                 {
                     label: "Scheduler",
-                    click: ()=>appStateComplianceEnforcement(scheduleManager(mainWindow)),
+                    click: ()=>{
+                        const { scheduleManager } = require("./main");
+                        appStateComplianceEnforcement(scheduleManager(mainWindow))
+                    },
                     accelerator: "F6"
                 },
                 // {type:"separator"},

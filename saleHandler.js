@@ -10,16 +10,20 @@ const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
 const uuid = require("uuid");
-const { printPDF } = require("./main");
 const { DataTypes, Op } = require("sequelize");
+const { deserializeSchema } = require("./model/schemaLoader");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
 if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.js";
-
-const { customerLedgerSchema, billItemSchema } = require(dynamicSchemaPath).init(DataTypes);
+    dynamicSchemaPath = "./model/dynamicSchemas.json";
+if(!(fs.existsSync(dynamicSchemaPath))){
+    fs.writeFileSync(dynamicSchemaPath,JSON.stringify({}));
+    global.needsSchemaBootstrap = true;
+}
+const dynamicSchemaJson = fs.existsSync(dynamicSchemaPath) ? fs.readFileSync(dynamicSchemaPath, 'utf8') : null;
+const { customerLedgerSchema, billItemSchema } = fs.existsSync(dynamicSchemaPath) ? deserializeSchema(dynamicSchemaJson, DataTypes) : {};
 
 
 let closeFlag = false,
@@ -479,6 +483,7 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
 });
 
 ipcMain.on("new-order",async (e,{billMeta,mode})=>{
+    const { printPDF } = require("./main");
     let { name="",address,gst,email,phones,netAmtTax,netDue,paymentStatus,orderItems } = billMeta;
     let orderId = uuid.v5(name+Date.now(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
     // fs-base order management

@@ -194,7 +194,7 @@ async function reInitFormData(){
                 main.querySelector("input[data-name='transportContact']").value = obj.transportContact ?? "";
             }
             else
-            if(preset.target==="salePage" || obj.deliveryType==="hand")
+            if(preset?.target==="salePage" || obj.deliveryType==="hand")
                 main.querySelector("#delivery-mode option[value='hand']")?.setAttribute("selected",true);
             //Step 4
             if(!("payment" in billMeta) || ("paymentStatus" in billMeta && billMeta.paymentStatus==false)) return;
@@ -350,20 +350,52 @@ function proceedOrFinishHandler(e){
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
                     itemObj.id = obj.id;
                 }
-                if(itemObj.igst===0 && itemObj.sgst===0 && itemObj.cgst===0){
-                    nocFlag = false;
-                    showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                if(!igstFlag && itemObj.sgst==0){// No 0 gst guarantee
+                    itemObj.sgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).value);
+                    itemObj.cgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="cgst"]`).value);
+                    if(typeof preset.default_gst!=="number" && itemObj.sgst==0){
+                        nocFlag = false;
+                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
+                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    }
+                    else
+                    if(itemObj.sgst==0 && preset.default_gst>0){
+                        itemObj.sgst = preset.default_gst/2;
+                        itemObj.cgst = preset.default_gst/2;
+                    }
+                    else
+                    if(itemObj.sgst==0 && preset.default_gst==0){
+                        nocFlag = false;
+                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
+                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    }
                 }
-                if(!igstFlag){// No 0 gst guarantee
-                    itemObj.sgst = itemObj.sgst>0 ? itemObj.sgst : preset.default_gst/2;
-                    itemObj.cgst = itemObj.sgst>0 ? itemObj.sgst : preset.default_gst/2;
+                else{
+                    itemObj.igst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).value);
+                    if(typeof preset.default_gst!=="number" && itemObj.igst==0){
+                        nocFlag = false;
+                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
+                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    }
+                    else
+                    if(itemObj.igst==0 && preset.default_gst>0)
+                        itemObj.igst = preset.default_gst;
+                    else
+                    if(itemObj.igst==0 && preset.default_gst==0){
+                        nocFlag = false;
+                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
+                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    }
                 }
-                else
-                    itemObj.igst = itemObj.igst>0 ? itemObj.igst : preset.default_gst;
                 if(itemObj.rate==0){
-                    nocFlag = false;
-                    document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="standardSellPrice"]`).focus();
-                    showToastNotification("Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    itemObj.rate = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="standardSellPrice"]`).value);
+                    if(itemObj.rate==0){
+                        nocFlag = false;
+                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="standardSellPrice"]`).focus();
+                        showToastNotification("Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    }
+                    else
+                        nocFlag = true;
                 }
             });
             if(!["netQty","netAmt","netAmtTax"].every(key=>key in billMeta)){
@@ -437,32 +469,6 @@ function revealMoreGrpOpts(e,mode){
         });
     }
 }
-
-// function swapItems(e){
-//     e.stopPropagation();
-//     let page = traverseParent(e.target,"page");
-//     let newGrpHost = page.querySelector("#new-item-host");
-//     let prevGrpHost = page.querySelector("#old-item-host");
-//     [...page.querySelectorAll(".item")]
-//     .map(elem=>{
-//         let chkBox = elem.querySelector("input[type='checkbox']");
-//         if(chkBox.checked)
-//             return elem;
-//     })
-//     .filter(elem=>elem!==undefined)
-//     .forEach(elem=>{
-//         elem.querySelector("input[type='checkbox']").checked = false;
-//         if(elem.parentNode===prevGrpHost)
-//             newGrpHost.appendChild(elem);
-//         else
-//             prevGrpHost.appendChild(elem);
-//     });
-
-//     if([...newGrpHost.querySelectorAll(".item")].length>0)
-//         document.getElementById("create-grp-btn").removeAttribute("disabled");
-//     else
-//         document.getElementById("create-grp-btn").setAttribute("disabled",true);
-// }
 
 function createNewGrp(e){
     e.stopPropagation();
@@ -706,23 +712,36 @@ function gstChecksum(gst){
 }
 
 document.addEventListener("keydown",e=>{
+    if(e.ctrlKey && e.shiftKey && e.key==="Enter" && currentStep==2){
+        assignDeliveryOptions({value:"hand"});
+        document.querySelector("[data-type='proceed']").click();
+        billMeta.deliveryType = "hand";
+    }
+    else
     if(e.ctrlKey && e.key==="Enter" && currentStep<4)
         document.querySelector("[data-type='proceed']").click();
     else
     if(e.ctrlKey && e.key==="Enter" && currentStep===4)
         document.querySelector('[data-type="save"]').click();
+    else
     if(e.ctrlKey && e.key==="ArrowLeft")
         document.querySelector('[data-type="back"]' && currentStep>1).click();
+    else
     if(e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
+    else
     if(e.shiftKey && e.key==="Delete")
         deleteRow();
+    else
     if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
         document.querySelector(`[data-type="print"]`).click();
+    else
     if(e.shiftKey && e.key==="ArrowDown")
         bodyRow.querySelector(".desc-div").classList.remove("hide");
+    else
     if(e.shiftKey && e.key==="Enter")
         bodyRow.querySelector(".desc-cnf-btn").click();
+    else
     if(e.shiftKey && e.key==="ArrowUp")
         bodyRow.querySelector(".desc-rej-btn").click();
     // if(e.ctrlKey && e.key==="g")

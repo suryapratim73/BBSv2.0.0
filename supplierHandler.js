@@ -5,16 +5,18 @@ const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig
 const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
 const path = require("path");
 const fs = require("fs");
+const { deserializeSchema } = require("./model/schemaLoader");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
-let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.js");
+let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
 if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.js";
+    dynamicSchemaPath = "./model/dynamicSchemas.json";
 
-const { billItemSchema, supplierLedgerSchema } = require(dynamicSchemaPath).init(DataTypes);
+const dynamicSchemaJson = fs.readFileSync(dynamicSchemaPath, 'utf8');
+const { billItemSchema, supplierLedgerSchema } = deserializeSchema(dynamicSchemaJson, DataTypes);
 const suppliers = [];
 
 let windowOptions = {

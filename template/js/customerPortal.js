@@ -131,11 +131,13 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
     customerList = [];
     currentPage = 1;
     rows = [];
-    removeAllElem("#customer-list .customer-div")
-    customerObj.forEach(_customerList=>{
-        customerList.push(_customerList);
+    spinner.remove(window);
+    removeAllElem("#customer-list .customer-div");
+    customerObj.forEach((_customerList)=>{
         const { name,balance,id,netPurchase } = _customerList;
         let startLetter = name.charAt(0).toLowerCase();
+        if(!startLetter || !/[a-z]/.test(startLetter)) return;
+        customerList.push(_customerList);
         let selectedDiv = document.querySelector(`[data-letter="${startLetter}"]`);
         selectedDiv.classList.add("occupied");
         let div = appendToHost("#customer-div-template",selectedDiv,"DIV");
@@ -149,7 +151,6 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
     });
     document.querySelector("#form>div:last-child input").value = "";
     drawPieChart();
-    spinner.remove(window);
 });
 
 async function drawGraphs(id,reverseFlag=true){

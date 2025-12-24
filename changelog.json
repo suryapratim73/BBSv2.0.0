@@ -1,9 +1,16 @@
 {
-    "version":"2.19.19",
+    "version":"2.20.0",
     "highlights":[
-        "Customer portal edit feature crash issue fixed"
+        "Customer portal edit feature crash issue fixed",
+        "Zero-Tax or Zero-Rate bug fixed",
+        "Added Ctrl+Shift+Enter to proceed to page-3 of sale page without chossing delivery option"
     ],
     "fullchange":[
-        "Customer portal edit feature crash issue fixed"
+        "Customer portal edit feature crash issue fixed",
+        "Database migration improvements",
+        "More support for bootstrap case",
+        "Zero-Tax or Zero-Rate bug fixed",
+        "Added Ctrl+Shift+Enter to proceed to page-3 of sale page without chossing delivery option",
+        "App-update mechanism improved"
     ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.19.19",
+  "version": "2.20.0",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -115,7 +115,9 @@
       "!config/",
       "!.vscode",
       "!updtConf.json",
-      "!changelog.json"
+      "!changelog.json",
+      "!*.md",
+      "!model/*.json"
     ],
     "asar": false,
     "afterPack": "scripts/afterpack.js"

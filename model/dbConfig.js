@@ -73,121 +73,127 @@ sequelize.authenticate()
     console.error(err)
 });
 
-let path2schema = path.resolve(appPath,"./model/schema.js");
+let path2schema = path.resolve(appPath,"./model/schema.json");
 
-if(!fs.existsSync(path2schema))
-    path2schema = "../schema.js";
+if(!fs.existsSync(path2schema)){
+    global.needsSchemaBootstrap = true;
+    module.exports = {};
+}
+else{
+    let schemas = fs.readFileSync(path2schema);
 
-const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require(path2schema).init(DataTypes,UUIDV4);
-
-module.exports = {
-    supplier: sequelize.define("supplier",supplier,{
-        freezeTableName:false,
-        timestamps:false
-    }),
-    freight: sequelize.define("freight",freight,{
-        freezeTableName:false,
-        timestamps:false
-    }),
-    people: sequelize.define("people",people,{
-        freezeTableName:false,
-        timestamps:false
-    }),
-    customer: sequelize.define("customers",customerSchema,{
-        freezeTableName:false,
-        timestamps:false
-    }),
-    sequelize,
-    stock: sequelize.define("stock",stockSchema,{
-        freezeTableName:false,
-        timestamps:false,
-        setterMethods:{
-            updateStock({quantity,price}){
-                this.setDataValue("quantity",Number(this.getDataValue("quantity"))+Number(quantity));
-                this.setDataValue("buyPrice",Number(this.getDataValue("buyPrice"))+Number(price));
-                this.setDataValue("standardSellPrice",1.1*Number(this.getDataValue("buyPrice")));
-            },
-            reduceStock(quantity){
-                this.setDataValue("quantity",Number(this.getDataValue("quantity"))-Number(quantity));
+    const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require("./schemaLoader").deserializeSchema(schemas,DataTypes,UUIDV4);   
+    
+    module.exports = {
+        supplier: sequelize.define("supplier",supplier,{
+            freezeTableName:false,
+            timestamps:false
+        }),
+        freight: sequelize.define("freight",freight,{
+            freezeTableName:false,
+            timestamps:false
+        }),
+        people: sequelize.define("people",people,{
+            freezeTableName:false,
+            timestamps:false
+        }),
+        customer: sequelize.define("customers",customerSchema,{
+            freezeTableName:false,
+            timestamps:false
+        }),
+        sequelize,
+        stock: sequelize.define("stock",stockSchema,{
+            freezeTableName:false,
+            timestamps:false,
+            setterMethods:{
+                updateStock({quantity,price}){
+                    this.setDataValue("quantity",Number(this.getDataValue("quantity"))+Number(quantity));
+                    this.setDataValue("buyPrice",Number(this.getDataValue("buyPrice"))+Number(price));
+                    this.setDataValue("standardSellPrice",1.1*Number(this.getDataValue("buyPrice")));
+                },
+                reduceStock(quantity){
+                    this.setDataValue("quantity",Number(this.getDataValue("quantity"))-Number(quantity));
+                }
             }
-        }
-    }),
-    purchase: sequelize.define("purchase",purchaseSchema,{
-        freezeTableName: false,
-        timestamps: false
-    }),
-    sale: sequelize.define("sale",saleSchema,{
-        freezeTableName: false,
-        timestamps: false,
-        setterMethods:{
-            closeBill(){
-                this.setDataValue("billStatus","open");
-            },
-            updateBillValues: function({del_billAmt,del_netAmt,del_tax}){
-                this.setDataValue("billAmt",this.getDataValue("billAmt")+del_billAmt);
-                this.setDataValue("netAmt",this.getDataValue("netAmt")+del_netAmt);
-                this.setDataValue("tax",this.getDataValue("tax")+del_tax);
-                this.setDataValue("netDue",this.getDataValue("netDue")+Math.round(del_billAmt))
-            },
-            setBillValues:function({billAmt,netAmt,tax}){
-                this.setDataValue("billAmt",billAmt);
-                this.setDataValue("netAmt",netAmt);
-                this.setDataValue("tax",tax);
+        }),
+        purchase: sequelize.define("purchase",purchaseSchema,{
+            freezeTableName: false,
+            timestamps: false
+        }),
+        sale: sequelize.define("sale",saleSchema,{
+            freezeTableName: false,
+            timestamps: false,
+            setterMethods:{
+                closeBill(){
+                    this.setDataValue("billStatus","open");
+                },
+                updateBillValues: function({del_billAmt,del_netAmt,del_tax}){
+                    this.setDataValue("billAmt",this.getDataValue("billAmt")+del_billAmt);
+                    this.setDataValue("netAmt",this.getDataValue("netAmt")+del_netAmt);
+                    this.setDataValue("tax",this.getDataValue("tax")+del_tax);
+                    this.setDataValue("netDue",this.getDataValue("netDue")+Math.round(del_billAmt))
+                },
+                setBillValues:function({billAmt,netAmt,tax}){
+                    this.setDataValue("billAmt",billAmt);
+                    this.setDataValue("netAmt",netAmt);
+                    this.setDataValue("tax",tax);
+                }
             }
-        }
-    }),
-    outPayments: sequelize.define("outPayments",outPaymentSchema,{
-        freezeTableName:true,
-        timestamps:false,
-        setterMethods:{
-            addOutPayment(updateObj){
-                console.log(updateObj,"From setter method")
+        }),
+        outPayments: sequelize.define("outPayments",outPaymentSchema,{
+            freezeTableName:true,
+            timestamps:false,
+            setterMethods:{
+                addOutPayment(updateObj){
+                    console.log(updateObj,"From setter method")
+                }
             }
+        }),
+        inPayments: sequelize.define("inPayments",inPaymentSchema,{
+            freezeTableName:true,
+            timestamps:false
+        }),
+        returnRegister: sequelize.define("returnRegister",returnRegister,{
+            freezeTableName:true,
+            timestamps:false
+        }),
+        service: sequelize.define("service",serviceSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }),
+        attendances: sequelize.define("attendances",attendanceSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }),
+        requirement: sequelize.define("requirement",requirementSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }),
+        user: sequelize.define("user",userSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }),
+        financial_record: sequelize.define("financial_record",financialRecordSchema,{
+            freezeTableName: true,
+            timestamps: false
+        }),
+        schemas:{
+            supplier,
+            freight,
+            people,
+            customers:customerSchema,
+            stock:stockSchema,
+            purchase:purchaseSchema,
+            sale:saleSchema,
+            outPayments:outPaymentSchema,
+            inPayments:inPaymentSchema,
+            returnRegister,
+            service:serviceSchema,
+            attendances:attendanceSchema,
+            requirement:requirementSchema,
+            user:userSchema,
+            financial_record:financialRecordSchema
         }
-    }),
-    inPayments: sequelize.define("inPayments",inPaymentSchema,{
-        freezeTableName:true,
-        timestamps:false
-    }),
-    returnRegister: sequelize.define("returnRegister",returnRegister,{
-        freezeTableName:true,
-        timestamps:false
-    }),
-    service: sequelize.define("service",serviceSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }),
-    attendances: sequelize.define("attendances",attendanceSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }),
-    requirement: sequelize.define("requirement",requirementSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }),
-    user: sequelize.define("user",userSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }),
-    finData: sequelize.define("financial_record",financialRecordSchema,{
-        freezeTableName: true,
-        timestamps: false
-    }),
-    schemas:{
-        supplier,
-        freight,
-        people,
-        customers:customerSchema,
-        stock:stockSchema,
-        purchase:purchaseSchema,
-        sale:saleSchema,
-        outPayments:outPaymentSchema,
-        inPayments:inPaymentSchema,
-        returnRegister,
-        service:serviceSchema,
-        attendances:attendanceSchema,
-        requirement:requirementSchema,
-        user:userSchema
     }
 }
 
