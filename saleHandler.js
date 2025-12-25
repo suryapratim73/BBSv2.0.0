@@ -17,7 +17,7 @@ let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData")
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
 if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.json";
+    dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 if(!(fs.existsSync(dynamicSchemaPath))){
     fs.writeFileSync(dynamicSchemaPath,JSON.stringify({}));
     global.needsSchemaBootstrap = true;
