@@ -181,8 +181,13 @@ async function reInitFormData(){
                     else
                         main.querySelector("#bill-status-open").setAttribute("checked",true);
                 }
-                if(key==="billDate")
+                if(key==="billDate"){
                     input.valueAsDate = typeof obj.billDate==="string" ? new Date(obj.billDate) : obj.billDate;
+                    if(preset.mode==="edit-bill")
+                        input.setAttribute("disabled",true);
+                }
+                if(key==="billNo" && preset?.mode==="edit-bill")
+                    input.setAttribute("disabled",true);
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
                 main.querySelector("#bill-number-regular").value = billMeta.billNo;
@@ -350,44 +355,46 @@ function proceedOrFinishHandler(e){
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
                     itemObj.id = obj.id;
                 }
-                if(!igstFlag && itemObj.sgst==0){// No 0 gst guarantee
-                    itemObj.sgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).value);
-                    itemObj.cgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="cgst"]`).value);
-                    if(typeof preset.default_gst!=="number" && itemObj.sgst==0){
-                        nocFlag = false;
-                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
-                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                if(itemObj.sgst===0 && itemObj.igst===0 && itemObj.cgst===0){// No GST Check
+                    if(!igstFlag){// SGST CGST Case.
+                        itemObj.sgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).value);
+                        itemObj.cgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="cgst"]`).value);
+                        if(typeof preset.default_gst!=="number" && itemObj.sgst==0){
+                            nocFlag = false;
+                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
+                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                        }
+                        else
+                        if(itemObj.sgst==0 && preset.default_gst>0){
+                            itemObj.sgst = preset.default_gst/2;
+                            itemObj.cgst = preset.default_gst/2;
+                        }
+                        else
+                        if(itemObj.sgst==0 && preset.default_gst==0){
+                            nocFlag = false;
+                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
+                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                        }
                     }
-                    else
-                    if(itemObj.sgst==0 && preset.default_gst>0){
-                        itemObj.sgst = preset.default_gst/2;
-                        itemObj.cgst = preset.default_gst/2;
-                    }
-                    else
-                    if(itemObj.sgst==0 && preset.default_gst==0){
-                        nocFlag = false;
-                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
-                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                    else{// IGST Case
+                        itemObj.igst =  Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).value);
+                        if(typeof preset.default_gst!=="number" && itemObj.igst==0){
+                            nocFlag = false;
+                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
+                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                        }
+                        else
+                        if(itemObj.igst==0 && preset.default_gst>0)
+                            itemObj.igst = preset.default_gst;
+                        else
+                        if(itemObj.igst==0 && preset.default_gst==0){
+                            nocFlag = false;
+                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
+                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
+                        }
                     }
                 }
-                else{
-                    itemObj.igst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).value);
-                    if(typeof preset.default_gst!=="number" && itemObj.igst==0){
-                        nocFlag = false;
-                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
-                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
-                    }
-                    else
-                    if(itemObj.igst==0 && preset.default_gst>0)
-                        itemObj.igst = preset.default_gst;
-                    else
-                    if(itemObj.igst==0 && preset.default_gst==0){
-                        nocFlag = false;
-                        document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
-                        showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
-                    }
-                }
-                if(itemObj.rate==0){
+                if(itemObj.rate==0){// 0 Rate Check
                     itemObj.rate = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="standardSellPrice"]`).value);
                     if(itemObj.rate==0){
                         nocFlag = false;

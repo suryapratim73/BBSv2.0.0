@@ -1248,6 +1248,15 @@ async function createSession(time) {
     name: "bbs_auth",
     url: "http://localhost",
   });
+  appLogger({
+    title:"Creating a timeout for session expiry and logout",
+    message:`Session will expire in ${time} seconds`,
+  })
+  setTimeout(async ()=>{
+    // Test required - check if session is still valid
+    ipcMain.emit("logout");
+    ipcMain.emit("lock");
+  },time*1000);
   if (authCookies.length === 0) {
     await ses.cookies.set(cookie);
     await ses.cookies.flushStore();
@@ -3541,7 +3550,8 @@ ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
     billMeta:saleObj,
     itemList,
     target:"salePage",
-    currentStep:3
+    currentStep:3,
+    mode:"edit-bill"
   };
   console.log()
   Object.keys(presetObj)

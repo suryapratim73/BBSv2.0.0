@@ -537,7 +537,7 @@ async function showForm(e,cmd,show,prevData={}){
                         // console.log(cookies[0].expirationDate-Date.now())
                         let {session,sessionTime} = JSON.parse(cookies[0].value);
                         if(session){
-                            let numHour = sessionTime/(60*60*1000);
+                            let numHour = sessionTime/(60*60);
                             document.getElementById("session-btn").click();
                             [...document.getElementById("expiry").querySelectorAll("option")]
                             .forEach(option=>{
