@@ -15,9 +15,7 @@ const { deserializeSchema } = require("./model/schemaLoader");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
-
-if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
+console.log({dynamicSchemaPath,exists:fs.existsSync(dynamicSchemaPath)});
 if(!(fs.existsSync(dynamicSchemaPath))){
     fs.writeFileSync(dynamicSchemaPath,JSON.stringify({}));
     global.needsSchemaBootstrap = true;

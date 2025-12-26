@@ -134,7 +134,8 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
     spinner.remove(window);
     removeAllElem("#customer-list .customer-div");
     customerObj.forEach((_customerList)=>{
-        const { name,balance,id,netPurchase } = _customerList;
+        let { name,balance,id,netPurchase } = _customerList;
+        name = name.trim();
         let startLetter = name.charAt(0).toLowerCase();
         if(!startLetter || !/[a-z]/.test(startLetter)) return;
         customerList.push(_customerList);

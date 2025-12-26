@@ -1,8 +1,9 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
 const fs = require("fs");
-let {getLoggerFD} = require("../common");
+let {getLoggerFD, appLogger} = require("../common");
 const { app } = require("electron");
 const path = require("path");
+const { serializeSchema } = require("./schemaLoader");
 require("dotenv").config({path:path.resolve(__dirname,"../.env")});
 
 
@@ -75,15 +76,10 @@ sequelize.authenticate()
 
 let path2schema = path.resolve(appPath,"./model/schema.json");
 
-if(!fs.existsSync(path2schema)){
-    global.needsSchemaBootstrap = true;
-    module.exports = {};
-}
-else{
-    let schemas = fs.readFileSync(path2schema);
-
+function exportModules(){
+let schemas = fs.readFileSync(path2schema);
+    appLogger("Schema file found. Loading schemas...",schemas);
     const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require("./schemaLoader").deserializeSchema(schemas,DataTypes,UUIDV4);   
-    
     module.exports = {
         supplier: sequelize.define("supplier",supplier,{
             freezeTableName:false,
@@ -196,6 +192,33 @@ else{
         }
     }
 }
+
+if(!fs.existsSync(path2schema)){
+    let path2schemaJS = path.resolve(appPath,"./model/schema.js");
+    let path2dynamicJS = path.resolve(appPath,"./model/dynamicSchemas.js");
+    if(!fs.existsSync(path2schemaJS)){
+        appLogger({
+            title:"Bootstrap Case: Schema JSON Files missing. Checking for schema JS files...",
+            path2schemaJS:fs.existsSync(path2schemaJS)
+        });
+        global.needsSchemaBootstrap = true;
+        module.exports = {};
+    }
+    else{
+        appLogger({
+            title:"Schema JSON Files missing, but schema JS files found. Generating schema JSON files...",
+            path2schemaJS:fs.existsSync(path2schemaJS),
+            func:"dbConfig"
+        });
+        let { serializedSchema, serializedDynamic } = serializeSchema(path2schemaJS,path2dynamicJS);
+        fs.writeFileSync(path2schema,serializedSchema);
+        fs.writeFileSync(path.resolve(appPath,"./model/dynamicSchemas.json"),serializedDynamic);
+        global.needsSchemaBootstrap = false;
+        exportModules();
+    }
+}
+else
+    exportModules();
 
 // sequelize.sync({
 //     force:true,

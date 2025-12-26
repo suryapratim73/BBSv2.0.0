@@ -1,16 +1,18 @@
 {
-    "version":"2.20.0",
+    "version":"2.20.1",
     "highlights":[
-        "Customer portal edit feature crash issue fixed",
-        "Zero-Tax or Zero-Rate bug fixed",
-        "Added Ctrl+Shift+Enter to proceed to page-3 of sale page without chossing delivery option"
+        "2.20.0 release: portal edit feature crash issue fixed",
+        "2.20.0 release:Zero-Tax or Zero-Rate bug fixed",
+        "2.20.0 release:Added Ctrl+Shift+Enter to proceed to page-3 of sale page without choosing delivery option",
+        "2.20.1 release: Added backward compatibility for database schema for users updating from versions below 2.19.x"
     ],
     "fullchange":[
-        "Customer portal edit feature crash issue fixed",
-        "Database migration improvements",
-        "More support for bootstrap case",
-        "Zero-Tax or Zero-Rate bug fixed",
-        "Added Ctrl+Shift+Enter to proceed to page-3 of sale page without chossing delivery option",
-        "App-update mechanism improved"
+        "2.20.0 release: Customer portal edit feature crash issue fixed",
+        "2.20.0 release: Database migration improvements",
+        "2.20.0 release: More support for bootstrap case",
+        "2.20.0 release: Zero-Tax or Zero-Rate bug fixed",
+        "2.20.0 release: Added Ctrl+Shift+Enter to proceed to page-3 of sale page without choosing delivery option",
+        "2.20.0 release: App-update mechanism improved",
+        "2.20.1 release: Added backward compatibility for database schema for users updating from versions below 2.19.x"
     ]
 }

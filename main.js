@@ -41,7 +41,7 @@ const path = require("path");
 const readLine = require("readline");
 const crypto = require("crypto");
 
-
+global.needsSchemaBootstrap = false;
 let {
   createModal,
   getTargetWindow,
@@ -101,7 +101,6 @@ try {
     console.log("  1. Set SCHEMA_SERVER_URL in .env file");
     console.log("  2. App will auto-download schemas on first run\n");
     // Set flag to trigger bootstrap dialog
-    global.needsSchemaBootstrap = true;
 }
 let closeFlag = false,
 windowOptions = {
@@ -187,9 +186,11 @@ class Job{
 
 async function createWindow() {
   // Check if schemas need to be bootstrapped
+  console.log({needsSchemaBootstrap:global.needsSchemaBootstrap});
   if (global.needsSchemaBootstrap) {
     // Attempt to initialize schemas
     try {
+      console.log("Downloading schemas")
       let { serverSchema, serverDynamic } = await schemaDownloader();
       saveSchemaLocally(serverSchema,serverDynamic);
       appLogger("Bootstrap Case: ✅ Schemas downloaded successfully. Restarting app...");

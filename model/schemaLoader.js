@@ -1,3 +1,4 @@
+const { DataTypes,UUIDV4 } = require('sequelize');
 /**
  * Schema Loader - Deserialize JSON schemas to Sequelize-compatible objects
  * Converts __FUNCTION__ placeholders back to actual DataTypes/UUIDV4
@@ -74,4 +75,31 @@ function extractVersion(schemaObj) {
     return null;
 }
 
-module.exports = { deserializeSchema, extractVersion };
+function serializeSchema(path2schemaJS,path2dynamicJS) {
+    const serialize = (obj) => {
+        if (obj === UUIDV4) {
+            return '__FUNCTION__:UUIDV4';
+        }
+        if (Object.values(DataTypes).includes(obj)) {
+            for (const [key, value] of Object.entries(DataTypes)) {
+                if (value === obj) {
+                    return `${key}`;
+                }
+            }
+        }
+        if (typeof obj === 'object' && obj !== null) {
+            const result = {};  
+            for (const [key, value] of Object.entries(obj)) {
+                result[key] = serialize(value);
+            }
+            return result;
+        }
+        return obj;
+    };
+    
+    let serializedSchema = JSON.stringify(serialize(require(path2schemaJS).init(DataTypes, UUIDV4)));
+    let serializedDynamic = JSON.stringify(serialize(require(path2dynamicJS).init(DataTypes)));
+    return { serializedSchema, serializedDynamic };
+}
+
+module.exports = { deserializeSchema, extractVersion, serializeSchema };
