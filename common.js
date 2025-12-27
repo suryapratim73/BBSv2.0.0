@@ -396,3 +396,14 @@ exports.billDesignerWindow = (mainWindow) => {
     Menu.setApplicationMenu(menu);
   };
 };
+
+exports.checkForInternet = function(){
+    return new Promise((res,rej)=>{
+        require("dns").lookup("google.com",(err)=>{
+            if(err && err.code==="ENOTFOUND")
+                res(false);
+            else
+                res(true);
+        });
+    });
+}

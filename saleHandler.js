@@ -175,7 +175,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     });
 }
 
-async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
+async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     closeFlag = true;
     saleWindow = BrowserWindow.fromId(e.sender.id);
     if(flag==="regular")
@@ -183,10 +183,6 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    console.log({
-        cond: "presets" in process && process?.presets?.target==="salePage",
-        presets:process?.presets
-    })
     if("presets" in process && process?.presets?.target==="salePage"){
         getTargetWindow("customer-portal").webContents.send("reload-tables")
         Reflect.deleteProperty(process.presets,"target");
@@ -413,7 +409,7 @@ async function save_exist(e,{billMeta,customer:customerObj,orderItems,orderId=""
     closeFlag = true;
 }
 
-ipcMain.on("save-exit-sale-bill",save_exist);
+ipcMain.on("save-exit-sale-bill",save_exit);
 
 ipcMain.handle("get-customers",async ()=>{
     if(customerList.length>0) return customerList;
@@ -422,7 +418,7 @@ ipcMain.handle("get-customers",async ()=>{
 });
 
 ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
-    let path2pdf = await save_exist(e,billObj,flag);
+    let path2pdf = await save_exit(e,billObj,flag);
     if(!path2pdf) return;
     // return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;

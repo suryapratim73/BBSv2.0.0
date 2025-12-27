@@ -15,10 +15,8 @@ const { deserializeSchema } = require("./model/schemaLoader");
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
-if(!(fs.existsSync(dynamicSchemaPath)))
-    dynamicSchemaPath = "./model/dynamicSchemas.json";
-
 const dynamicSchemaJson = fs.readFileSync(dynamicSchemaPath, 'utf8');
+
 const { customerLedgerSchema,billItemSchema, supplierLedgerSchema } = deserializeSchema(dynamicSchemaJson, DataTypes);
 
 exports.customerPortal = mainWindow =>{
@@ -423,6 +421,12 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
     let {billNo,billDate,customerId:id,entryNo} = billMeta;
     billNo = Number(billNo);
     let deltaList = [];
+    if(typeof billDate==="object" && billDate instanceof Date){
+        let dd = billDate.getDate()<10 ? "0"+billDate.getDate() : billDate.getDate();
+        let mm = (billDate.getMonth()+1)<10 ? "0"+(billDate.getMonth()+1) : (billDate.getMonth()+1);
+        let yyyy = billDate.getFullYear();
+        billDate = `${yyyy}-${mm}-${dd}`;
+    }
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billObj = await sale.findOne({
@@ -509,7 +513,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
                     where:{
                         name:itemObj.name
                     }
-                }))
+                }));                
                 let stockInst = await stock.findOne({
                     where:{
                         name:itemObj.name
@@ -566,6 +570,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             printObj = { captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}] };
         printObj.captions = captionReducer(printObj.captions);
         billMeta.printObj = printObj;
+        billMeta.billDate = billDate;
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
         if(printObj && Object.keys(printObj).length>1)
             print({printObj,path2pdf});

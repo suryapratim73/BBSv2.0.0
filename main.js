@@ -34,6 +34,7 @@ const {
   print,
   openFormatForDate,
   getFinYearStrtEndDt,
+  checkForInternet,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -190,7 +191,12 @@ async function createWindow() {
   if (global.needsSchemaBootstrap) {
     // Attempt to initialize schemas
     try {
-      console.log("Downloading schemas")
+      if(await checkForInternet()===false){
+        appLogger({ title: "No internet connection, skipping schema validation." });
+        app.dialog.showErrorBox("No Internet Connection", "Schema Bootstrap requires an internet connection. Please connect to the internet and try again.");
+        app.quit();
+      }
+      appLogger("Downloading schemas")
       let { serverSchema, serverDynamic } = await schemaDownloader();
       saveSchemaLocally(serverSchema,serverDynamic);
       appLogger("Bootstrap Case: ✅ Schemas downloaded successfully. Restarting app...");
@@ -2357,6 +2363,12 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     message:"Trying to install update."
   });
   let proc;
+  if(data.installMoment==="now"){// Close all windows,db and listeners before update
+    BrowserWindow.getAllWindows().forEach(win => win.close());
+    ipcMain.eventNames().forEach(event => ipcMain.removeAllListeners(event));
+    process.removeAllListeners();
+    await sequelize.close();
+  }
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
       message:"Launching updator.sh.",
@@ -3082,6 +3094,10 @@ async function schemaValidator(){
 
   try {
     // Fetch latest schemas from server and update local files    
+    if(await checkForInternet()===false){
+      appLogger({ title: "No internet connection, skipping schema validation." });
+      return false;
+    }
     let { serverSchema,serverDynamic } = await schemaDownloader();
     let serverSchemahash = crypto.createHash('sha256').update(JSON.stringify(serverSchema)).digest('hex');
     let serverDynamicHash = crypto.createHash('sha256').update(JSON.stringify(serverDynamic)).digest('hex');
@@ -3553,7 +3569,6 @@ ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
     currentStep:3,
     mode:"edit-bill"
   };
-  console.log()
   Object.keys(presetObj)
   .forEach(key=>{
     process.presets[key] = presetObj[key];
