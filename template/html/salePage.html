@@ -10,15 +10,15 @@
 </head>
 <body>
     <h1 id="page-header"></h1>
-    <form onsubmit="proceedOrFinishHandler(event)">
+    <form onsubmit="proceedOrFinishHandler(event)" role="main">
         <main onchange="selectionHandler(event)"></main>
         <footer></footer>
     </form>
     <template id="page-1-template">
-        <div id="page-1" class="page" data-pageno="1">
+        <div id="page-1" class="page" data-pageno="1" aria-labelledby="page-1-title">
             <div>
                 <div>
-                    <label for="name" class="highlight">Name: </label>
+                    <label for="name" class="highlight" id="page-1-title">Name: </label>
                 </div>
                 <div class="row1">
                     <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
@@ -38,7 +38,7 @@
                 </div>
                 <div class="row1">
                     <input type="text" list="customer-phones" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" />
-                    <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)">+</button>
+                    <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)" aria-label="Add new phone number">+</button>
                 </div>
             </div>
             <div>
@@ -103,13 +103,13 @@
             </div>
             <div>
                 <div>
-                    <label for="billType" class="highlight">Bill Type: </label>
+                    <label for="billType" class="highlight hover bottom" data-msg="Press F2 to edit bill type">Bill Type: </label>
                 </div>
                 <div class="row1">
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-type-regular">Regular: </label>
-                            <input type="radio" checked required data-name="billType" name="billType" id="bill-type-regular" value="regular" />
+                            <input type="radio" checked required data-name="billType" name="billType" id="bill-type-regular" value="regular" data-type="select-bill-type" />
                         </div>
                         <div>
                             <label for="bill-type-monthly">Monthly: </label>
@@ -164,7 +164,7 @@
                     <label for="ship-to" class="highlight">Ship to: </label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="shipTo" id="ship-to" data-name="shipTo">
+                    <input type="text" list="ship-info-dl" onchange="setShipInfo(event)" name="shipTo" id="ship-to" data-name="shipTo">
                 </div>
             </div>
             <div>
@@ -212,10 +212,10 @@
     </template>
     <template id="page-3-template">
         <div id="page-3" class="page" data-pageno="3">
-            <div id="table">
-                <div class="row head">
-                    <div class="col sm"><p>Sl No.</p></div>
-                    <div class="col lg"><p>Particular</p></div>
+            <div id="table" role="table" aria-label="Bill items table">
+                <div class="row head" role="row">
+                    <div class="col sm" role="columnheader"><p>Sl No.</p></div>
+                    <div class="col lg" role="columnheader"><p>Particular</p></div>
                     <div class="col md"><p>HSN No</p></div>
                     <div class="col md"><p>Quantity</p></div>
                     <div class="col md"><p>Unit</p></div>
@@ -226,9 +226,9 @@
                     <div class="col sm"><p>IGST</p></div>
                     <div class="col md"><p>Total</p></div>
                 </div>
-                <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
+                <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)" role="rowgroup">
                     <div class="row row-control-div" id="add-item">
-                        <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
+                        <button type="button" class="main-ui-btn hover left" onclick="addRow(event)" aria-label="Add new item row" data-msg="Add new item row (Ctrl++)">+</button>
                     </div>
                 </div>
             </div>
@@ -240,7 +240,7 @@
                 <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
                     <div id="payment-mode">
                         <label for="payment-mode">Select payment mode:</label>
-                        <select id="payment-mode" onchange="showPaymentMode(event)">
+                        <select id="payment-mode" onchange="showPaymentMode(event)" aria-label="Select payment mode">
                             <option value="due" selected>Due</option>
                             <option value="cash">Cash</option>
                             <option value="check">Check</option>
@@ -311,9 +311,9 @@
                     <button data-cmd="grp-item" disabled onclick="showItemMergeOpts()" type="button">Show Item Grouping Options</button>
                 </div>
             </div>
-            <div id="summary-div">
+            <div id="summary-div" role="region" aria-labelledby="bill-summary-label">
                 <div>
-                    <p>Bill Amount</p>
+                    <p id="bill-summary-label">Bill Amount</p>
                     <p data-name="netAmtTax" class="highlight">0</p>
                 </div>
                 <div>
@@ -341,13 +341,13 @@
     </template>
     <template id="footer-template">
         <div id="btn-container">
-            <button type="button" data-type="cancel" onclick="cancelAction()" class="hide">Cancel</button>
-            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide">Back</button>
-            <button type="submit" data-type="proceed" class="main-ui-btn hide">Proceed</button>
-            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide">Cancel Grouping</button>
-            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide">Done</button>
-            <button type="button" data-type="print" class="main-ui-btn hide" onclick="showPrintDialog()">Print</button>
-            <button type="button" data-type="save" class="main-ui-btn hide" onclick="saveExit(event)">Save & Exit</button>
+            <button type="button" data-type="cancel" onclick="cancelAction()" class="hide hover top right" data-msg="Cancel and close (Esc)">Cancel</button>
+            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide hover top right" data-msg="Go back to previous step (Ctrl+←)">Back</button>
+            <button type="submit" data-type="proceed" class="main-ui-btn hide hover top right" data-msg="Proceed to next step (Ctrl+Enter)">Proceed</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide hover top right" data-msg="Cancel item grouping">Cancel Grouping</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide hover top right" data-msg="Confirm item grouping">Done</button>
+            <button type="button" data-type="print" class="main-ui-btn hide hover top right" onclick="showPrintDialog()" data-msg="Print bill (Ctrl+P)">Print</button>
+            <button type="button" data-type="save" class="main-ui-btn hide hover top right" onclick="saveExit(event)" data-msg="Save and exit (Ctrl+Enter / Ctrl+S)">Save & Exit</button>
         </div>
     </template>
     <template id="body-row-template">
@@ -458,8 +458,8 @@
     </template>
     <template id="body-row-options-template">
         <div class="body-row-options">
-            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1">Delete Row</button>
-            <button data-cmd="desc-btn" type="button" tabindex="-1">Add Description</button>
+            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1" class="hover left" data-msg="Delete row (Shift+Del / Ctrl+D)">Delete Row</button>
+            <button data-cmd="desc-btn" type="button" tabindex="-1" class="hover left" data-msg="Add description (Shift+↓)">Add Description</button>
         </div>
     </template>
     <template id="item-group-option-template">

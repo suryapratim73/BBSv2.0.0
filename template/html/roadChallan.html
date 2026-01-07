@@ -9,13 +9,13 @@
     <script src="../js/roadChallan.js" defer></script>
 </head>
 <body>
-    <nav>
+    <nav role="navigation" aria-label="Road challan form navigation">
         <h2>Road Challan Form</h2>
     </nav>
-    <main></main>
+    <main role="main"></main>
     <template id="page1-template">
-        <form onsubmit="initRoadChallan(event)" class="page page1">
-            <h2>Challan Header</h2>
+        <form onsubmit="initRoadChallan(event)" class="page page1" aria-labelledby="challan-header-heading">
+            <h2 id="challan-header-heading">Challan Header</h2>
             <div>
                 <div>
                     <label for="consignee">Consignee</label>
@@ -57,7 +57,7 @@
                 </div>
             </div>
             <div>
-                <button type="button" class="main-ui-btn" onclick="addNewFeild()" id="new-feild-btn">+</button>
+                <button type="button" class="main-ui-btn" onclick="addNewFeild()" id="new-feild-btn" aria-label="Add new custom field">+</button>
             </div>
             <div>
                 <button type="submit" class="main-ui-btn">Next</button>
@@ -67,19 +67,19 @@
     </template>
     <template id="page2-template">
         <div class="page page2">
-            <div class="table">
-                <div class="row head">
-                    <div class="col eq-space"><p>Sl. No</p></div>
-                    <div class="col eq-space"><p>Stock Name</p></div>
+            <div class="table" role="table" aria-label="Road challan items table">
+                <div class="row head" role="row">
+                    <div class="col eq-space" role="columnheader"><p>Sl. No</p></div>
+                    <div class="col eq-space" role="columnheader"><p>Stock Name</p></div>
                     <div class="col eq-space"><p>HSN</p></div>
                     <div class="col eq-space"><p>Quantity</p></div>
                     <div class="col eq-space"><p>Unit</p></div>
                     <div class="col eq-space"><p>Rate</p></div>
                     <div class="col eq-space"><p>Amount</p></div>
                 </div>
-                <div id="tbody" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" class="hide-scrollbar">
+                <div id="tbody" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" class="hide-scrollbar" role="rowgroup">
                     <div class="row">
-                        <button onclick="addRow(event)" class="main-ui-btn" id="add-new-row">+</button>
+                        <button onclick="addRow(event)" class="main-ui-btn" id="add-new-row" aria-label="Add new item row">+</button>
                     </div>
                 </div>
             </div>

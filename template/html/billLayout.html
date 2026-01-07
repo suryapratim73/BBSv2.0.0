@@ -13,23 +13,23 @@
     <aside onclick="btnCtrls(event)">
         <div>
             <div>
-                <button class="ctrl-btns" data-cmd="section">Section</button>
-                <button class="ctrl-btns" data-cmd="feild">Feild</button>
+                <button class="ctrl-btns hover bottom" data-cmd="section" data-msg="Add new section">Section</button>
+                <button class="ctrl-btns hover bottom" data-cmd="feild" data-msg="Add new field">Feild</button>
             </div>
             <div>
-                <button class="ctrl-btns" data-cmd="table">Table</button>
-                <button class="ctrl-btns" data-cmd="page">Page</button>
+                <button class="ctrl-btns hover bottom" data-cmd="table" data-msg="Add table">Table</button>
+                <button class="ctrl-btns hover bottom" data-cmd="page" data-msg="Add new page">Page</button>
             </div>
             <div id="delete-btn-div" class="hide">
-                <button data-cmd="delete">Delete</button>
+                <button data-cmd="delete" data-msg="Delete selected element" class="hover bottom">Delete</button>
             </div>
             <div id="adv-options"></div>
             <div id="adv-options-2"></div>
         </div>
         <div>
             <div>
-                <button data-cmd="save-exit">Save</button>
-                <button data-cmd="exit">Exit</button>
+                <button data-cmd="save-exit" data-msg="Save and exit designer" class="hover bottom">Save</button>
+                <button data-cmd="exit" data-msg="Exit without saving" class="hover bottom">Exit</button>
             </div>
         </div>
     </aside>
@@ -45,7 +45,7 @@
     <template id="block-option-template">
         <div class="adv-option-div" oninput="assignBlockOptions(event)">
             <div>
-                <button data-cmd="new-section">Create section</button>
+                <button data-cmd="new-section" data-msg="Create new section" class="hover bottom">Create section</button>
             </div>
             <div>
                 <p data-msg="Define the role of the section.">Role</p>
@@ -68,11 +68,11 @@
                 </select>
             </div>
             <div>
-                <button data-cmd="create-partition">Create Partition</button>
-                <button data-cmd="undo-partitions">Undo Partitions</button>
+                <button data-cmd="create-partition" data-msg="Create partition in section" class="hover bottom">Create Partition</button>
+                <button data-cmd="undo-partitions" data-msg="Remove all partitions" class="hover bottom">Undo Partitions</button>
             </div>
             <div>
-                <button data-cmd="properties">More Properties</button>
+                <button data-cmd="properties" data-msg="Show more properties" class="hover bottom">More Properties</button>
             </div>
         </div>
     </template>
@@ -94,8 +94,8 @@
                 <input value="1" data-cmd="lWidth" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
             </div>
             <div>
-                <button data-cmd="save-partition">Create</button>
-                <button data-cmd="cancel-partition">Cancel</button>
+                <button data-cmd="save-partition" data-msg="Save partition" class="hover bottom">Create</button>
+                <button data-cmd="cancel-partition" data-msg="Cancel partition" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -128,8 +128,8 @@
                 </div>
             </div>
             <div>
-                <button data-cmd="confirm-section-prop">Ok</button>
-                <button data-cmd="cancel-section-prop">Cancel</button>
+                <button data-cmd="confirm-section-prop" data-msg="Apply properties" class="hover bottom">Ok</button>
+                <button data-cmd="cancel-section-prop" data-msg="Cancel changes" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -164,9 +164,9 @@
             </div>
             <div onclick="assignFeildOptions(event)">
                 <p>Style</p>
-                <button data-cmd="bold" class="fa-solid fa-bold"></button>
-                <button data-cmd="italic" class="fa-solid fa-italic"></button>
-                <button data-cmd="underline" class="fa-solid fa-underline"></button>
+                <button data-cmd="bold" class="fa-solid fa-bold hover bottom" data-msg="Toggle bold"></button>
+                <button data-cmd="italic" class="fa-solid fa-italic hover bottom" data-msg="Toggle italic"></button>
+                <button data-cmd="underline" class="fa-solid fa-underline hover bottom" data-msg="Toggle underline"></button>
             </div>
             <div class="hide" data-show="variable">
                 <p>Variable Type</p>
@@ -203,8 +203,8 @@
                 <input type="text" id="label" data-cmd="text">
             </div>
             <div>
-                <button data-cmd="create-feild" onclick="insertFeild()">Create/Save</button>
-                <button onclick="cancelFeild()">Cancel</button>
+                <button data-cmd="create-feild" onclick="insertFeild()" data-msg="Create or save field" class="hover bottom">Create/Save</button>
+                <button onclick="cancelFeild()" data-msg="Cancel field creation" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -230,8 +230,8 @@
                 <div id="column-name-display"></div>
             </div>
             <div>
-                <button data-cmd="new-col">Add new column</button>
-                <button data-cmd="rem-table">Remove table</button>
+                <button data-cmd="new-col" data-msg="Add new column to table" class="hover bottom">Add new column</button>
+                <button data-cmd="rem-table" data-msg="Remove table" class="hover bottom">Remove table</button>
             </div>
         </div>
     </template>
@@ -270,11 +270,11 @@
                 <label for="sumup">Use remaining spaces</label>
             </div>
             <div>
-                <button data-cmd="new-col" data-dir="ok">Ok</button>
-                <button data-cmd="new-col" data-dir="cancel">Cancel</button>
+                <button data-cmd="new-col" data-dir="ok" data-msg="Save column" class="hover bottom">Ok</button>
+                <button data-cmd="new-col" data-dir="cancel" data-msg="Cancel column" class="hover bottom">Cancel</button>
             </div>
             <div>
-                <button data-cmd="rem-row" class="hide">Remove Row</button>
+                <button data-cmd="rem-row" class="hide hover bottom" data-msg="Remove row">Remove Row</button>
             </div>
         </div>
     </template>
@@ -400,7 +400,7 @@
                 </div>
             </div>
             <div>
-                <button data-cmd="close">Save & Close</button>
+                <button data-cmd="close" data-msg="Save and close properties" class="hover bottom">Save & Close</button>
             </div>
         </div>
     </template>

@@ -9,27 +9,27 @@
     <link rel="stylesheet" href="../css/supplierPortal.css">
 </head>
 <body>
-    <nav>
-        <button class="main-ui-btn page1-elem" data-cmd="addSupplier">Add Supplier</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="bills">Show Bills</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="profile">View Profile</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="print-ledger">Print Ledger</button>
-        <button class="main-ui-btn hide page3-elem" data-cmd="addPayment">Add Payment</button>
-        <button class="main-ui-btn hide page2-elem page3-elem" data-cmd="back">Back</button>
-        <input class="page1-elem" placeholder="Type to search for supplier" oninput="searchHandler(event)" type="text" name="" id="">
-        <input class="page3-elem" placeholder="Type to search bill." oninput="searchHandler(event)" type="text" name="" id="">
+    <nav role="navigation" aria-label="Supplier portal navigation">
+        <button class="main-ui-btn page1-elem" data-cmd="addSupplier" aria-label="Add new supplier">Add Supplier</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="bills" aria-label="Show supplier bills">Show Bills</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="profile" aria-label="View supplier profile">View Profile</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="print-ledger" aria-label="Print supplier ledger">Print Ledger</button>
+        <button class="main-ui-btn hide page3-elem" data-cmd="addPayment" aria-label="Add payment to supplier">Add Payment</button>
+        <button class="main-ui-btn hide page2-elem page3-elem" data-cmd="back" aria-label="Go back">Back</button>
+        <input class="page1-elem" placeholder="Type to search for supplier" oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search suppliers">
+        <input class="page3-elem" placeholder="Type to search bill." oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search bills">
     </nav>
-    <main>
-        <div id="all-suppliers" class="table page hide page1">
-            <div class="row head">
-                <p class="col eq-space">Sl No.</p>
-                <p class="col eq-space">Name</p>
+    <main role="main">
+        <div id="all-suppliers" class="table page hide page1" role="table" aria-label="All suppliers table">
+            <div class="row head" role="row">
+                <p class="col eq-space" role="columnheader">Sl No.</p>
+                <p class="col eq-space" role="columnheader">Name</p>
                 <p class="col eq-space">Purchase Value</p>
                 <p class="col eq-space">Net Debt</p>
             </div>
-            <div class="tbody"></div>
+            <div class="tbody" role="rowgroup"></div>
         </div>
-        <div id="supplier-ledger" class="table page hide page2">
+        <div id="supplier-ledger" class="table page hide page2" role="table" aria-label="Supplier ledger table">
             <div class="row head">
                 <p class="col eq-space">Sl No</p>
                 <p class="col eq-space">Date</p>
@@ -51,9 +51,9 @@
             </div>
             <div id="graph-container">
                 <h2>Line graph representation of purchase over periods</h2>
-                <canvas id="purchase-graph"></canvas>
+                <canvas id="purchase-graph" aria-label="Purchase history line graph"></canvas>
                 <h2>Line graph representation of payment over periods</h2>
-                <canvas id="payment-graph"></canvas>
+                <canvas id="payment-graph" aria-label="Payment history line graph"></canvas>
             </div>
         </div>
     </main>

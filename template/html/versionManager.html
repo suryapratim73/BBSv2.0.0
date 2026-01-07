@@ -8,14 +8,14 @@
     <title>Version Manager</title>
 </head>
 <body>
-    <header>
+    <header role="banner">
         <h1>Version Manager</h1>
         <div>
             <label for="version-list">Select App Version: </label>
-            <select name="versionList" id="version-list" onchange="initMainDiv(event)"></select>
+            <select name="versionList" id="version-list" onchange="initMainDiv(event)" aria-label="Select application version"></select>
         </div>
     </header>
-    <main></main>
+    <main role="main"></main>
     <template id="version-details-template">
         <div id="version-details">
             <div>
@@ -28,9 +28,9 @@
                 </div>
             </div>
             <div onclick="btnCtrl(event)" id="ctrl-btn">
-                <button data-cmd="open-folder">Open Backup Folder</button>
-                <button data-cmd="restore">Restore version</button>
-                <button onclick="btnCtrl(event)" data-cmd="delete-version" id="delete-version-btn">Delete Version</button>
+                <button data-cmd="open-folder" aria-label="Open backup folder">Open Backup Folder</button>
+                <button data-cmd="restore" aria-label="Restore this version">Restore version</button>
+                <button onclick="btnCtrl(event)" data-cmd="delete-version" id="delete-version-btn" aria-label="Delete this version">Delete Version</button>
             </div>
         </div>
     </template>

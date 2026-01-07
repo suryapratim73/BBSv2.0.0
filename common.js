@@ -6,6 +6,7 @@ const fs = require("fs");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
 const { getMainWindow } = require("./createModal");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
+const { end } = require("pdfkit");
 
 let customerList = [];
 
@@ -120,14 +121,17 @@ function getFinYearStrtEndDt(year){
     if(!("presets" in process) || !("financialYearStartDate" in process.presets)) return;
     let strtDt = new Date(),endDt = new Date();
     strtDt.setDate(1);
-    strtDt.setMonth(process.presets.financialYearStartDate.getMonth());
-    if(strtDt.getMonth()>new Date().getMonth())
-        strtDt.setFullYear(strtDt.getFullYear()-1)
-    if(year===1){
-        endDt.setDate(strtDt.getDate() - 1);
-        endDt.setMonth(strtDt.getMonth() - 1);
+    let [ dt,mnt] = process.presets.financialYearStartDate.split("-").map(num=>Number(num));
+    strtDt.setMonth(mnt);
+    strtDt.setDate(dt);
+    if(strtDt.getMonth()>new Date().getMonth()){
         strtDt.setFullYear(strtDt.getFullYear()-1);
+        endDt.setFullYear(endDt.getFullYear());
     }
+    endDt.setMonth(strtDt.getMonth() - 1);
+    endDt.setDate(31);
+    endDt.setFullYear(strtDt.getFullYear()-year+1);
+    strtDt.setFullYear(strtDt.getFullYear()-year);
     return { strtDt,endDt };
 }
 
@@ -345,7 +349,8 @@ exports.captionReducer = function(arr){
 
 exports.billDesignerWindow = (mainWindow) => {
   return () => {
-    mainWindow.loadFile("./template/html/billLayout.html");
+    const { getTemplatePath } = require("./viewManager");
+    mainWindow.loadFile(getTemplatePath("billLayout"));
     let menu = Menu.getApplicationMenu();
     menu.append(
       new MenuItem({

@@ -9,8 +9,8 @@
     <title>Scheduler</title>
 </head>
 <body>
-    <form onsubmit="submitHandler(event)" onclick="clickHandler(event)" onchange="changeHandler(event)">
-        <h2>New Event Scheduler</h2>
+    <form onsubmit="submitHandler(event)" onclick="clickHandler(event)" onchange="changeHandler(event)" aria-labelledby="scheduler-heading">
+        <h2 id="scheduler-heading">New Event Scheduler</h2>
         <div>
             <div>
                 <labe for="label">Label of event</labe>
@@ -24,7 +24,7 @@
                 <label for="type">Select type of reminder</label>
             </div>
             <div>
-                <select name="type" id="type" data-cmd="type" required>
+                <select name="type" id="type" data-cmd="type" required aria-label="Select reminder type">
                     <option value="reminder">Reminder</option>
                     <!-- <option value="task">Task</option> -->
                     <option value="bill-payment">Bill Payment</option>

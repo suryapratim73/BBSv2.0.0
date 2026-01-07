@@ -48,6 +48,7 @@ let {
   getTargetWindow,
   getMainWindow,
 } = require("./createModal");
+const { getTemplatePath, initialize } = require("./viewManager");
 let {
   attendances,
   people,
@@ -76,6 +77,7 @@ const { queryStock } = require("./handleStock");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
 const { title } = require("process");
+const { getFileMonitor } = require("./fileMonitor");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -96,11 +98,11 @@ try {
     dynamicSchemas = deserializeSchema(dynamicSchemaJson, DataTypes);
     ({ billItemSchema, customerLedgerSchema, supplierLedgerSchema } = dynamicSchemas);
 } catch (err) {
-    console.error("Schema loading error:", err.message);
-    console.log("\n⚠️  Schema files not found!");
-    console.log("Please initialize schemas from server:");
-    console.log("  1. Set SCHEMA_SERVER_URL in .env file");
-    console.log("  2. App will auto-download schemas on first run\n");
+    appLogger({title:"Schema loading error:", msg: String(err)});
+    appLogger("\n⚠️  Schema files not found!");
+    appLogger("Please initialize schemas from server:");
+    appLogger("  1. Set SCHEMA_SERVER_URL in .env file");
+    appLogger("  2. App will auto-download schemas on first run\n");
     // Set flag to trigger bootstrap dialog
 }
 let closeFlag = false,
@@ -122,7 +124,8 @@ windowOptions = {
   dbInitialized = false,
   unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
   idleLockTimer,appLocked = true,
-  appIcon = nativeImage.createFromPath(path.resolve(__dirname,"./logo256.png"));
+  appIcon = nativeImage.createFromPath(path.resolve(__dirname,"./logo256.png")),
+  fileMonitor = null;
 const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
   ];
@@ -187,7 +190,6 @@ class Job{
 
 async function createWindow() {
   // Check if schemas need to be bootstrapped
-  console.log({needsSchemaBootstrap:global.needsSchemaBootstrap});
   if (global.needsSchemaBootstrap) {
     // Attempt to initialize schemas
     try {
@@ -290,7 +292,7 @@ async function createWindow() {
     process.appStatus = "normal";
     const mainWindow = createModal(
       windowOptions,
-      `./template/html/${fileName}.html`,
+      getTemplatePath(fileName),
       { maxWinCount: 1, label: "Main" }
     );
 
@@ -357,7 +359,7 @@ async function createWindow() {
       let appConfig = fs.readFileSync (getAppPolicyPath())
       const mainWindow = createModal(
         windowOptions,
-        `./template/html/firstBoot.html`,
+        getTemplatePath("firstBoot"),
         { maxWinCount: 1, label: "Main", show: true,
           cb:function(){
             let hasBackup = JSON.parse(appConfig.toString())?.hasBackup || false;
@@ -449,10 +451,8 @@ async function schemaValidation_migrationHandler(mainWindow,appPath){
     await dbMigrator();
     return false;
   }
-  else{
-    mainWindow.webContents.send("update-content");
+  else
     return true;
-  }
 }
 
 ipcMain.handle("get-users", async () => {
@@ -518,7 +518,7 @@ function takeAttendance(refWindow) {
   if(!["all","admin"].includes(currentUser?.roles || "")) return;
   windowOptions.parent = refWindow;
   closeFlag = false;
-  let win = createModal(windowOptions, "./template/html/attendaceModal.html", {
+  let win = createModal(windowOptions, getTemplatePath("attendaceModal"), {
     maxWinCount: 1,
     label: "Attendance-modal",
   });
@@ -532,7 +532,7 @@ function takeAttendance(refWindow) {
 
 function paySalary(refWindow) {
   windowOptions.parent = refWindow;
-  createModal(windowOptions, "./template/html/salaryPaymentModal.html", {
+  createModal(windowOptions, getTemplatePath("salaryPaymentModal"), {
     maxWinCount: 1,
     label: "Salary-Modal",
   });
@@ -541,11 +541,11 @@ function paySalary(refWindow) {
 app.on("ready", async () => {
   if(typeof process.presets==="undefined")
     process.presets = {};
-  console.log("ready event")
+  appLogger("ready event")
   let policyJsonSchema = {
     "noReturn": 120,
     "gstRecurranceTerm": 1,
-    "financialYearStartDate": "1/4",
+    "financialYearStartDate": "01-03",
     "minStock": 10,
     "creditLimitDays": 21,
     "wallpaper": "",
@@ -655,6 +655,25 @@ app.on("ready", async () => {
       global.shouldWait = false;
       // Adding tab switcher - global shortcuts
       let mainWindow = await createWindow();
+      
+      // Initialize ViewManager with server configuration
+      if (process.env.UPDATE_REST) {
+        try {
+          initialize({
+            enabled: true,
+            baseUrl: process.env.UPDATE_REST,
+            viewEndpoint: '/api/views'
+          });
+          appLogger({ message: 'ViewManager initialized with server URL' });
+        } catch (err) {
+          appLogger({
+            title: 'ViewManager Init Error',
+            message: String(err),
+            func: 'app ready - viewManager init'
+          });
+        }
+      }
+      
       createNotifications();
       let focussedWindow = BrowserWindow.getFocusedWindow();
       globalShortcut.register("CommandOrControl+Up", () => {
@@ -667,7 +686,7 @@ app.on("ready", async () => {
           else index++;
           focussedWindow = brWindows?.[index];
           focussedWindow?.focus();
-          if(focussedWindow.isMinimized())
+          if(focussedWindow?.isMinimized())
             focussedWindow.restore();
         }
       });
@@ -728,25 +747,39 @@ app.on("ready", async () => {
       // Initiating theme
       if (process.platform === "linux") setLinuxThemeObserver();
       await initTheme();
+      
+      // Start file monitor for unprinted bills (async to avoid blocking)
+      try {
+        fileMonitor = getFileMonitor();
+        await fileMonitor.start();
+      } catch (err) {
+        appLogger({
+          title: "File Monitor Error",
+          message: String(err),
+          func: "app ready - fileMonitor start"
+        });
+      }
     } catch (err) {
       // console.log(err)
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });
   // Condition App basewd on policies
-  setAppPrsets();
+  setAppPresets();
 });
 
-function setAppPrsets(){
+function setAppPresets(){
   let policy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   let policy2 = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  if(!/^\d.-\d.$/.test(policy.financialYearStartDate))
+    policy.financialYearStartDate = "01-03";
   if("financialYearStartDate" in policy){
-    process.presets.financialYearStartDate = new Date(policy.financialYearStartDate);
+    process.presets.financialYearStartDate = policy.financialYearStartDate;
     process.presets.gstInterval = policy.gstInterval;
   }
   else{
     process.presets.gstInterval = 1;
-    process.presets.financialYearStartDate = new Date(dt.getFullYear(),3,1);
+    process.presets.financialYearStartDate = "01-03";
   }
   let dt = new Date();
   process.monthElapsed = dt.getMonth()===0 ? 11 : dt.getMonth()-1;
@@ -756,8 +789,10 @@ function setAppPrsets(){
   });
   ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst"]
   .forEach(key=>{
-    if(key in policy2 || key in policy)
-      process.presets[key] = policy2[key] ?? policy[key];
+    if(key in policy2 || key in policy){
+      let value = policy2[key] ?? policy[key];
+      process.presets[key] = /^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value;
+    }
     else
       process.presets[key] = undefined;
   });
@@ -925,6 +960,11 @@ function printPDF(path2pdf,printObj,job){
           dialog.showErrorBox("Unsupported OS","Print funcationality is not supported for your OS. Try print the bill manually.");
     }
     job?.updateStatus("OK");
+    
+    // Mark file as printed in monitor
+    if (fileMonitor && fs.existsSync(path2pdf)) {
+      fileMonitor.markAsPrinted(path2pdf);
+    }
   }
   catch(err){
     appLogger({
@@ -1322,7 +1362,7 @@ ipcMain.on("logout", async () => {
     else appLogger({message:"Cookie don't exist"});
     currentUser.logout();
     currentUser = null;
-    mainWin.loadFile("./template/html/lockScreen.html");
+    mainWin.loadFile(getTemplatePath("lockScreen"));
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"logout-ipc"});
   }
@@ -1342,7 +1382,7 @@ function lock_unlockHelper(page, sig) {
   }
   let mainWin = getMainWindow();
   let allWins = BrowserWindow.getAllWindows();
-  mainWin.loadFile(`./template/html/${page}.html`);
+  mainWin.loadFile(getTemplatePath(page));
   mainWin.webContents.on("did-finish-load", function (e) {
     try {
       mainWin.webContents.removeListener("did-finish-load", arguments.callee);
@@ -1483,7 +1523,7 @@ ipcMain.on("load-lander-page", (e,{lock=true}={}) => {
     lock_unlockHelper("mainPage","unlock")
   else{
     let mainPage = getMainWindow();
-    mainPage.loadFile("./template/html/mainPage.html");
+    mainPage.loadFile(getTemplatePath("mainPage"));
   }
 });
 
@@ -1591,7 +1631,7 @@ function imposeRestriction() {
 // Bill designer IPCs
 ipcMain.on("load-main-page", () => {
   let mainWindow = getMainWindow();
-  mainWindow.loadFile("./template/html/mainPage.html");
+  mainWindow.loadFile(getTemplatePath("mainPage"));
   let menu = Menu.getApplicationMenu();
   let fileMenuIndex = menu.items.findIndex((obj) => obj.label === "File");
   if (fileMenuIndex >= 0) {
@@ -1691,7 +1731,7 @@ async function savePolicyCommon(polPath,data,e){
     ...data
   };
   fs.writeFileSync(polPath(),JSON.stringify(policy));
-  setAppPrsets();
+  setAppPresets();
   dialog.showMessageBox(win, {
     title: "Success",
     message: "Policy updated.",
@@ -1841,7 +1881,7 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
           label: "Add Payment",
           click: () => {
             errIdentifier = "Add Payment";
-            let modal = createModal(undefined,"template/html/generalHTML.html",{cb:function(){
+            let modal = createModal(undefined,getTemplatePath("generalHTML"),{cb:function(){
               let html = [
                 {
                   elem:"form",
@@ -2321,7 +2361,7 @@ ipcMain.on("app-registration", async (e, gst) => {
       preload: __dirname + "/registrationPreload.js",
     },
   };
-  createModal(windowOptions, "./template/html/registration.html", {
+  createModal(windowOptions, getTemplatePath("registration"), {
     label: "registration-window",
     maxWinCount: 1,
     cb: function () {
@@ -2846,7 +2886,7 @@ function lockOnIdle(){
 
 // Scheduler IPCs
 ipcMain.on("call-scheduler",()=>{
-  let pathToHTML = "./template/html/scheduler.html";
+  let pathToHTML = getTemplatePath("scheduler");
   let windowOptions = {
     parent:getMainWindow(),
     movable:true
@@ -2966,7 +3006,7 @@ exports.scheduleManager = main=>{
     windowOptions.parent = main;
     windowOptions.width = 800;
     windowOptions.height = 600;
-    return createModal(windowOptions,"./template/html/scheduleManager.html",{label:"scheduler",cb:function(){
+    return createModal(windowOptions,getTemplatePath("scheduleManager"),{label:"scheduler",cb:function(){
       this.on("close",(e)=>{
         getMainWindow().webContents.send("update-content");
       });
@@ -3122,13 +3162,14 @@ async function schemaValidator(){
       });
       if (response === 1) {
         appLogger({ title: "Migration cancelled by user." });
-        dialog.showMessageBox({
+        dialog.showMessageBoxSync({
           type:"info",
           title:"Schema Validation Postponed",
           message:"Schema validation postponed. You may not be able to use some features of the application.We recommend you to download the schema at the earliest. We will remind you again on next app launch.",
           icon:appIcon,
           buttons:["OK"]
         });
+        getMainWindow().webContents.send("update-content");
         return false;
       }
       // user approved migration
@@ -3233,7 +3274,7 @@ async function dbMigrator(){// Work in progress, check the flow before testing
       financial_record:_sequelize.define("financial_record",financialRecordSchema,{timestamps:false})
     };
     await _sequelize.sync();
-    console.log("Connected to replica db");
+    appLogger("Connected to replica db");
     let tables = Object.keys(schemas);
     let cust_ids = (await _models.customer.findAll({
       attributes:["id"]

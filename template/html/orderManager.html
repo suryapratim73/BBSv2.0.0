@@ -14,18 +14,18 @@
             <h2>Select a order to view/edit</h2>
             <div>
                 <h2>Unbilled orders</h2>
-                <button onclick="ipcRenderer.send('new-sale-purchase',3)">+</button>
+                <button onclick="ipcRenderer.send('new-sale-purchase',3)" data-msg="Create new order" class="hover bottom">+</button>
             </div>
-            <div class="table">
-                <div class="row head">
-                    <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
-                    <div class="col eq-space"><p data-col="billDate">Date</p></div>                        
+            <div class="table" role="table" aria-label="Unbilled orders table">
+                <div class="row head" role="row">
+                    <div class="col eq-space" role="columnheader"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space" role="columnheader"><p data-col="billDate">Date</p></div>                        
                     <div class="col eq-space"><p data-col="name">Customer Name</p></div>
                     <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
                     <div class="col eq-space"><p data-col="paymentStatus">Payment Status</p></div>
                     <div class="col eq-space"><p data-col="status">Order Status</p></div>
                 </div>
-                <div class="tbody hide-scrollbar" onclick="clickHandler(event)" data-cmd="open-order"></div>
+                <div class="tbody hide-scrollbar" onclick="clickHandler(event)" data-cmd="open-order" role="rowgroup"></div>
             </div>
         </div>
     </template>
@@ -55,7 +55,7 @@
                         <p data-col="paymentStatus"></p>
                     </div>
                 </div>
-                <div id="item-table" class="table">
+                <div id="item-table" class="table" role="table" aria-label="Order items table">
                     <div class="row head">
                         <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
                         <div class="col eq-space"><p data-col="name">Item Desc</p></div>
@@ -71,9 +71,9 @@
                 <div></div>
             </div>
             <div class="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="edit">Edit order</button>
-                <button data-cmd="create-bill">Create Bill</button>
-                <button data-cmd="back-page1">Back to First Page</button>
+                <button data-cmd="edit" data-msg="Edit order items" class="hover bottom">Edit order</button>
+                <button data-cmd="create-bill" data-msg="Convert order to bill" class="hover bottom">Create Bill</button>
+                <button data-cmd="back-page1" data-msg="Go back to orders list" class="hover bottom">Back to First Page</button>
             </div>
         </div>
     </template>
@@ -95,13 +95,13 @@
                 </div>
                 <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
                     <div class="row row-control-div" id="add-item">
-                        <button type="button" class="main-ui-btn" onclick="addRow(event)">+</button>
+                        <button type="button" class="main-ui-btn hover left" onclick="addRow(event)" data-msg="Add new item row">+</button>
                     </div>
                 </div>
             </div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="proceed">Proceed</button>
-                <button data-cmd="cancel">Cancel</button>
+                <button data-cmd="proceed" data-msg="Proceed to review" class="hover bottom">Proceed</button>
+                <button data-cmd="cancel" data-msg="Cancel edit" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -122,9 +122,9 @@
                 <h2>Order summary</h2>
             </div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="save">Save Order</button>
-                <button data-cmd="create-bill">Create Bill</button>
-                <button data-cmd="cancel">Cancel Changes</button>
+                <button data-cmd="save" data-msg="Save order changes" class="hover bottom">Save Order</button>
+                <button data-cmd="create-bill" data-msg="Convert to bill" class="hover bottom">Create Bill</button>
+                <button data-cmd="cancel" data-msg="Cancel changes" class="hover bottom">Cancel Changes</button>
             </div>
         </div>
     </template>
@@ -133,9 +133,9 @@
             <h2>Fill up missing pieces of information</h2>
             <div id="host"></div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button type="button" disabled data-cmd="save-bill" class="main-ui-btn">Save Bill</button>
-                <button type="button" disabled data-cmd="print" class="main-ui-btn">Print Bill</button>
-                <button type="button" data-cmd="back-page1">Cancel</button>
+                <button type="button" disabled data-cmd="save-bill" class="main-ui-btn hover bottom" data-msg="Save bill">Save Bill</button>
+                <button type="button" disabled data-cmd="print" class="main-ui-btn hover bottom" data-msg="Print bill">Print Bill</button>
+                <button type="button" data-cmd="back-page1" data-msg="Cancel bill creation" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -287,7 +287,7 @@
         </form>
     </template>
     <template id="payment-div-template">
-        <form onsubmit="submitHandler(event)" class="sub-page" data-id="payment-div" id="payment-div" onsubmit="submitHandler(event)" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
+        <form onsubmit="submitHandler(event)" class="sub-page" data-id="payment-div" id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
             <h2>Add payment informations</h2>
             <div id="payment-mode">
                 <label for="payment-mode">Select payment mode:</label>

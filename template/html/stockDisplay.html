@@ -9,22 +9,22 @@
     <script src="../js/stockDisplay.js" defer></script>
 </head>
 <body>
-    <nav>
+    <nav role="navigation" aria-label="Inventory viewer navigation">
         <h1>Inventory viewer</h1>
-        <div id="searchbar-container">
-            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock..">
+        <div id="searchbar-container" role="search">
+            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock.." aria-label="Search stock inventory">
         </div>
     </nav>
-    <main>
-        <div id="table">
-            <div class="row head">
-                <div class="col eq-space"><p>Sl. No</p></div>
-                <div class="col eq-space"><p>Stock Name</p></div>
+    <main role="main">
+        <div id="table" role="table" aria-label="Stock inventory table">
+            <div class="row head" role="row">
+                <div class="col eq-space" role="columnheader"><p>Sl. No</p></div>
+                <div class="col eq-space" role="columnheader"><p>Stock Name</p></div>
                 <div class="col eq-space"><p>Type</p></div>
                 <div class="col eq-space"><p>Quantity</p></div>
                 <div class="col eq-space"><p>Buy Price</p></div>
             </div>
-            <div id="tbody" class="hide-scrollbar">
+            <div id="tbody" class="hide-scrollbar" role="rowgroup">
             </div>
         </div>
     </main>
@@ -40,7 +40,7 @@
     <template id="pHistory-modal-template">
         <div class="page1-elem">
             <div>
-                <canvas class="pHistory-graph"></canvas>
+                <canvas class="pHistory-graph" aria-label="Purchase history graph for this stock item"></canvas>
             </div>
             <div class="table">
                 <div class="row head">

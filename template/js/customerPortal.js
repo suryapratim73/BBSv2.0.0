@@ -3,6 +3,7 @@ const { ipcRenderer } = require("electron");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
+const doc = require("pdfkit");
 const { unitMap = [] } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
 
 
@@ -341,8 +342,8 @@ function billPageInit(){
             <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${billNo}</p>
             <p class="col eq-space">${Math.round(billAmt)}</p>
-            <p class="col eq-space">${payment}</p>
-            <p class="col eq-space ${paymentStatus?"paid":"unpaid"}">${Math.round(billAmt - payment)}</p>
+            <p class="col eq-space">${paymentStatus?Math.round(billAmt):payment}</p>
+            <p class="col eq-space ${paymentStatus?"paid":"unpaid"}">${paymentStatus?"Paid":Math.round(billAmt - payment)}</p>
         `;
         row.classList.add("row");
         row.classList.add("body");
@@ -513,7 +514,6 @@ document.body.addEventListener("click",(e)=>{
 
 async function showBillOptions(e){
     let bodyRow = e?.target?.parentNode ?? this;
-    console.log(bodyRow)
     if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) return;
     let modal = createModal("bill-option-modal");
     let modalContent = document.getElementById("bill-option-template").content.cloneNode(true).querySelector("#bill-option-content");
@@ -658,6 +658,12 @@ ipcRenderer.on("show-bill",(e,billObj)=>{
 });
 
 document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){
+        if(document.querySelector(".modal:not(.hide)")){
+            closeModal();
+            return;
+        }
+    }
     if(currentPage===1){
         if(e.key==="ArrowUp" || e.key==="ArrowDown"){
             let mainSection = document.getElementById("customer-list");
@@ -697,6 +703,12 @@ document.addEventListener("keydown",e=>{
         }
         else
         if(e.ctrlKey){
+            if(e.key==="f"){
+                e.preventDefault();
+                let filterBtn = document.getElementById("filter-btn");
+                if(!filterBtn.classList.contains("hide"))
+                    filterBtn.click();
+            }
             [...document.querySelectorAll("#btn-container button[data-keymap]")]
             .forEach(btn=>{
                 if(btn.classList.contains("hide")) return;
@@ -711,6 +723,45 @@ document.addEventListener("keydown",e=>{
         }
     }
 });
+
+function openShipInfoListForm(e){// Work in progress
+    e.preventDefault();
+    let form = traverseParent(e.target,"top-level-form","FORM");
+    let modal = form.parentNode;
+    form.classList.add("hide");
+    let shipInfoListForm = document.getElementById("ship-info-list-template").content.cloneNode(true).querySelector("div");
+    shipInfoListForm.classList.add("main-ui-form","rear-level-form");
+    let shipInfoList = selectedCustomer.moreInfo.shipInfos;
+    let tbody = shipInfoListForm.querySelector("#tbody");
+    tbody.insertBefore(document.getElementById("ship-info-input-row-template").content.cloneNode(true).querySelector("div"),tbody.querySelector("button"));
+    // work in progress
+    shipInfoList?.forEach((obj,index)=>{
+        let row = document.getElementById("ship-info-list-row-template").content.cloneNode(true).querySelector("div");
+        row.querySelector("[data-name='slNo']").textContent = index + 1;
+        for(let key in obj){
+            let p = row.querySelector(`[data-name='${key}']`);
+            if(p)
+                p.textContent = obj[key];
+        }
+        tbody.appendChild(row);
+    });
+    modal.appendChild(shipInfoListForm);
+}
+
+function addRow(e){
+    let tbody = e.target.parentNode;
+    tbody.insertBefore(document.getElementById('ship-info-input-row-template').content.cloneNode(true).querySelector('div'),e.target);
+}
+
+function closeShipInfoListForm(e){
+    e.preventDefault();
+    let form = traverseParent(e.target,"rear-level-form","FORM");
+    let modal = form.parentNode;
+    form.remove();
+    // document.getElementById("ship-info-list").remove();
+    let topLevelForm = modal.querySelector(".top-level-form");
+    topLevelForm.classList.remove("hide");
+}
 
 document.addEventListener("mouseover",e=>{
     let row = traverseParent(e.target,"customer-div","DIV");

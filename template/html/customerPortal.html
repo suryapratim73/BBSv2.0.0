@@ -20,21 +20,22 @@
       <div id="searchbar">
         <div id="form">
           <div class="hide btn-container" id="btn-container">
-            <button data-cmd="new-bill" data-keymap="n" class="main-ui-btn">New Bill</button>
-            <button data-cmd="bills" data-keymap="b" data-view="bills" id="show-bill-BTN" type="button" class="main-ui-btn">Show Bills</button>
-            <button data-cmd="ledger" data-keymap="l" data-view="ledger" id="show-ledger-BTN" class="main-ui-btn hide" type="button">Show Ledger</button>
-            <button data-cmd="print-ledger" data-keymap="L" data-view="bills" id="print-ledger" type="button" class="main-ui-btn">Print Ledger</button>
-            <button data-cmd="update-profile" data-keymap="u" class="main-ui-btn">Update Profile</button>
-            <button data-cmd="add-balance" data-keymap="o" class="main-ui-btn">Add Opening Balance</button>
-            <button data-cmd="pay" data-keymap="p" class="main-ui-btn">Add Payment</button>
-            <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn">Back</button>
-            <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide" type="button">Filter</button>
+            <button data-cmd="new-bill" data-keymap="n" class="main-ui-btn hover bottom" data-msg="Create a new bill (Ctrl+N)">New Bill</button>
+            <button data-cmd="bills" data-keymap="b" data-view="bills" id="show-bill-BTN" type="button" class="main-ui-btn hover bottom" data-msg="View all bills (Ctrl+B)">Show Bills</button>
+            <button data-cmd="ledger" data-keymap="l" data-view="ledger" id="show-ledger-BTN" class="main-ui-btn hide hover bottom" type="button" data-msg="View customer ledger (Ctrl+L)">Show Ledger</button>
+            <button data-cmd="print-ledger" data-keymap="L" data-view="bills" id="print-ledger" type="button" class="main-ui-btn hover bottom" data-msg="Print customer ledger (Ctrl+Shift+L)">Print Ledger</button>
+            <button data-cmd="update-profile" data-keymap="u" class="main-ui-btn hover bottom" data-msg="Update customer profile (Ctrl+U)">Update Profile</button>
+            <button data-cmd="add-balance" data-keymap="o" class="main-ui-btn hover bottom" data-msg="Add opening balance (Ctrl+O)">Add Opening Balance</button>
+            <button data-cmd="pay" data-keymap="p" class="main-ui-btn hover bottom" data-msg="Add payment entry (Ctrl+P)">Add Payment</button>
+            <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn hover bottom" data-msg="Go back to search (Backspace/Esc)">Back</button>
+            <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide hover bottom" type="button" data-msg="Filter ledger entries (Ctrl+F)">Filter</button>
             <div id="filter-option" class="hide">
               <div class="selected">
                 <button
                   type="button"
                   data-cmd="all"
-                  class="main-ui-btn filter-btn"
+                  class="main-ui-btn filter-btn hover bottom"
+                  data-msg="Show all entries"
                 >
                   All
                 </button>
@@ -43,7 +44,8 @@
                 <button
                   type="button"
                   data-cmd="unpaid"
-                  class="main-ui-btn filter-btn"
+                  class="main-ui-btn filter-btn hover bottom"
+                  data-msg="Show unpaid entries only"
                 >
                   Unpaid
                 </button>
@@ -52,7 +54,8 @@
                 <button
                   type="button"
                   data-cmd="paid"
-                  class="main-ui-btn filter-btn"
+                  class="main-ui-btn filter-btn hover bottom"
+                  data-msg="Show paid entries only"
                 >
                   Paid
                 </button>
@@ -180,7 +183,7 @@
     </template>
     <template id="body-row-options-template">
       <div class="body-row-options">
-        <button data-cmd="DELETE" type="button" tabindex="-1">
+        <button data-cmd="DELETE" type="button" tabindex="-1" data-msg="Delete this row" class="hover left">
           Delete Row
         </button>
       </div>
@@ -203,8 +206,8 @@
           </div>
         </div>
         <div>
-          <button type="submit" class="main-ui-btn">Add Payment</button>
-          <button type="button" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="main-ui-btn hover bottom" data-msg="Add payment entry">Add Payment</button>
+          <button type="button" onclick="closeModal()" data-msg="Cancel payment entry" class="hover bottom">Cancel</button>
         </div>
       </form>
     </template>
@@ -336,13 +339,13 @@
           <div id="tbody" onmouseover="textRollAnnimation(event)"></div>
         </div>
         <div id="bill-option-BTNs" onclick="billUtils(event)">
-          <button data-cmd="open" class="main-ui-btn">Open</button>
-          <button data-cmd="print" class="main-ui-btn">Print</button>
-          <button data-cmd="add-item" class="main-ui-btn">
+          <button data-cmd="open" class="main-ui-btn hover bottom" data-msg="Open bill in new window">Open</button>
+          <button data-cmd="print" class="main-ui-btn hover bottom" data-msg="Print bill">Print</button>
+          <button data-cmd="add-item" class="main-ui-btn hover bottom" data-msg="Edit bill items (Ctrl+E)">
             Edit Bill
           </button>
-          <button data-cmd="close" onclick="_closeModal()">Close</button>
-          <button data-cmd="cancel-bill" class="main-ui-btn red">Cancel Bill</button>
+          <button data-cmd="close" onclick="_closeModal()" data-msg="Close bill details (Esc)" class="hover bottom">Close</button>
+          <button data-cmd="cancel-bill" class="main-ui-btn red hover bottom" data-msg="Cancel this bill">Cancel Bill</button>
         </div>
       </div>
     </template>
@@ -361,7 +364,7 @@
       </div>
     </template>
     <template id="update-profile-template">
-      <form onsubmit="updateProfile(event)">
+      <form class="main-ui-form top-level-form" onsubmit="updateProfile(event)">
         <h2>Profile Update Form</h2>
         <div>
           <div><label for="name">Name</label></div>
@@ -384,19 +387,79 @@
           <div><input name="gst" disabled type="text" /></div>
         </div>
         <div>
+          <button class="main-ui-btn hide" onclick="openShipInfoListForm(event)">Review Ship Info</button>
+        </div>
+        <div>
           <div>
             <button
               type="button"
-              class="main-ui-btn"
+              class="main-ui-btn hover bottom"
               onclick="enableInputs(event)"
+              data-msg="Edit customer profile"
             >
               Edit
             </button>
-            <button type="submit" class="main-ui-btn hide">Update</button>
-            <button type="button" onclick="closeModal()">Close</button>
+            <button type="submit" class="main-ui-btn hide hover bottom" data-msg="Update customer information">Update</button>
+            <button type="button" onclick="closeModal()" data-msg="Close without saving" class="hover bottom">Close</button>
           </div>
         </div>
       </form>
+    </template>
+    <template id="ship-info-list-template">
+      <!-- work in progress -->
+      <div class="container">
+        <form class="main-ui-form top-level-form" onsubmit="closeShipInfoListForm(event)">
+          <h2>Shipping Information List</h2>
+          <div class="table">
+            <div class="head row">
+              <p class="col eq-space">Name</p>
+              <p class="col eq-space">Address</p>
+              <p class="col eq-space">Contact Person</p>
+              <p class="col eq-space">Phone</p>
+              <p class="col eq-space">Email</p>
+            </div>
+            <div id="tbody">
+              <button type="button" class="main-ui-btn hover bottom" data-msg="Add new row" onclick="addRow(event)">+</button>
+            </div>
+            <div id="ship-info-list">
+              <div class="table">
+                <div class="head row">
+                  <p class="col eq-space">Sl No.</p>
+                  <p class="col eq-space">Name</p>
+                  <p class="col eq-space">Address</p>
+                  <p class="col eq-space">Contact Person</p>
+                  <p class="col eq-space">Phone</p>
+                  <p class="col eq-space">Email</p>
+                </div>
+                <div id="tbody"></div>
+              </div>
+            </div>
+            <div class="btn-container">
+              <button type="submit" class="main-ui-btn hover bottom" data-msg="Close shipping information list">Add</button>
+              <button type="button" class="hover bottom" data-msg="Close shipping information list" onclick="closeShipInfoListForm(event)">Back</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </template>
+    <template id="ship-info-input-row-template">
+      <div class="body row">
+        <input class="col eq-space" data-name="name" type="text" />
+        <input class="col eq-space" data-name="shipTo" type="text" />
+        <input class="col eq-space" data-name="shipAddr" type="text" />
+        <input class="col eq-space" data-name="shipPh" type="text" />
+        <input class="col eq-space" data-name="shipGST" type="text" />
+      </div>
+    </template>
+    <template id="ship-info-list-row-template">
+      <div class="body row">
+        <p class="col eq-space" data-name="slNo"></p>
+        <p class="col eq-space" data-name="name"></p>
+        <p class="col eq-space" data-name="shipTo"></p>
+        <p class="col eq-space" data-name="shipAddr"></p>
+        <p class="col eq-space" data-name="shipPh"></p>
+        <p class="col eq-space" data-name="shipGST"></p>
+      </div>
     </template>
     <template id="customer-div-template">
       <div class="customer-div">
@@ -415,8 +478,8 @@
             </select>
         </div>
         <div>
-            <button type="submit" class="main-ui-btn">Print</button>
-            <button type="button" data-name="cancel" onclick="closeModal(event)">Cancel</button>
+            <button type="submit" class="main-ui-btn hover bottom" data-msg="Print ledger for selected period">Print</button>
+            <button type="button" data-name="cancel" onclick="closeModal(event)" data-msg="Cancel print" class="hover bottom">Cancel</button>
         </div>
     </form>
     </template>
@@ -428,8 +491,8 @@
             <div><input type="text" name="balance" id="balance" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
           </div>
           <div>
-            <button type="submit">Update</button>
-            <button type="button" onclick="document.getElementById('opening-balance-modal').classList.add('hide')">Cancel</button>
+            <button type="submit" data-msg="Update opening balance" class="hover bottom">Update</button>
+            <button type="button" onclick="document.getElementById('opening-balance-modal').classList.add('hide')" data-msg="Cancel update" class="hover bottom">Cancel</button>
           </div>
         </form>
       </div>

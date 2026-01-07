@@ -722,13 +722,15 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="gst-setting"){
                 let policy = await ipcRenderer.invoke("get-app-policy");
+                if(!/^\d.-\d.$/.test(policy.financialYearStartDate))
+                    policy.financialYearStartDate = "01-03";
                 ["gstInterval","financialYearStartDate","default_gst"]
                 .forEach(key=>{
                     let select = form.querySelector(`[name="${key}"]`);
                     if(!(key in policy)) return;
                     if(key === "financialYearStartDate"){
-                        let mnth = new Date(policy.financialYearStartDate).getMonth();
-                        select.querySelector(`[value="010${mnth}"]`).setAttribute("selected",true);
+                        let mnth = policy.financialYearStartDate.split("-")[1];
+                        select.querySelector(`[value="01-${mnth}"]`).setAttribute("selected",true);
                     }
                     else
                         select.querySelector(`[value="${policy[key]}"]`).setAttribute("selected",true);
@@ -905,11 +907,6 @@ async function saveSettings(e){
     }
     else
     if(cmd==="gst-setting"){
-        let dt = new Date();
-        if(data.financialYearStartDate==="0100")
-            data.financialYearStartDate = new Date(dt.getFullYear(),0,1);
-        else
-            data.financialYearStartDate = new Date(dt.getFullYear(),3,1);
         data.gstInterval = Number(data.gstInterval);
         ipcRenderer.send("save-policy-settings",data);
     }

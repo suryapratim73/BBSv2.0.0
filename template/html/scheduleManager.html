@@ -16,13 +16,13 @@
                 <h2>Schedules</h2>
                 <button onclick="ipcRenderer.send('call-scheduler');">+</button>
             </div>
-            <div class="table">
-                <div class="row head">
-                    <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
-                    <div class="col eq-space"><p data-col="label">Label</p></div>                        
+            <div class="table" role="table" aria-label="Scheduled events table">
+                <div class="row head" role="row">
+                    <div class="col eq-space" role="columnheader"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space" role="columnheader"><p data-col="label">Label</p></div>                        
                     <div class="col eq-space"><p data-col="time">Date & Time</p></div>
                 </div>
-                <div class="tbody hide-scrollbar" data-cmd="open-event"></div>
+                <div class="tbody hide-scrollbar" data-cmd="open-event" role="rowgroup"></div>
             </div>
         </div>
     </template>

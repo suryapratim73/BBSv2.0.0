@@ -8,13 +8,13 @@
     <link rel="stylesheet" href="../css/printDialog.css">
     <script src="../js/printDialog.js" defer></script>
 </head>
-<body class="modal">
-    <h1>Print options</h1>
-    <form onsubmit="printcmd(event)">
+<body class="modal" role="dialog" aria-modal="true" aria-labelledby="print-dialog-heading">
+    <h1 id="print-dialog-heading">Print options</h1>
+    <form onsubmit="printcmd(event)" aria-labelledby="print-dialog-heading">
         <div>
             <div>
                 <label for="printer-list">Select Printer</label>
-                <input id="printer-list" name="printer-list" onclick="resetInput(event)" list="printer-names" />
+                <input id="printer-list" name="printer-list" onclick="resetInput(event)" list="printer-names" aria-label="Select printer from list" />
             </div>
             <div>
                 <fieldset>
@@ -36,7 +36,8 @@
                     <legend>Additional options</legend>
                     <div>
                         <label for="no-of-copies">Number of copies</label>
-                        <input id="no-of-copies" name="no-of-copies" type="number" value="1" />
+                        <input id="no-of-copies" name="no-of-copies" type="number" value="1" aria-describedby="copies-hint" />
+                        <span id="copies-hint" class="sr-only">Enter number of copies to print</span>
                     </div>
                     <div>
                         <label for="paper-size">Paper size</label>

@@ -12,8 +12,8 @@
 
 <body>
     <div id="page1" class="page ">
-        <form onsubmit="addSupplier(event)">
-            <h2>Add <span class="highlight">Supplier</span> details</h2>
+        <form onsubmit="addSupplier(event)" aria-labelledby="supplier-form-heading">
+            <h2 id="supplier-form-heading">Add <span class="highlight">Supplier</span> details</h2>
             <div>
                 <div><label for="name" class="highlight">Name:</label></div>
                 <div><input type="text" onchange="selectSupplier(event)" required autofocus placeholder="compulsory feild" name="name" id="name" list="suppliers-dl"/></div>
@@ -25,8 +25,9 @@
             <div>
                 <div><label for="phones" class="highlight">Phones:</label></div>
                 <div>
-                    <input type="text" required placeholder="compulsory feild" data-type="Number" name="phones" id="phones" onkeypress="validateInput(event)"/>
-                    <button type="button" class="main-ui-btn" id="add-new-number" tabindex="-1" onclick="addNewNumber(event)">+</button>
+                    <input type="text" required placeholder="compulsory feild" data-type="Number" name="phones" id="phones" onkeypress="validateInput(event)" aria-describedby="phones-hint"/>
+                    <button type="button" class="main-ui-btn" id="add-new-number" tabindex="-1" onclick="addNewNumber(event)" aria-label="Add new phone number">+</button>
+                    <span id="phones-hint" class="sr-only">Enter phone number</span>
                 </div>
             </div>
             <div>
@@ -45,10 +46,10 @@
     </div>
     <div id="page2" class="page hide">
         <h2>Add <span class="highlight">Bill </span>Items</h2>
-        <div id="table">
-            <div class="row head">
-                <div class="col sm"><p>Sl No.</p></div>
-                <div class="col lg"><p>Particular</p></div>
+        <div id="table" role="table" aria-label="Bill items table">
+            <div class="row head" role="row">
+                <div class="col sm" role="columnheader"><p>Sl No.</p></div>
+                <div class="col lg" role="columnheader"><p>Particular</p></div>
                 <div class="col md"><p>HSN No</p></div>
                 <div class="col md"><p>Quantity</p></div>
                 <div class="col md"><p>Unit</p></div>
@@ -59,9 +60,9 @@
                 <div class="col sm"><p>IGST</p></div>
                 <div class="col md"><p>Total</p></div>
             </div>
-            <div id="tbody" onmouseover="textRollAnnimation(event)" onchange="selectStock(event)" oninput="setAmtFeilds(event)">
+            <div id="tbody" onmouseover="textRollAnnimation(event)" onchange="selectStock(event)" oninput="setAmtFeilds(event)" role="rowgroup">
                 <div class="row row-control-div" id="add-item">
-                    <button onclick="addRow(event)" class="main-ui-btn">+</button>
+                    <button onclick="addRow(event)" class="main-ui-btn" aria-label="Add new row to bill items table">+</button>
                 </div>
             </div>
         </div>
@@ -72,8 +73,8 @@
         </div>
     </div>
     <div id="page3" class="page hide">
-        <form onsubmit="proceedHandler(event)">
-            <h2>Add Purchase <span>Bill</span>Headers</h2>
+        <form onsubmit="proceedHandler(event)" aria-labelledby="bill-headers-heading">
+            <h2 id="bill-headers-heading">Add Purchase <span>Bill</span>Headers</h2>
             <div>
                 <div><label for="billNo">Enter Bill NO:</label></div>
                 <div><input type="text" placeholder="Compulsory feild" required id="billNo" name="billNo"></div>
@@ -107,8 +108,8 @@
         </form>
     </div>
     <div id="page4" class="page hide">
-        <form onsubmit="saveData(event)">
-            <h2>Add <span>Payment</span> details</h2>
+        <form onsubmit="saveData(event)" aria-labelledby="payment-details-heading">
+            <h2 id="payment-details-heading">Add <span>Payment</span> details</h2>
             <div id="main">
                 <div id="payment-div">
                     <div>
@@ -135,8 +136,8 @@
                         <div><input type="text" list="employee-to-supp" placeholder="Person receiving payment" name="pay-recpt" id="pay-recpt"></div>
                     </div>
                 </div>
-                <div id="summary-div">
-                    <h2>Bill Summary</h2>
+                <div id="summary-div" role="region" aria-labelledby="bill-summary-heading">
+                    <h2 id="bill-summary-heading">Bill Summary</h2>
                     <div>
                         <p class="red">Bill Amount:</p>
                         <p id="bill-amt">0</p>

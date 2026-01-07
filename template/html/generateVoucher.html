@@ -37,8 +37,8 @@
             </div>
         </div>
         <div>
-            <button type="submit">Generate</button>
-            <button type="button" onclick="ipcRenderer.send('close','Voucher-Generator')">CLose</button>
+            <button type="submit" data-msg="Generate payment voucher" class="hover bottom">Generate</button>
+            <button type="button" onclick="ipcRenderer.send('close','Voucher-Generator')" data-msg="Close voucher generator" class="hover bottom">CLose</button>
         </div>
     </form>
     <template id="cheque-detail-template">

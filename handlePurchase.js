@@ -1,6 +1,7 @@
 const { ipcMain,BrowserWindow,app } = require("electron");
 const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
 const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
@@ -28,7 +29,7 @@ let windowOptions = {
 exports.addPurchase = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/purchaseTemplate.html",{
+        createModal(windowOptions,getTemplatePath("purchaseTemplate"),{
             maxWinCount:2,
             label:"Purchase-Entry",
             cb:function(){
@@ -43,7 +44,7 @@ exports.addPurchase = mainWindow=>{
 exports.showPurchase = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/purchaseDisplay.html",{maxWinCount:1,label:"Purchase-Display"});
+        createModal(windowOptions,getTemplatePath("purchaseDisplay"),{maxWinCount:1,label:"Purchase-Display"});
     }
 }
 

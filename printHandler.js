@@ -1,6 +1,7 @@
 const { exec } = require("child_process");
 const { ipcMain,dialog,BrowserWindow, app, webContents } = require("electron");
 const { createModal, getMainWindow } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const fs = require("fs");
 const { setTimeout } = require("timers");
 const path = require("path");
@@ -67,7 +68,7 @@ ipcMain?.handle("get-printers",()=>{
 ipcMain?.on("show-print-modal",(e,...arg)=>{
     if(arg.some(obj=>"pageFit" in obj))
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
-    let pathToHTML = "./template/html/printDialog.html";
+    let pathToHTML = getTemplatePath("printDialog");
     let parentWindow = typeof e!="string" ? BrowserWindow.fromId((e.sender.id)) : BrowserWindow.getFocusedWindow();
     let windowOptions = {
         width: 400,
@@ -109,7 +110,7 @@ ipcMain?.on("forward-printObj",(e,printObj,path2pdf)=>{
 });
 
 exports.printDialog = function(cb){
-    let pathToHTML = "./template/html/printDialog.html";
+    let pathToHTML = getTemplatePath("printDialog");
     let windowOptions = {
         width: 400,
         height: 450,

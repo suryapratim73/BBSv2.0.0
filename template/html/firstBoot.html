@@ -69,8 +69,8 @@
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation();">Continue</button>
-                <button type="button" data-cmd="skip">Skip</button>
+                <button type="submit" onclick="event.stopPropagation();" data-msg="Continue to next step" class="hover bottom">Continue</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
             </div>
         </div>
     </template>
@@ -141,9 +141,9 @@
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()">Continue</button>
-                <button type="button" data-cmd="page-1">Back</button>
-                <button type="button" data-cmd="skip">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom">Continue</button>
+                <button type="button" data-cmd="page-1" data-msg="Go back to previous page" class="hover bottom">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
             </div>
         </div>
     </template>
@@ -152,12 +152,12 @@
             <h2>Create user</h2>
             <div id="page-3-host">
                 <p>Create a regular users with different in-app priviledges. You can create/update users later from app settings.</p>
-                <button data-cmd="create-user" autofocus type="button">Create user</button>
+                <button data-cmd="create-user" autofocus type="button" data-msg="Create a new user account" class="hover bottom">Create user</button>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()">Continue</button>
-                <button type="button" data-cmd="page-2">Back</button>
-                <button type="button" data-cmd="skip">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom">Continue</button>
+                <button type="button" data-cmd="page-2" data-msg="Go back to previous page" class="hover bottom">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
             </div>
         </div>
     </template>
@@ -171,7 +171,7 @@
                 </div>
                 <div>
                     <input type="text" spellcheck="false" name="filePath" placeholder="Using default wallpaper on lockscreen " id="file-path">
-                    <button type="button" class="main-ui-btn" onclick="chooseFile(event)">Choose</button>
+                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Choose lockscreen wallpaper">Choose</button>
                 </div>
             </div>
             <div>
@@ -186,9 +186,9 @@
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()">Continue</button>
-                <button type="button" data-cmd="page-3">Back</button>
-                <button type="button" data-cmd="skip">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Finish setup" class="hover bottom">Continue</button>
+                <button type="button" data-cmd="page-3" data-msg="Go back to previous page" class="hover bottom">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
             </div>
         </div>
     </template>
@@ -231,8 +231,8 @@
                 </div>
             </div>
             <div>
-                <button type="button" data-cmd="add-user">Add</button>
-                <button type="button" data-cmd="cancel-user-add">Cancel</button>
+                <button type="button" data-cmd="add-user" data-msg="Add new user" class="hover bottom">Add</button>
+                <button type="button" data-cmd="cancel-user-add" data-msg="Cancel user creation" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>

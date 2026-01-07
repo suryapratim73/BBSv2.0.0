@@ -1,5 +1,6 @@
 {"fPath":"ext/","fileName":null,"type":"external","dir":"ext/"}
 {"fPath":"model/","fileName":null,"type":"external","dir":"model/"}
+{"fPath":"views/","fileName":null,"type":"external","dir":"views/"}
 {"fPath":"config/policy.json","fileName":"policy.json","type":"config","dir":"config/"}
 {"fPath":"config/appDefault.json","fileName":"appDefault.json","type":"config","dir":"config/"}
 {"fPath":"config/saleConfig.json","fileName":"saleConfig.json","type":"config","dir":"config/"}

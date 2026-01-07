@@ -68,10 +68,10 @@ async function appendToFile(fd,data){
 
 sequelize.authenticate()
 .then(()=>{
-    console.log("Connected to sqlite db");
+    appLogger("Connected to sqlite db");
 })
 .catch((err)=>{
-    console.error(err)
+    appLogger({title:"SQLite DB Connection Error", msg: String(err)});
 });
 
 let path2schema = path.resolve(appPath,"./model/schema.json");
@@ -95,7 +95,14 @@ let schemas = fs.readFileSync(path2schema);
         }),
         customer: sequelize.define("customers",customerSchema,{
             freezeTableName:false,
-            timestamps:false
+            timestamps:false,
+            setterMethods:{
+                updateMoreInfo(moreInfo){
+                    let currMoreInfo = this.getDataValue("moreInfo") || {};
+                    let updatedMoreInfo = {...currMoreInfo,...moreInfo};
+                    this.setDataValue("moreInfo",updatedMoreInfo);
+                }
+            }
         }),
         sequelize,
         stock: sequelize.define("stock",stockSchema,{
@@ -129,10 +136,10 @@ let schemas = fs.readFileSync(path2schema);
                     this.setDataValue("tax",this.getDataValue("tax")+del_tax);
                     this.setDataValue("netDue",this.getDataValue("netDue")+Math.round(del_billAmt))
                 },
-                setBillValues:function({billAmt,netAmt,tax}){
-                    this.setDataValue("billAmt",billAmt);
-                    this.setDataValue("netAmt",netAmt);
-                    this.setDataValue("tax",tax);
+                setBillValues:function(billMeta){
+                    Object.keys(billMeta).forEach(key=>{
+                        this.setDataValue(key,billMeta[key]);
+                    });
                 }
             }
         }),

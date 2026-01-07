@@ -9,20 +9,20 @@
     <script src="../js/serviceRegistor.js" defer></script>
 </head>
 <body>
-    <nav>
-        <button class="main-ui-btn page1-elem hide" data-cmd="new-service">Add New Service</button>
-        <button class="main-ui-btn page2-elem hide" data-cmd="back">Back</button>
-        <input class="page1-elem hide" type="text" name="" id="">
+    <nav role="navigation" aria-label="Service register navigation">
+        <button class="main-ui-btn page1-elem hide" data-cmd="new-service" aria-label="Add new service">Add New Service</button>
+        <button class="main-ui-btn page2-elem hide" data-cmd="back" aria-label="Go back">Back</button>
+        <input class="page1-elem hide" type="text" name="" id="" aria-label="Search services">
     </nav>
-    <main>
-        <div class="table page1-elem page hide">
-            <div class="row head">
-                <p class="col eq-space">Sl No.</p>
-                <p class="col eq-space">Name</p>
+    <main role="main">
+        <div class="table page1-elem page hide" role="table" aria-label="Services list table">
+            <div class="row head" role="row">
+                <p class="col eq-space" role="columnheader">Sl No.</p>
+                <p class="col eq-space" role="columnheader">Name</p>
                 <p class="col eq-space">Rate</p>
                 <p class="col eq-space">Unit</p>
             </div>
-            <div class="tbody"></div>
+            <div class="tbody" role="rowgroup"></div>
         </div>
     </main>
     <template id="body-row-template">
@@ -167,7 +167,7 @@
             </div>
             <div>
                 <div>
-                    <canvas></canvas>
+                    <canvas aria-label="Service usage graph"></canvas>
                 </div>
                 <div class="table">
                     <div class="row head">

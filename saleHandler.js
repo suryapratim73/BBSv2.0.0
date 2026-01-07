@@ -1,6 +1,7 @@
 const { ipcMain, dialog, Menu, app } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { BrowserWindow } = require("electron/main");
+const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
 const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo, captionReducer, getFinYearStrtEndDt } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
@@ -34,7 +35,9 @@ let closeFlag = false,
 exports.saleWindow = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
-        saleWindow = createModal(windowOptions,"./template/html/salePage.html");
+        process.presets.target = "salePage";
+        process.presets.mode = "new-sale";
+        saleWindow = createModal(windowOptions,getTemplatePath("salePage"));
         // saleWindow.webContents.openDevTools()
         saleWindow.on("unresponsive",(e)=>{
             dialog.showErrorBox("Error",String(e))
@@ -54,14 +57,14 @@ exports.saleWindow = ()=>{
 exports.showSales = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/showSale.html",{maxWinCount:1,label:"Sale-Dsiplay"});
+        createModal(windowOptions,getTemplatePath("showSale"),{maxWinCount:1,label:"Sale-Dsiplay"});
     }
 }
 
 exports.orderRegister = ()=>{
     return ()=>{
         windowOptions.parent = undefined;
-        let saleWindow = createModal(windowOptions,"./template/html/orderRegister.html",{label:"new-order"});
+        let saleWindow = createModal(windowOptions,getTemplatePath("orderRegister"),{label:"new-order"});
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
         })
@@ -71,7 +74,7 @@ exports.orderRegister = ()=>{
 exports.orderManager = (main,cb)=>{
     return ()=>{
         windowOptions.parent = main;
-        let saleWindow = createModal(windowOptions,"./template/html/orderManager.html",{label:"manage-order",cb});
+        let saleWindow = createModal(windowOptions,getTemplatePath("orderManager"),{label:"manage-order",cb});
         saleWindow.webContents.openDevTools();
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
@@ -183,12 +186,11 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    if("presets" in process && process?.presets?.target==="salePage"){
+    if(process.presets.target==="salePage" && process.presets.mode==="edit-bill"){
         getTargetWindow("customer-portal").webContents.send("reload-tables")
         Reflect.deleteProperty(process.presets,"target");
+        Reflect.deleteProperty(process.presets,"mode");
     }
-    if("presets" in process && process?.presets?.flag==="new-bill")
-        Reflect.deleteProperty(process.presets,"flag");
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
     let { 
         billStatus, 
@@ -228,24 +230,39 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     else
         netDue = Math.round(netAmt + netTax - netPayment);
     if(deliveryType!=="hand")
-        freight.sync()
-        .then(model=>
-            model.findOrCreate({
-                where:{id:transportId},
-                defaults:{
-                    id:transportId,
-                    name:transportName,
-                    address:transportAddress,
-                    phone:transportContact
-                }
-            })
-            .then(()=>console.log("Transporter db updated!!"))
-            .catch(console.log)
-        )
-    let match = customerList.find(obj=>obj.id===custId);
-    if(!match){
+        freight.findOrCreate({
+            where:{id:transportId},
+            defaults:{
+                id:transportId,
+                name:transportName,
+                address:transportAddress,
+                phone:transportContact,
+                gst:transportGST
+            }
+        })
+        .then(()=>appLogger("Transporter db updated!!"))
+        .catch(err=>appLogger({
+            title:"Error",
+            message:String(err),
+            func:"save_exit - transporter findOrCreate"
+        }));
+    let match = await customer.findOne({where:{id:custId}});
+    if(!match){// New customer block
         customerObj._type = "customer";
-        let custObj = {...customerObj,moreInfo:{email}};
+        let custObj = {
+            ...customerObj,
+            moreInfo:{
+                email,
+                shipInfos:[
+                    {
+                        name:billMeta.shipTo,
+                        shipTo:billMeta.shipTo,
+                        shipAddr:billMeta.shipAddr,
+                        shipPh:billMeta.shipPh,
+                        shipGST:billMeta.shipGST
+                    }
+                ]
+            }};
         Reflect.deleteProperty(custObj,"email");
         customerList.push(new People(custObj));
         customer.findOrCreate({
@@ -258,11 +275,46 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 address,
                 phones:JSON.stringify(phones),
                 gst,
-                moreInfo:{email}
+                moreInfo:{
+                    email,
+                    shipInfos:[
+                        {
+                            name:billMeta.shipTo,
+                            shipTo:billMeta.shipTo,
+                            shipAddr:billMeta.shipAddr,
+                            shipPh:billMeta.shipPh,
+                            shipGST:billMeta.shipGST
+                        }
+                    ]
+                }
             }
         })
-        .then(()=>console.log("Customer db updated"))
-        .catch(console.log);
+        .then(()=>appLogger("Customer db updated"))
+        .catch(err=>appLogger({
+            title:"Error",
+            message:String(err),
+            func:"save_exit - customer findOrCreate"
+        }));
+    }
+    else{// Existing customer block
+        let shipInfos = match.moreInfo?.shipInfos ?? [];// Existing customer shipping infos
+        let shipInfoIndex = shipInfos.findIndex(obj=>obj.shipTo===billMeta.shipTo && obj.shipAddr===billMeta.shipAddr && obj.shipPh===billMeta.shipPh && obj.shipGST===billMeta.shipGST);
+        if(shipInfoIndex===-1){// New shipping info added for existing customer
+            shipInfos.push({
+                name:billMeta.shipTo,
+                shipTo:billMeta.shipTo,
+                shipAddr:billMeta.shipAddr,
+                shipPh:billMeta.shipPh,
+                shipGST:billMeta.shipGST
+            });
+            match.moreInfo = {  
+                ...match.moreInfo,
+                email,
+                shipInfos
+            };
+        }
+        match.updateMoreInfo = match.moreInfo;
+        await match.save();
     }
     if(billNo==="spot"){// Updating billDate for billNo==spot
         let [ dd,mn,yy ] = (new Date()).toLocaleDateString("en-IN").split("/");
@@ -362,7 +414,10 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             shipTo:billMeta.shipTo,
             shipAddr:billMeta.shipAddr,
             shipPh:billMeta.shipPh,
-            shipGST:billMeta.shipGST
+            shipGST:billMeta.shipGST,
+            ewayBill:billMeta.ewayBill,
+            placeOfSupply:billMeta.placeOfSupply,
+            stateNcode:billMeta.stateNcode
         })
     ])
     .then(async ()=>{

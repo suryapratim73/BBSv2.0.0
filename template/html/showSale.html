@@ -9,27 +9,27 @@
     <link rel="stylesheet" href="../css/showSale.css">
 </head>
 <body>
-    <header>
-        <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." oninput="searchHandler(event)">
-        <button data-cmd="toggle-filter-option" class="main-ui-btn">Filter</button>
-        <div id="filter-options" class="hide">
-            <p data-cmd="paid">Paid</p>
-            <p data-cmd="unpaid">Unpaid</p>
-            <p data-cmd="open">Open</p>
-            <p data-cmd="close">Closed</p>
-            <p data-cmd="all">All</p>
+    <header role="banner">
+        <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." aria-label="Search bills">
+        <button data-cmd="toggle-filter-option" class="main-ui-btn" aria-label="Toggle filter options" aria-expanded="false" aria-controls="filter-options">Filter</button>
+        <div id="filter-options" class="hide" role="menu">
+            <p data-cmd="paid" role="menuitem">Paid</p>
+            <p data-cmd="unpaid" role="menuitem">Unpaid</p>
+            <p data-cmd="open" role="menuitem">Open</p>
+            <p data-cmd="close" role="menuitem">Closed</p>
+            <p data-cmd="all" role="menuitem">All</p>
         </div>
     </header>
-    <main>
-        <section class="table">
-            <div class="head row">
-                <p data-name="date" class="col eq-space">Sl No</p>
+    <main role="main">
+        <section class="table" role="table" aria-label="Sales records table">
+            <div class="head row" role="row">
+                <p data-name="date" class="col eq-space" role="columnheader">Sl No</p>
                 <p data-name="billNo" class="col eq-space">Bill Number</p>
                 <p data-name="billDate" class="col eq-space">Bill Date</p>
                 <p data-name="billAmt" class="col eq-space">Bill Amount</p>
                 <p data-name="payment" class="col eq-space">Net Tax</p>
             </div>
-            <div id="tbody"></div>
+            <div id="tbody" role="rowgroup"></div>
         </section>
         <section id="emphasis-tables">
             <div class="table">

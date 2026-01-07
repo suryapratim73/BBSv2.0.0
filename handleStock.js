@@ -1,6 +1,7 @@
 const {BrowserWindow, ipcMain, dialog} = require("electron");
 const { People, appLogger } = require("./common");
 const { createModal } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const {stock} = require("./model/dbConfig");
 
 
@@ -13,7 +14,7 @@ let stockList = [],
 exports.displayStock = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        let pathToHTML = "./template/html/stockDisplay.html";
+        let pathToHTML = getTemplatePath("stockDisplay");
         createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Stock-Display"});
     }
 }
@@ -21,7 +22,7 @@ exports.displayStock = mainWindow =>{
 exports.handleReturn = ()=>{
     return ()=>{ 
         let _windowOptions = {...windowOptions,width:400};
-        let pathToHTML = "./template/html/goodsReturn.html";
+        let pathToHTML = getTemplatePath("goodsReturn");
         createModal(_windowOptions,pathToHTML,{maxWinCount:1,label:"Item-Return-Handler"});
     }
 }

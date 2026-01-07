@@ -1,6 +1,7 @@
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { createModal, getTargetWindow } = require("./createModal");
 const { roadChallanPDF, generateVoucher, genPayReceiptPDF, genReqSlipPDF } = require("./scripts/makePDF.default");
+const { getTemplatePath } = require("./viewManager");
 const { outPayments, sale, requirement } = require("./model/dbConfig");
 const { appLogger } = require("./common");
 
@@ -16,28 +17,28 @@ let windowOptions = {
 exports.genRoadChallan = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"template/html/roadChallan.html",{maxWinCount:1,label:"Road-Challan-Generator"});
+        createModal(windowOptions,getTemplatePath("roadChallan"),{maxWinCount:1,label:"Road-Challan-Generator"});
     }
 }
 
 exports.genVoucher = mainWindow =>{
   return ()=>{
     windowOptions.parent = mainWindow;
-    createModal(windowOptions,"template/html/generateVoucher.html",{maxWinCount:1,label:"Voucher-Generator"});
+    createModal(windowOptions,getTemplatePath("generateVoucher"),{maxWinCount:1,label:"Voucher-Generator"});
   }
 }
 
 exports.genPayReceipt = mainWindow =>{
   return ()=>{
     windowOptions.parent = mainWindow;
-    createModal(windowOptions,"template/html/paymentReceipt.html",{maxWinCount:1,label:"Payment-Receipt-Generator"});
+    createModal(windowOptions,getTemplatePath("paymentReceipt"),{maxWinCount:1,label:"Payment-Receipt-Generator"});
   }
 }
 
 exports.genRequirementSlip = mainWindow =>{
   return ()=>{
     windowOptions.parent = mainWindow;
-    createModal(windowOptions,"template/html/genReqSlip.html",{maxWinCount:1,label:"Requirement-Slip-Generator"});
+    createModal(windowOptions,getTemplatePath("genReqSlip"),{maxWinCount:1,label:"Requirement-Slip-Generator"});
   }
 }
 

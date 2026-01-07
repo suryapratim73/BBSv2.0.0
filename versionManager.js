@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { BrowserWindow, app, ipcMain, dialog, ipcRenderer, shell } = require("electron");
 const { createModal, getMainWindow } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const path = require("path");
 const { appLogger } = require("./common");
 const fs = require("fs");
@@ -16,7 +17,7 @@ let { UPDATE_REST } = process.env;
 
 exports.versionManager = function(){
     windowOptions.parent = getMainWindow();
-    createModal(windowOptions,"template/html/versionManager.html",{ maxWinCount:1,label:"version-manager" });//.webContents.openDevTools();
+    createModal(windowOptions,getTemplatePath("versionManager"),{ maxWinCount:1,label:"version-manager" });//.webContents.openDevTools();
 }
 
 exports.recordDownloadedVersion = function(data){// Record and manage app versions by folders // Runs before app update

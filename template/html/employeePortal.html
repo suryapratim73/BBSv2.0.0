@@ -10,9 +10,9 @@
 </head>
 <body>
     <nav>
-        <button data-cmd="take-attendance" class="main-ui-btn" >Conduct Attendance</button>
-        <button data-cmd="addEmployee" class="main-ui-btn" >Add Employee</button>
-        <button data-cmd="add-payment" class="main-ui-btn" >Add Payment</button>
+        <button data-cmd="take-attendance" class="main-ui-btn hover bottom" data-msg="Conduct employee attendance">Conduct Attendance</button>
+        <button data-cmd="addEmployee" class="main-ui-btn hover bottom" data-msg="Add new employee">Add Employee</button>
+        <button data-cmd="add-payment" class="main-ui-btn hover bottom" data-msg="Add payment to employee">Add Payment</button>
         <input oninput="searchHandler(event)" placeholder="Type to search for employee" />
     </nav>
     <main></main>
@@ -42,7 +42,7 @@
                 <div><label for="phones">Phone</label></div>
                 <div>
                     <input type="text" data-type="Number" id="phones" name="phones" onkeypress="validateInput(event)" >
-                    <button class="main-ui-btn" type="button" tabindex="-1">+</button>
+                    <button class="main-ui-btn hover right" type="button" tabindex="-1" data-msg="Add phone number">+</button>
                 </div>
             </div>
             <div>
@@ -62,8 +62,8 @@
             </div>
             <div>
                 <div>
-                    <button type="submit" class="main-ui-btn">Add</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="main-ui-btn hover bottom" data-msg="Add new employee">Add</button>
+                    <button type="button" onclick="closeModal()" data-msg="Cancel employee creation" class="hover bottom">Cancel</button>
                 </div>
             </div>
         </form>
@@ -80,8 +80,8 @@
             </div>
             <div>
                 <div>
-                    <button class="main-ui-btn" type="submit">Add</button>
-                    <button type="button" onclick="showPage1(event)">Cancel</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Add custom field">Add</button>
+                    <button type="button" onclick="showPage1(event)" data-msg="Cancel field creation" class="hover bottom">Cancel</button>
                 </div>
             </div>
         </form>
@@ -101,9 +101,9 @@
             </div>
             <div></div>
             <div>
-                <button onclick="_closeModal()">Close</button>
-                <button class="main-ui-btn" onclick="updateEmployee()">Update Employee</button>
-                <button onclick="removeEmployee()">Remove Employee</button>
+                <button onclick="_closeModal()" data-msg="Close employee details" class="hover bottom">Close</button>
+                <button class="main-ui-btn hover bottom" onclick="updateEmployee()" data-msg="Update employee information">Update Employee</button>
+                <button onclick="removeEmployee()" data-msg="Remove employee from system" class="hover bottom">Remove Employee</button>
             </div>
         </div>
     </template>

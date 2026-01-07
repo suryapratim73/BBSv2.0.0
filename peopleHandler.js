@@ -2,6 +2,7 @@ const { freight,people,attendances, outPayments } = require("./model/dbConfig");
 const { ipcMain,dialog,BrowserWindow } = require("electron");
 const { People,appLogger, checkAuthority } = require("./common");
 const { createModal, getTargetWindow } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const uuid = require("uuid");
 const { updateCloseFlag } = require("./main");
 const { generateVoucher } = require("./scripts/makePDF.default");
@@ -20,7 +21,7 @@ exports.employeePortal = mainWindow => {
             contextIsolation:true,
             parent: mainWindow
         };
-        let pathToHTML = "./template/html/employeePortal.html";
+        let pathToHTML = getTemplatePath("employeePortal");
         let win = createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Employee-Page"});
         // win?.on("close",e=>{
         //     e.preventDefault();

@@ -1178,6 +1178,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
         let {address,phones="[]",gst,moreInfo="{}"} = (match ?? {});
         customer = {address,phones,gst,moreInfo,...match};
+        customer.moreInfo = JSON.parse(customer.moreInfo);
         let dl = document.createElement("datalist");
         document.body.appendChild(dl)
         dl.id = "customer-phones";
@@ -1193,6 +1194,9 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 option.textContent = ph;
                 dl.appendChild(option)
             });
+        if(typeof customer.moreInfo.shipInfos!=="undefined"){
+            appendToDL("",shipInfoDatalist,true,null,[],customer.moreInfo.shipInfos);// To be done
+        }
     }
     else
     if(e.target.dataset.name==="transportName"){// Done
@@ -1696,7 +1700,6 @@ exports.showTutorial = function(doc){
 }
 
 exports.scrollHelper = function(arr,index,direction,firstFlag=false,mainSection,secMainSection){
-    console.log({mainSection,secMainSection})
     let mainSectionDOM = mainSection.getBoundingClientRect();
     let alphabetDOM = secMainSection.getBoundingClientRect();
 

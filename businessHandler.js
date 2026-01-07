@@ -2,6 +2,7 @@ const { ipcMain } = require("electron");
 const { createModal } = require("./createModal");
 const { sequelize, sale, purchase, outPayments, inPayments } = require("./model/dbConfig");
 const { getLedgerModel } = require("./common");
+const { getTemplatePath } = require("./viewManager");
 const { Op, DataTypes } = require("sequelize");
 const { getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
@@ -28,7 +29,7 @@ let windowOptions = {
 exports.createGSTSummaryWindow = mainWindow => {
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/gstSummaryPage.html",{
+        createModal(windowOptions,getTemplatePath("gstSummaryPage"),{
             maxWinCount:1,
             label:"GST-Summary"
         })//.webContents.openDevTools();
@@ -38,7 +39,7 @@ exports.createGSTSummaryWindow = mainWindow => {
 exports.createBusinessStatPage = mainWindow => {
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/businessStat.html",{
+        createModal(windowOptions,getTemplatePath("businessStat"),{
             maxWinCount:1,
             label:"Business-Stat"
         });//.webContents.openDevTools();

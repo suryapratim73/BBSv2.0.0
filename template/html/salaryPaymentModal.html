@@ -9,10 +9,10 @@
     <script src="../js/salaryPaymentModal.js" defer></script>
 </head>
 <body>
-    <nav>
+    <nav role="navigation" aria-label="Salary payment navigation">
         <h2></h2>
     </nav>
-    <main onclick="popCard(event)"></main>
+    <main onclick="popCard(event)" role="main"></main>
     <template id="employee-card-template">
         <div class="emp-card">
             <p data-colname="name"></p>
@@ -22,7 +22,7 @@
                 <div><input type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
             </div>
             <div>
-                <button>Done</button>
+                <button aria-label="Mark payment as done">Done</button>
             </div>
         </div>
     </template>

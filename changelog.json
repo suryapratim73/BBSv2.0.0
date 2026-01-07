@@ -1,26 +1,17 @@
 {
-    "version":"2.20.2",
+    "version":"2.21.0",
     "highlights":[
-        "2.20.0 release: portal edit feature crash issue fixed",
-        "2.20.0 release:Zero-Tax or Zero-Rate bug fixed",
-        "2.20.0 release:Added Ctrl+Shift+Enter to proceed to page-3 of sale page without choosing delivery option",
-        "2.20.1 release: Added backward compatibility for database schema for users updating from versions below 2.19.x",
-        "2.20.2 release: Flaw in zero GST check fixed",
-        "2.20.2 release: Auto-logout after session expiry implemented",
-        "2.20.3 release: Bill edit issue fixed."
+        "Added new Vision Manager",
+        "Fixed financial year dating issue",
+        "Added fileMonitoring service for bill printing reminder",
+        "0 tax rate issue fixed. Now 0% tax rate will only be applied if default tax rate is set to 0%",
+        "Added tooltip and aria tags fo screen readers"
     ],
     "fullchange":[
-        "2.20.0 release: Customer portal edit feature crash issue fixed",
-        "2.20.0 release: Database migration improvements",
-        "2.20.0 release: More support for bootstrap case",
-        "2.20.0 release: Zero-Tax or Zero-Rate bug fixed",
-        "2.20.0 release: Added Ctrl+Shift+Enter to proceed to page-3 of sale page without choosing delivery option",
-        "2.20.0 release: App-update mechanism improved",
-        "2.20.1 release: Added backward compatibility for database schema for users updating from versions below 2.19.x",
-        "2.20.2 release: Flaw in zero GST check fixed",
-        "2.20.2 release: Auto-logout after session expiry implemented",
-        "2.20.3 release: Update installer to close app properly before update on Linux and Windows",
-        "2.20.3 release: Bill edit issue fixed.",
-        "2.20.3 release: Better No Connection handling during schema validation and bootstrap"
+        "Added new Vision Manager",
+        "Fixed financial year dating issue",
+        "Added fileMonitoring service for bill printing reminder",
+        "0 tax rate issue fixed. Now 0% tax rate will only be applied if default tax rate is set to 0%",
+        "Added tooltip and aria tags fo screen readers"
     ]
 }

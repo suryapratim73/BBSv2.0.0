@@ -57,6 +57,7 @@ label,input,button,p,h2{
     z-index: 1;
     background-color: var(--theme-secondary);
     pointer-events: painted;
+    opacity: 0.5;
 }
 .modal{
     width: 80%;
@@ -565,22 +566,43 @@ button.selected{
     font-size: 1rem;
     color: inherit;
     background: inherit;
+    max-width: 250px;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 .hover.left:hover.hover.left::before{
-    right: unset;
+    right: unset !important;
     left: 0;
+    margin-left: -80px;
+    transform: translateX(-50%);
 }
 .hover.right:hover.hover.right::before{
-    left: unset;
+    left: unset !important;
     right: 0;
+    margin-right: -40px;
+    transform: translateX(-50%)
 }
 .hover.top:hover.hover.top::before{
     bottom: unset;
-    top: -2.5rem;
+    top: 0;
+    margin-top: -80px;
+    left: 0;
 }
 .hover.bottom:hover.hover.bottom::before{
-    top: unset;
-    bottom: -2.5rem;
+    top: 100%;
+    margin-top: 8px;
+    bottom: unset;
+    left: 0;
+}
+/* Top-right tooltip: consistent gap above parent */
+.hover.top.right:hover.hover.top.right::before {
+    top: auto;
+    bottom: 100%;
+    right: 0;
+    left: unset;
+    margin-bottom: 8px;
+    margin-top: 0;
 }
 .appear>div{
     transform: scale(0);
@@ -677,6 +699,7 @@ input:focus{
 .main-ui-btn{
     background: var(--theme-primary);
     color: var(--theme-secondary);
+    position: relative;
 }
 input[type="checkbox"]{
     margin-right: 1rem;

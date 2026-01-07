@@ -2,6 +2,7 @@ const { ipcMain, dialog, BrowserWindow } = require("electron");
 const { People, appLogger } = require("./common");
 // const {  } = require("./common");
 const { createModal } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const { service } = require("./model/dbConfig");
 
 
@@ -14,7 +15,7 @@ let windowOptions = {
 exports.serviceRegistor = function (mainWindow){
     return ()=>{
         windowOptions.parent = mainWindow;
-        createModal(windowOptions,"./template/html/serviceRegistor.html",{maxWinCount:1,label:"Service-Registor"});
+        createModal(windowOptions,getTemplatePath("serviceRegistor"),{maxWinCount:1,label:"Service-Registor"});
     }
 }
 

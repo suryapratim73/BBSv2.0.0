@@ -41,7 +41,7 @@
                 <label for="supp-billNo">Enter bill number</label>
                 <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="supp-billNo" />
             </div>
-            <div><button type="submit" class="main-ui-btn">Get Bill Items</button></div>
+            <div><button type="submit" class="main-ui-btn hover bottom" data-msg="Retrieve supplier bill items">Get Bill Items</button></div>
         </form>
     </div>
     <div id="customer-bill-div" class="ret-bill-div">
@@ -78,9 +78,9 @@
             <div id="tbody"></div>
         </div>  
         <div>
-            <button data-cmd="add-item">Add item</button>
-            <button data-cmd="confirm-return">Confirm Return</button>
-            <button data-cmd="back">Back</button>
+            <button data-cmd="add-item" data-msg="Add item to return list" class="hover bottom">Add item</button>
+            <button data-cmd="confirm-return" data-msg="Confirm and process return" class="hover bottom">Confirm Return</button>
+            <button data-cmd="back" data-msg="Go back to previous page" class="hover bottom">Back</button>
         </div>  
     </div>
 </body>

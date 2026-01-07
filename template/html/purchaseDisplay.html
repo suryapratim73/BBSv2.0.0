@@ -9,25 +9,25 @@
     <script src="../js/purchaseDisplay.js" defer></script>
 </head>
 <body>
-    <nav>
-        <div id="searchbar-container">
-            <input type="text" spellcheck="false" placeholder="Type to filter through purchase table.." oninput="_searchHandler(event)">
+    <nav role="navigation" aria-label="Purchase display navigation">
+        <div id="searchbar-container" role="search">
+            <input type="text" spellcheck="false" placeholder="Type to filter through purchase table.." oninput="_searchHandler(event)" aria-label="Search purchases">
         </div>
     </nav>
-    <main>
-        <div id="table">
-            <div class="row head">
-                <div class="col eq-space"><p>Sl. No</p></div>
-                <div class="col eq-space"><p>Supplier</p></div>
+    <main role="main">
+        <div id="table" role="table" aria-label="Purchase records table">
+            <div class="row head" role="row">
+                <div class="col eq-space" role="columnheader"><p>Sl. No</p></div>
+                <div class="col eq-space" role="columnheader"><p>Supplier</p></div>
                 <div class="col eq-space"><p>Bill No</p></div>
                 <div class="col eq-space"><p>Bill Date</p></div>
                 <div class="col eq-space"><p>Bill Amount</p></div>
             </div>
-            <div id="tbody" class="hide-scrollbar">
+            <div id="tbody" class="hide-scrollbar" role="rowgroup">
             </div>
         </div>
     </main>
-    <div class="modal hide"></div>
+    <div class="modal hide" role="dialog" aria-modal="true"></div>
     <div class="cover hide"></div>
     <template id="body-row-template">
         <div class="body row">

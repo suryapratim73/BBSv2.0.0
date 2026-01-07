@@ -1,6 +1,7 @@
 const { ipcMain, dialog, BrowserWindow,app } = require("electron");
 const { Op,DataTypes } = require("sequelize");
 const { createModal, getMainWindow } = require("./createModal");
+const { getTemplatePath } = require("./viewManager");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
 const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
 const path = require("path");
@@ -30,7 +31,7 @@ let windowOptions = {
 exports.getSuplierPortal = mainWindow =>{
     return ()=>{
         windowOptions.parent = mainWindow;
-        let pathToHTML = "./template/html/supplierPortal.html";
+        let pathToHTML = getTemplatePath("supplierPortal");
         createModal(windowOptions,pathToHTML,{
             maxWinCount:1,
             label:"Supplier-Page",
@@ -46,7 +47,7 @@ exports.getSuplierPortal = mainWindow =>{
 exports.checkOutPayments = mainWindow=>{
     return ()=>{
         windowOptions.parent = mainWindow;  
-        let pathToHTML = "./template/html/checkOutPayments.html";
+        let pathToHTML = getTemplatePath("checkOutPayments");
         createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Supplier-Payments"});
     }
 }

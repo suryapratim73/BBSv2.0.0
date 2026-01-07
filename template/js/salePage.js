@@ -16,6 +16,7 @@ let nameDatalist = document.createElement("datalist"),
     payment = [],
     transporterDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
+    shipInfoDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
     bodyRow,timer,currentBillNo,
@@ -27,6 +28,7 @@ customerNameDatalist.id = "customer-names";
 unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
 availableBillNoDL.id = "available-bill-no-div";
+shipInfoDatalist.id = "ship-info-dl";
 
 const { unitMap = [],availableBillNo = [],gst:_gst } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
 
@@ -50,7 +52,7 @@ async function init(){
         unitDatalist.appendChild(option);
     });
     preset = await ipcRenderer.invoke("get-presets");
-    if(preset && preset?.target==="salePage"){
+    if(preset.mode==="edit-bill"){
         customer = preset.customer;
         if("billMeta" in preset){
             billMeta = {...preset.billMeta};
@@ -69,11 +71,9 @@ async function init(){
                 }
             });
     }
-    else
-        preset = undefined;
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
-    if(typeof preset!=="undefined" && preset?.target==="salePage")
+    if(preset.mode==="edit-bill")
         while(preset.currentStep>currentStep)
             document.querySelector(`[data-type="proceed"]`).click();
     document.body.appendChild(unitDatalist);
@@ -186,7 +186,7 @@ async function reInitFormData(){
                     if(preset.mode==="edit-bill")
                         input.setAttribute("disabled",true);
                 }
-                if(key==="billNo" && preset?.mode==="edit-bill")
+                if(key==="billNo" && preset.mode==="edit-bill")
                     input.setAttribute("disabled",true);
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
@@ -197,10 +197,17 @@ async function reInitFormData(){
                 main.querySelector("input[data-name='transportName']").value = obj.transportName;
                 main.querySelector("input[data-name='transportAddress']").value = obj.transportAddress ?? "";
                 main.querySelector("input[data-name='transportContact']").value = obj.transportContact ?? "";
+                main.querySelector("input[data-name='transportGST']").value = obj.transportGST ?? "";
             }
             else
-            if(preset?.target==="salePage" || obj.deliveryType==="hand")
+            if(preset.mode==="edit-bill" && obj.deliveryType==="hand")
                 main.querySelector("#delivery-mode option[value='hand']")?.setAttribute("selected",true);
+            else
+            if(preset.mode==="new-sale" && typeof obj.deliveryType==="undefined"){
+                main.querySelector("#delivery-mode option[value='transport']").setAttribute("selected",true);
+                assignDeliveryOptions({value:"transport"});
+            }
+
             //Step 4
             if(!("payment" in billMeta) || ("paymentStatus" in billMeta && billMeta.paymentStatus==false)) return;
             billMeta.payment?.forEach?.((payObj,i)=>{
@@ -227,17 +234,13 @@ async function mainForm(){
     let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
     document.querySelector("main").appendChild(page);
     if(currentStep===2){
-        billMeta.billDate = (typeof preset!="undefined" && preset.currentStep>2) ? billMeta.billDate : await ipcRenderer.invoke("get-date");
+        billMeta.billDate = (preset.mode==="edit-bill") ? billMeta.billDate : await ipcRenderer.invoke("get-date");
         document.querySelector(`[data-name="billDate"]`).valueAsDate = typeof billMeta.billDate==="string" ? new Date(billMeta.billDate) : billMeta.billDate;
         if(!page2initialized){
-            currentBillNo = (typeof preset != "undefined" && preset.currentStep>2) ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
+            currentBillNo = (preset.mode==="edit-bill") ? billMeta.billNo : (await ipcRenderer.invoke("get-sale-bill-number"));
             billMeta.billNo = currentBillNo;
             billMeta.billType = "regular";
             page2initialized = true;
-            if(typeof preset==="undefined"){
-                document.querySelector("#delivery-mode option[value='transport']").setAttribute("selected",true);
-                assignDeliveryOptions({value:"transport"});
-            }
         }
         else
             currentBillNo = billMeta.billNo;
@@ -246,10 +249,6 @@ async function mainForm(){
             input?.setAttribute("list","available-bill-no-div");
         }
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
-        document.querySelector('[data-name="shipTo"]').value = customer.name;
-        document.querySelector('[data-name="shipAddr"]').value = customer.address;
-        document.querySelector('[data-name="shipPh"]').value = customer.phones?.[0];
-        document.querySelector('[data-name="shipGST"]').value = customer.gst;
     }
     setFooter();
     if(currentStep===3){
@@ -355,29 +354,24 @@ function proceedOrFinishHandler(e){
                     let obj = await ipcRenderer.invoke("create-stock",itemObj);
                     itemObj.id = obj.id;
                 }
-                if(itemObj.sgst===0 && itemObj.igst===0 && itemObj.cgst===0){// No GST Check
+                if(itemObj.sgst===0 || itemObj.cgst===0 || itemObj.igst===0){// No GST Check
                     if(!igstFlag){// SGST CGST Case.
-                        itemObj.sgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).value);
-                        itemObj.cgst = Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="cgst"]`).value);
-                        if(typeof preset.default_gst!=="number" && itemObj.sgst==0){
+                        itemObj.sgst = itemObj.sgst==0 ? Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).value) : itemObj.sgst;
+                        itemObj.cgst = itemObj.cgst==0 ? Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="cgst"]`).value) : itemObj.cgst;
+                        if(typeof preset.default_gst!=="number" && (itemObj.sgst==0 || itemObj.cgst==0)){
                             nocFlag = false;
                             document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
                             showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
                         }
                         else
-                        if(itemObj.sgst==0 && preset.default_gst>0){
+                        if((itemObj.sgst==0 || itemObj.cgst==0) && preset.default_gst>0){
+                            console.log("No GST set, applying preset default gst",preset.default_gst);
                             itemObj.sgst = preset.default_gst/2;
                             itemObj.cgst = preset.default_gst/2;
                         }
-                        else
-                        if(itemObj.sgst==0 && preset.default_gst==0){
-                            nocFlag = false;
-                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="sgst"]`).focus();
-                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
-                        }
                     }
                     else{// IGST Case
-                        itemObj.igst =  Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).value);
+                        itemObj.igst = itemObj.igst==0 ? Number(document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).value) : itemObj.igst;
                         if(typeof preset.default_gst!=="number" && itemObj.igst==0){
                             nocFlag = false;
                             document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
@@ -386,12 +380,6 @@ function proceedOrFinishHandler(e){
                         else
                         if(itemObj.igst==0 && preset.default_gst>0)
                             itemObj.igst = preset.default_gst;
-                        else
-                        if(itemObj.igst==0 && preset.default_gst==0){
-                            nocFlag = false;
-                            document.querySelector(`.body.row[data-sell-id="${itemObj.sellId}"] input[data-name="igst"]`).focus();
-                            showToastNotification("Tax Rate cannot be 0.",["animation-common","move-left","red-toast-box"],document.body);
-                        }
                     }
                 }
                 if(itemObj.rate==0){// 0 Rate Check
@@ -684,23 +672,22 @@ ipcRenderer.on("print-obj",(e,printObj)=>{
         printObj,
         cond1: typeof preset!=="undefined" && preset?.target==="salePage",
         cond1a:typeof preset!=="undefined",
-        cond1b: preset?.target==="salePage"
+        cond1b: preset.target==="salePage"
     });
-    if(typeof preset!=="undefined" && preset?.target==="salePage" && preset.flag!=="new-bill"){
+    if(preset.target==="salePage" && preset.mode==="edit-bill"){
         ipcRenderer.send('cancel-sale-bill',currentStep);
         printObj.customer = customer;
-        return ipcRenderer.send("add-item-to-bill",preset?.itemList,orderItems,billMeta,customer,printObj);
+        return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer,printObj);
     }
     ipcRenderer.send("salepage-print-doc",{billMeta,customer,orderItems});
 });
 
-async function saveExit(){
-    let dbInitialized = await ipcRenderer.invoke("db-init-status");
-    if(typeof preset!=="undefined" && preset.target==="salePage" && preset.flag!=="new-bill"){
+function saveExit(){
+    if(preset.target==="salePage" && preset.mode==="edit-bill"){
         ipcRenderer.send('cancel-sale-bill',currentStep)
         return ipcRenderer.send("add-item-to-bill",preset.itemList,orderItems,billMeta,customer);
     }
-    if(dbInitialized)
+    if(preset.target==="salePage" && preset.mode==="new-sale")
         ipcRenderer.send("save-exit-sale-bill",{billMeta,customer,orderItems});
     else
         showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
@@ -718,7 +705,28 @@ function gstChecksum(gst){
     return regTest
 }
 
+function setShipInfo(e){
+    let val = e.target.value;
+    let option = shipInfoDatalist.querySelector(`option[value="${val}"]`);
+    let { shipAddr,shipPh,shipGST,shipTo } = {...option.dataset};
+    document.querySelector('[data-name="shipTo"]').value = shipTo;
+    document.querySelector('[data-name="shipAddr"]').value = shipAddr;
+    document.querySelector('[data-name="shipPh"]').value = shipPh;
+    document.querySelector('[data-name="shipGST"]').value = shipGST;
+}
+
 document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){
+        if(document.querySelector(".modal:not(.hide)")){
+            closeModal();
+            return;
+        }
+        let cancelBtn = document.querySelector('[data-type="cancel"]');
+        if(cancelBtn && !cancelBtn.classList.contains("hide")){
+            cancelBtn.click();
+        }
+    }
+    else
     if(e.ctrlKey && e.shiftKey && e.key==="Enter" && currentStep==2){
         assignDeliveryOptions({value:"hand"});
         document.querySelector("[data-type='proceed']").click();
@@ -731,14 +739,29 @@ document.addEventListener("keydown",e=>{
     if(e.ctrlKey && e.key==="Enter" && currentStep===4)
         document.querySelector('[data-type="save"]').click();
     else
+    if(e.ctrlKey && e.key==="s" && currentStep===4){
+        e.preventDefault();
+        document.querySelector('[data-type="save"]')?.click();
+    }
+    else
     if(e.ctrlKey && e.key==="ArrowLeft")
         document.querySelector('[data-type="back"]' && currentStep>1).click();
     else
     if(e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     else
+    if(e.key==="F2" && currentStep===2){
+        e.preventDefault();
+        document.querySelector('[data-type="select-bill-type"]')?.focus();
+    }
+    else
     if(e.shiftKey && e.key==="Delete")
         deleteRow();
+    else
+    if(e.ctrlKey && e.key==="d" && currentStep===3){
+        e.preventDefault();
+        deleteRow();
+    }
     else
     if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
         document.querySelector(`[data-type="print"]`).click();

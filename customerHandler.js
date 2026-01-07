@@ -1,6 +1,7 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require("electron");
 const { createModal, getMainWindow, getTargetWindow } = require("./createModal");
 const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stock, purchase } = require("./model/dbConfig");
+const { getTemplatePath } = require("./viewManager");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
 const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt } = require("./common");
@@ -26,7 +27,7 @@ exports.customerPortal = mainWindow =>{
             height: 600,
             parent:mainWindow
         }
-        let pathToHTML = "./template/html/customerPortal.html";
+        let pathToHTML = getTemplatePath("customerPortal");
         createModal(windowOptions,pathToHTML,{
             maxWinCount:1,
             label:"customer-portal",
@@ -498,7 +499,18 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
     Promise.all([
         //Sale Table update
         (()=>{
-            billObj.setBillValues = {billAmt,netAmt,tax};
+            billObj.setBillValues = {
+                billAmt,
+                netAmt,
+                tax,
+                shipTo:billMeta.shipTo,
+                shipAddr:billMeta.shipAddr,
+                shipPh:billMeta.shipPh,
+                shipGST:billMeta.shipGST,
+                ewayBill:billMeta.ewayBill,
+                placeOfSupply:billMeta.placeOfSupply,
+                stateNcode:billMeta.stateNcode
+            };
             return billObj.save();
         })(),
         // Customer Ledger update

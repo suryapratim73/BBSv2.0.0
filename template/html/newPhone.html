@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="../css/newPhone.css">
     <script src="../js/newPhone.js" defer></script>
 </head>
-<body>
+<body role="dialog" aria-modal="true" aria-labelledby="new-phone-heading">
     <form>
-        <div><label for="new-number">Phone</label></div>
+        <div><label for="new-number" id="new-phone-heading">Phone</label></div>
         <div><input type="text" id="new-number" name="new-number"></div>
-        <div><button type="submit">Add</button></div>
+        <div><button type="submit" data-msg="Add new phone number" class="hover bottom">Add</button></div>
     </form>
 </body>
 </html>
