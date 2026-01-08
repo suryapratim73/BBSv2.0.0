@@ -249,6 +249,12 @@ async function mainForm(){
             input?.setAttribute("list","available-bill-no-div");
         }
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
+        if(typeof customer.moreInfo.shipInfos==="undefined" || customer.moreInfo?.shipInfos?.length==0){
+            document.querySelector(`[data-name="shipTo"]`).value = customer.name;
+            document.querySelector(`[data-name="shipAddr"]`).value = customer.address ?? "";
+            document.querySelector(`[data-name="shipPh"]`).value = customer.phones?.[0] ?? "";
+            document.querySelector(`[data-name="shipGST"]`).value = customer.gst ?? "";
+        }
     }
     setFooter();
     if(currentStep===3){

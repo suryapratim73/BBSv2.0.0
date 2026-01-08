@@ -1,17 +1,11 @@
 {
-    "version":"2.21.0",
+    "version":"2.21.1",
     "highlights":[
-        "Added new Vision Manager",
-        "Fixed financial year dating issue",
-        "Added fileMonitoring service for bill printing reminder",
-        "0 tax rate issue fixed. Now 0% tax rate will only be applied if default tax rate is set to 0%",
-        "Added tooltip and aria tags fo screen readers"
+        "Emergency bugFix release: Fixed bill saving issue",
+        "Print dialog css Fixed"
     ],
     "fullchange":[
-        "Added new Vision Manager",
-        "Fixed financial year dating issue",
-        "Added fileMonitoring service for bill printing reminder",
-        "0 tax rate issue fixed. Now 0% tax rate will only be applied if default tax rate is set to 0%",
-        "Added tooltip and aria tags fo screen readers"
+        "Emergency bugFix release: Fixed bill saving issue",
+        "Print dialog css Fixed"
     ]
 }

@@ -247,13 +247,14 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             func:"save_exit - transporter findOrCreate"
         }));
     let match = await customer.findOne({where:{id:custId}});
+    // Saving new customer or updating existing customer - shipping info
     if(!match){// New customer block
         customerObj._type = "customer";
         let custObj = {
             ...customerObj,
             moreInfo:{
                 email,
-                shipInfos:[
+                shipInfos:billMeta.shipTo!=="" ? [
                     {
                         name:billMeta.shipTo,
                         shipTo:billMeta.shipTo,
@@ -261,7 +262,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                         shipPh:billMeta.shipPh,
                         shipGST:billMeta.shipGST
                     }
-                ]
+                ] : []
             }};
         Reflect.deleteProperty(custObj,"email");
         customerList.push(new People(custObj));
@@ -277,7 +278,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 gst,
                 moreInfo:{
                     email,
-                    shipInfos:[
+                    shipInfos:billMeta.shipTo!=="" ? [
                         {
                             name:billMeta.shipTo,
                             shipTo:billMeta.shipTo,
@@ -285,7 +286,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                             shipPh:billMeta.shipPh,
                             shipGST:billMeta.shipGST
                         }
-                    ]
+                    ] : []
                 }
             }
         })
@@ -299,7 +300,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     else{// Existing customer block
         let shipInfos = match.moreInfo?.shipInfos ?? [];// Existing customer shipping infos
         let shipInfoIndex = shipInfos.findIndex(obj=>obj.shipTo===billMeta.shipTo && obj.shipAddr===billMeta.shipAddr && obj.shipPh===billMeta.shipPh && obj.shipGST===billMeta.shipGST);
-        if(shipInfoIndex===-1){// New shipping info added for existing customer
+        if(shipInfoIndex===-1 && billMeta.shipTo!==""){// New shipping info added for existing customer only if not empty
             shipInfos.push({
                 name:billMeta.shipTo,
                 shipTo:billMeta.shipTo,
