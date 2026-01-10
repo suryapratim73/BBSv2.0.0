@@ -419,8 +419,8 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
 });
 
 ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
-    let {billNo,billDate,customerId:id,entryNo} = billMeta;
-    billNo = Number(billNo);
+    let { billNo,billDate } = process.presets.billMeta;
+    let {billNo:new_billNo,billDate:newBillDate,customerId:id,entryNo} = billMeta;
     let deltaList = [];
     if(typeof billDate==="object" && billDate instanceof Date){
         let dd = billDate.getDate()<10 ? "0"+billDate.getDate() : billDate.getDate();
@@ -470,6 +470,14 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         }
     });
     // Calculating Bill Item Deltas End
+    // Recreating Bill Item Table if Bill No or Bill Date changed
+    if(new_billNo!=billNo || newBillDate!=billDate){
+        await billItemModel.drop();
+        newBillDate = new Date(newBillDate);
+        newBillDate = `${newBillDate.getFullYear()}-${newBillDate.getMonth()+1}-${newBillDate.getDate()}`;
+        billItemModel = await getBillModel(id,new_billNo,newBillDate,billItemSchema);
+        await billItemModel.bulkCreate(olditemList);
+    }
     let { billAmt:_billAmt,netAmt:_netAmt,tax:_tax } =  olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
         let tax = igst>0 ? igst : 2*sgst;
         acc.netAmt += quantity*rate;
@@ -509,7 +517,10 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
                 shipGST:billMeta.shipGST,
                 ewayBill:billMeta.ewayBill,
                 placeOfSupply:billMeta.placeOfSupply,
-                stateNcode:billMeta.stateNcode
+                stateNcode:billMeta.stateNcode,
+                billDate:newBillDate,
+                billNo:new_billNo,
+                billItemTable:`${id}_${new_billNo}_${newBillDate}`
             };
             return billObj.save();
         })(),
@@ -582,7 +593,8 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             printObj = { captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}] };
         printObj.captions = captionReducer(printObj.captions);
         billMeta.printObj = printObj;
-        billMeta.billDate = billDate;
+        billMeta.billDate = newBillDate;
+        billMeta.billNo = new_billNo;
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:newitemList})
         if(printObj && Object.keys(printObj).length>1)
             print({printObj,path2pdf});
@@ -651,7 +663,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
     // console.log({billItems})
     return Promise.all([
         // Delete billItemModel
-        sequelize.dropSchema(`${id}_${billNo}_${billDate}`),
+        billItemModel.drop(),
         // Remove sale record
         sale.destroy({
             where:{

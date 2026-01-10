@@ -181,13 +181,8 @@ async function reInitFormData(){
                     else
                         main.querySelector("#bill-status-open").setAttribute("checked",true);
                 }
-                if(key==="billDate"){
+                if(key==="billDate")
                     input.valueAsDate = typeof obj.billDate==="string" ? new Date(obj.billDate) : obj.billDate;
-                    if(preset.mode==="edit-bill")
-                        input.setAttribute("disabled",true);
-                }
-                if(key==="billNo" && preset.mode==="edit-bill")
-                    input.setAttribute("disabled",true);
             }
             if(main.querySelector("#bill-number-regular") && obj.billType==="regular")
                 main.querySelector("#bill-number-regular").value = billMeta.billNo;

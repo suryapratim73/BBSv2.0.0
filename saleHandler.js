@@ -94,7 +94,8 @@ ipcMain.handle("get-sale-bill-number",()=>{
 });
 
 ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
-    if(currentStep>1 && process.presets?.target!="salePage")
+    console.log({currentStep});
+    if(currentStep>1 && process.presets.mode!="edit-bill")
         reduceBillNo();
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
