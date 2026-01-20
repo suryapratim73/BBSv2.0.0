@@ -1,13 +1,27 @@
 {
-    "version":"2.21.3",
+    "version":"2.21.4",
     "highlights":[
-        "Fixed bill cancelling issue",
-        "Cancel Bill now resets bill number as it should",
-        "Now Bill Number and Bill Date are editable in Edit Bill window"
+        "Optimised Bill Cancellation Process",
+        "Caching introduced for faster and snappy experience",
+        "Caching monitotred and restricted to avoid memory overload",
+        "Presenting only current financial year data",
+        "New setting to set place of jurisdiction in GST Invoice - Company Profile Setting",
+        "Improved GST checker",
+        "Added font-scaling for longer/shorter words in GST Invoice",
+        "Added keyboard shortcuts for faster billing",
+        "Added auto-assign stateNcode feild based on GSTIN",
+        "Various bug fixes and performance improvements"
     ],
     "fullchange":[
-        "Fixed bill cancelling issue",
-        "Cancel Bill now resets bill number as it should",
-        "Now Bill Number and Bill Date are editable in Edit Bill window"
+        "Optimised Bill Cancellation Process",
+        "Caching introduced for faster and snappy experience",
+        "Caching monitotred and restricted to avoid memory overload",
+        "Presenting only current financial year data",
+        "New setting to set place of jurisdiction in GST Invoice - Company Profile Setting",
+        "Improved GST checker",
+        "Added font-scaling for longer/shorter words in GST Invoice",
+        "Added keyboard shortcuts for faster billing",
+        "Added auto-assign stateNcode feild based on GSTIN",
+        "Various bug fixes and performance improvements"
     ]
 }

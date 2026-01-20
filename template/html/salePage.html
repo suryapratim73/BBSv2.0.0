@@ -21,7 +21,7 @@
                     <label for="name" class="highlight" id="page-1-title">Name: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
+                    <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -29,7 +29,7 @@
                     <label for="address" class="highlight">Address: </label>
                 </div>
                 <div class="row1">
-                    <input required id="address" type="text" name="address" data-name="address" />
+                    <input required id="address" type="text" name="address" data-name="address" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -37,7 +37,7 @@
                     <label for="phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" list="customer-phones" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" />
+                    <input type="text" list="customer-phones" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+?\d+ ?)*\d{4,5} *\d{4,5}" name="phones" data-name="phones" data-type="Number" id="phones" onkeypress="validateInput(event)" tabindex="0"/>
                     <button id="add-new-phone" type="button" tabindex="-1" onclick="addPhone(event)" aria-label="Add new phone number">+</button>
                 </div>
             </div>
@@ -46,7 +46,7 @@
                     <label for="email" class="highlight">Customer Email</label>
                 </div>
                 <div class="row1">
-                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="email" />
+                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="email" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -54,7 +54,7 @@
                     <label for="gst" class="highlight">GST Number</label>
                 </div>
                 <div class="row1">
-                    <input name="gst" onkeypress="upperCaseInput(event)" pattern="^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\w{1}Z\w{1}$" type="text" data-name="gst" id="gst" />
+                    <input name="gst" onkeypress="upperCaseInput(event)" pattern="^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\w{1}Z\w{1}$" type="text" data-name="gst" id="gst" tabindex="0"/>
                 </div>
             </div>
         </div>
@@ -66,7 +66,7 @@
                     <label for="billDate" class="highlight">Date: </label>
                 </div>
                 <div class="row1">
-                    <input type="date" id="billDate" required name="billDate" data-name="billDate"/>
+                    <input type="date" id="billDate" required name="billDate" data-name="billDate" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -74,7 +74,7 @@
                     <label for="orderRef" class="highlight">Order Reference:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="orderRef" name="orderRef" id="orderRef" placeholder="optional">
+                    <input type="text" data-name="orderRef" name="orderRef" id="orderRef" placeholder="optional" tabindex="0">
                 </div>
             </div>
             <div>
@@ -82,7 +82,7 @@
                     <label for="ewayBill" class="highlight">E-Way Bill:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="ewayBill" name="ewayBill" id="ewayBill" placeholder="optional">
+                    <input type="text" data-name="ewayBill" name="ewayBill" id="ewayBill" placeholder="optional" tabindex="0">
                 </div>
             </div>
             <div>
@@ -90,7 +90,7 @@
                     <label for="stateNcode" class="highlight">State & Code:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="stateNcode" name="stateNcode" id="stateNcode" placeholder="optional">
+                    <input type="text" data-name="stateNcode" name="stateNcode" id="stateNcode" placeholder="optional" tabindex="0">
                 </div>
             </div>
             <div>
@@ -98,7 +98,7 @@
                     <label for="placeOfSupply" class="highlight">Place Of Supply:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="placeOfSupply" name="placeOfSupply" id="placeOfSupply" placeholder="optional">
+                    <input type="text" data-name="placeOfSupply" name="placeOfSupply" id="placeOfSupply" placeholder="optional" tabindex="0">
                 </div>
             </div>
             <div>
@@ -109,11 +109,11 @@
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-type-regular">Regular: </label>
-                            <input type="radio" checked required data-name="billType" name="billType" id="bill-type-regular" value="regular" data-type="select-bill-type" />
+                            <input type="radio" checked required data-name="billType" name="billType" id="bill-type-regular" value="regular" data-type="select-bill-type" tabindex="0"/>
                         </div>
                         <div>
                             <label for="bill-type-monthly">Monthly: </label>
-                            <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" />
+                            <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" tabindex="0"/>
                         </div>
                     </div>
                 </div>
@@ -123,20 +123,20 @@
                     <label for="bill-number-regular" class="highlight">Bill Number: </label>
                 </div>
                 <div class="row1 bill-number regular">
-                    <input name="billNo" id="bill-number-regular" required type="text" data-name="billNo" />
+                    <input name="billNo" id="bill-number-regular" required type="text" data-name="billNo" tabindex="0"/>
                 </div>
                 <div class="row1 hide bill-number monthly">
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-number-reserve">Reserved: </label>
-                            <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" />
+                            <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" tabindex="0"/>
                         </div>
                         <div>
                             <label for="bill-number-spot">Spot: </label>
-                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" />
+                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" tabindex="0"/>
                         </div>
                         <div>
-                            <input type="checkbox" name="autoBill" data-name="autoBill" disabled id="auto-bill">
+                            <input type="checkbox" name="autoBill" data-name="autoBill" disabled id="auto-bill" tabindex="0">
                             <label for="auto-bill">Auto Bill</label>
                         </div>
                     </div>
@@ -150,11 +150,11 @@
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-status-open">Open: </label>
-                            <input type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" />
+                            <input type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" tabindex="0"/>
                         </div>
                         <div>
                             <label for="bill-status-close">Close: </label>
-                            <input type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" />
+                            <input type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" tabindex="0"/>
                         </div>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
                     <label for="ship-to" class="highlight">Ship to: </label>
                 </div>
                 <div class="row1">
-                    <input type="text" list="ship-info-dl" onchange="setShipInfo(event)" name="shipTo" id="ship-to" data-name="shipTo">
+                    <input type="text" list="ship-info-dl" onchange="setShipInfo(event)" name="shipTo" id="ship-to" data-name="shipTo" tabindex="0">
                 </div>
             </div>
             <div>
@@ -172,7 +172,7 @@
                     <label for="ship-addr" class="highlight">Shipping address</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="shipAddr" id="ship-addr" data-name="shipAddr">
+                    <input type="text" name="shipAddr" id="ship-addr" data-name="shipAddr" tabindex="0">
                 </div>
             </div>
             <div>
@@ -180,7 +180,7 @@
                     <label for="ship-phone" class="highlight">Consignee contact</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="shipPh" id="ship-phone" data-name="shipPh">
+                    <input type="text" name="shipPh" id="ship-phone" data-name="shipPh" tabindex="0">
                 </div>
             </div>
             <div>
@@ -188,7 +188,7 @@
                     <label for="ship-gst" class="highlight">Consignee GST</label>
                 </div>
                 <div class="row1">
-                    <input type="text" name="shipGST" id="ship-gst" data-name="shipGST">
+                    <input type="text" name="shipGST" id="ship-gst" data-name="shipGST" tabindex="0">
                 </div>
             </div>
             <div>
@@ -196,7 +196,7 @@
                     <label for="delivery-mode" class="highlight">Delivery Mode: </label>
                 </div>
                 <div class="row1">
-                    <select name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
+                    <select name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType" tabindex="0">
                         <option value="hand">Hand</option>
                         <option value="transport">Transport</option>
                     </select>
@@ -228,7 +228,7 @@
                 </div>
                 <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)" role="rowgroup">
                     <div class="row row-control-div" id="add-item">
-                        <button type="button" class="main-ui-btn hover left" onclick="addRow(event)" aria-label="Add new item row" data-msg="Add new item row (Ctrl++)">+</button>
+                        <button type="button" class="main-ui-btn hover bottom right" onclick="addRow(event)" aria-label="Add new item row" data-msg="Add new item row (Ctrl++)" tabindex="0">+</button>
                     </div>
                 </div>
             </div>
@@ -240,7 +240,7 @@
                 <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
                     <div id="payment-mode">
                         <label for="payment-mode">Select payment mode:</label>
-                        <select id="payment-mode" onchange="showPaymentMode(event)" aria-label="Select payment mode">
+                        <select id="payment-mode" onchange="showPaymentMode(event)" aria-label="Select payment mode" tabindex="0">
                             <option value="due" selected>Due</option>
                             <option value="cash">Cash</option>
                             <option value="check">Check</option>
@@ -250,33 +250,33 @@
                     <div id="cash-payment" class="hide payment-detail">
                         <div>
                             <p>Enter amount</p>
-                            <input data-type="Number" value="0" data-subtype="price" data-name="payment" />
+                            <input data-type="Number" value="0" data-subtype="price" data-name="payment" tabindex="0"/>
                         </div>
                     </div>
                     <div id="check-payment" class="hide payment-detail">
                         <div>
                             <p>Bank Name</p>
-                            <input type="text" data-name="bankName"/>
+                            <input type="text" data-name="bankName" tabindex="0"/>
                         </div>
                         <div>
                             <p>Bank Branch</p>
-                            <input type="text" data-name="bankBranch"/>
+                            <input type="text" data-name="bankBranch" tabindex="0"/>
                         </div>
                         <div>
                             <p>Account No.</p>
-                            <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                            <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)" tabindex="0"/>
                         </div>
                         <div>
                             <p>Check No.</p>
-                            <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                            <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)" tabindex="0"/>
                         </div>
                         <div>
                             <p>Amount paid</p>
-                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)" tabindex="0"/>
                         </div>
                         <div>
                             <p>Mark as paid</p>
-                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)" tabindex="0">
                                 <option value="false">No</option>
                                 <option value="true">Yes</option>
                             </select>
@@ -285,19 +285,19 @@
                     <div id="online-payment" class="hide payment-detail">
                         <div>
                             <p>Bank Name</p>
-                            <input type="text" data-name="bankName" />
+                            <input type="text" data-name="bankName" tabindex="0"/>
                         </div>
                         <div>
                             <p>Transaction Ref.</p>
-                            <input type="text" data-name="bankTrnRef" />
+                            <input type="text" data-name="bankTrnRef" tabindex="0"/>
                         </div>
                         <div>
                             <p>Amount paid</p>
-                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                            <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)" tabindex="0"/>
                         </div>
                         <div>
                             <p>Mark as paid</p>
-                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                            <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)" tabindex="0">
                                 <option value="false">No</option>
                                 <option value="true">Yes</option>
                             </select>
@@ -305,10 +305,10 @@
                     </div>
                 </div>
                 <div id="discount-div">
-                    <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
                 <div id="grp-btn-div">
-                    <button data-cmd="grp-item" disabled onclick="showItemMergeOpts()" type="button">Show Item Grouping Options</button>
+                    <button data-cmd="grp-item" disabled onclick="showItemMergeOpts()" type="button" tabindex="0">Show Item Grouping Options</button>
                 </div>
             </div>
             <div id="summary-div" role="region" aria-labelledby="bill-summary-label">
@@ -341,33 +341,33 @@
     </template>
     <template id="footer-template">
         <div id="btn-container">
-            <button type="button" data-type="cancel" onclick="cancelAction()" class="hide hover top right" data-msg="Cancel and close (Esc)">Cancel</button>
-            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide hover top right" data-msg="Go back to previous step (Ctrl+←)">Back</button>
-            <button type="submit" data-type="proceed" class="main-ui-btn hide hover top right" data-msg="Proceed to next step (Ctrl+Enter)">Proceed</button>
-            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide hover top right" data-msg="Cancel item grouping">Cancel Grouping</button>
-            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide hover top right" data-msg="Confirm item grouping">Done</button>
-            <button type="button" data-type="print" class="main-ui-btn hide hover top right" onclick="showPrintDialog()" data-msg="Print bill (Ctrl+P)">Print</button>
-            <button type="button" data-type="save" class="main-ui-btn hide hover top right" onclick="saveExit(event)" data-msg="Save and exit (Ctrl+Enter / Ctrl+S)">Save & Exit</button>
+            <button type="button" data-type="cancel" onclick="cancelAction()" class="hide hover top right" data-msg="Cancel and close (Esc)" tabindex="0">Cancel</button>
+            <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide hover top right" data-msg="Go back to previous step (Ctrl+←)" tabindex="0">Back</button>
+            <button type="submit" data-type="proceed" class="main-ui-btn hide hover top right" data-msg="Proceed to next step (Ctrl+Enter)" tabindex="0">Proceed</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide hover top right" data-msg="Cancel item grouping" tabindex="0">Cancel Grouping</button>
+            <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide hover top right" data-msg="Confirm item grouping" tabindex="0">Done</button>
+            <button type="button" data-type="print" class="main-ui-btn hide hover top right" onclick="showPrintDialog()" data-msg="Print bill (Ctrl+P)" tabindex="0">Print</button>
+            <button type="button" data-type="save" class="main-ui-btn hide hover top right" onclick="saveExit(event)" data-msg="Save and exit (Ctrl+Enter / Ctrl+S)" tabindex="0">Save & Exit</button>
         </div>
     </template>
     <template id="body-row-template">
-        <div class="body row">
+        <div class="body row" tabindex="0">
             <div class="col sm"><p>1</p></div>
-            <div class="col lg"><input type="text" data-name="name" list="stock-names" /></div>
-            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
-            <div class="col md"><input data-name="standardSellPrice" list="rate-list" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col lg"><input type="text" data-name="name" list="stock-names" tabindex="0"/></div>
+            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>
+            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>
+            <div class="col md"><input data-name="unit" type="text" list="unit-dl" tabindex="0"/></div>                            
+            <div class="col md"><input data-name="standardSellPrice" list="rate-list" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>                            
             <div class="col md"><p class="amt"></p></div>
-            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>                            
+            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>                            
+            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>                            
             <div class="col md"><p class="amt-with-tax"></p></div>
             <div class="desc-div hide">
-                <input type="text" data-name="desc" placeholder="Add product description">
+                <input type="text" data-name="desc" placeholder="Add product description" tabindex="0"/>
                 <div onclick="addDescToItem(event)">
-                    <button data-cmd="cnf" class="desc-cnf-btn">&#10004;</button>
-                    <button data-cmd="rej" class="desc-rej-btn">&#10060;</button>
+                    <button data-cmd="cnf" class="desc-cnf-btn hover top left" data-msg="Confirm description (Shift+Enter)" tabindex="-1">&#10004;</button>
+                    <button data-cmd="rej" class="desc-rej-btn hover top left" data-msg="Reject description (Shift+Del)" tabindex="-1">&#10060;</button>
                 </div>
             </div>
         </div>
@@ -427,7 +427,7 @@
                     <label for="transport-name" class="highlight">Transport Name: </label>
                 </div>
                 <div class="row1">
-                    <input id="transport-name" list="transport-dl" name="transportName" placeholder="compulsory feild" required type="text" data-name="transportName" />
+                    <input id="transport-name" list="transport-dl" name="transportName" placeholder="compulsory feild" required type="text" data-name="transportName" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -435,7 +435,7 @@
                     <label for="transport-address" class="highlight">Transport Address: </label>
                 </div>
                 <div class="row1">
-                    <input id="transport-address" name="transportAddress" type="text" data-name="transportAddress" />
+                    <input id="transport-address" name="transportAddress" type="text" data-name="transportAddress" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -443,7 +443,7 @@
                     <label for="transport-contact" class="highlight">Transport Contact: </label>
                 </div>
                 <div class="row1">
-                    <input name="transportContact" id="transport-contact" type="text" data-name="transportContact" />
+                    <input name="transportContact" id="transport-contact" type="text" data-name="transportContact" tabindex="0"/>
                 </div>
             </div>
             <div>
@@ -451,15 +451,15 @@
                     <label for="transport-gst" class="highlight">Transport GST: </label>
                 </div>
                 <div class="row1">
-                    <input id="transport-gst" name="transportGST" type="text" data-name="transportGST" />
+                    <input id="transport-gst" name="transportGST" type="text" data-name="transportGST" tabindex="0"/>
                 </div>
             </div>
         </div>
     </template>
     <template id="body-row-options-template">
         <div class="body-row-options">
-            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1" class="hover left" data-msg="Delete row (Shift+Del / Ctrl+D)">Delete Row</button>
-            <button data-cmd="desc-btn" type="button" tabindex="-1" class="hover left" data-msg="Add description (Shift+↓)">Add Description</button>
+            <button data-cmd="delete-row" onclick="deleteRow(event)" type="button" tabindex="-1" class="hover left" data-msg="Delete row (Shift+Del)">Delete Row</button>
+            <button data-cmd="desc-btn" type="button" tabindex="-1" class="hover left" data-msg="Add description (Shift+Insert)">Add Description</button>
         </div>
     </template>
     <template id="item-group-option-template">
@@ -468,13 +468,13 @@
             <p>Grouping items will reduce space space requirement in your bill page.</p>
             <div id="body">
                 <div>
-                    <input type="checkbox" name="allow-grp" id="allow-grp" onchange="revealMoreGrpOpts(event,1)">
+                    <input type="checkbox" name="allow-grp" id="allow-grp" onchange="revealMoreGrpOpts(event,1)" tabindex="0">
                     <label for="allow-grp">Allow grouping of items</label>
                 </div>
                 <div id="price-selector-div" class="hide">
                     <p>Select price</p>
                     <div>
-                        <select onchange="revealMoreGrpOpts(event,2)">
+                        <select onchange="revealMoreGrpOpts(event,2)" tabindex="0">
                             <option value="none">None</option>
                         </select>
                     </div>
@@ -485,13 +485,13 @@
                         <div id="old-item-host"></div>
                     </div>
                 </div>
-                <button id="create-grp-btn" class="hide" onclick="createNewGrp(event)" type="button">Create new group</button>
+                <button id="create-grp-btn" class="hide" onclick="createNewGrp(event)" type="button" tabindex="0">Create new group</button>
             </div>
         </div>
     </template>
     <template id="grp-item-template">
         <div class="item">
-            <input type="checkbox">
+            <input type="checkbox" tabindex="0">
             <p class="eq-space" data-name="name"></p>
             <p class="eq-space" data-name="qty"></p>
             <p class="eq-space" data-name="sellUnit"></p>
@@ -501,14 +501,33 @@
         <form onsubmit="addLabelToGrp(event)">
             <div>
                 <div>
-                    <input type="text" name="label" autofocus placeholder="Enter label of new group">
+                    <input type="text" name="label" autofocus placeholder="Enter label of new group" tabindex="0">
                 </div>
                 <div>
-                    <button type="button" onclick="closeModal()">Cancel Grouping</button>
-                    <button type="submit">Confirm Grouping</button>
+                    <button type="button" onclick="closeModal()" tabindex="0">Cancel Grouping</button>
+                    <button type="submit" tabindex="0">Confirm Grouping</button>
                 </div>
             </div>
         </form>
+    </template>
+    <template id="roll-text-template">
+        <div class="horizontal-scroll-list">
+            <ul>
+                <li>Available shortcuts:</li>
+                <li>Ctrl+'+': to add new row</li>
+                <li>Shift+Del: to delete selected row</li>
+                <li>Enter: Move focus to first input</li>
+                <li>Tab: Move focus to next input</li>
+                <li>Shift+Tab: Move focus to previous input</li>
+                <li>Ctrl+'R': to focus the current row</li>
+                <li>ArrowUp: Move focus to previous row</li>
+                <li>ArrowDown: Move focus to next row</li>
+                <li>Ctrl+Shift+(ArrowUP/ArrowDown): Move row up/down</li>
+                <li>Shift+Insert: Add description</li>
+                <li>Shift+Enter: Confirm description</li>
+                <li>Shift+Backspace: Remove description</li>
+            </ul>
+        </div>
     </template>
 </body>
 </html>

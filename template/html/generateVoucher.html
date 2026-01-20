@@ -14,31 +14,31 @@
         <div>
             <div>
                 <div><label for="name">Payee Name</label></div>
-                <div><input type="text" required id="name" name="name"></div>
+                <div><input type="text" required id="name" name="name" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="pay-date">Date</label></div>
-                <div><input type="date" required id="pay-date" name="pay-date"></div>
+                <div><input type="date" required id="pay-date" name="pay-date" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="pay-mode">Payment Mode</label></div>
                 <div onchange="changeFeilds(event)">
                     <label for="cash">Cash</label>
-                    <input type="radio" required id="cash" name="pay-mode" value="cash" checked>
+                    <input type="radio" required id="cash" name="pay-mode" value="cash" checked tabindex="0">
                     <label for="cheque">Cheque</label>
-                    <input type="radio" required id="cheque" name="pay-mode" value="cheque">
+                    <input type="radio" required id="cheque" name="pay-mode" value="cheque" tabindex="0">
                     <label for="net">Online</label>
-                    <input type="radio" required id="net" name="pay-mode" value="net">
+                    <input type="radio" required id="net" name="pay-mode" value="net" tabindex="0">
                 </div>
             </div>
             <div id="amt-div">
                 <div><label for="pay-amt">Amount</label></div>
-                <div><input type="text" required id="pay-amt" name="pay-amt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+                <div><input type="text" required id="pay-amt" name="pay-amt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"></div>
             </div>
         </div>
         <div>
-            <button type="submit" data-msg="Generate payment voucher" class="hover bottom">Generate</button>
-            <button type="button" onclick="ipcRenderer.send('close','Voucher-Generator')" data-msg="Close voucher generator" class="hover bottom">CLose</button>
+            <button type="submit" data-msg="Generate payment voucher" class="hover bottom" tabindex="0">Generate</button>
+            <button type="button" onclick="ipcRenderer.send('close','Voucher-Generator')" data-msg="Close voucher generator" class="hover bottom" tabindex="0">CLose</button>
         </div>
     </form>
     <template id="cheque-detail-template">
@@ -52,21 +52,21 @@
         </div>
         <div class="deletable">
             <div><label for="cheque-no">Cheque Number</label></div>
-            <div><input type="text" required id="cheque-no" name="cheque-no"></div>
+            <div><input type="text" required id="cheque-no" name="cheque-no" tabindex="0"></div>
         </div>
         <div class="deletable">
             <div><label for="cheque-date">Cheque Date</label></div>
-            <div><input type="date" required id="cheque-date" name="cheque-date"></div>
+            <div><input type="date" required id="cheque-date" name="cheque-date" tabindex="0"></div>
         </div>
     </template>
     <template id="net-detail-template">
         <div class="deletable">
             <div><label for="bank-name">Bank Name</label></div>
-            <div><input type="text" required id="bank-name" name="bank-name"></div>
+            <div><input type="text" required id="bank-name" name="bank-name" tabindex="0"></div>
         </div>
         <div class="deletable">
             <div><label for="bank-ac-no">Bank Account Number</label></div>
-            <div><input type="text" required id="bank-ac-no" name="bank-ac-no"></div>
+            <div><input type="text" required id="bank-ac-no" name="bank-ac-no" tabindex="0"></div>
         </div>
     </template>
 </body>

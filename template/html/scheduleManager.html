@@ -14,7 +14,7 @@
             <h2>Select a event to see more details/edit</h2>
             <div>
                 <h2>Schedules</h2>
-                <button onclick="ipcRenderer.send('call-scheduler');">+</button>
+                <button onclick="ipcRenderer.send('call-scheduler');" tabindex="0">+</button>
             </div>
             <div class="table" role="table" aria-label="Scheduled events table">
                 <div class="row head" role="row">
@@ -32,9 +32,9 @@
             <div id="host">
             </div>
             <div id="btn-container">
-                <button data-cmd="edit">Edit</button>
-                <button data-cmd="remove">Remove</button>
-                <button data-cmd="page-1">Back to Page-1</button>
+                <button data-cmd="edit" tabindex="0">Edit</button>
+                <button data-cmd="remove" tabindex="0">Remove</button>
+                <button data-cmd="page-1" tabindex="0">Back to Page-1</button>
             </div>
         </div>
     </template>
@@ -53,7 +53,7 @@
                         <labe for="label" class="highlight">Label of event</labe>
                     </div>
                     <div>
-                        <input type="text" name="label" id="label" required>
+                        <input type="text" name="label" id="label" required tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -61,7 +61,7 @@
                         <label for="time" class="highlight">Select Date and Time of event</label>
                     </div>
                     <div>
-                        <input type="datetime-local" name="time" id="time">
+                        <input type="datetime-local" name="time" id="time" tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -69,7 +69,7 @@
                         <label for="tag" class="highlight">Tag (optional)</label>
                     </div>
                     <div>
-                        <input type="text" name="tag" id="tag">
+                        <input type="text" name="tag" id="tag" tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -77,13 +77,13 @@
                         <label for="color" class="highlight">Head color</label>
                     </div>
                     <div>
-                        <input type="color" name="color" id="color">
+                        <input type="color" name="color" id="color" tabindex="0">
                     </div>
                 </div>
             </div>
             <div id="btn-container">
-                <button data-cmd="save" type="submit">Save</button>
-                <button data-cmd="page-1" type="button">Cancel</button>
+                <button data-cmd="save" type="submit" tabindex="0">Save</button>
+                <button data-cmd="page-1" type="button" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>

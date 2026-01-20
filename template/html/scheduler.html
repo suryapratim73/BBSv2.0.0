@@ -16,7 +16,7 @@
                 <labe for="label">Label of event</labe>
             </div>
             <div>
-                <input type="text" name="label" id="label" required>
+                <input type="text" name="label" id="label" required tabindex="0">
             </div>
         </div>
         <div id="type-card">
@@ -24,7 +24,7 @@
                 <label for="type">Select type of reminder</label>
             </div>
             <div>
-                <select name="type" id="type" data-cmd="type" required aria-label="Select reminder type">
+                <select name="type" id="type" data-cmd="type" required aria-label="Select reminder type" tabindex="0">
                     <option value="reminder">Reminder</option>
                     <!-- <option value="task">Task</option> -->
                     <option value="bill-payment">Bill Payment</option>
@@ -37,7 +37,7 @@
                 <label for="time">Select Date and Time of event</label>
             </div>
             <div>
-                <input type="datetime-local" required name="time" id="time">
+                <input type="datetime-local" required name="time" id="time" tabindex="0">
             </div>
         </div>
         <div>
@@ -45,7 +45,7 @@
                 <label for="tag">Tag (optional)</label>
             </div>
             <div>
-                <input type="text" name="tag" id="tag">
+                <input type="text" name="tag" id="tag" tabindex="0">
             </div>
         </div>
         <div>
@@ -53,12 +53,12 @@
                 <label for="color">Head color</label>
             </div>
             <div>
-                <input type="color" name="color" id="color">
+                <input type="color" name="color" id="color" tabindex="0">
             </div>
         </div>
         <div class="btn-container">
-            <button data-cmd="save" type="submit">Save</button>
-            <button data-cmd="cancel" type="button">Cancel</button>
+            <button data-cmd="save" type="submit" tabindex="0">Save</button>
+            <button data-cmd="cancel" type="button" tabindex="0">Cancel</button>
         </div>
     </form>
     <template id="reminder-template">
@@ -67,7 +67,7 @@
                 <label for="note">Add note (optional)</label>
             </div>
             <div>
-                <textarea name="note" id="note" style="resize: none;" ></textarea>
+                <textarea name="note" id="note" style="resize: none;" tabindex="0" ></textarea>
             </div>
         </div>
     </template>
@@ -77,7 +77,7 @@
                 <label for="billType">Select</label>
             </div>
             <div>
-                <select name="billType" id="billType" data-cmd="billType">
+                <select name="billType" id="billType" data-cmd="billType" tabindex="0">
                     <option value="sales-select">Sale</option>
                     <option value="purchase-select">Purchase</option>
                 </select>

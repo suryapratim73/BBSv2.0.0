@@ -94,3 +94,11 @@ ipcRenderer.on("frame-id",(e,id,_uid)=>{
     frameId = id;
     uid = _uid;
 });
+
+document.addEventListener("keydown",(e)=>{
+    if(e.ctrlKey && e.key==="Enter")
+        document.querySelector(".main-ui-btn").click();
+    else 
+    if(e.key==="Escape")
+        ipcRenderer.send("close","Custom-Print-Dialog"+(uid ?? ""));
+});

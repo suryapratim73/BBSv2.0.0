@@ -1,12 +1,11 @@
-const {BrowserWindow, ipcMain, dialog} = require("electron");
-const { People, appLogger } = require("./common");
+const {BrowserWindow, ipcMain, dialog, app} = require("electron");
+const { People, appLogger, getFivePercentOfMemory, queryStock } = require("./common");
 const { createModal } = require("./createModal");
 const { getTemplatePath } = require("./viewManager");
 const {stock} = require("./model/dbConfig");
 
 
-let stockList = [],
-    windowOptions = {
+let windowOptions = {
         width: 800,
         height: 600
     };
@@ -52,7 +51,7 @@ ipcMain.on("update-stock",async (e,itemObj)=>{
             message: "Stock information updated successfully."
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        let stock = stockList.find(obj=>obj.id===id);
+        let stock = global.stocks.find(obj=>obj.id===id);
         stock.name = name;
         stock.hsn = hsn;
         stock.standardSellPrice = standardSellPrice;
@@ -65,48 +64,18 @@ ipcMain.on("update-stock",async (e,itemObj)=>{
 });
 
 ipcMain.handle("get-stock-names",()=>{
-    return queryStock(["name","id"]);
+    return queryStock(stock,["name","id"],appLogger,getFivePercentOfMemory);
 });
 
-async function queryStock(attributes){
-    try{
-        if(stockList.length===0)      
-            (await (await stock.sync()).findAll())
-            .map(({dataValues})=>dataValues)
-            .forEach(obj=>{
-                obj._type = "stock";
-                stockList.push(new People(obj));
-            });
-        if(typeof attributes==="object"){
-            return stockList.map(stockObj=>{
-                let tempObj = {}
-                for(let key in stockObj)
-                    if(attributes.includes(key))
-                        tempObj[key] = stockObj[key];
-                return tempObj;
-            })
-        }
-        else{
-            return stockList
-        }
-    }
-    catch(err){
-        appLogger({
-            title:"Error",
-            message:err.message
-        })
-        return stockList
-    }
-}
 
 ipcMain.handle("get-stocks",()=>{
-    return queryStock();
+    return queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
 });
 
 ipcMain.handle("get-more-info-on-selected-stock",async (e,id)=>{
-    if(stockList.length===0)
-        await queryStock();
-    return stockList.find(obj=>obj.id===id);
+    if(typeof global.stocks==="undefined")
+        await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
+    return global.stocks.find(obj=>obj.id===id);
 });
 
 ipcMain.handle("create-stock",async (e,itemObj)=>{
@@ -174,14 +143,11 @@ ipcMain.on("save-stock-info",async (e,id,updateObj)=>{
 })
 
 ipcMain.handle("refresh-stocklist",()=>{
-    stockList = [];
-    return queryStock();
+    global.stocks = undefined;
+    return queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
 });
 
 ipcMain.on("refresh-stocklist",()=>{
-    stockList = [];
-    return queryStock();
+    global.stocks = undefined;
+    return queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
 });
-
-exports.stockList = stockList;
-exports.queryStock = queryStock;

@@ -33,7 +33,7 @@
                     <h2>Overview</h2>
                     <div id="sale-purchase-btn-div">
                         <div>
-                            <button onclick="ipcRenderer.send('open-bills-folder')" data-msg="Open bills folder" class="hover bottom">Bills </button>
+                            <button onclick="ipcRenderer.send('open-bills-folder')" data-msg="Open bills folder" class="hover bottom" tabindex="0">Bills </button>
                             <button onclick="ipcRenderer.send('new-sale-purchase',1)" data-msg="Create a new sale" class="hover bottom">Create Sale</button>
                             <button class="fa-sharp fa-solid fa-caret-down drop-down-btn" onclick="document.querySelector('.drop-down').classList.toggle('hide');" aria-label="Show more sale options" aria-expanded="false" aria-controls="sale-dropdown"></button>
                             <div>
@@ -50,7 +50,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button onclick="ipcRenderer.send('new-sale-purchase',2)" data-msg="Register a new purchase" class="hover bottom">Register Purchase</button>
+                        <button onclick="ipcRenderer.send('new-sale-purchase',2)" data-msg="Register a new purchase" class="hover bottom" tabindex="0">Register Purchase</button>
                     </div>
                 </div>
                 <div id="mode-host" oncontextmenu="showContextMenu(event)">
@@ -66,7 +66,7 @@
                 </div>
                 <div id="notification-div" class="hide-scrollbar" onclick="notificationAction(event)"></div>
                 <div class="btn-div">
-                    <button data-cmd="clear" data-msg="Clear all notifications" class="hover left">Clear</button>
+                    <button data-cmd="clear" data-msg="Clear all notifications" class="hover left" tabindex="0">Clear</button>
                 </div>
             </div>
         </div>
@@ -89,7 +89,7 @@
                 <div class="table" id="expired-bill-table-div">
                     <div>
                         <h3>Expired Bills</h3>
-                        <select name="finYear" id="fin-year" onchange="overviewPageInit()">
+                        <select name="finYear" id="fin-year" onchange="overviewPageInit()" tabindex="0">
                             <option value="0" selected>Current Financial Year</option>
                             <option value="1">Last Financial Year</option>
                             <option value="2">All Financial Year</option>
@@ -125,7 +125,7 @@
                             </div>
                         </div>
                         <div class="btn-container">
-                            <button data-cmd="call-scheduler" data-msg="Add New Event" class="hover right top">+</button>
+                            <button data-cmd="call-scheduler" data-msg="Add New Event" class="hover right top" tabindex="0">+</button>
                         </div>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
     <template id="quick-host-template">
         <div id="quick-host">
             <div>
-                <button onclick="backAction(event)" class="main-ui-btn" data-msg="Go back" class="hover top">
+                <button onclick="backAction(event)" class="main-ui-btn" data-msg="Go back" class="hover top" tabindex="0">
                     <i class="fa-solid fa-arrow-left"></i>
                     Back
                 </button>
@@ -171,7 +171,6 @@
                         <i data-msg="Change widget" class="hover">&#8635;</i>
                     </div>
                     <div class="hide" id="context-options" onclick="updateSaleOverviewPreference(event)">
-                        <p data-name="orderQueue">Order Queues</p>
                         <p data-name="monthly1x">Monthly Sale - Current Month</p>
                         <p data-name="monthly3x">Monthly Sale - Last 3 Months</p>
                     </div>
@@ -185,7 +184,7 @@
                     </div>
                     <div>
                         <label>Change chart period</label>
-                        <select onchange="updateChart(event,'#sale-graph')">
+                        <select onchange="updateChart(event,'#sale-graph')" tabindex="0">
                             <option value="year" data-mode="3">Year</option>
                             <option value="month" data-mode="2">Month</option>
                             <option value="day" data-mode="1" selected>Day</option>
@@ -206,11 +205,6 @@
                 </div>
                 <div class="tbody hide-scrollbar"></div>
             </div>
-        </div>
-    </template>
-    <template id="order-queue-container-template">
-        <div id="order-queue-container" class="widget" onclick="slideQueueCard(event)">
-            <h3>Order Queues</h3>
         </div>
     </template>
     <template id="purchase-page-template">
@@ -235,7 +229,7 @@
                         <canvas id="purchase-graph"></canvas>
                     </div>
                     <div><label>Change chart period</label>
-                        <select onchange="updateChart(event,'#purchase-graph')">
+                        <select onchange="updateChart(event,'#purchase-graph')" tabindex="0">
                             <option value="year" data-mode="3">Year</option>
                             <option value="month" data-mode="2">Month</option>
                             <option value="day" data-mode="1" selected>Day</option>
@@ -295,14 +289,14 @@
             <div>
                 <div>
                     <div>
-                        <button class="main-ui-btn hover bottom" type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled data-msg="Enable two-factor authentication for added security">Enable 2-Factor Authentication</button>
+                        <button class="main-ui-btn hover bottom" type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled data-msg="Enable two-factor authentication for added security" tabindex="0">Enable 2-Factor Authentication</button>
                     </div>
                 </div>
                 <div>
                     <div>
-                        <button type="submit" class="main-ui-btn hover bottom" id="done-btn" disabled data-msg="Save 2FA settings">Done</button>
-                        <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
-                        <button type="button" id="disable-2-factor" disabled data-cmd="disable-2-factor" data-show="app-settings" data-msg="Disable two-factor authentication" class="hover bottom">Disable 2-Factor Authentication</button>
+                        <button type="submit" class="main-ui-btn hover bottom" id="done-btn" disabled data-msg="Save 2FA settings" tabindex="0">Done</button>
+                        <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
+                        <button type="button" id="disable-2-factor" disabled data-cmd="disable-2-factor" data-show="app-settings" data-msg="Disable two-factor authentication" class="hover bottom" tabindex="0">Disable 2-Factor Authentication</button>
                     </div>
                 </div>
             </div>
@@ -318,14 +312,14 @@
             <div>
                 <div><label for="file-path">Choose a image file</label></div>
                 <div>
-                    <input type="text" name="filePath" id="file-path">
-                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Select lock screen image">Choose</button>
+                    <input type="text" name="filePath" id="file-path" tabindex="0">
+                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Select lock screen image" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
                 <div><label for="usePasswd">Use password</label></div>
                 <div>
-                    <select name="usePasswd" id="usePasswd">
+                    <select name="usePasswd" id="usePasswd" tabindex="0">
                         <option value="true">Yes</option>
                         <option value="false" selected>No</option>
                     </select>
@@ -334,7 +328,7 @@
             <div>
                 <div><label for="lockOnIdle">Lock on idle</label></div>
                 <div>
-                    <select name="lockOnIdle" id="lockOnIdle" data-target="idleTime">
+                    <select name="lockOnIdle" id="lockOnIdle" data-target="idleTime" tabindex="0">
                         <option value="true">Yes</option>
                         <option value="false" selected>No</option>
                     </select>
@@ -343,12 +337,12 @@
             <div>
                 <div><label for="idleTime">Idle trigger time</label></div>
                 <div>
-                    <input type="text" name="idleTime" id="idleTime" placeholder="Time in minutes" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    <input type="text" name="idleTime" id="idleTime" placeholder="Time in minutes" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save lock screen settings">Save</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save lock screen settings" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -356,26 +350,26 @@
         <form onsubmit="saveSettings(event)" id="add-user" data-cmd="add-user" data-show="app-settings">
             <div>
                 <div><label for="name">Username</label></div>
-                <div><input type="text" name="name" id="name" required></div>
+                <div><input type="text" name="name" id="name" required tabindex="0"></div>
             </div>
             <div>
                 <div><label for="passwd">Password</label></div>
                 <div>
-                    <input type="password" name="passwd" id="password" required>
+                    <input type="password" name="passwd" id="password" required tabindex="0">
                     <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
                 </div>
             </div>
             <div>
                 <div><label for="re-passwd">Confirm password</label></div>
                 <div>
-                    <input type="password" name="re-passwd" id="re-passwd" required>
+                    <input type="password" name="re-passwd" id="re-passwd" required tabindex="0">
                     <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
                 </div>
             </div>
             <div id="add-user-role-div">
                 <div><label for="role"></label></div>
                 <div>
-                    <select name="role" id="role">
+                    <select name="role" id="role" tabindex="0">
                         <option value="all" selected>All</option>
                         <option value="bill">Billing</option>
                         <option value="purchase">Purchase</option>
@@ -384,8 +378,8 @@
             </div>
             <div>
                 <div>
-                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Register new user">Register</button>
-                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Register new user" tabindex="0">Register</button>
+                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
             </div>
         </form>
@@ -395,7 +389,7 @@
             <div>
                 <div>
                     <label>App session</label>
-                    <button class="main-ui-btn hover bottom" type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference" data-msg="Toggle session management">Enable</button>
+                    <button class="main-ui-btn hover bottom" type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference" data-msg="Toggle session management" tabindex="0">Enable</button>
                 </div>
             </div>
             <div class="hide" id="session-management-div">
@@ -404,7 +398,7 @@
                         <label for="expiry">Set session expiry</label>
                     </div>
                     <div>
-                        <select name="expiry" id="expiry">
+                        <select name="expiry" id="expiry" tabindex="0">
                             <option value="1" selected>1 Hour</option>
                             <option value="3">3 Hours</option>
                             <option value="5">5 Hours</option>
@@ -415,8 +409,8 @@
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save session settings">Done</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save session settings" tabindex="0">Done</button>
+                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -427,7 +421,7 @@
                     <label for="apply-theme">Select theme</label>
                 </div>
                 <div>
-                    <select name="applyTheme" id="apply-theme" data-target="choosefile" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()">
+                    <select name="applyTheme" id="apply-theme" data-target="choosefile" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" tabindex="0">
                         <option value="false">Default</option>
                         <option value="true">Choose a file</option>
                     </select>
@@ -438,23 +432,23 @@
                     <label for="file">Select a file</label>
                 </div>
                 <div>
-                    <input type="text" name="file" id="file">
-                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Theme File',extensions:['bbstheme']})" data-msg="Select theme file">Choose</button>
+                    <input type="text" name="file" id="file" tabindex="0">
+                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Theme File',extensions:['bbstheme']})" data-msg="Select theme file" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
                 <div>
                     <label for="useDarkTheme">Use dark theme</label>
-                    <input type="checkbox" name="useDarkTheme" id="useDarkTheme">
+                    <input type="checkbox" name="useDarkTheme" id="useDarkTheme" tabindex="0">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="button" data-show="app-settings" data-cmd="advance-theming" data-msg="Open advanced theme customization">Advance theming options</button>
+                <button class="main-ui-btn hover bottom" type="button" data-show="app-settings" data-cmd="advance-theming" data-msg="Open advanced theme customization" tabindex="0">Advance theming options</button>
             </div>
             <div>
                 <div>
-                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save appearance settings">Save</button>
-                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save appearance settings" tabindex="0">Save</button>
+                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
             </div>
         </form>
@@ -467,25 +461,25 @@
                     <div>
                         <div>
                             <label for="primary">Primary color</label>
-                            <input type="color" name="primary" id="primary">
+                            <input type="color" name="primary" id="primary" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="secondary">Secondary color</label>
-                            <input type="color" name="secondary" id="secondary">
+                            <input type="color" name="secondary" id="secondary" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="font">Font color</label>
-                            <input type="color" name="text" id="font">
+                            <input type="color" name="text" id="font" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="shadow">Shadow color</label>
-                            <input type="color" name="shadow" id="shadow">
+                            <input type="color" name="shadow" id="shadow" tabindex="0">
                         </div>
                     </div>
                 </div>
@@ -494,25 +488,25 @@
                     <div>
                         <div>
                             <label for="dark-primary">Primary color</label>
-                            <input type="color" name="darkPrimary" id="dark-primary">
+                            <input type="color" name="darkPrimary" id="dark-primary" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="dark-secondary">Secondary color</label>
-                            <input type="color" name="darkSecondary" id="dark-secondary">
+                            <input type="color" name="darkSecondary" id="dark-secondary" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="dark-font">Font color</label>
-                            <input type="color" name="darkText" id="dark-font">
+                            <input type="color" name="darkText" id="dark-font" tabindex="0">
                         </div>
                     </div>
                     <div>
                         <div>
                             <label for="dark-shadow">Shadow color</label>
-                            <input type="color" name="darkShadow" id="dark-shadow">
+                            <input type="color" name="darkShadow" id="dark-shadow" tabindex="0">
                         </div>
                     </div>
                 </div>
@@ -520,13 +514,13 @@
             <div>
                 <div>
                     <label for="applyGradient">Apply gradient color</label>
-                    <input type="checkbox" name="applyGradient" id="applyGradient" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="applyGradient" id="applyGradient" onclick="event.stopPropagation()" tabindex="0">
                 </div>
             </div>
             <div>
                 <div>
                     <label for="applyBackgroundImage">Apply background image</label>
-                    <input type="checkbox" data-target="choosefile" name="applyBackgroundImage" id="applyBackgroundImage" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()">
+                    <input type="checkbox" data-target="choosefile" name="applyBackgroundImage" id="applyBackgroundImage" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" tabindex="0">
                 </div>
             </div>
             <div class="hide" data-show="choosefile">
@@ -534,15 +528,15 @@
                     <label for="file">Select a file</label>
                 </div>
                 <div>
-                    <input type="text" name="file" id="file">
-                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Image File',extensions:['svg','jpg','png']})" data-msg="Select background image">Choose</button>
+                    <input type="text" name="file" id="file" tabindex="0">
+                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Image File',extensions:['svg','jpg','png']})" data-msg="Select background image" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
                 <div>
-                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save theme customizations">Save</button>
-                    <button type="button" data-cmd="back-page1" data-show="page1" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
-                    <button type="button" data-cmd="reset-color" data-msg="Reset to default colors" class="hover bottom">Reset colors</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save theme customizations" tabindex="0">Save</button>
+                    <button type="button" data-cmd="back-page1" data-show="page1" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
+                    <button type="button" data-cmd="reset-color" data-msg="Reset to default colors" class="hover bottom" tabindex="0">Reset colors</button>
                 </div>
             </div>
         </form>
@@ -551,33 +545,33 @@
         <form onsubmit="saveSettings(event)" id="update-user" data-cmd="update-user" data-show="app-settings">
             <div>
                 <div><label for="name">Select user</label></div>
-                <div><input type="text" id="name-2" name="name" list="user-list"></div>
+                <div><input type="text" id="name-2" name="name" list="user-list" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="old-password">Enter existing password</label></div>
                 <div>
-                    <input type="password" name="old-password" id="old-password">
+                    <input type="password" name="old-password" id="old-password" tabindex="0">
                     <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility" class="hover right">Show</button>
                 </div>
             </div>
             <div>
                 <div><label for="password">Enter new password</label></div>
                 <div>
-                    <input type="password" name="password" id="password">
+                    <input type="password" name="password" id="password" tabindex="0">
                     <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
                 </div>
             </div>
             <div>
                 <div><label for="re-password">Re-enter password</label></div>
                 <div>
-                    <input type="password" name="re-password" id="re-password">
+                    <input type="password" name="re-password" id="re-password" tabindex="0">
                     <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
                 </div>
             </div>
             <div id="role-div">
                 <div><label for="role">Role</label></div>
                 <div>
-                    <select name="role" id="role">
+                    <select name="role" id="role" tabindex="0">
                         <option value="all" selected>All</option>
                         <option value="bill">Billing</option>
                         <option value="purchase">Purchase</option>
@@ -585,8 +579,8 @@
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save user changes">Save</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save user changes" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -596,21 +590,21 @@
             <div>
                 <div>
                     <label for="db">Database</label>
-                    <input type="checkbox" class="item" name="db" id="db">
+                    <input type="checkbox" class="item" name="db" id="db" tabindex="0">
                 </div>
                 <div>
                     <label for="logs">Log fles</label>
-                    <input type="checkbox" class="item" name="logs" id="logs">
+                    <input type="checkbox" class="item" name="logs" id="logs" tabindex="0">
                 </div>
                 <div>
                     <label for="config">Cofiguration files</label>
-                    <input type="checkbox" class="item" name="config" id="config">
+                    <input type="checkbox" class="item" name="config" id="config" tabindex="0">
                 </div>
             </div>
             <div>
                 <div>
                     <label for="archieve">Create ZIP of backup</label>
-                    <input type="checkbox" name="archieve" id="archieve">
+                    <input type="checkbox" name="archieve" id="archieve" tabindex="0">
                 </div>
             </div>
             <div>
@@ -618,15 +612,15 @@
                     <label for="mode">Backup mode</label>
                 </div>
                 <div>
-                    <select name="mode" id="mode">
+                    <select name="mode" id="mode" tabindex="0">
                         <option value="local">Local</option>
                         <option value="cloud">Cloud</option>
                     </select>
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Create backup of selected items">Create backup</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Create backup of selected items" tabindex="0">Create backup</button>
+                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -639,12 +633,12 @@
                         <label for="gst">Enter your GST  </label>
                     </div>
                     <div>
-                        <input type="text" name="gst" id="gst">
+                        <input type="text" name="gst" id="gst" tabindex="0">
                     </div>
                 </div>
                 <div>
-                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Register and proceed to payment">Register & Pay</button>
-                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Register and proceed to payment" tabindex="0">Register & Pay</button>
+                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
             </div>
             <div>
@@ -656,25 +650,13 @@
     <template id="item-list-template">
         <div class="item-obj">
             <div>
-                <input type="checkbox">
+                <input type="checkbox" tabindex="0">
             </div>
             <div>
                 <span data-colname="name"></span>
                 <span data-colname="quantity"></span>
                 <span data-colname="unit"></span>
             </div>
-        </div>
-    </template>
-    <template id="order-queue-template">
-        <div class="oder-queue-div">
-            <div>
-                <div class="bill-header">
-                    <p>Bill Number: <span data-colname="billNo" class="highlight"></span></p>
-                    <p>Customer Name: <span data-colname="name" class="highlight"></span></p>
-                </div>
-                <button class="main-ui-btn hover left" data-translate="translate-right" data-msg="View order details">></button>
-            </div>
-            <div class="bill-item-div"></div>
         </div>
     </template>
     <template id="bill-template-template">
@@ -684,7 +666,7 @@
                     <label for="applyTemplate">Choose template</label>
                 </div>
                 <div>
-                    <select name="applyTemplate" data-cmd="applyTemplate" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                    <select name="applyTemplate" data-cmd="applyTemplate" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template" tabindex="0">
                         <option value="default1" selected>Default 1</option>
                         <option value="default2">Default 2</option>
                         <option value="choosefile">Choose a file</option>
@@ -696,8 +678,8 @@
                     <label for="file">Select a file</label>
                 </div>
                 <div>
-                    <input type="text" name="file" id="file">
-                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})" data-msg="Select template file">Choose</button>
+                    <input type="text" name="file" id="file" tabindex="0">
+                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})" data-msg="Select template file" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
@@ -705,7 +687,7 @@
                     <label for="applyEmblem">Use Emblem</label>
                 </div>
                 <div>
-                    <select name="applyEmblem" data-cmd="applyEmblem" data-target="choosefile-2" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                    <select name="applyEmblem" data-cmd="applyEmblem" data-target="choosefile-2" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template" tabindex="0">
                         <option value="false" selected>No</option>
                         <option value="choosefile-2">Choose a file</option>
                     </select>
@@ -716,7 +698,7 @@
                     <label for="applySeal">Use Seal</label>
                 </div>
                 <div>
-                    <select name="applySeal" data-cmd="applySeal" data-target="choosefile-3" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template">
+                    <select name="applySeal" data-cmd="applySeal" data-target="choosefile-3" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template" tabindex="0">
                         <option value="false" selected>No</option>
                         <option value="choosefile-3">Choose a file</option>
                     </select>
@@ -727,8 +709,8 @@
                     <label for="file-2">Select a file</label>
                 </div>
                 <div>
-                    <input type="text" name="emblem" id="file-2">
-                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})" data-msg="Select emblem image">Choose</button>
+                    <input type="text" name="emblem" id="file-2" tabindex="0">
+                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})" data-msg="Select emblem image" tabindex="0">Choose</button>
                 </div>
             </div>
             <div class="hide" data-show="choosefile-3">
@@ -736,8 +718,8 @@
                     <label for="file-3">Select a file</label>
                 </div>
                 <div>
-                    <input type="text" name="seal" id="file-3">
-                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})" data-msg="Select seal image">Choose</button>
+                    <input type="text" name="seal" id="file-3" tabindex="0">
+                    <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'Images',extensions:['jpg', 'png', 'gif','svg']})" data-msg="Select seal image" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
@@ -746,20 +728,20 @@
             <div class="half-width">
                 <div>
                     <label for="caption-1">First copy</label>
-                    <input type="text" name="first" id="caption-1">
+                    <input type="text" name="first" id="caption-1" tabindex="0">
                 </div>
                 <div>
                     <label for="caption-2">Second copy</label>
-                    <input type="text" name="second" id="caption-2">
+                    <input type="text" name="second" id="caption-2" tabindex="0">
                 </div>
                 <div>
                     <label for="caption-3">Third copy</label>
-                    <input type="text" name="third" id="caption-3">
+                    <input type="text" name="third" id="caption-3" tabindex="0">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save bill template settings">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save bill template settings" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -770,7 +752,7 @@
                     <label for="fin-start">Financial year start Date</label>
                 </div>
                 <div>
-                    <select name="financialYearStartDate" id="fin-start">
+                    <select name="financialYearStartDate" id="fin-start" tabindex="0">
                         <option value="01-03">1st of April</option>
                         <option value="01-00">1st of January</option>
                     </select>
@@ -781,7 +763,7 @@
                     <label for="gst-interval">GST Filing Interval</label>
                 </div>
                 <div>
-                    <select name="gstInterval" id="gst-interval">
+                    <select name="gstInterval" id="gst-interval" tabindex="0">
                         <option value="1">Monthly</option>
                         <option value="3">Quaterly</option>
                     </select>
@@ -792,7 +774,7 @@
                     <label for="gst-default">Default GST Rate</label>
                 </div>
                 <div>
-                    <select name="default_gst" id="gst-default">
+                    <select name="default_gst" id="gst-default" tabindex="0">
                         <option value="0">0%</option>
                         <option value="5">5%</option>
                         <option value="12">12%</option>
@@ -802,8 +784,8 @@
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save GST settings">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save GST settings" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -815,12 +797,12 @@
                         <label for="add-date">Add Annual Holidays</label>
                     </div>
                     <div>
-                        <input type="date" id="add-date">
-                        <button type="button" data-cmd="annualHolidays" data-msg="Add date to annual holidays list" class="hover bottom">Add To Annual Holidays</button>
+                        <input type="date" id="add-date" tabindex="0">
+                        <button type="button" data-cmd="annualHolidays" data-msg="Add date to annual holidays list" class="hover bottom" tabindex="0">Add To Annual Holidays</button>
                     </div>
                 </div>
                 <div id="annualHolidays" class="right-sec">
-                    <textarea name="annualHolidays" id="annualHolidays-textarea" spellcheck="false" placeholder="Write comma separated dates in dd/mm/yyyy. Note any invalid entries will be scrapped."></textarea>
+                    <textarea name="annualHolidays" id="annualHolidays-textarea" spellcheck="false" placeholder="Write comma separated dates in dd/mm/yyyy. Note any invalid entries will be scrapped." tabindex="0"></textarea>
                 </div>
             </div>
             <div>
@@ -829,7 +811,7 @@
                         <label for="add-date">Add Weekly Holidays</label>
                     </div>
                     <div>
-                        <select>
+                        <select tabindex="0">
                             <option value="1">Monday</option>
                             <option value="2">Tuesday</option>
                             <option value="3">Wednesday</option>
@@ -838,11 +820,11 @@
                             <option value="6">Saturday</option>
                             <option value="0">Sunday</option>
                         </select>
-                        <button type="button" data-cmd="weeklyHolidays" data-msg="Add day to weekly holidays list" class="hover bottom">Add To Weekly Holidays</button>
+                        <button type="button" data-cmd="weeklyHolidays" data-msg="Add day to weekly holidays list" class="hover bottom" tabindex="0">Add To Weekly Holidays</button>
                     </div>
                 </div>
                 <div id="weeklyHolidays" class="right-sec">
-                    <textarea name="weeklyHolidays" id="weeklyHolidays-textarea" spellcheck="false" placeholder="Write weekly off-days."></textarea>
+                    <textarea name="weeklyHolidays" id="weeklyHolidays-textarea" spellcheck="false" placeholder="Write weekly off-days." tabindex="0"></textarea>
                 </div>
             </div>
             <div>
@@ -850,7 +832,7 @@
                     <label for="ret-days">Add Maxium Returnable Days</label>
                 </div>
                 <div>
-                    <input type="text" id="ret-days" name="noReturn" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"> <i> Days</i>
+                    <input type="text" id="ret-days" name="noReturn" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"> <i> Days</i>
                 </div>
             </div>
             <div>
@@ -858,12 +840,12 @@
                     <label for="creditLimitDays">Default Customer Credit Period</label>
                 </div>
                 <div>
-                    <input type="text" name="creditLimitDays" id="creditLimitDays" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"><i> Days</i>
+                    <input type="text" name="creditLimitDays" id="creditLimitDays" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"><i> Days</i>
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save company settings">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save company settings" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -872,7 +854,7 @@
             <div id="bill-format-div">
                 <p>Change Invoice number format</p>
                 <div>
-                    <button class="main-ui-btn hover bottom" data-show="billing-settings" type="button" data-cmd="adv-invoice-format" data-msg="Change invoice number format">Change</button>
+                    <button class="main-ui-btn hover bottom" data-show="billing-settings" type="button" data-cmd="adv-invoice-format" data-msg="Change invoice number format" tabindex="0">Change</button>
                 </div>
             </div>
             <div>
@@ -880,12 +862,12 @@
                     <label for="billNo">Set invoice number</label>
                 </div>
                 <div>
-                    <input type="text" name="billNo" id="billNo" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                    <input type="text" name="billNo" id="billNo" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save invoice number">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save invoice number" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -896,7 +878,7 @@
                     <label for="formats">Select a format</label>
                 </div>
                 <div>
-                    <select name="formats" onclick="event.stopPropagation()" id="formats" data-cmd="invoice-format" onchange="changeHandler(event)">
+                    <select name="formats" onclick="event.stopPropagation()" id="formats" data-cmd="invoice-format" onchange="changeHandler(event)" tabindex="0">
                         <option value="1">Bill number(billNo)</option>
                         <option value="2">Financial year(fy)/Bill number(billNo)</option>
                         <option value="3">Your company abbrebiation(cabbr)/Financial year(fy)/Bill number(billNo)</option>
@@ -912,10 +894,10 @@
                     <p>Sample</p>
                 </div>
                 <div>
-                    <input type="text" onkeypress="event.preventDefault()" value="" id="custom-format-display" name="custom-format">
+                    <input type="text" onkeypress="event.preventDefault()" value="" id="custom-format-display" name="custom-format" tabindex="0">
                 </div>
                 <div>
-                    <select name="element" id="element">
+                    <select name="element" id="element" tabindex="0">
                         <option value="billNo">Bill Number(billNo)</option>
                         <option value="cabbr">Company abbrebiation(cabbr)</option>
                         <option value="fy">Financial year(fy)</option>
@@ -926,12 +908,12 @@
                         <option value="\\">Separator 4 (\)</option>
                         <option value="_">Separator 5 (_)</option>
                     </select>
-                    <button type="button" onclick="appendElem()" data-msg="Add new format element" class="hover bottom">Append</button>
+                    <button type="button" onclick="appendElem()" data-msg="Add new format element" class="hover bottom" tabindex="0">Append</button>
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save invoice format">Save</button>
-                <button type="button" data-cmd="back-page1" data-show="page1" data-msg="Cancel and go back" class="hover bottom">Cancel</button>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save invoice format" tabindex="0">Save</button>
+                <button type="button" data-cmd="back-page1" data-show="page1" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -941,7 +923,7 @@
                 <label></label>
             </div>
             <div>
-                <input type="text" onkeypress="event.preventDefault()" onkeydown="event.preventDefault()">
+                <input type="text" onkeypress="event.preventDefault()" onkeydown="event.preventDefault()" tabindex="0">
             </div>
         </div>
     </template>
@@ -962,7 +944,7 @@
         <div class="retractable-div-container notification-group expand hide-scrollbar">
             <div class="btn-container">
                 <p data-col="tag" onclick="execRetractHandler(event)"></p>
-                <button data-cmd="delete-all" data-msg="Dismiss all notifications in this group" class="hover left">Dismiss all</button>
+                <button data-cmd="delete-all" data-msg="Dismiss all notifications in this group" class="hover left" tabindex="0">Dismiss all</button>
             </div>
             <div class="hide collate-content"></div>
             <div class="retractable-div hide-scrollbar" data-collapsed="false"></div>
@@ -975,9 +957,9 @@
             <ul class="hide" data-col="logs"></ul>
             <p data-col="time"></p>
             <div class="btn-container">
-                <button data-cmd="delete" data-msg="Dismiss this notification" class="hover left">Dismiss</button>
-                <button data-cmd="postpone" data-msg="Postpone this reminder" class="hover bottom">Postpone reminder</button>
-                <button class="hide" data-cmd="update-now" data-msg="Update application now" class="hover bottom">Update</button>
+                <button data-cmd="delete" data-msg="Dismiss this notification" class="hover left" tabindex="0">Dismiss</button>
+                <button data-cmd="postpone" data-msg="Postpone this reminder" class="hover bottom" tabindex="0">Postpone reminder</button>
+                <button class="hide" data-cmd="update-now" data-msg="Update application now" class="hover bottom" tabindex="0">Update</button>
             </div>
         </div>
     </template>
@@ -990,12 +972,12 @@
                         <label for="time">Set Time</label>
                     </div>
                     <div>
-                        <input type="datetime-local" name="time" id="time">
+                        <input type="datetime-local" name="time" id="time" tabindex="0">
                     </div>
                 </div>
                 <div class="btn-container">
-                    <button type="submit" data-msg="Save reminder" class="hover bottom">Save</button>
-                    <button type="button" onclick="clear2ndRemovable()" data-msg="Cancel reminder creation" class="hover bottom">Cancel</button>
+                    <button type="submit" data-msg="Save reminder" class="hover bottom" tabindex="0">Save</button>
+                    <button type="button" onclick="clear2ndRemovable()" data-msg="Cancel reminder creation" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
             </div>
         </form>
@@ -1007,7 +989,7 @@
         <p class="notification-group">No notification</p>
     </template>
     <template id="add-payment-btn-template">
-        <button type="button" data-cmd="add-payment" data-msg="Add a new payment entry" class="hover bottom">Add Payment</button>
+        <button type="button" data-cmd="add-payment" data-msg="Add a new payment entry" class="hover bottom" tabindex="0">Add Payment</button>
     </template>
     <!-- Company profile -->
     <template id="company-profile-template">
@@ -1022,8 +1004,8 @@
                 <div id="host"></div>
             </div>
             <div>
-                <button class="main-ui-btn" type="submit">Save</button>
-                <button type="button" data-cmd="back" data-show="billing-settings">Cancel</button>
+                <button class="main-ui-btn" type="submit" tabindex="0">Save</button>
+                <button type="button" data-cmd="back" data-show="billing-settings" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -1034,7 +1016,7 @@
                     <label for="biller">Company Name</label>
                 </div>
                 <div>
-                    <input type="text" name="biller" id="biller">
+                    <input type="text" name="biller" id="biller" tabindex="0">
                 </div>
             </div>
             <div>
@@ -1042,7 +1024,7 @@
                     <label for="abbr">Company Abbrebiation (optional)</label>
                 </div>
                 <div>
-                    <input type="text" name="abbr" id="abbr">
+                    <input type="text" name="abbr" id="abbr" tabindex="0">
                 </div>
             </div>
             <div>
@@ -1050,7 +1032,7 @@
                     <label for="address">Company address</label>
                 </div>
                 <div>
-                    <input type="text" name="address" id="address">
+                    <input type="text" onchange="assignPlaceOfJurisdiction(event)" name="address" id="address" tabindex="0">
                 </div>
             </div>
             <div>
@@ -1058,7 +1040,7 @@
                     <label for="gst">Company GST</label>
                 </div>
                 <div>
-                    <input type="text" name="gst" id="gst">
+                    <input type="text" name="gst" id="gst" tabindex="0">
                 </div>
             </div>
             <div>
@@ -1066,7 +1048,15 @@
                     <label for="phones">Company phones</label>
                 </div>
                 <div>
-                    <input type="text" name="phones" id="phones" placeholder="Comma-separated list of phone numbers">
+                    <input type="text" name="phones" id="phones" placeholder="Comma-separated list of phone numbers" tabindex="0">
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="placeOfJurisdiction">Place of Jurisdiction</label>
+                </div>
+                <div>
+                    <input type="text" name="placeOfJurisdiction" id="placeOfJurisdiction" placeholder="Place of Jurisdiction" tabindex="0">
                 </div>
             </div>
         </div>
@@ -1079,11 +1069,11 @@
         <div class="email info">
             <div>
                 <div><label for="email">Company email</label></div>
-                <div><input type="email" name="email" id="email"></div>
+                <div><input type="email" name="email" id="email" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="website">Company Website</label></div>
-                <div><input type="url" name="website" id="website"></div>
+                <div><input type="url" name="website" id="website" tabindex="0"></div>
             </div>
         </div>
     </template>
@@ -1095,7 +1085,7 @@
                         <label for="name">Bank Name</label>
                     </div>
                     <div>
-                        <input type="text" name="name" id="bnk-name">
+                        <input type="text" name="name" id="bnk-name" tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -1103,7 +1093,7 @@
                         <label for="branch">Branch Name</label>
                     </div>
                     <div>
-                        <input type="text" name="branch" id="branch">
+                        <input type="text" name="branch" id="branch" tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -1111,7 +1101,7 @@
                         <label for="acc-no">Account Number</label>
                     </div>
                     <div>
-                        <input type="text" name="acc-no" id="acc-no" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
+                        <input type="text" name="acc-no" id="acc-no" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                     </div>
                 </div>
                 <div>
@@ -1119,11 +1109,11 @@
                         <label for="ifsc">IFSC</label>
                     </div>
                     <div>
-                        <input type="text" name="ifsc" id="ifsc">
+                        <input type="text" name="ifsc" id="ifsc" tabindex="0">
                     </div>
                 </div>
                 <div>
-                    <button type="button" onclick="addBank(event)" data-msg="Add bank details" class="hover bottom">Add Bank</button>
+                    <button type="button" onclick="addBank(event)" data-msg="Add bank details" class="hover bottom" tabindex="0">Add Bank</button>
                 </div>
             </div>
             <h2 class="hide">List of Banks</h2>
@@ -1140,8 +1130,8 @@
                 <p data-col="branch"></p>
             </div>
             <div>
-                <button type="button" data-cmd="edit" data-msg="Edit bank details" class="hover left">Edit</button>
-                <button type="button" data-cmd="delete" data-msg="Delete bank" class="hover left">-</button>
+                <button type="button" data-cmd="edit" data-msg="Edit bank details" class="hover left" tabindex="0">Edit</button>
+                <button type="button" data-cmd="delete" data-msg="Delete bank" class="hover left" tabindex="0">-</button>
             </div>
         </div>
     </template>
@@ -1156,7 +1146,7 @@
                 <progress id="progress" max="100"></progress>
             </div>
             <div>
-                <button id="progress-cancel-btn" class="hide hover bottom" data-msg="Cancel operation">Cancel</button>
+                <button id="progress-cancel-btn" class="hide hover bottom" data-msg="Cancel operation" tabindex="0">Cancel</button>
             </div>
         </div>
     </template>
@@ -1167,9 +1157,9 @@
             </h2>
             <div id="container"></div>
             <div class="btn-container" onclick="prodFormAction(event)">
-                <button type="button" data-cmd="close" data-msg="Close without saving" class="hover top">Close</button>
-                <button type="button" data-cmd="Skip" data-msg="Skip this item" class="hover top">Skip Item</button>
-                <button type="submit" data-msg="Save product information" class="hover top">Save</button>
+                <button type="button" data-cmd="close" data-msg="Close without saving" class="hover top" tabindex="0">Close</button>
+                <button type="button" data-cmd="Skip" data-msg="Skip this item" class="hover top" tabindex="0">Skip Item</button>
+                <button type="submit" data-msg="Save product information" class="hover top" tabindex="0">Save</button>
             </div>
         </form>
     </template>
@@ -1179,8 +1169,13 @@
                 <label for=""></label>
             </div>
             <div>
-                <input type="" name="" id="">
+                <input type="" name="" id="" tabindex="0">
             </div>
+        </div>
+    </template>
+    <template id="dot-loader-template">
+        <div class="dot-loader">
+            <span></span><span></span><span></span>
         </div>
     </template>
 </body>

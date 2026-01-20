@@ -33,8 +33,13 @@ const {
   getBaseDir,
   print,
   openFormatForDate,
-  getFinYearStrtEndDt,
   checkForInternet,
+  getFivePercentOfMemory,
+  getAllSales,
+  getPurchases,
+  queryStock,
+  checkNLogMemoryUsage,
+  placeOfJurisdiction,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -73,7 +78,6 @@ const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandle
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
-const { queryStock } = require("./handleStock");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
 const { title } = require("process");
@@ -83,6 +87,7 @@ const { getFileMonitor } = require("./fileMonitor");
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
 const { deserializeSchema } = require("./model/schemaLoader");
+const { end } = require("pdfkit");
 
 // Load dynamicSchemas from JSON (server-delivered)
 let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;
@@ -771,6 +776,7 @@ app.on("ready", async () => {
 function setAppPresets(){
   let policy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   let policy2 = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  let policy3 = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
   if(!/^\d.-\d.$/.test(policy.financialYearStartDate))
     policy.financialYearStartDate = "01-03";
   if("financialYearStartDate" in policy){
@@ -787,12 +793,15 @@ function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction"]
   .forEach(key=>{
-    if(key in policy2 || key in policy){
-      let value = policy2[key] ?? policy[key];
+    if(key in policy2 || key in policy || key in policy3){
+      let value = policy2[key] ?? policy[key] ?? policy3[key];
       process.presets[key] = /^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value;
     }
+    else
+    if(key==="placeOfJurisdiction")
+      process.presets[key] = placeOfJurisdiction(policy3);
     else
       process.presets[key] = undefined;
   });
@@ -1005,42 +1014,24 @@ exports.getCurrentLogin = function () {
 };
 // Lander Page IPCs
 
-ipcMain.handle("get-overview-content", async (e,year) => {
+async function overviewContentDBQuery(year){
   let { minStock,creditLimitDays } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
   if(!dbInitialized) return;
-  let { strtDt=null,endDt=null } = getFinYearStrtEndDt(year) ?? {};
-  if(!strtDt)
-    year = 2;
-  let stocks = (
-    await stock.findAll({
-      where: {
-        quantity: {
-          [Op.lte]: minStock,
-        },
-      },
-    })
-  ).map(({ dataValues }) => dataValues);
-  let unPaidBills = (
-    await sale.findAll({
-      where: {
-        [Op.and]: [
-          { paymentStatus: false },
-          {
-            billDate: {
-              [Op.lte]: new Date(
-                Date.now() - creditLimitDays * 24 * 60 * 60 * 1000
-              ),
-            },
-          },
-          (year!=2) && { 
-            billDate:{
-              [Op.between]:[ strtDt,endDt ]
-            } 
-          }
-        ],
-      },
-    })
-  ).map(({ dataValues }) => dataValues);
+  let stocks = typeof global.stocks!="undefined" ? global.stocks : await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
+  stocks = stocks.filter(({ quantity }) => quantity <= minStock);
+  let unPaidBills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
+  unPaidBills = unPaidBills.filter(({ billDate }) => {
+                      let dueDt = new Date(billDate);
+                      dueDt = dueDt.getTime() + creditLimitDays * 24 * 60 * 60 * 1000;
+                      return dueDt <= new Date();
+                    });
+  return { unPaidBills, stocks };
+}
+
+ipcMain.handle("get-overview-content", async (e,year) => {
+  let { unPaidBills = [], stocks = [] } = (typeof global.overViewContentResult!="undefined" && typeof global.overViewContentResult[year]!="undefined") ? global.overViewContentResult[year] : await overviewContentDBQuery(year);
+  global.overViewContentResult = { ...global.overViewContentResult, [year]:{unPaidBills, stocks} };
+  checkNLogMemoryUsage("overViewContentResult",appLogger,getFivePercentOfMemory);
   return { unPaidBills, stocks };
 });
 
@@ -1072,51 +1063,15 @@ ipcMain.on("new-sale-purchase", (e, mode) => {
 
 ipcMain.handle("get-sale-content", async (e,allYear=false) => {
   if(!dbInitialized) return;
-  if(allYear)
-    ;
-  let queuedBills = (
-    await sale.findAll({
-      where: {
-        deliveryStatus: "queued",
-      },
-      attributes: [["billItemTable", "tableName"], "name", "billNo"],
-    })
-  ).map(({ dataValues }) => dataValues);
-  let bills = await queuedBills.reduce(
-    async (acc, { tableName, billNo, name }, index) => {
-      acc = await acc;
-      try {
-        let billItems = (
-          await (
-            await sequelize.define(tableName, billItemSchema, {
-              freezeTableName: true,
-              timestamps: false,
-            })
-          ).findAll()
-        ).map(({ dataValues }) => dataValues);
-        acc.push({ billItems, name, billNo });
-      } catch (err) {
-        appLogger({title:"Error",message:String(err),func:"bill-item-table define error"});
-      }
-      return acc;
-    },
-    []
-  );
-  let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getMonth(),3,1);
-  let allBills = (await sale.findAll({
-  where: allYear==false ? {
-      billDate:{
-        [Op.gte]:dt 
-      }
-    } : null
-  })).map(({ dataValues }) => dataValues);
-  let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
+  let bills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
+  bills = typeof global.bills!="undefined" ? global.bills : bills.filter(bill=>(bill.billDate.getTime()>(new Date().setMonth(new Date().getMonth()-2,1))));
   let preset;
-  if(!("appPreset" in policy))
-    preset = "orderQueue";
+  if(typeof process.presets.appPreset.saleOverviewMain==="undefined")
+    preset = "monthly1x";
   else
-    preset = policy.appPreset.saleOverviewMain;
-  return { bills, allBills, preset };
+    preset = process.presets.appPreset.saleOverviewMain;
+  global.bills = bills;
+  return { bills, preset, allBills:global.sales };
 });
 
 ipcMain.on("update-preference",(e,{preset,currentMode,sec})=>{
@@ -1124,7 +1079,7 @@ ipcMain.on("update-preference",(e,{preset,currentMode,sec})=>{
   if(currentMode==="sale"){
     // Sale overview page preference
     if(!("appPreset" in policy))
-      policy.appPreset = {};
+      policy.appPreset = { saleOverviewMain:"monthly1x" };
     if(sec==="main")
       policy.appPreset.saleOverviewMain = preset;
   }
@@ -1142,8 +1097,9 @@ ipcMain.on("update-preference",(e,{preset,currentMode,sec})=>{
 });
 
 ipcMain.handle("get-purchase-content", async () => {
-  if(!dbInitialized) return;
-  return (await purchase.findAll()).map(({ dataValues }) => dataValues);
+  if(!dbInitialized) return [];
+  let purchases = typeof global.purchases!="undefined" ? global.purchases : await getPurchases(purchase,appLogger,getFivePercentOfMemory);
+  return purchases;
 });
 
 ipcMain.handle("add-user", async (e, data) => {
@@ -1703,7 +1659,15 @@ ipcMain.on("company-profile-info", async (e, data) => {
     getsaleConfigPolicyPath(),
     JSON.stringify(companyObj),
     (err) => {
-      if (err) return dialog.showErrorBox("File save error", err.message);
+      if(err){
+        appLogger({
+          title:"Error",
+          message:String(err),
+          func:"company-profile-info-ipc"
+        });
+        return dialog.showErrorBox("File save error", err.message)
+      };
+      setAppPresets();
       return dialog.showMessageBox(win, {
         title: "Success",
         message: "Company profile updated.",
@@ -3187,12 +3151,11 @@ async function schemaValidator(){
     }
   } catch (err) {
     appLogger({
-      title: "Schema fetch error",
+      title: "Schema fetch report",
       message: String(err),
       func: "schemaValidator"
-    });
-
-    return false; // On error, skip migration
+    });// On error, skip migration
+    return false;
   }
 }
 
@@ -3628,7 +3591,7 @@ ipcMain.handle("get-presets",()=>{
 });
 
 ipcMain.on("booted",async (e)=>{
-  let stockList = await queryStock();
+  let stockList = await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
   //standardSellPrice
   //pInfo : {}
   // let products = stockList.filter(obj=>(
@@ -3654,4 +3617,8 @@ ipcMain.on("booted",async (e)=>{
 ipcMain.on("open-bills-folder",()=>{
   // Open Bills folder
   shell.openExternal(path.resolve(app.getPath("documents"),"./Bills"));
+});
+
+ipcMain.handle("get-place-of-jurisdiction",async (e,address)=>{
+  return await placeOfJurisdiction({address});
 });

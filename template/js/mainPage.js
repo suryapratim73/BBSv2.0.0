@@ -151,32 +151,6 @@ async function overviewPageInit(){
     initScheduleDiv();
 }
 
-function showOrderQueue(bills){
-    let saleDivContent = document.getElementById("sale-div-content");
-    let orderQueueContainer = document.getElementById("order-queue-container-template").content.cloneNode(true).querySelector("div");
-    saleDivContent.appendChild(orderQueueContainer);
-    if(bills.length===0)
-        document.getElementById("order-queue-container").innerHTML = '<p class="item-obj">Create bill to show up here</p>';
-    bills.forEach(({name,billNo,billItems},i)=>{
-        let oderQueueDiv = document.getElementById("order-queue-template").content.cloneNode(true).querySelector("div");
-        orderQueueContainer.appendChild(oderQueueDiv);
-        if(i===0)
-            oderQueueDiv.classList.add("visible-order");
-        oderQueueDiv.querySelector(".bill-header .highlight[data-colname='name']").textContent = name;
-        oderQueueDiv.querySelector(".bill-header .highlight[data-colname='billNo']").textContent = billNo;
-        oderQueueDiv.dataset.billNo = billNo;
-        let billItemContainer = oderQueueDiv.querySelector(".bill-item-div");
-        billItems.forEach(itemObj=>{
-            let itemObjDiv = document.getElementById("item-list-template").content.cloneNode(true).querySelector("div");
-            [...itemObjDiv.querySelectorAll("span")]
-            .forEach(span=>{
-                span.textContent = itemObj[span.dataset.colname];
-            });
-            billItemContainer.appendChild(itemObjDiv);
-        });
-    });
-}
-
 function saleOverviewContext(){
     document.getElementById("overview-context").classList.remove("hide");
 
@@ -190,55 +164,44 @@ function showContextOptions(){
 async function updateSaleOverviewPreference(e){
     let opt = e.target.dataset.name;
     document.getElementById("context-options").classList.add("hide");
-    let {bills=[],allBills=[]} = await ipcRenderer.invoke("get-sale-content") ?? {};
+    let {bills=[]} = await ipcRenderer.invoke("get-sale-content");
     ipcRenderer.send("update-preference",{preset:opt,currentMode,sec:"main"});
     removeAllElem("#sale-div-content .widget");
-    if(opt==="orderQueue"){
-        console.log(bills)
-        showOrderQueue(bills);
-    }
-    else
     if(opt==="monthly1x"){
-        overviewSaleTable(1,allBills);
+        overviewSaleTable(1,bills);
     }
     else
     if(opt==="monthly3x"){
-        overviewSaleTable(3,allBills);
+        overviewSaleTable(3,bills);
     }
 }
 
 function overviewSaleTable(mode,bills){
     let saleDivContent = document.getElementById("sale-div-content");
     appendToHost("#sale-table-template",saleDivContent,"DIV");
-    let currentMonth = new Date().getMonth(),arr,currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth(),currentYear = new Date().getFullYear();
     if(mode===1)
-        arr = bills.filter(obj=>obj.billDate.getMonth()===currentMonth && obj.billDate.getFullYear()===currentYear);
-    else
-    if(mode===3)
-        arr = bills.filter(obj=>obj.billDate.getMonth()>currentMonth-3 && obj.billDate.getFullYear()===currentYear);
-    tableFillupHelper(arr,".head.row p",".tbody",bodyRow,"billObj");
+        bills = bills.filter(obj=>obj.billDate.getMonth()===currentMonth && obj.billDate.getFullYear()===currentYear);
+    tableFillupHelper(bills,".head.row p",".tbody",bodyRow,"billObj");
 }
 
 async function salePageInit(){
-    let {bills=[],allBills=[],preset} = await ipcRenderer.invoke("get-sale-content") ?? {};
+    let {bills=[],preset,allBills} = await ipcRenderer.invoke("get-sale-content") ?? {};
     // Show sale display widgets
-    if(preset==="orderQueue")
-        showOrderQueue(bills);
-    else
     if(preset==="monthly1x")
-        overviewSaleTable(1,allBills);
+        overviewSaleTable(1,bills);
     else
     if(preset==="monthly3x")
-        overviewSaleTable(3,allBills);
+        overviewSaleTable(3,bills);
     // For drawing graph
     reducedBills = reducedArr(allBills,"#sale-graph");
 }
 
 async function purchasePageInit(){
-    let allPurchases = await ipcRenderer.invoke("get-purchase-content") ?? {};
+    let allPurchases = await ipcRenderer.invoke("get-purchase-content");
     let tbody = document.querySelector("#current-purchase .tbody");
-    allPurchases
-    .filter((billObj)=>(billObj.billDate.toLocaleDateString("en-GB")==new Date().toLocaleDateString("en-GB")))
+    let res= allPurchases
+    .filter((billObj)=>(billObj.billDate.toDateString()===new Date().toDateString()))// Today's purchases only
     .forEach(({billNo,billDate,supplierName,billAmt})=>{
         let div = document.createElement("div");
         div.className = "body row";
@@ -328,22 +291,6 @@ function controlAnimation(div,mode="opacity",val1="1",val2="0",unit=""){
             div.style[mode] = val1 + unit;
         })
     });
-}
-
-function slideQueueCard(e){
-    let transDir = e.target.dataset.translate;
-    let oderQueueDiv = e.target.parentNode.parentNode;
-    if(oderQueueDiv.classList.contains("oder-queue-div")){
-        oderQueueDiv.classList.add(transDir);
-        oderQueueDiv.classList.remove("visible-order");
-        let oderQueueDivs = [...document.querySelectorAll(".oder-queue-div")]; 
-        let currentIndex = oderQueueDivs.findIndex(div=>div===oderQueueDiv);
-        currentIndex = currentIndex===oderQueueDivs.length-1?0:currentIndex + 1;
-        let selectedDiv = oderQueueDivs[currentIndex];
-        controlAnimation(selectedDiv);
-        selectedDiv.classList.add("visible-order");
-        selectedDiv.classList.remove(transDir);
-    }
 }
 
 async function updateChart(e,canvasId){
@@ -614,13 +561,19 @@ async function showForm(e,cmd,show,prevData={}){
                     if(elem.classList.contains("bank"))
                         appendToHost("#bank-info-form-template",elem,"DIV")
                 });
-                ["biller","address","gst","phones","abbr",{bankDetails:["name","branch","acc-no","ifsc"]},"email","website"]
-                .forEach(key=>{
+                ["biller","address","gst","phones","abbr","placeOfJurisdiction",{bankDetails:["name","branch","acc-no","ifsc"]},"email","website"]
+                .forEach(async key=>{
                     let input;
                     if(typeof key!=="object"){
                         input = form.querySelector(`input[name="${key}"]`);
                         if(!input) return;
                         let text = key!=="phones" ? compInfo?.[key] : "";
+                        if(key==="placeOfJurisdiction" && !compInfo?.[key]){
+                            let address = compInfo?.address ?? "";
+                            if(address!=="")
+                                text = await ipcRenderer.invoke("get-place-of-jurisdiction",address);
+                        }
+                        else
                         if(key==="phones")
                             text = compInfo.phones?.reduce?.((acc,val,index,self)=>{
                                 if(index===self.length-1)
@@ -632,7 +585,6 @@ async function showForm(e,cmd,show,prevData={}){
                         input.value = text;
                     }
                     else{
-                        let keys = key.bankDetails;
                         if("bankDetails" in compInfo && compInfo?.bankDetails?.length>0){
                             let host = document.querySelector("#view .host");
                             host.classList.remove("hide");
@@ -1494,3 +1446,9 @@ ipcRenderer.on("msg-from-backend",(e,msg,type)=>{
         classList = ["animation-common","move-left","red-toast-box"];
     showToastNotification(msg,classList)
 });
+
+async function assignPlaceOfJurisdiction(event){
+    let address = event.target.value;
+    let placeOfJurisdiction = await ipcRenderer.invoke("get-place-of-jurisdiction",address);
+    document.getElementById("placeOfJurisdiction").value = placeOfJurisdiction;
+}

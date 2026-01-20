@@ -35,6 +35,10 @@ document.body.addEventListener("click",e=>{
 ipcRenderer.send("get-out-payments");
 
 ipcRenderer.on("show-out-payments",async (e,outPaymentList)=>{
+    if(outPaymentList.length==0) {
+        spinner.remove(window);
+        return;
+    }
     await outPaymentList.reduce(async (acc,{beneficiaryId,date,payment,type}) => {
         if(type==="bill"){
             let {name} = await ipcRenderer.invoke("get-supplier-name",beneficiaryId);

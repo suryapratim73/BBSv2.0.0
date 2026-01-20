@@ -8,8 +8,6 @@ const { getMainWindow } = require("./createModal");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const { end } = require("pdfkit");
 
-let customerList = [];
-
 
 exports.closeAndDisplay = function(msg){
     let purchaseWindows = BrowserWindow.getAllWindows()
@@ -282,15 +280,16 @@ exports.getBaseDir = function(){
         return app.getPath("appData")+"/BBS";
 }
 
-exports.initCustomerList = async function(){
-    const { customer } = require("./model/dbConfig");
+exports.initCustomerList = async function(customer,appLogger,getFivePercentOfMemory){
     try{
+        global.customerList = [];
         (await (await customer.sync()).findAll())
         .map(({dataValues})=>dataValues)
         .forEach(obj=>{
             obj._type = "customer";
-            customerList.push(new People(obj));
+            global.customerList.push(new People(obj));
         });
+        checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
     }
     catch(err){
         appLogger({
@@ -299,8 +298,6 @@ exports.initCustomerList = async function(){
         })
     }
 }
-
-exports.customerList = customerList;
 
 exports.priceInspector = function(itemObj){
     return new Promise((res,rej)=>{
@@ -411,4 +408,196 @@ exports.checkForInternet = function(){
                 res(true);
         });
     });
+}
+
+exports.getFivePercentOfMemory = function(){
+    const MAX_CACHE_BYTES = process.arch==="ia32" ? 1.5 * 1024 : 2 * 1024; //1.4GB for 32 bit and 4GB for 64 bit
+    const totalMem = require("os").freemem();
+    let fivePercentMem = totalMem * 0.1;
+    fivePercentMem = Math.floor(fivePercentMem/(1024*1024)); // in MB
+    return Math.min(fivePercentMem,MAX_CACHE_BYTES);
+}
+
+function checkNLogMemoryUsage(cacheType,appLogger,getFivePercentOfMemory){
+    let currentHeapUsed = process.memoryUsage().heapUsed / (1024 * 1024); // in MB
+    if(currentHeapUsed > getFivePercentOfMemory()){
+        global[cacheType] = undefined;
+        appLogger({
+            title:`Cleared ${cacheType} Cache - Excessive Memory Usage`,
+            message:`Cleared ${cacheType} cache due to excessive memory usage. Current Heap Used: ${Math.round(currentHeapUsed)} MB`,
+            func:"common.js - checkNLogMemoryUsage"
+        });
+    }
+}
+
+exports.checkNLogMemoryUsage = checkNLogMemoryUsage;
+
+exports.getAllSales = async function(sale,appLogger,getFivePercentOfMemory){
+    let {strtDt,endDt} = getFinYearStrtEndDt(0);
+    let sales = (await (await sale.sync())
+            .findAll({where:{
+                    billDate:{
+                        [Op.between]:[strtDt,endDt]
+                    }
+                },
+                order:[["entryNo","DESC"]]
+            })).map(({dataValues})=>dataValues);
+    global.sales = sales;
+    checkNLogMemoryUsage("sales",appLogger,getFivePercentOfMemory);
+    return sales;
+}
+
+exports.getPurchases = async function(purchase,appLogger,getFivePercentOfMemory){
+    let {strtDt,endDt} = getFinYearStrtEndDt(0);
+    let purchases = (await purchase.findAll({
+        where:{
+            billDate:{
+                [Op.between]:[strtDt,endDt]
+            }
+        },
+        order:[
+            ["billDate","DESC"]
+        ]
+    })).map(({dataValues})=>dataValues);
+    global.purchases = purchases;
+    checkNLogMemoryUsage("purchases",appLogger,getFivePercentOfMemory);
+    return purchases;
+}
+
+exports.queryStock = async function(stock,attributes,appLogger,getFivePercentOfMemory){
+    try{
+        if(typeof global.stocks==="undefined"){      
+            global.stocks = [];
+            (await (await stock.sync()).findAll())
+            .map(({dataValues})=>dataValues)
+            .forEach(obj=>{
+                obj._type = "stock";
+                global.stocks.push(new People(obj));
+            });
+        }
+        let _stockList = global.stocks;
+        checkNLogMemoryUsage("stocks",appLogger,getFivePercentOfMemory);
+        if(typeof attributes==="object"){
+            return _stockList.map(stockObj=>{
+                let tempObj = {}
+                for(let key in stockObj)
+                    if(attributes.includes(key))
+                        tempObj[key] = stockObj[key];
+                return tempObj;
+                });
+        }
+        else{
+            return _stockList;
+        }
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:err.message
+        })
+        return global.stocks
+    }
+}
+
+exports.getOutPayments = async function(outPayments,appLogger,getFivePercentOfMemory){
+    let strtDt = getFinYearStrtEndDt(0).strtDt;
+    let _outPayments;
+    if(typeof global.outPayments=="undefined" || global?.outPayments.length==0)
+        _outPayments = (await outPayments.findAll({
+            where:{
+                date:{
+                    [Op.gte]:strtDt
+                }
+            }
+        })).map(({dataValues})=>dataValues);
+    global.outPayments = _outPayments;
+    checkNLogMemoryUsage("outPayments",appLogger,getFivePercentOfMemory);
+    return _outPayments;
+}
+
+exports.initSuppliers = async function(supplier,appLogger,getFivePercentOfMemory){
+    if(typeof global.suppliers=="undefined")
+        global.suppliers = [];
+        (await supplier.findAll())
+        .map(({dataValues})=>dataValues)
+        .forEach(suppObj=>{
+            suppObj._type = "supplier";
+            global.suppliers.push(new People(suppObj))
+        });
+    let _suppliers = global.suppliers;
+    let currentHeapUsed = process.memoryUsage().heapUsed / (1024 * 1024); // in MB
+    if(currentHeapUsed > getFivePercentOfMemory()){
+        global.suppliers = undefined;
+        appLogger({
+            title:"Cleared Supplier Cache - Excessive Memory Usage",
+            message:`Cleared supplier cache due to excessive memory usage. Current Heap Used: ${Math.round(currentHeapUsed)} MB`,
+            func:"supplierHandler.js - initSuppliers"
+        })
+    }
+    return _suppliers;
+}
+
+// List of major Indian districts/cities with codes (expand as needed)
+const cityListWithCodes = [
+    { name: "Mumbai", code: "BOM" },
+    { name: "Delhi", code: "DEL" },
+    { name: "Bengaluru", code: "BLR" },
+    { name: "Hyderabad", code: "HYD" },
+    { name: "Chennai", code: "MAA" },
+    { name: "Kolkata", code: "CCU" },
+    { name: "Ahmedabad", code: "AMD" },
+    { name: "Pune", code: "PNQ" },
+    { name: "Jaipur", code: "JAI" },
+    { name: "Lucknow", code: "LKO" },
+    { name: "Kanpur", code: "CNP" },
+    { name: "Nagpur", code: "NAG" },
+    { name: "Indore", code: "IDR" },
+    { name: "Bhopal", code: "BHO" },
+    { name: "Patna", code: "PAT" },
+    { name: "Vadodara", code: "BDQ" },
+    { name: "Ludhiana", code: "LUH" },
+    { name: "Agra", code: "AGR" },
+    { name: "Nashik", code: "ISK" },
+    { name: "Faridabad", code: "FDB" },
+    { name: "Meerut", code: "MUT" },
+    { name: "Rajkot", code: "RAJ" },
+    { name: "Varanasi", code: "VNS" },
+    { name: "Srinagar", code: "SXR" },
+    { name: "Aurangabad", code: "IXU" },
+    { name: "Dhanbad", code: "DHN" },
+    { name: "Amritsar", code: "ATQ" },
+    { name: "Allahabad", code: "IXD" },
+    { name: "Ranchi", code: "IXR" },
+    { name: "Howrah", code: "HWH" }
+    // ...add more as needed
+];
+
+exports.placeOfJurisdiction = function(biller) {
+    const address = biller.address || "";
+
+    // 1. Try city/district name or code fuzzy match (case-insensitive, word boundary)
+    const addressLower = address.toLowerCase();
+    for (const { name, code } of cityListWithCodes) {
+        const nameLower = name.toLowerCase();
+        const codeLower = code.toLowerCase();
+        // Check for city name
+        const nameRegex = new RegExp(nameLower);
+        if (nameRegex.test(addressLower)) {
+            return name;
+        }
+        // Check for city code
+        const codeRegex = new RegExp(codeLower);
+        if (codeRegex.test(addressLower)) {
+            return name; // Return full name if code is found
+        }
+    }
+
+    // 2. Fallback: regex extraction (old logic)
+    const cityMatch = address.match(/\w+(?=\s*-\s*\d{1,6})|\w+$/);
+    if (cityMatch && cityMatch[0]) {
+        return cityMatch[0].trim();
+    }
+
+    // 3. Not found
+    return "Howrah"; // Default fallback
 }

@@ -25,7 +25,7 @@
                     <label for="biller">Name *</label>
                 </div>
                 <div>
-                    <input required type="text" spellcheck="false" name="biller" id="biller" autofocus>
+                    <input required type="text" spellcheck="false" name="biller" id="biller" autofocus tabindex="0">
                 </div>
             </div>
             <div>
@@ -33,7 +33,7 @@
                     <label for="address">Address *</label>
                 </div>
                 <div>
-                    <input required type="text" spellcheck="false" name="address" id="address">
+                    <input required type="text" spellcheck="false" name="address" id="address" tabindex="0">
                 </div>
             </div>
             <div>
@@ -41,7 +41,7 @@
                     <label for="gst">GST</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="gst" id="gst">
+                    <input type="text" spellcheck="false" name="gst" id="gst" tabindex="0">
                 </div>
             </div>
             <div>
@@ -49,7 +49,7 @@
                     <label for="email">Email</label>
                 </div>
                 <div>
-                    <input type="email" name="email" id="email">
+                    <input type="email" name="email" id="email" tabindex="0">
                 </div>
             </div>
             <div>
@@ -57,7 +57,7 @@
                     <label for="phones">Contact Number *</label>
                 </div>
                 <div>
-                    <input required type="tel" name="phones" id="phones" pattern="^(\+?\d{0,3}[- ]?)?\d{5} *\d{5}$" name="customer-phones" data-name="phones" data-type="Number" onkeypress="validateInput(event)">
+                    <input required type="tel" name="phones" id="phones" pattern="^(\+?\d{0,3}[- ]?)?\d{5} *\d{5}$" name="customer-phones" data-name="phones" data-type="Number" onkeypress="validateInput(event)" tabindex="0">
                 </div>
             </div>
             <div>
@@ -65,12 +65,12 @@
                     <label for="website">Website</label>
                 </div>
                 <div>
-                    <input type="url" name="website" id="website">
+                    <input type="url" name="website" id="website" tabindex="0">
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation();" data-msg="Continue to next step" class="hover bottom">Continue</button>
-                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
+                <button type="submit" onclick="event.stopPropagation();" data-msg="Continue to next step" class="hover bottom" tabindex="0">Continue</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom" tabindex="0">Skip</button>
             </div>
         </div>
     </template>
@@ -83,7 +83,7 @@
                     <label for="financialYearStartDate">Financial year start month</label>
                 </div>
                 <div>
-                    <select name="financialYearStartDate:" autofocus required id="financialYearStartDate">
+                    <select name="financialYearStartDate:" autofocus required id="financialYearStartDate" tabindex="0">
                         <option value="1/1">January</option>
                         <option value="1/4">April</option>
                     </select>
@@ -94,7 +94,7 @@
                     <label for="resetBillNo">Reset Bill number at the begining of each financial year?</label>
                 </div>
                 <div>
-                    <select name="resetBillNo" required id="resetBillNo">
+                    <select name="resetBillNo" required id="resetBillNo" tabindex="0">
                         <option value="true">Yes</option>
                         <option value="false">No</option>
                     </select>
@@ -105,7 +105,7 @@
                     <label for="closingStock">Last year closing stock</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="closingStock" id="closingStock" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="closingStock" id="closingStock" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
@@ -113,7 +113,7 @@
                     <label for="grossCredit">Net Gross Credit</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="grossCredit" id="grossCredit" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="grossCredit" id="grossCredit" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
@@ -121,7 +121,7 @@
                     <label for="grossDebt">Net Gross Debt</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="grossDebt" id="grossDebt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="grossDebt" id="grossDebt" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
@@ -129,7 +129,7 @@
                     <label for="advNetIncome">Net Advance Income</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="advNetIncome" id="advNetIncome" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="advNetIncome" id="advNetIncome" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
@@ -137,13 +137,13 @@
                     <label for="advNetExpence">Net Advance Expence</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="advNetExpence" id="advNetExpence" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" >
+                    <input type="text" spellcheck="false" name="advNetExpence" id="advNetExpence" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom">Continue</button>
-                <button type="button" data-cmd="page-1" data-msg="Go back to previous page" class="hover bottom">Back</button>
-                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom" tabindex="0">Continue</button>
+                <button type="button" data-cmd="page-1" data-msg="Go back to previous page" class="hover bottom" tabindex="0">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom" tabindex="0">Skip</button>
             </div>
         </div>
     </template>
@@ -152,12 +152,12 @@
             <h2>Create user</h2>
             <div id="page-3-host">
                 <p>Create a regular users with different in-app priviledges. You can create/update users later from app settings.</p>
-                <button data-cmd="create-user" autofocus type="button" data-msg="Create a new user account" class="hover bottom">Create user</button>
+                <button data-cmd="create-user" autofocus type="button" data-msg="Create a new user account" class="hover bottom" tabindex="0">Create user</button>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom">Continue</button>
-                <button type="button" data-cmd="page-2" data-msg="Go back to previous page" class="hover bottom">Back</button>
-                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Continue to next step" class="hover bottom" tabindex="0">Continue</button>
+                <button type="button" data-cmd="page-2" data-msg="Go back to previous page" class="hover bottom" tabindex="0">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom" tabindex="0">Skip</button>
             </div>
         </div>
     </template>
@@ -170,8 +170,8 @@
                     <label for="filePath">Choose lockscreen wallpaper</label>
                 </div>
                 <div>
-                    <input type="text" spellcheck="false" name="filePath" placeholder="Using default wallpaper on lockscreen " id="file-path">
-                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Choose lockscreen wallpaper">Choose</button>
+                    <input type="text" spellcheck="false" name="filePath" placeholder="Using default wallpaper on lockscreen " id="file-path" tabindex="0">
+                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Choose lockscreen wallpaper" tabindex="0">Choose</button>
                 </div>
             </div>
             <div>
@@ -179,16 +179,16 @@
                     <label for="theme-pref">Theme preference</label>
                 </div>
                 <div>
-                    <select name="theme-pref" id="theme-pref">
+                    <select name="theme-pref" id="theme-pref" tabindex="0">
                         <option value="false">Light</option>
                         <option value="true">Dark</option>
                     </select>
                 </div>
             </div>
             <div>
-                <button type="submit" onclick="event.stopPropagation()" data-msg="Finish setup" class="hover bottom">Continue</button>
-                <button type="button" data-cmd="page-3" data-msg="Go back to previous page" class="hover bottom">Back</button>
-                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom">Skip</button>
+                <button type="submit" onclick="event.stopPropagation()" data-msg="Finish setup" class="hover bottom" tabindex="0">Continue</button>
+                <button type="button" data-cmd="page-3" data-msg="Go back to previous page" class="hover bottom" tabindex="0">Back</button>
+                <button type="button" data-cmd="skip" data-msg="Skip this step" class="hover bottom" tabindex="0">Skip</button>
             </div>
         </div>
     </template>
@@ -199,7 +199,7 @@
                     <label for="name">Select user</label>
                 </divv>
                 <divv>
-                    <input type="text" spellcheck="false" autofocus name="name">
+                    <input type="text" spellcheck="false" autofocus name="name" tabindex="0">
                 </divv>
             </div>
             <div>
@@ -207,7 +207,7 @@
                     <label for="passwd">Set password</label>
                 </div>
                 <div>
-                    <input type="password" name="passwd" id="passwd">
+                    <input type="password" name="passwd" id="passwd" tabindex="0">
                 </div>
             </div>
             <div>
@@ -215,7 +215,7 @@
                     <label for="re-passwd">Re-enter password</label>
                 </div>
                 <div>
-                    <input type="password" name="re-passwd" id="re-passwd">
+                    <input type="password" name="re-passwd" id="re-passwd" tabindex="0">
                 </div>
             </div>
             <div>
@@ -223,7 +223,7 @@
                     <label for="role">Role</label>
                 </div>
                 <div>
-                    <select name="role" id="role">
+                    <select name="role" id="role" tabindex="0">
                         <option value="all" selected>All</option>
                         <option value="bill">Billing</option>
                         <option value="purchase">Purchase</option>
@@ -231,8 +231,8 @@
                 </div>
             </div>
             <div>
-                <button type="button" data-cmd="add-user" data-msg="Add new user" class="hover bottom">Add</button>
-                <button type="button" data-cmd="cancel-user-add" data-msg="Cancel user creation" class="hover bottom">Cancel</button>
+                <button type="button" data-cmd="add-user" data-msg="Add new user" class="hover bottom" tabindex="0">Add</button>
+                <button type="button" data-cmd="cancel-user-add" data-msg="Cancel user creation" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </div>
     </template>

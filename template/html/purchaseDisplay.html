@@ -11,7 +11,7 @@
 <body>
     <nav role="navigation" aria-label="Purchase display navigation">
         <div id="searchbar-container" role="search">
-            <input type="text" spellcheck="false" placeholder="Type to filter through purchase table.." oninput="_searchHandler(event)" aria-label="Search purchases">
+            <input type="text" spellcheck="false" placeholder="Type to filter through purchase table.." oninput="_searchHandler(event)" aria-label="Search purchases" tabindex="0">
         </div>
     </nav>
     <main role="main">
@@ -65,7 +65,7 @@
                 <div class="col eq-space"><p>Price</p></div>
             </div>
         </div>
-        <div id="btn-container"><button onclick="closeModal()">Close</button></div>
+        <div id="btn-container"><button onclick="closeModal()" tabindex="0">Close</button></div>
     </template>
 </body>
 </html>

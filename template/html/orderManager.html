@@ -14,7 +14,7 @@
             <h2>Select a order to view/edit</h2>
             <div>
                 <h2>Unbilled orders</h2>
-                <button onclick="ipcRenderer.send('new-sale-purchase',3)" data-msg="Create new order" class="hover bottom">+</button>
+                <button tabindex="0" onclick="ipcRenderer.send('new-sale-purchase',3)" data-msg="Create new order" class="hover bottom">+</button>
             </div>
             <div class="table" role="table" aria-label="Unbilled orders table">
                 <div class="row head" role="row">
@@ -71,9 +71,9 @@
                 <div></div>
             </div>
             <div class="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="edit" data-msg="Edit order items" class="hover bottom">Edit order</button>
-                <button data-cmd="create-bill" data-msg="Convert order to bill" class="hover bottom">Create Bill</button>
-                <button data-cmd="back-page1" data-msg="Go back to orders list" class="hover bottom">Back to First Page</button>
+                <button tabindex="0" data-cmd="edit" data-msg="Edit order items" class="hover bottom">Edit order</button>
+                <button tabindex="0" data-cmd="create-bill" data-msg="Convert order to bill" class="hover bottom">Create Bill</button>
+                <button tabindex="0" data-cmd="back-page1" data-msg="Go back to orders list" class="hover bottom">Back to First Page</button>
             </div>
         </div>
     </template>
@@ -95,13 +95,13 @@
                 </div>
                 <div id="tbody" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)">
                     <div class="row row-control-div" id="add-item">
-                        <button type="button" class="main-ui-btn hover left" onclick="addRow(event)" data-msg="Add new item row">+</button>
+                        <button tabindex="0" type="button" class="main-ui-btn hover left" onclick="addRow(event)" data-msg="Add new item row">+</button>
                     </div>
                 </div>
             </div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="proceed" data-msg="Proceed to review" class="hover bottom">Proceed</button>
-                <button data-cmd="cancel" data-msg="Cancel edit" class="hover bottom">Cancel</button>
+                <button tabindex="0" data-cmd="proceed" data-msg="Proceed to review" class="hover bottom">Proceed</button>
+                <button tabindex="0" data-cmd="cancel" data-msg="Cancel edit" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -122,9 +122,9 @@
                 <h2>Order summary</h2>
             </div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button data-cmd="save" data-msg="Save order changes" class="hover bottom">Save Order</button>
-                <button data-cmd="create-bill" data-msg="Convert to bill" class="hover bottom">Create Bill</button>
-                <button data-cmd="cancel" data-msg="Cancel changes" class="hover bottom">Cancel Changes</button>
+                <button tabindex="0" data-cmd="save" data-msg="Save order changes" class="hover bottom">Save Order</button>
+                <button tabindex="0" data-cmd="create-bill" data-msg="Convert to bill" class="hover bottom">Create Bill</button>
+                <button tabindex="0" data-cmd="cancel" data-msg="Cancel changes" class="hover bottom">Cancel Changes</button>
             </div>
         </div>
     </template>
@@ -133,9 +133,9 @@
             <h2>Fill up missing pieces of information</h2>
             <div id="host"></div>
             <div id="btn-container" onclick="clickHandler(event)">
-                <button type="button" disabled data-cmd="save-bill" class="main-ui-btn hover bottom" data-msg="Save bill">Save Bill</button>
-                <button type="button" disabled data-cmd="print" class="main-ui-btn hover bottom" data-msg="Print bill">Print Bill</button>
-                <button type="button" data-cmd="back-page1" data-msg="Cancel bill creation" class="hover bottom">Cancel</button>
+                <button tabindex="0" type="button" disabled data-cmd="save-bill" class="main-ui-btn hover bottom" data-msg="Save bill">Save Bill</button>
+                <button tabindex="0" type="button" disabled data-cmd="print" class="main-ui-btn hover bottom" data-msg="Print bill">Print Bill</button>
+                <button tabindex="0" type="button" data-cmd="back-page1" data-msg="Cancel bill creation" class="hover bottom">Cancel</button>
             </div>
         </div>
     </template>
@@ -147,7 +147,7 @@
                     <label for="name" class="highlight">Name: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" data-step="1" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
+                    <input tabindex="0" required type="text" data-step="1" spellcheck="false" name="name" autofocus data-name="name" list="customer-names"/>
                 </div>
             </div>
             <div>
@@ -155,7 +155,7 @@
                     <label for="address" class="highlight">Address: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" name="address" data-name="address" />
+                    <input tabindex="0" required type="text" name="address" data-name="address" />
                 </div>
             </div>
             <div>
@@ -163,7 +163,7 @@
                     <label for="phones" class="highlight">Phone:</label>
                 </div>
                 <div class="row1">
-                    <input required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
+                    <input tabindex="0" required type="text" placeholder="Pattern '+country code'+<SPACE>+10 digit number" pattern="(\+\d+ )*\d{5} *\d{5}" name="phones" data-name="phones" data-type="Number" id="customer-phone" onkeypress="validateInput(event)" />
                 </div>
             </div>
             <div>
@@ -171,7 +171,7 @@
                     <label for="email" class="highlight">Customer Email</label>
                 </div>
                 <div class="row1">
-                    <input name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
+                    <input tabindex="0" name="email" pattern="\S+@\S+\.\S+" placeholder="Example: xyz@xyz.xyz" type="text" data-name="email" id="customer-email" />
                 </div>
             </div>
             <div>
@@ -179,11 +179,11 @@
                     <label for="gst" class="highlight">GST Number</label>
                 </div>
                 <div class="row1">
-                    <input name="gst" type="text" data-name="gst" id="customer-gst" />
+                    <input tabindex="0" name="gst" type="text" data-name="gst" id="customer-gst" />
                 </div>
             </div>
             <div>
-                <button type="submit" data-type='proceed'>Next</button>
+                <button tabindex="0" type="submit" data-type='proceed'>Next</button>
             </div>
         </form>
     </template>
@@ -195,7 +195,7 @@
                     <label for="billDate" class="highlight">Date: </label>
                 </div>
                 <div class="row1">
-                    <input type="date" required name="billDate" data-name="billDate"/>
+                    <input tabindex="0" type="date" required name="billDate" data-name="billDate"/>
                 </div>
             </div>
             <div>
@@ -203,7 +203,7 @@
                     <label for="order-ref" class="highlight">Order Reference:</label>
                 </div>
                 <div class="row1">
-                    <input type="text" data-name="orderRef" name="orderRef" id="order-ref" placeholder="optional">
+                    <input tabindex="0" type="text" data-name="orderRef" name="orderRef" id="order-ref" placeholder="optional">
                 </div>
             </div>
             <div>
@@ -214,11 +214,11 @@
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-type-regular">Regular: </label>
-                            <input type="radio" checked required data-name="billType"  name="billType" id="bill-type-regular" value="regular" />
+                            <input tabindex="0" type="radio" checked required data-name="billType"  name="billType" id="bill-type-regular" value="regular" />
                         </div>
                         <div>
                             <label for="bill-type-monthly">Monthly: </label>
-                            <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" />
+                            <input tabindex="0" type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" />
                         </div>
                     </div>
                 </div>
@@ -228,20 +228,20 @@
                     <label for="bill-number-regular" class="highlight">Bill Number: </label>
                 </div>
                 <div class="row1 bill-number regular">
-                    <input name="billNo" id="bill-number-regular" required type="text" data-name="billNo" />
+                    <input tabindex="0" name="billNo" id="bill-number-regular" required type="text" data-name="billNo" />
                 </div>
                 <div class="row1 hide bill-number monthly">
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-number-reserve">Reserved: </label>
-                            <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" />
+                            <input tabindex="0" type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" />
                         </div>
                         <div>
                             <label for="bill-number-spot">Spot: </label>
-                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" />
+                            <input tabindex="0" type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" />
                         </div>
                         <div>
-                            <input type="checkbox" name="auto-bill" data-name="autoBill" disabled id="auto-bill">
+                            <input tabindex="0" type="checkbox" name="auto-bill" data-name="autoBill" disabled id="auto-bill">
                             <label for="auto-bill">Auto Bill</label>
                         </div>
                     </div>
@@ -255,11 +255,11 @@
                     <div class="radio-btn-div">
                         <div>
                             <label for="bill-status-open">Open: </label>
-                            <input type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" />
+                            <input tabindex="0" type="radio" required data-name="billStatus"  name="billStatus" id="bill-status-open" value="open" />
                         </div>
                         <div>
                             <label for="bill-status-close">Close: </label>
-                            <input type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" />
+                            <input tabindex="0" type="radio" data-name="billStatus" checked name="billStatus" id="bill-status-close" value="close" />
                         </div>
                     </div>
                 </div>
@@ -269,7 +269,7 @@
                     <label for="delivery-mode" class="highlight">Delivery Mode: </label>
                 </div>
                 <div class="row1">
-                    <select name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
+                    <select tabindex="0" name="deliveryType" id="delivery-mode" onchange="assignDeliveryOptions(event)" required type="text" data-name="deliveryType">
                         <option value="hand">Hand</option>
                         <option value="transport">Transport</option>
                     </select>
@@ -282,7 +282,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit" data-type='proceed'>Next</button>
+                <button tabindex="0" type="submit" data-type='proceed'>Next</button>
             </div>
         </form>
     </template>
@@ -291,7 +291,7 @@
             <h2>Add payment informations</h2>
             <div id="payment-mode">
                 <label for="payment-mode">Select payment mode:</label>
-                <select id="payment-mode" onchange="showPaymentMode(event)">
+                <select tabindex="0" id="payment-mode" onchange="showPaymentMode(event)">
                     <option value="due" selected>Due</option>
                     <option value="cash">Cash</option>
                     <option value="check">Check</option>
@@ -301,33 +301,33 @@
             <div id="cash-payment" class="hide payment-detail">
                 <div>
                     <p>Enter amount</p>
-                    <input data-type="Number" value="0" data-subtype="price" data-name="payment" />
+                    <input tabindex="0" data-type="Number" value="0" data-subtype="price" data-name="payment" />
                 </div>
             </div>
             <div id="check-payment" class="hide payment-detail">
                 <div>
                     <p>Bank Name</p>
-                    <input type="text" data-name="bankName"/>
+                    <input tabindex="0" type="text" data-name="bankName"/>
                 </div>
                 <div>
                     <p>Bank Branch</p>
-                    <input type="text" data-name="bankBranch"/>
+                    <input tabindex="0" type="text" data-name="bankBranch"/>
                 </div>
                 <div>
                     <p>Account No.</p>
-                    <input type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    <input tabindex="0" type="text" data-subtype="price" data-name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
                 </div>
                 <div>
                     <p>Check No.</p>
-                    <input type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    <input tabindex="0" type="text" data-subtype="price" data-name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
                 </div>
                 <div>
                     <p>Amount paid</p>
-                    <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    <input tabindex="0" type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
                 </div>
                 <div>
                     <p>Mark as paid</p>
-                    <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                    <select tabindex="0" type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
                         <option value="false">No</option>
                         <option value="true">Yes</option>
                     </select>
@@ -336,26 +336,26 @@
             <div id="online-payment" class="hide payment-detail">
                 <div>
                     <p>Bank Name</p>
-                    <input type="text" data-name="bankName" />
+                    <input tabindex="0" type="text" data-name="bankName" />
                 </div>
                 <div>
                     <p>Transaction Ref.</p>
-                    <input type="text" data-name="bankTrnRef" />
+                    <input tabindex="0" type="text" data-name="bankTrnRef" />
                 </div>
                 <div>
                     <p>Amount paid</p>
-                    <input type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    <input tabindex="0" type="text" value="0" data-name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
                 </div>
                 <div>
                     <p>Mark as paid</p>
-                    <select type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
+                    <select tabindex="0" type="text" data-name="paymentStatus" onchange="updatePayStatus(event)">
                         <option value="false">No</option>
                         <option value="true">Yes</option>
                     </select>
                 </div>
             </div>
             <div>
-                <button type="submit" data-type='proceed'>Next</button>
+                <button tabindex="0" type="submit" data-type='proceed'>Next</button>
             </div>
         </form>
     </template>
@@ -402,15 +402,15 @@
     <template id="body-row-template">
         <div class="body row">
             <div class="col sm"><p>1</p></div>
-            <div class="col lg"><input type="text" data-name="name" list="stock-names" /></div>
-            <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col md"><input data-name="unit" type="text" list="unit-dl" /></div>                            
-            <div class="col md"><input data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col lg"><input tabindex="0" type="text" data-name="name" list="stock-names" /></div>
+            <div class="col md"><input tabindex="0" data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input tabindex="0" data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
+            <div class="col md"><input tabindex="0" data-name="unit" type="text" list="unit-dl" /></div>                            
+            <div class="col md"><input tabindex="0" data-name="standardSellPrice" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p class="amt"></p></div>
-            <div class="col sm"><input data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
-            <div class="col sm"><input data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input tabindex="0" data-name="cgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input tabindex="0" data-name="sgst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col sm"><input tabindex="0" data-name="igst" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
             <div class="col md"><p class="amt-with-tax"></p></div>
         </div>
     </template>
@@ -426,7 +426,7 @@
                     <label for="transport-name" class="highlight">Transport Name: </label>
                 </div>
                 <div class="row1">
-                    <input list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
+                    <input tabindex="0" list="transport-dl" name="transport-name" placeholder="compulsory feild" required type="text" data-name="transportName" />
                 </div>
             </div>
             <div>
@@ -434,7 +434,7 @@
                     <label for="transport-address" class="highlight">Transport Address: </label>
                 </div>
                 <div class="row1">
-                    <input name="transport-address" type="text" data-name="transportAddress" />
+                    <input tabindex="0" name="transport-address" type="text" data-name="transportAddress" />
                 </div>
             </div>
             <div>
@@ -442,7 +442,7 @@
                     <label for="transport-contact" class="highlight">Transport Contact: </label>
                 </div>
                 <div class="row1">
-                    <input name="transport-contact" type="text" data-name="transportContact" />
+                    <input tabindex="0" name="transport-contact" type="text" data-name="transportContact" />
                 </div>
             </div>
         </div>

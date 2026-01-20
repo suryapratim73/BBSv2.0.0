@@ -539,6 +539,8 @@ async function showBillOptions(e){
 
 async function billUtils(e){
     const {cmd} = e.target.dataset;
+    let billOptionContent = e.target.parentNode.parentNode;
+    let { entryNo } = JSON.parse(JSON.parse(billOptionContent.dataset.billObj).billObj);
     let opt = document.getElementById("bill-option-content");
     if(!opt) return;
     const {itemList,billAmt,payment,netDue} = JSON.parse(opt.dataset.billObj);
@@ -555,7 +557,7 @@ async function billUtils(e){
     }
     else
     if(cmd==="cancel-bill")
-        ipcRenderer.invoke("cancel-bill",id,billNo,billDate,billAmt);
+        ipcRenderer.invoke("cancel-bill",id,billNo,billDate,billAmt,entryNo);
 }
 
 function handlePrint(e){
@@ -613,6 +615,7 @@ function progressCancel(e){
 
 function refreshHelper(){
     billPageInit.call(page2BTNS);
+    ipcRenderer.send("refresh-customer-list");
     loadLedgerTable(selectedCustomer.name)
 }
 
@@ -709,12 +712,22 @@ document.addEventListener("keydown",e=>{
                 if(!filterBtn.classList.contains("hide"))
                     filterBtn.click();
             }
-            [...document.querySelectorAll("#btn-container button[data-keymap]")]
-            .forEach(btn=>{
-                if(btn.classList.contains("hide")) return;
-                if(e.key===btn.dataset.keymap)
-                    btn.click();
-            });
+            else
+            if(e.key==="e" && document.getElementById("bill-option-modal"))
+                document.querySelector("#bill-option-BTNs button[data-cmd='add-item']").click();
+            else
+            if(e.key==="p" && document.getElementById("bill-option-modal"))
+                document.querySelector("#bill-option-BTNs button[data-cmd='print']").click();
+            else
+            if(e.key==="o" && document.getElementById("bill-option-modal"))
+                document.querySelector("#bill-option-BTNs button[data-cmd='open']").click();
+            else
+                [...document.querySelectorAll("#btn-container button[data-keymap]")]
+                .forEach(btn=>{
+                    if(btn.classList.contains("hide")) return;
+                    if(e.key===btn.dataset.keymap)
+                        btn.click();
+                });
         }
         else
         if(e.key==="Enter"){

@@ -14,21 +14,21 @@
         <div>
             <div>
                 <label for="printer-list">Select Printer</label>
-                <input id="printer-list" name="printer-list" onclick="resetInput(event)" list="printer-names" aria-label="Select printer from list" />
+                <input id="printer-list" name="printer-list" onclick="resetInput(event)" list="printer-names" aria-label="Select printer from list" tabindex="0" />
             </div>
             <div>
                 <fieldset>
                     <legend>Document label</legend>
                     <div>
-                        <input type="checkbox" data-copy="first" checked id="buyer-copy" value="Original Buyer's Copy"/>
+                        <input type="checkbox" data-copy="first" checked id="buyer-copy" value="Original Buyer's Copy" tabindex="0"/>
                         <label for="buyer-copy"> Original Buyer's Copy</label>
                     </div>
                     <div>
-                        <input type="checkbox" data-copy="second" id="transport-copy" value="Transporter's Copy"/>
+                        <input type="checkbox" data-copy="second" id="transport-copy" value="Transporter's Copy" tabindex="0"/>
                         <label for="transport-copy"> Transporter's Copy</label>
                     </div>
                     <div>
-                        <input type="checkbox" data-copy="third" checked id="book-copy" value="Book Copy"/>
+                        <input type="checkbox" data-copy="third" checked id="book-copy" value="Book Copy" tabindex="0"/>
                         <label for="book-copy"> Book Copy</label>
                     </div>
                 </fieldset>
@@ -36,11 +36,11 @@
                     <legend>Additional options</legend>
                     <div>
                         <label for="no-of-copies">Number Of Copies</label>
-                        <input id="no-of-copies" name="no-of-copies" type="number" value="1" />
+                        <input id="no-of-copies" name="no-of-copies" type="number" value="1" tabindex="0" />
                     </div>
                     <div>
                         <label for="paper-size">Paper Size</label>
-                        <select name="paper-size" id="paper-size">
+                        <select name="paper-size" id="paper-size" tabindex="0">
                             <option selected value="A4">A4</option>
                             <option value="A5">A5</option>
                             <option value="A7">A7</option>
@@ -48,7 +48,7 @@
                     </div>
                     <div>
                         <label for="print-orientation">Print Orientation</label>
-                        <select name="print-orientation" id="print-orientation">
+                        <select name="print-orientation" id="print-orientation" tabindex="0">
                             <option selected value="3">Portrait</option>
                             <option value="4">Landscape</option>
                         </select>
@@ -57,8 +57,8 @@
             </div>
         </div>
         <div>
-            <button type="submit" data-name="print-btn">Continue to Print</button>
-            <button type="button" data-name="print-cancel-btn">Cancel</button>
+            <button type="submit" class="main-ui-btn hover top right" data-msg="Continue to print (Ctrl+Enter)" data-name="print-btn" tabindex="0">Continue to Print</button>
+            <button type="button" class="hover top right" data-msg="Cancel & Close (Escape)" data-name="print-cancel-btn" tabindex="0">Cancel</button>
         </div>
     </form>
     <datalist id="printer-names"></datalist>

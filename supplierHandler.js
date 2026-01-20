@@ -1,9 +1,9 @@
 const { ipcMain, dialog, BrowserWindow,app } = require("electron");
-const { Op,DataTypes } = require("sequelize");
+const { Op,DataTypes, where } = require("sequelize");
 const { createModal, getMainWindow } = require("./createModal");
 const { getTemplatePath } = require("./viewManager");
 const { supplier, sequelize, outPayments, purchase } = require("./model/dbConfig");
-const { getLedgerModel, getStartDate, appLogger, People, getBillModel } = require("./common");
+const { getLedgerModel, getStartDate, appLogger, People, getBillModel, getFivePercentOfMemory, getFinYearStrtEndDt, getOutPayments, initSuppliers } = require("./common");
 const path = require("path");
 const fs = require("fs");
 const { deserializeSchema } = require("./model/schemaLoader");
@@ -18,7 +18,6 @@ if(!(fs.existsSync(dynamicSchemaPath)))
 
 const dynamicSchemaJson = fs.readFileSync(dynamicSchemaPath, 'utf8');
 const { billItemSchema, supplierLedgerSchema } = deserializeSchema(dynamicSchemaJson, DataTypes);
-const suppliers = [];
 
 let windowOptions = {
     width: 800,
@@ -52,32 +51,21 @@ exports.checkOutPayments = mainWindow=>{
     }
 }
 
-async function initSuppliers(){
-    return (await supplier.findAll())
-        .map(({dataValues})=>dataValues)
-        .forEach(suppObj=>{
-            suppObj._type = "supplier";
-            suppliers.push(new People(suppObj))
-        });
-}
-
 ipcMain.on("get-out-payments",async e=>{
-    e.sender.send("show-out-payments",(await outPayments.findAll()).map(({dataValues})=>dataValues));
+    let _outPayments = typeof global.outPayments!="undefined" ? global.outPayments : await getOutPayments(outPayments,appLogger,getFivePercentOfMemory);
+    e.sender.send("show-out-payments",_outPayments);
 });
 
 ipcMain.handle("get-supplier-name",async (e,id)=>{
     return (await supplier.findOne({where:{id}})).dataValues;
 });
 
-exports.suppliers = suppliers;
-exports.initSuppliers = initSuppliers;
-
 ipcMain.handle("get-suppliers", async (e,reload)=>{
-    if(reload===false && suppliers.length>0 && suppliers.every(suppObj=>["name","netPurchase","netDebt"].every(key=>key in suppObj))) 
-        return suppliers.map(({id,name,netPurchase,netDebt})=>({id,name,netPurchase,netDebt}));
-    if(suppliers.length===0)
-        await initSuppliers();
-    return (await suppliers.filter(suppObj=>Object.keys(suppObj).length!==0).reduce(async (acc,suppObj)=>{
+    if(reload===false && global.suppliers?.length>0 && global.suppliers?.every(suppObj=>["name","netPurchase","netDebt"].every(key=>key in suppObj))) 
+        return global.suppliers?.map(({id,name,netPurchase,netDebt})=>({id,name,netPurchase,netDebt}));
+    if(typeof global.suppliers=="undefined" || reload===true)
+        await initSuppliers(supplier,appLogger,getFivePercentOfMemory);
+    return (await global.suppliers.filter(suppObj=>Object.keys(suppObj).length!==0).reduce(async (acc,suppObj)=>{
         const { id } = suppObj;
         let ledger = await getLedgerModel(id,supplierLedgerSchema);
         let {netPurchase=0} = (await ((await purchase.sync()).findOne({
@@ -105,6 +93,11 @@ ipcMain.handle("get-suppliers", async (e,reload)=>{
 ipcMain.handle("Load-full-ledger",async (e,id)=>{
     let supplierLedger = await getLedgerModel(id,supplierLedgerSchema)
     return (await supplierLedger.findAll({
+        where:{
+            date:{
+                [Op.gte]:getFinYearStrtEndDt(0).strtDt
+            }
+        },
         order:[
             ["entryNo","DESC"]
         ]
@@ -114,7 +107,10 @@ ipcMain.handle("Load-full-ledger",async (e,id)=>{
 ipcMain.handle("get-all-bills",async (e,id)=>{
     return (await purchase.findAll({
         where:{
-            supplierId:id
+            supplierId:id,
+            billDate:{
+                [Op.gte]:getFinYearStrtEndDt(0).strtDt
+            }
         }
     })).map(({dataValues})=>dataValues);
 });
@@ -184,7 +180,7 @@ ipcMain.handle("add-out-payment",async (e,obj)=>{
 });
 
 ipcMain.handle("get-more-info-supplier",async (e,id)=>{
-    let supplierSelected = suppliers.find((suppObj)=>suppObj.id===id);
+    let supplierSelected = global.suppliers.find((suppObj)=>suppObj.id===id);
     if("phones" in supplierSelected) return supplierSelected;
     let suppMoreInfo = (await supplier.findOne({where:{id}})).dataValues;
     supplierSelected.append(suppMoreInfo);
@@ -193,7 +189,7 @@ ipcMain.handle("get-more-info-supplier",async (e,id)=>{
 
 ipcMain.on("update-supplier",async (e,obj)=>{
     const { id } = obj;
-    let suppObj = suppliers.find(suppObj=>suppObj.id===id);
+    let suppObj = global.suppliers.find(suppObj=>suppObj.id===id);
     for(let key in obj)
         suppObj[key] = obj[key];
     supplier.update(obj,{where:{id}})
@@ -219,7 +215,7 @@ ipcMain.on("new-supplier",async (e,obj)=>{
         defaults:obj
     })
     .then(([{dataValues}])=>{
-        suppliers.push(new People(dataValues));
+        global.suppliers.push(new People(dataValues));
         let msg = {
             type: "info",
             title: "Supplier Added",
@@ -228,7 +224,7 @@ ipcMain.on("new-supplier",async (e,obj)=>{
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         const {id=null,name=""} = dataValues;
         appLogger("new Supplier added to database",JSON.stringify({id,name}));
-        console.log(suppliers.find(obj=>obj.id===id));
+        console.log(global.suppliers.find(obj=>obj.id===id));
     })
     .catch(err=>{
         console.log(err);
@@ -245,6 +241,9 @@ ipcMain.handle("get-bill-items",async (e,tableName)=>{
 ipcMain.handle("get-out-payments",async (e,id)=>{
     return (await (await outPayments.sync()).findAll({
         where:{
+            date:{
+                [Op.gte]:getFinYearStrtEndDt(0).strtDt
+            },
             beneficiaryId:id
         },
         attributes:["payment","date"]
@@ -252,7 +251,7 @@ ipcMain.handle("get-out-payments",async (e,id)=>{
 });
 
 ipcMain.handle("get-supplier-names",async ()=>{
-    if(suppliers.length===0)
-        await initSuppliers();
-    return suppliers.map(({id,name})=>({id,name}));    
+    if(typeof global.suppliers === "undefined")
+        await initSuppliers(supplier,appLogger,getFivePercentOfMemory);
+    return global.suppliers.map(({id,name})=>({id,name}));    
 });

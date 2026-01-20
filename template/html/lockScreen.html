@@ -17,27 +17,27 @@
         <h2>Welcome to BBS</h2>
         <div>
             <div><label for="name">Username</label></div>
-            <div><input type="text" autofocus name="name" id="name" required></div>
+            <div><input type="text" autofocus name="name" id="name" required tabindex="0"></div>
         </div>
         <div>
             <div><label for="passwd">Password</label></div>
-            <div><input type="password" name="passwd" id="passwd" required></div>
+            <div><input type="password" name="passwd" id="passwd" required tabindex="0"></div>
         </div>
         <div>
-            <div><button type="submit" data-msg="Proceed to login" class="hover bottom">Next</button></div>
+            <div><button type="submit" data-msg="Proceed to login" class="hover bottom" tabindex="0">Next</button></div>
         </div>
         <div>
-            <div><button data-cmd="password-recovery" type="button" onclick="initPasswdRecovery()" data-msg="Recover forgotten password" class="hover bottom">Forgot password?</button></div>
+            <div><button data-cmd="password-recovery" type="button" onclick="initPasswdRecovery()" data-msg="Recover forgotten password" class="hover bottom" tabindex="0">Forgot password?</button></div>
         </div>
     </form>   
     <template id="six-digit-code-form-template">
         <form onsubmit="unlockHandler(event,2)" id="two-factor-form">
             <div>
                 <div><label for="code">Enter 6-digti code from authenticator app</label></div>
-                <div><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="_validateInput2(event)" name="code" id="code"></div>
+                <div><input data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="_validateInput2(event)" name="code" id="code" tabindex="0"></div>
             </div>
             <div>
-                <div><button type="submit" data-msg="Verify authentication code" class="hover bottom">Verify</button></div>
+                <div><button type="submit" data-msg="Verify authentication code" class="hover bottom" tabindex="0">Verify</button></div>
             </div>
             <div>
                 <canvas id="timer"></canvas>
@@ -48,7 +48,7 @@
         <div id="lock-div">
             <h2>The page is locked.</h2>
             <div>
-                <button onclick="lockHandler(event)" data-msg="Unlock the application" class="hover bottom">Unlock</button>
+                <button onclick="lockHandler(event)" data-msg="Unlock the application" class="hover bottom" tabindex="0">Unlock</button>
             </div>
         </div>
     </template>
@@ -56,28 +56,28 @@
         <form onsubmit="validateOTP(event)">
             <div>
                 <div><label for="user">Enter username</label></div>
-                <div><input type="text" name="user"></div>
+                <div><input type="text" name="user" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="otp-feild">Check your mail for OTP</label></div>
-                <div><input type="text" name="otp-feild" id="otp-feild"></div>
+                <div><input type="text" name="otp-feild" id="otp-feild" tabindex="0"></div>
             </div>
             <p>*Please note OTP will expire in 5min</p>
             <div>
-                <div><button type="submit" data-msg="Proceed with OTP" class="hover bottom">Next</button></div>
+                <div><button type="submit" data-msg="Proceed with OTP" class="hover bottom" tabindex="0">Next</button></div>
             </div>
-            <div><button data-cmd="resend-otp" type="button" data-msg="Resend OTP to email" class="hover bottom">Resend OTP</button></div>
+            <div><button data-cmd="resend-otp" type="button" data-msg="Resend OTP to email" class="hover bottom" tabindex="0">Resend OTP</button></div>
         </form>
     </template>
     <template id="new-passwd-template">
         <form onsubmit="saveNewPasswd(event)">
             <h2>Set new password for the user: <span id="selected-user"></span></h2>
             <div><label for="new-passwd">Enter new password</label></div>
-            <div><input type="password" name="new-passwd" id="new-passwd" required></div>
+            <div><input type="password" name="new-passwd" id="new-passwd" required tabindex="0"></div>
             <div><label for="re-new-passwd">Enter new password</label></div>
-            <div><input type="password" name="re-new-passwd" id="re-new-passwd" required></div>
+            <div><input type="password" name="re-new-passwd" id="re-new-passwd" required tabindex="0"></div>
             <div>
-                <div><button type="submit" data-msg="Save new password" class="hover bottom">Next</button></div>
+                <div><button type="submit" data-msg="Save new password" class="hover bottom" tabindex="0">Next</button></div>
             </div>
         </form>
     </template>

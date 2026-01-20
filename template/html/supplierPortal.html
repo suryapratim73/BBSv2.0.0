@@ -10,14 +10,14 @@
 </head>
 <body>
     <nav role="navigation" aria-label="Supplier portal navigation">
-        <button class="main-ui-btn page1-elem" data-cmd="addSupplier" aria-label="Add new supplier">Add Supplier</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="bills" aria-label="Show supplier bills">Show Bills</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="profile" aria-label="View supplier profile">View Profile</button>
-        <button class="main-ui-btn hide page2-elem" data-cmd="print-ledger" aria-label="Print supplier ledger">Print Ledger</button>
-        <button class="main-ui-btn hide page3-elem" data-cmd="addPayment" aria-label="Add payment to supplier">Add Payment</button>
-        <button class="main-ui-btn hide page2-elem page3-elem" data-cmd="back" aria-label="Go back">Back</button>
-        <input class="page1-elem" placeholder="Type to search for supplier" oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search suppliers">
-        <input class="page3-elem" placeholder="Type to search bill." oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search bills">
+        <button class="main-ui-btn page1-elem" data-cmd="addSupplier" aria-label="Add new supplier" tabindex="0">Add Supplier</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="bills" aria-label="Show supplier bills" tabindex="0">Show Bills</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="profile" aria-label="View supplier profile" tabindex="0">View Profile</button>
+        <button class="main-ui-btn hide page2-elem" data-cmd="print-ledger" aria-label="Print supplier ledger" tabindex="0">Print Ledger</button>
+        <button class="main-ui-btn hide page3-elem" data-cmd="addPayment" aria-label="Add payment to supplier" tabindex="0">Add Payment</button>
+        <button class="main-ui-btn hide page2-elem page3-elem" data-cmd="back" aria-label="Go back" tabindex="0">Back</button>
+        <input class="page1-elem" placeholder="Type to search for supplier" oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search suppliers" tabindex="0">
+        <input class="page3-elem" placeholder="Type to search bill." oninput="searchHandler(event)" type="text" name="" id="" aria-label="Search bills" tabindex="0">
     </nav>
     <main role="main">
         <div id="all-suppliers" class="table page hide page1" role="table" aria-label="All suppliers table">
@@ -85,23 +85,23 @@
             </div>
             <div>
                 <div><label for="billNo">Choose Bill Number</label></div>
-                <div><input type="text" name="billNo" list="billNo-list" onchange="assignBillAmt(event)"></div>
+                <div><input type="text" name="billNo" list="billNo-list" onchange="assignBillAmt(event)" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="ref">Transaction Reference</label></div>
-                <div><input type="text" name="ref" id="ref"></div>
+                <div><input type="text" name="ref" id="ref" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="payDate">Choose Date</label></div>
-                <div><input type="date" id="payDate" name="payDate"></div>
+                <div><input type="date" id="payDate" name="payDate" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="payAmt">Enter Amount</label></div>
-                <div><input type="text" name="payAmt" oninput="validateBillAmt(event)" data-type="Number" onkeypress="validateInput(event)"></div>
+                <div><input type="text" name="payAmt" oninput="validateBillAmt(event)" data-type="Number" onkeypress="validateInput(event)" tabindex="0"></div>
             </div>
             <div>
-                <button type="submit">Add Payment</button>
-                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="submit" tabindex="0">Add Payment</button>
+                <button type="button" onclick="closeModal()" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -109,28 +109,28 @@
         <form onsubmit="updateSupplierProfile(event,'update-supplier')">
             <div>
                 <div><label for="name">Name</label></div>
-                <div><input type="text" disabled name="name"></div>
+                <div><input type="text" disabled name="name" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="address">Address</label></div>
-                <div><input type="text" disabled name="address"></div>
+                <div><input type="text" disabled name="address" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="phones">Phones</label></div>
-                <div><input type="text" placeholder="Enter phone numbers separated by commas" disabled name="phones"></div>
+                <div><input type="text" placeholder="Enter phone numbers separated by commas" disabled name="phones" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="gst">GST Number</label></div>
-                <div><input type="text" disabled name="gst"></div>
+                <div><input type="text" disabled name="gst" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="email">Email</label></div>
-                <div><input type="text" disabled name="email"></div>
+                <div><input type="text" disabled name="email" tabindex="0"></div>
             </div>
             <div>
-                <button type="button" onclick="enableInput(event)">Edit</button>
-                <button type="submit" class="hide">Save</button>
-                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="button" onclick="enableInput(event)" tabindex="0">Edit</button>
+                <button type="submit" class="hide" tabindex="0">Save</button>
+                <button type="button" onclick="closeModal()" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -138,27 +138,27 @@
         <form onsubmit="updateSupplierProfile(event,'new-supplier')">
             <div>
                 <div><label for="name">Name</label></div>
-                <div><input type="text" name="name"></div>
+                <div><input type="text" name="name" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="address">Address</label></div>
-                <div><input type="text" name="address"></div>
+                <div><input type="text" name="address" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="phones">Phones</label></div>
-                <div><input type="text" placeholder="Enter phone numbers separated by commas" name="phones"></div>
+                <div><input type="text" placeholder="Enter phone numbers separated by commas" name="phones" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="gst">GST Number</label></div>
-                <div><input type="text" name="gst"></div>
+                <div><input type="text" name="gst" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="email">Email</label></div>
-                <div><input type="text" name="email"></div>
+                <div><input type="text" name="email" tabindex="0"></div>
             </div>
             <div>
-                <button type="submit">Save</button>
-                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="submit" tabindex="0">Save</button>
+                <button type="button" onclick="closeModal()" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -201,22 +201,22 @@
             </div>
         </div>
         <div>
-            <button onclick="closeModal()">Close</button>
+            <button onclick="closeModal()" tabindex="0">Close</button>
         </div>
     </template>
     <template id="ledger-modal-content-template">
         <form onsubmit="handlePrint(event)">
           <div>
               <label for="ledger-period">Please select the period of ledger.</label>
-              <select id="ledger-period" name="ledger-period">
+              <select id="ledger-period" name="ledger-period" tabindex="0">
                   <option value="0">Current financial year</option>
                   <option value="1">Last financial year</option>
                   <option value="2">All year</option>
               </select>
           </div>
           <div>
-              <button type="submit" class="main-ui-btn">Print</button>
-              <button type="button" data-name="cancel" onclick="closeModal(event)">Cancel</button>
+              <button type="submit" class="main-ui-btn" tabindex="0">Print</button>
+              <button type="button" data-name="cancel" onclick="closeModal(event)" tabindex="0">Cancel</button>
           </div>
       </form>
       </template>

@@ -3,9 +3,8 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { BrowserWindow } = require("electron/main");
 const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo, captionReducer, getFinYearStrtEndDt } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
-const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
@@ -153,7 +152,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     },{
         where:{id}
     })
-    let match = stockList.find(obj=>obj.id===id);
+    let match =  global.stocks.find(obj=>obj.id===id);
     if(!match){
         match = {};
         match.quantity = 0;
@@ -469,9 +468,9 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
 ipcMain.on("save-exit-sale-bill",save_exit);
 
 ipcMain.handle("get-customers",async ()=>{
-    if(customerList.length>0) return customerList;
-    await initCustomerList();
-    return customerList;
+    if(typeof global.customerList === "undefined")
+        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+    return global.customerList;
 });
 
 ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
@@ -500,17 +499,7 @@ ipcMain.handle("get-transporter",async ()=>{
 
 ipcMain.on("get-sales",async e=>{
     try{
-        let dt = getFinYearStrtEndDt()?.strtDt ?? new Date(new Date().getFullYear(),3,1);
-        let sales = (await (await sale.sync())
-        .findAll({
-            where:{
-                billDate:{
-                    [Op.gte]:dt
-                }
-            },
-            order:[["entryNo","DESC"]]
-        }))
-        .map(({dataValues})=>dataValues);
+        let sales = typeof global.sales!=="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
         e.sender.send("get-sales-response",sales);
     }
     catch(err){

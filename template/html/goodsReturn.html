@@ -27,21 +27,21 @@
         <form onsubmit="handle_proceed(event)" oninput="searchHandler(event)">
             <div>
                 <label for="supp-name">Enter supplier name</label>
-                <input type="text" list="supplier-name" name="name" id="supp-name" />
+                <input type="text" list="supplier-name" name="name" id="supp-name" tabindex="0" />
             </div>
             <div>
                 <label for="supp-ret-date">Enter return date</label>
-                <input type="date" name="ret-date" class="ret-date" id="supp-ret-date" />
+                <input type="date" name="ret-date" class="ret-date" id="supp-ret-date" tabindex="0" />
             </div>
             <div>
                 <label for="supp-date">Enter purchase date/period</label>
-                <input type="text" disabled name="date" id="supp-date" />
+                <input type="text" disabled name="date" id="supp-date" tabindex="0" />
             </div>
             <div>
                 <label for="supp-billNo">Enter bill number</label>
-                <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="supp-billNo" />
+                <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="supp-billNo" tabindex="0" />
             </div>
-            <div><button type="submit" class="main-ui-btn hover bottom" data-msg="Retrieve supplier bill items">Get Bill Items</button></div>
+            <div><button type="submit" class="main-ui-btn hover bottom" data-msg="Retrieve supplier bill items" tabindex="0">Get Bill Items</button></div>
         </form>
     </div>
     <div id="customer-bill-div" class="ret-bill-div">
@@ -49,21 +49,21 @@
         <form onsubmit="handle_proceed(event)" oninput="searchHandler(event)">
             <div>
                 <label for="name">Enter customer name</label>
-                <input type="text" list="customer-name" name="name" id="name" />
+                <input type="text" list="customer-name" name="name" id="name" tabindex="0" />
             </div>
             <div>
                 <label for="ret-date">Enter return date</label>
-                <input type="date" name="ret-date" class="ret-date" id="ret-date" />
+                <input type="date" name="ret-date" class="ret-date" id="ret-date" tabindex="0" />
             </div>
             <div>
                 <label for="date">Enter sale date/period</label>
-                <input type="text" disabled name="date" id="date" />
+                <input type="text" disabled name="date" id="date" tabindex="0" />
             </div>
             <div>
                 <label for="billNo">Enter bill number</label>
-                <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="billNo" />
+                <input type="text" disabled name="billNo" onchange="assignBillDate(event)" list="billNo-list" id="billNo" tabindex="0" />
             </div>
-            <div><button type="submit" class="main-ui-btn" >Get Bill Items</button></div>
+            <div><button type="submit" class="main-ui-btn" tabindex="0" >Get Bill Items</button></div>
         </form>
     </div>
     <div id="page-2" class="hide">
@@ -78,9 +78,9 @@
             <div id="tbody"></div>
         </div>  
         <div>
-            <button data-cmd="add-item" data-msg="Add item to return list" class="hover bottom">Add item</button>
-            <button data-cmd="confirm-return" data-msg="Confirm and process return" class="hover bottom">Confirm Return</button>
-            <button data-cmd="back" data-msg="Go back to previous page" class="hover bottom">Back</button>
+            <button data-cmd="add-item" data-msg="Add item to return list" class="hover bottom" tabindex="0">Add item</button>
+            <button data-cmd="confirm-return" data-msg="Confirm and process return" class="hover bottom" tabindex="0">Confirm Return</button>
+            <button data-cmd="back" data-msg="Go back to previous page" class="hover bottom" tabindex="0">Back</button>
         </div>  
     </div>
 </body>

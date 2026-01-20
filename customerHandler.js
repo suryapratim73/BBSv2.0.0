@@ -4,13 +4,14 @@ const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stoc
 const { getTemplatePath } = require("./viewManager");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, People, customerList, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt } = require("./common");
+const { getLedgerModel, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
 const { billPDF } = require("./scripts/makePDF.default");
 const { deserializeSchema } = require("./model/schemaLoader");
+const { title } = require("process");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -41,10 +42,10 @@ exports.customerPortal = mainWindow =>{
     }
 }
 
-ipcMain.on("get-customer",async e=>{
-    if(customerList.length===0)
-        await initCustomerList();
-    let _customerList = customerList.reduce(async (acc,custObj)=>{
+async function getCustomerList(){
+    if(typeof global.customerList === "undefined")
+        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+    return  global.customerList.reduce(async (acc,custObj)=>{
         let customerLedger = await getLedgerModel(custObj.id,customerLedgerSchema);
         let {balance=0} = (await customerLedger.findOne({
             attributes:["balance"],
@@ -69,7 +70,17 @@ ipcMain.on("get-customer",async e=>{
         acc.push({...custObj,balance,netPurchase});
         return acc;
     },[]);
-    e.sender.send("customer-list",await _customerList);
+}
+
+ipcMain.on("refresh-customer-list",async ()=>{
+    await getCustomerList();
+});
+
+ipcMain.on("get-customer",async e=>{
+    let _customerList = typeof global.customerList !== "undefined" ? global.customerList : (await getCustomerList())
+    global.customerList = _customerList;
+    checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
+    e.sender.send("customer-list",_customerList);
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
@@ -251,13 +262,11 @@ ipcMain.handle("show-customer-bills",async (e,id)=>{
 
 ipcMain.on("get-customer-names",async e=>{
     let customerNames = [];
-    if(customerList.length>0)
-        customerNames = customerList.map(({name,id})=>({name,id}));
+    if(global.customerList.length>0)
+        customerNames = global.customerList.map(({name,id})=>({name,id}));
     else
-        customerNames = (await customer.findAll())
-            .map(({dataValues})=>dataValues)
-            .map(obj=>{
-                customerList.push(new People(obj));
+        customerNames = await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+            global.customerList.map(obj=>{
                 return {name:obj.name,id:obj.id};
             })
     e.sender.send("customer-names",customerNames);
@@ -412,10 +421,9 @@ ipcMain.on("get-bill-numbers",async (e,id,startDate,endDate)=>{
 });
 
 ipcMain.handle("customer-id-to-name",async (e,id)=>{
-    if(customerList.length===0)
-        return (await (await customer.sync()).findOne({where:{id},attributes:["name"]})).dataValues;
-    else
-        return customerList.find(obj=>obj.id===id);
+    if(typeof global.customerList === "undefined")
+        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+    return  global.customerList.find(obj=>obj.id===id);
 });
 
 ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
@@ -617,7 +625,7 @@ ipcMain.handle("get-customer-out-payments",async (e,id)=>{
 });
 
 ipcMain.handle("update-customer-profile",async (e,custData)=>{
-    let selectedCustomer = customerList.find(obj=>obj.id===custData.id);
+    let selectedCustomer = global.customerList.find(obj=>obj.id===custData.id);
     for(let key in custData){
         if(key==="email")
             selectedCustomer.moreInfo.email = custData.email;
@@ -647,12 +655,12 @@ ipcMain.handle("update-customer-profile",async (e,custData)=>{
 });
 
 ipcMain.handle("get-customer-details",async (e,id)=>{
-    if(customerList.length===0)
-        await initCustomerList();
-    return customerList.find(obj=>obj.id===id);
+    if(typeof global.customerList === "undefined")
+        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+    return global.customerList.find(obj=>obj.id===id);
 });
 
-ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
+ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
     // Check if the bill is eligible for deletion
     // if(Date.now()-(new Date(billDate)).getTime()>3*24*60*60*1000) return dialog.showErrorBox("Bill cannot be cancelled","Bill cancellation date expired");
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
@@ -667,9 +675,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt)=>{
         // Remove sale record
         sale.destroy({
             where:{
-                customerId:id,
-                billNo,
-                billDate
+                entryNo
             }
         }),
         // Update Ledger

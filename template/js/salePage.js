@@ -37,7 +37,7 @@ async function init(){
     appendToDL("get-services",nameDatalist);
     appendToDL("get-customers",customerNameDatalist);
     appendToDL("get-transporter",transporterDatalist);
-    let billNos = Array.from(new Set(availableBillNo)) ;
+    let billNos = Array.from(new Set(availableBillNo));
     billNos = billNos.map(no=>{
         return {
             name:no
@@ -226,8 +226,50 @@ async function reInitFormData(){
 
 async function mainForm(){
     removeAllElem("main *");
+    removeAllElem("footer .horizontal-scroll-list");
     let page = document.getElementById(`page-${currentStep}-template`).content.cloneNode(true).querySelector("div");
     document.querySelector("main").appendChild(page);
+    // GST State Codes as per GST portal (returns abbreviations)
+    const gstStateCodes = {
+        "01": "JK",   // Jammu & Kashmir
+        "02": "HP",   // Himachal Pradesh
+        "03": "PB",   // Punjab
+        "04": "CH",   // Chandigarh
+        "05": "UK",   // Uttarakhand
+        "06": "HR",   // Haryana
+        "07": "DL",   // Delhi
+        "08": "RJ",   // Rajasthan
+        "09": "UP",   // Uttar Pradesh
+        "10": "BR",   // Bihar
+        "11": "SK",   // Sikkim
+        "12": "AR",   // Arunachal Pradesh
+        "13": "NL",   // Nagaland
+        "14": "MN",   // Manipur
+        "15": "MZ",   // Mizoram
+        "16": "TR",   // Tripura
+        "17": "ML",   // Meghalaya
+        "18": "AS",   // Assam
+        "19": "WB",   // West Bengal
+        "20": "JH",   // Jharkhand
+        "21": "OR",   // Odisha
+        "22": "CT",   // Chhattisgarh
+        "23": "MP",   // Madhya Pradesh
+        "24": "GJ",   // Gujarat
+        "25": "DD",   // Daman & Diu
+        "26": "DN",   // Dadra & Nagar Haveli
+        "27": "MH",   // Maharashtra
+        "28": "AP",   // Andhra Pradesh (Old)
+        "29": "KA",   // Karnataka
+        "30": "GA",   // Goa
+        "31": "LD",   // Lakshadweep
+        "32": "KL",   // Kerala
+        "33": "TN",   // Tamil Nadu
+        "34": "PY",   // Puducherry
+        "35": "AN",   // Andaman & Nicobar Islands
+        "36": "TG",   // Telangana
+        "37": "AP",   // Andhra Pradesh (New)
+        "97": "OT"    // Other Territory
+    };
     if(currentStep===2){
         billMeta.billDate = (preset.mode==="edit-bill") ? billMeta.billDate : await ipcRenderer.invoke("get-date");
         document.querySelector(`[data-name="billDate"]`).valueAsDate = typeof billMeta.billDate==="string" ? new Date(billMeta.billDate) : billMeta.billDate;
@@ -244,17 +286,18 @@ async function mainForm(){
             input?.setAttribute("list","available-bill-no-div");
         }
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
-        if(typeof customer.moreInfo.shipInfos==="undefined" || customer.moreInfo?.shipInfos?.length==0 || (customer.moreInfo?.shipInfos?.length===1 && customer.moreInfo?.shipInfos?.[0].shipTo=="")){
-            document.querySelector(`[data-name="shipTo"]`).value = customer.name;
-            document.querySelector(`[data-name="shipAddr"]`).value = customer.address ?? "";
-            document.querySelector(`[data-name="shipPh"]`).value = customer.phones?.[0] ?? "";
-            document.querySelector(`[data-name="shipGST"]`).value = customer.gst ?? "";
-        }
+        document.querySelector(`[data-name="shipTo"]`).value = customer.name;
+        document.querySelector(`[data-name="shipAddr"]`).value = customer.address ?? "";
+        document.querySelector(`[data-name="shipPh"]`).value = customer.phones?.[0] ?? "";
+        document.querySelector(`[data-name="shipGST"]`).value = customer.gst ?? "";
+        document.querySelector("[data-name='stateNcode']").value = typeof customer.gst!=="" ? customer.gst.substring(0,2) + "-" + gstStateCodes[customer.gst?.substring(0,2)] : "";
     }
     setFooter();
     if(currentStep===3){
         document.querySelector("#tbody")?.addEventListener("focusin",clickOrFocusinHandler);
         document.querySelector("#tbody")?.addEventListener("click",clickOrFocusinHandler);
+        appendToHost("#roll-text-template",document.querySelector("footer"),"DIV");
+        document.querySelector("footer .horizontal-scroll-list").after(document.querySelector("#btn-container"));
     }
     if(currentStep===4)
         page4Init();
@@ -694,16 +737,22 @@ function saveExit(){
         showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
 }
 
-function gstChecksum(gst){
-    let regTest = /\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}/.test(gst)
-     if(regTest){
-        let a=65,b=55,c=36;
-        return Array.from(gst).reduce((i,j,k,g)=>{
-            p=(p=(j.charCodeAt(0)<a?parseInt(j):j.charCodeAt(0)-b)*(k%2+1))>c?1+(p-c):p;
-            return k<14?i+p:j==((c=(c-(i%c)))<10?c:String.fromCharCode(c+b));
-        },0); 
+// gstChecksum function - validates the GSTIN number format and checksum
+function gstChecksum(gst) {
+    // GSTIN format: 2 digits (state), 5 letters, 4 digits, 1 letter, 1 alphanumeric, 'Z', 1 alphanumeric
+    const regex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}$/;
+    if (!regex.test(gst)) return false;
+    const factor = [1,2,1,2,1,2,1,2,1,2,1,2,1,2];
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let sum = 0;
+    for (let i = 0; i < 14; i++) {
+        let codePoint = chars.indexOf(gst[i]);
+        let product = codePoint * factor[i];
+        sum += Math.floor(product / 36) + (product % 36);
     }
-    return regTest
+    let checksum = (36 - (sum % 36)) % 36;
+    let expected = chars[checksum];
+    return gst[14] === expected;
 }
 
 function setShipInfo(e){
@@ -745,36 +794,91 @@ document.addEventListener("keydown",e=>{
         document.querySelector('[data-type="save"]')?.click();
     }
     else
-    if(e.ctrlKey && e.key==="ArrowLeft")
-        document.querySelector('[data-type="back"]' && currentStep>1).click();
-    else
     if(e.ctrlKey && e.key==="+")
         document.querySelector("#add-item>button").click();
     else
-    if(e.key==="F2" && currentStep===2){
-        e.preventDefault();
-        document.querySelector('[data-type="select-bill-type"]')?.focus();
-    }
-    else
-    if(e.shiftKey && e.key==="Delete")
-        deleteRow();
-    else
-    if(e.ctrlKey && e.key==="d" && currentStep===3){
-        e.preventDefault();
-        deleteRow();
-    }
+    if(e.ctrlKey && e.key==="Backspace" && currentStep>1)
+        document.querySelector('[data-type="back"]').click();
     else
     if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
         document.querySelector(`[data-type="print"]`).click();
     else
-    if(e.shiftKey && e.key==="ArrowDown")
-        bodyRow.querySelector(".desc-div").classList.remove("hide");
+    if(e.shiftKey && e.key==="R" && currentStep===3)
+        traverseParent(document.activeElement,"row","div").focus();
     else
-    if(e.shiftKey && e.key==="Enter")
+    if(!e.ctrlKey && !e.shiftKey && e.key==="ArrowDown" && currentStep===3 && typeof bodyRow!=="undefined"){
+        bodyRow = [...document.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0];
+        if(bodyRow){
+            bodyRow = bodyRow.nextElementSibling;
+            bodyRow.focus();
+        }
+        else
+        if(document.activeElement.nodeName!=="INPUT"){
+            bodyRow = document.querySelector(".body.row");
+            bodyRow.focus();
+        }
+    }
+    else
+    if(!e.ctrlKey && !e.shiftKey && e.key==="ArrowUp" && currentStep===3 && typeof bodyRow!=="undefined"){
+        bodyRow = [...document.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0];
+        if(bodyRow){
+            bodyRow = bodyRow.previousElementSibling;
+            bodyRow.focus();
+        }
+        else
+        if(document.activeElement.nodeName!=="INPUT"){
+            bodyRow = document.querySelector(".body.row");
+            bodyRow.focus();
+        }
+    }
+    else
+    if(e.key==="Enter" && currentStep===3 && typeof bodyRow!=="undefined"){
+        [...bodyRow.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0].querySelector('input[data-name="name"]').focus();
+    }
+    else
+    if(e.shiftKey && e.key==="Delete" && currentStep===3 && typeof bodyRow!=="undefined"){
+        if(bodyRow.id==="table")
+            bodyRow =  document.activeElement;
+        bodyRow = bodyRow.classList.contains("row") ? bodyRow : document.activeElement;
+        let rowNo = [...document.querySelectorAll(".body.row")].indexOf(bodyRow);
+        if(rowNo===-1) return;
+        deleteRow();
+        bodyRow = document.querySelectorAll(".body.row")[rowNo-1];
+        if(!bodyRow)
+            bodyRow = document.querySelector(".body.row");
+        bodyRow?.focus();
+    }
+    else
+    if(e.shiftKey && e.key==="Insert" && currentStep===3 && typeof bodyRow!=="undefined"){
+        bodyRow.querySelector(".desc-div").classList.remove("hide");
+        bodyRow.querySelector(".desc-div input").focus();
+        return;
+    }
+    else
+    if(bodyRow && e.shiftKey && e.key==="Enter" && currentStep===3 && !bodyRow.querySelector(".desc-div").classList.contains("hide"))
         bodyRow.querySelector(".desc-cnf-btn").click();
     else
-    if(e.shiftKey && e.key==="ArrowUp")
+    if(bodyRow && e.shiftKey && e.key==="Backspace" && currentStep===3 && !bodyRow.querySelector(".desc-div").classList.contains("hide"))
         bodyRow.querySelector(".desc-rej-btn").click();
-    // if(e.ctrlKey && e.key==="g")
-    //     document.querySelector("#grp-btn-div button").click();
+    else
+    if(e.ctrlKey && e.shiftKey && (e.key==="ArrowUp" || e.key==="ArrowDown") && currentStep===3){
+        let focusedElem = document.activeElement;
+        if(typeof bodyRow==="undefined"){
+            bodyRow = [...document.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0];
+            bodyRow = traverseParent(bodyRow,"row","div");
+        }
+        else
+        if(bodyRow.id==="table"){
+            bodyRow =  document.activeElement;
+            bodyRow = traverseParent(bodyRow,"row","div");
+        }
+        let prevRow = bodyRow.previousElementSibling;
+        let nextRow = bodyRow.nextElementSibling;
+        if(e.key==="ArrowDown" && nextRow)// Already at the bottom
+            nextRow.after(bodyRow);
+        else
+        if(e.key==="ArrowUp" && prevRow)// Already at the top
+            prevRow.before(bodyRow);
+        focusedElem.focus();
+    }
 });

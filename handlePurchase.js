@@ -1,15 +1,14 @@
 const { ipcMain,BrowserWindow,app } = require("electron");
-const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People } = require("./common");
+const { getLedgerModel, getBillModel, appLogger, closeAndDisplay, People, getFivePercentOfMemory, getFinYearStrtEndDt, getPurchases } = require("./common");
 const { createModal, getMainWindow } = require("./createModal");
 const { getTemplatePath } = require("./viewManager");
 const { supplier, stock, purchase, outPayments, freight, people, sequelize } = require("./model/dbConfig");
-const { suppliers } = require("./supplierHandler");
 const { getFreights } = require("./peopleHandler");
 const { stockList } = require("./handleStock");
 const { getsaleConfigPolicyPath } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
-const { DataTypes } = require("sequelize");
+const { DataTypes, Op } = require("sequelize");
 const { deserializeSchema } = require("./model/schemaLoader");
 
 
@@ -55,7 +54,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
     let freights = getFreights();
     let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     new Promise(async res=>{
-        if(!suppliers.find(suppObj=>suppObj.id===id)){
+        if(!global.suppliers.find(suppObj=>suppObj.id===id)){
             let supplierObj = await (await supplier.sync()).findOrCreate({
                 where:{
                     id
@@ -69,12 +68,12 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                 }
             });
             if(supplierObj){
-                suppliers.push(new People(supplierObj[0].dataValues));
+                global.suppliers.push(new People(supplierObj[0].dataValues));
                 res(supplierObj[0].dataValues.id);
             }
         }
         else
-            res((suppliers.find(suppObj=>suppObj.id===id)).id)
+            res((global.suppliers.find(suppObj=>suppObj.id===id)).id)
     })
     .then(async id=>{
         let freightId;
@@ -173,7 +172,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         billDate,
                         rate
                     })
-                    let selectedStock = stockList.find(obj=>obj.id===id);
+                    let selectedStock = global.stocks.find(obj=>obj.id===id);
                     if(selectedStock){
                         selectedStock.buyPrice = rate;
                         selectedStock.standardSellPrice = Math.round(1.1*rate);
@@ -276,6 +275,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                         }
                     }
                     ipcMain.emit("manage-schedule",null,evObj,"a",false);
+                    getPurchases(purchase,appLogger,getFivePercentOfMemory);// Refreshing purchase cache - no need to wait
                     BrowserWindow.fromId(e.frameId).webContents.send("update-content");
                 }
             })
@@ -286,7 +286,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
 });// Update required
 
 ipcMain.handle("get-purchases",async e=>{
-    let purchases = (await purchase.findAll()).map(({dataValues})=>dataValues);
+    let purchases = typeof global.purchases!="undefined" ? global.purchases : await getPurchases(purchase,appLogger,getFivePercentOfMemory);
     return purchases;
 });
 

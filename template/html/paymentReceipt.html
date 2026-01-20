@@ -13,20 +13,20 @@
         <h2 id="payment-receipt-heading">Payment Receipt Generator</h2>
         <div>
             <div><label for="name">Select Customer</label></div>
-            <div><input type="text" autofocus id="name" name="name" onchange="initPayReceipt(event)" list="customer-list"></div>
+            <div><input type="text" autofocus id="name" name="name" onchange="initPayReceipt(event)" list="customer-list" tabindex="0"></div>
         </div>
         <div>
             <div><label for="date-range">Date Range</label></div>
-            <div><input type="text" disabled id="date" oninput="_searchHandler(event)" name="date"></div>
+            <div><input type="text" disabled id="date" oninput="_searchHandler(event)" name="date" tabindex="0"></div>
         </div>
         <div>
             <div><label for="billNo">Bill Number</label></div>
-            <div><input type="text" id="billNo" oninput="document.querySelector('button:first-child').removeAttribute('disabled')" disabled name="billNo" list="billNo-list"></div>
+            <div><input type="text" id="billNo" oninput="document.querySelector('button:first-child').removeAttribute('disabled')" disabled name="billNo" list="billNo-list" tabindex="0"></div>
         </div>
         <div>
             <div>
-                <button type="submit" class="main-ui-btn hover bottom" disabled data-msg="Print payment receipt">Print Pay Receipt</button>
-                <button type="button" onclick="ipcRenderer.send('close','Payment-Receipt-Generator')" data-msg="Close generator" class="hover bottom">Close</button>
+                <button type="submit" class="main-ui-btn hover bottom" disabled data-msg="Print payment receipt" tabindex="0">Print Pay Receipt</button>
+                <button type="button" onclick="ipcRenderer.send('close','Payment-Receipt-Generator')" data-msg="Close generator" class="hover bottom" tabindex="0">Close</button>
             </div>
         </div>
     </form>

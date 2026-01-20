@@ -21,7 +21,7 @@
                     <label for="consignee">Consignee</label>
                 </div>
                 <div>
-                    <input type="text" required id="consignee" onchange="setFeilds(event)" data-colname="Consignee" name="consignee" list="consignee-list">
+                    <input type="text" required id="consignee" onchange="setFeilds(event)" data-colname="Consignee" name="consignee" list="consignee-list" tabindex="0">
                 </div>
             </div>
             <div>
@@ -29,7 +29,7 @@
                     <label for="consigneeGST">GST</label>
                 </div>
                 <div>
-                    <input type="text" required id="consigneeGST" data-colname="Consignee GST" name="consigneeGST">
+                    <input type="text" required id="consigneeGST" data-colname="Consignee GST" name="consigneeGST" tabindex="0">
                 </div>
             </div>
             <div>
@@ -37,7 +37,7 @@
                     <label for="consigneeAddress">Address</label>
                 </div>
                 <div>
-                    <input type="text" required id="consigneeAddress" data-colname="Consignee Address" name="consigneeAddress">
+                    <input type="text" required id="consigneeAddress" data-colname="Consignee Address" name="consigneeAddress" tabindex="0">
                 </div>
             </div>
             <div>
@@ -45,7 +45,7 @@
                     <label for="delNoteNo">Delivery Note No.</label>
                 </div>
                 <div>
-                    <input type="text" data-colname="Delivery Note No." required id="delNoteNo" name="delNoteNo">
+                    <input type="text" data-colname="Delivery Note No." required id="delNoteNo" name="delNoteNo" tabindex="0">
                 </div>
             </div>
             <div>
@@ -53,15 +53,15 @@
                     <label for="delDate">Dispatch Date</label>
                 </div>
                 <div>
-                    <input type="date" data-colname="Dispatch Date" required id="delDate" name="delDate">
+                    <input type="date" data-colname="Dispatch Date" required id="delDate" name="delDate" tabindex="0">
                 </div>
             </div>
             <div>
-                <button type="button" class="main-ui-btn" onclick="addNewFeild()" id="new-feild-btn" aria-label="Add new custom field">+</button>
+                <button type="button" class="main-ui-btn" onclick="addNewFeild()" id="new-feild-btn" aria-label="Add new custom field" tabindex="0">+</button>
             </div>
             <div>
-                <button type="submit" class="main-ui-btn">Next</button>
-                <button onclick="ipcRenderer.send('close','Road-Challan-Generator')">Cancel</button>
+                <button type="submit" class="main-ui-btn" tabindex="0">Next</button>
+                <button onclick="ipcRenderer.send('close','Road-Challan-Generator')" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -79,14 +79,14 @@
                 </div>
                 <div id="tbody" onclick="deleteRow(event)" onmouseover="showDeleteBTN(event)" class="hide-scrollbar" role="rowgroup">
                     <div class="row">
-                        <button onclick="addRow(event)" class="main-ui-btn" id="add-new-row" aria-label="Add new item row">+</button>
+                        <button onclick="addRow(event)" class="main-ui-btn" id="add-new-row" aria-label="Add new item row" tabindex="0">+</button>
                     </div>
                 </div>
             </div>
             <div>
-                <button onclick="ipcRenderer.send('close','Road-Challan-Generator')">Cancel</button>
-                <button onclick="showPage1()" id="back-to-page1">Back</button>
-                <button onclick="generateRoadChallan(event)" class="main-ui-btn" id="generate-challan">Generate</button>
+                <button onclick="ipcRenderer.send('close','Road-Challan-Generator')" tabindex="0">Cancel</button>
+                <button onclick="showPage1()" id="back-to-page1" tabindex="0">Back</button>
+                <button onclick="generateRoadChallan(event)" class="main-ui-btn" id="generate-challan" tabindex="0">Generate</button>
             </div>
         </div>
     </template>
@@ -94,16 +94,16 @@
         <form onsubmit="newFeildToNewEmp(event)" class="page2-elem">
             <div>
                 <div><label for="key">Feild Name</label></div>
-                <div><input type="text" id="key" name="key"></div>
+                <div><input type="text" id="key" name="key" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="val">Feild Value</label></div>
-                <div><input type="text" id="val" name="val"></div>
+                <div><input type="text" id="val" name="val" tabindex="0"></div>
             </div>
             <div>
                 <div>
-                    <button type="submit" class="main-ui-btn">Add</button>
-                    <button type="button" onclick="showPage1()">Cancel</button>
+                    <button type="submit" class="main-ui-btn" tabindex="0">Add</button>
+                    <button type="button" onclick="showPage1()" tabindex="0">Cancel</button>
                 </div>
             </div>
         </form>
@@ -111,11 +111,11 @@
     <template id="body-row-template">
         <div class="body row">
             <div class="col eq-space"><p></p></div>
-            <div class="col eq-space"><input data-colname="Product Name" type="text" onchange="selectStock(event)" data-name="stock-name" list="stock-names" /></div>
-            <div class="col eq-space"><input data-colname="HSN" data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col eq-space"><input data-colname="Quantity" data-name="qty" oninput="calculateAmt(event)" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>
-            <div class="col eq-space"><input data-colname="Unit" data-name="unit" type="text" list="unit-dl" oninput="calculateAmt(event)" /></div>                            
-            <div class="col eq-space"><input data-colname="Rate" data-name="standardSellPrice" oninput="calculateAmt(event)" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" /></div>                            
+            <div class="col eq-space"><input data-colname="Product Name" type="text" onchange="selectStock(event)" data-name="stock-name" list="stock-names" tabindex="0" /></div>
+            <div class="col eq-space"><input data-colname="HSN" data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0" /></div>
+            <div class="col eq-space"><input data-colname="Quantity" data-name="qty" oninput="calculateAmt(event)" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0" /></div>
+            <div class="col eq-space"><input data-colname="Unit" data-name="unit" type="text" list="unit-dl" oninput="calculateAmt(event)" tabindex="0" /></div>                            
+            <div class="col eq-space"><input data-colname="Rate" data-name="standardSellPrice" oninput="calculateAmt(event)" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0" /></div>                            
             <div class="col eq-space"><p class="amt"></p></div>
         </div>
     </template>

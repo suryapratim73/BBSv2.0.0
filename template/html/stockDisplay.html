@@ -12,7 +12,7 @@
     <nav role="navigation" aria-label="Inventory viewer navigation">
         <h1>Inventory viewer</h1>
         <div id="searchbar-container" role="search">
-            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock.." aria-label="Search stock inventory">
+            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock.." aria-label="Search stock inventory" tabindex="0">
         </div>
     </nav>
     <main role="main">
@@ -50,8 +50,8 @@
                 <div class="tbody hide-scrollbar"></div>
             </div>
             <div>
-                <button onclick="closeModal()">Close</button>
-                <button class="main-ui-btn" onclick="showUpdater()">Update Stock</button>
+                <button onclick="closeModal()" tabindex="0">Close</button>
+                <button class="main-ui-btn" onclick="showUpdater()" tabindex="0">Update Stock</button>
             </div>
         </div>
     </template>
@@ -64,9 +64,9 @@
         <div class="page2-elem">
             <div id="feild-container" onmouseover="showDeleteBTN(event)"></div>
             <div>
-                <button onclick="updateStock()" class="main-ui-btn">Update</button>
-                <button onclick="backToPage1()">Cancel</button>
-                <button onclick="showAddNewFeild()" data-msg="Add New Feild" class="hover right top">+</button>
+                <button onclick="updateStock()" class="main-ui-btn" tabindex="0">Update</button>
+                <button onclick="backToPage1()" tabindex="0">Cancel</button>
+                <button onclick="showAddNewFeild()" data-msg="Add New Feild" class="hover right top" tabindex="0">+</button>
             </div>
         </div>
     </template>
@@ -76,23 +76,23 @@
                 <h2>Add New Feild</h2>
                 <div>
                     <p>Feild Name</p>
-                    <div><input type="text" data-colName="feild"></div>
+                    <div><input type="text" data-colName="feild" tabindex="0"></div>
                 </div>
                 <div>
                     <p>Feild Value</p>
-                    <div><input type="text" data-colName="value"></div>
+                    <div><input type="text" data-colName="value" tabindex="0"></div>
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn" onclick="appendNewInfo()">Add</button>
-                <button onclick="backToPage2()">Cancel</button>
+                <button class="main-ui-btn" onclick="appendNewInfo()" tabindex="0">Add</button>
+                <button onclick="backToPage2()" tabindex="0">Cancel</button>
             </div>
         </div>
     </template>
     <template id="new-row-template">
         <div class="new-row">
             <p data-colName="feild"></p>
-            <div><input type="text" data-colName="value"></div>
+            <div><input type="text" data-colName="value" tabindex="0"></div>
         </div>
     </template>
 </body>

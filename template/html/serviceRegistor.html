@@ -10,9 +10,9 @@
 </head>
 <body>
     <nav role="navigation" aria-label="Service register navigation">
-        <button class="main-ui-btn page1-elem hide" data-cmd="new-service" aria-label="Add new service">Add New Service</button>
-        <button class="main-ui-btn page2-elem hide" data-cmd="back" aria-label="Go back">Back</button>
-        <input class="page1-elem hide" type="text" name="" id="" aria-label="Search services">
+        <button class="main-ui-btn page1-elem hide" data-cmd="new-service" aria-label="Add new service" tabindex="0">Add New Service</button>
+        <button class="main-ui-btn page2-elem hide" data-cmd="back" aria-label="Go back" tabindex="0">Back</button>
+        <input class="page1-elem hide" type="text" name="" id="" aria-label="Search services" tabindex="0">
     </nav>
     <main role="main">
         <div class="table page1-elem page hide" role="table" aria-label="Services list table">
@@ -40,23 +40,23 @@
             </div>
             <div>
                 <div><label for="name">Service Name</label></div>
-                <div><input required type="text" id="name" name="name"></div>
+                <div><input required type="text" id="name" name="name" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="rate">Rate</label></div>
-                <div><input required type="text" id="rate" name="rate"></div>
+                <div><input required type="text" id="rate" name="rate" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="unit">Unit</label></div>
-                <div><input required type="text" id="unit" name="unit"></div>
+                <div><input required type="text" id="unit" name="unit" tabindex="0"></div>
             </div>
             <div>
                 <div><label for="hsn">HSN</label></div>
-                <div><input required type="text" id="hsn" name="hsn"></div>
+                <div><input required type="text" id="hsn" name="hsn" tabindex="0"></div>
             </div>
             <div>
                 <div>
-                    <button class="main-ui-btn type="button" onclick="addFeild(event)">Add Feilds</button>
+                    <button class="main-ui-btn type="button" onclick="addFeild(event)" tabindex="0">Add Feilds</button>
                     <div id="more-feild-menu" class="hide" onclick="showOrHideFeildDiv(event)">
                         <div class="dash-mark"></div>
                         <div class="dash-mark"></div>
@@ -66,8 +66,8 @@
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn" type="submit">Add</button>
-                <button type="button" onclick="closeModal()">Cancel</button>
+                <button class="main-ui-btn" type="submit" tabindex="0">Add</button>
+                <button type="button" onclick="closeModal()" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -78,7 +78,7 @@
                     <label for="key">Feild Name</label>
                 </div>
                 <div>
-                    <input type="text" required id="key" name="key">
+                    <input type="text" required id="key" name="key" tabindex="0">
                 </div>
             </div>
             <div>
@@ -86,12 +86,12 @@
                     <label for="val">Feild Value</label>
                 </div>
                 <div>
-                    <input type="text" required id="val" name="val">
+                    <input type="text" required id="val" name="val" tabindex="0">
                 </div>
             </div>
             <div>
-                <button class="main-ui-btn" type="submit">Add</button>
-                <button type="button" onclick="closeAddFeild(event)">Cancel</button>
+                <button class="main-ui-btn" type="submit" tabindex="0">Add</button>
+                <button type="button" onclick="closeAddFeild(event)" tabindex="0">Cancel</button>
             </div>
         </form>
     </template>
@@ -109,7 +109,7 @@
                         <p>Name</p>
                     </div>
                     <div>
-                        <input type="text" data-colname="name" disabled />
+                        <input type="text" data-colname="name" disabled tabindex="0" />
                     </div>
                 </div>
                 <div>
@@ -117,7 +117,7 @@
                         <p>HSN</p>
                     </div>
                     <div>
-                        <input type="text" data-colname="hsn" disabled />
+                        <input type="text" data-colname="hsn" disabled tabindex="0" />
                     </div>
                 </div>
                 <div>
@@ -125,7 +125,7 @@
                         <p>Rate per unit</p>
                     </div>
                     <div>
-                        <input type="text" data-colname="standardSellPrice" disabled />
+                        <input type="text" data-colname="standardSellPrice" disabled tabindex="0" />
                     </div>
                 </div>
                 <div>
@@ -133,7 +133,7 @@
                         <p>Unit</p>
                     </div>
                     <div>
-                        <input type="text" data-colname="unit" disabled />
+                        <input type="text" data-colname="unit" disabled tabindex="0" />
                     </div>
                 </div>
                 <div>
@@ -141,7 +141,7 @@
                         <p>Service Type</p>
                     </div>
                     <div>
-                        <input type="text" data-colname="type" disabled />
+                        <input type="text" data-colname="type" disabled tabindex="0" />
                     </div>
                 </div>
                 <div>
@@ -159,9 +159,9 @@
                 </div>
                 <div>
                     <div class="btn-container" onclick="enableBTNs(event)">
-                        <button class="main-ui-btn" data-mode="1">Edit</button>
-                        <button class="main-ui-btn hide" data-mode="save">Save Changes</button>
-                        <button class="hide" data-mode="2">Cancel</button>
+                        <button class="main-ui-btn" data-mode="1" tabindex="0">Edit</button>
+                        <button class="main-ui-btn hide" data-mode="save" tabindex="0">Save Changes</button>
+                        <button class="hide" data-mode="2" tabindex="0">Cancel</button>
                     </div>
                 </div>
             </div>

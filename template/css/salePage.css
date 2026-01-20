@@ -166,6 +166,7 @@ input,select{
 }
 #tbody{
     border: unset;
+    overflow: visible;
 }
 option{
     color:black;
@@ -295,33 +296,52 @@ option{
     gap: 0.5rem;
 }
 .desc-div button{
-    background: transparent;
+    background: var(--theme-secondary);
     border: 1px solid transparent;
 }
-.desc-div button:hover{
-    animation: hover 300ms linear forwards; 
-}
-@keyframes hover{
-    0%{
-        border-top: 1px solid;
-    }
-    25%{
-        border-right: 1px solid;
-    }
-    50%{
-        border-bottom: 1px solid;
-    }
-    100%{
-        border-left: 1px solid;
-        border-top: 1px solid;
-        border-right: 1px solid;
-        border-bottom: 1px solid;
-    }
-}
 .desc-div button:first-child{
-    color: greenyellow;
+    color: var(--theme-primary);
     font-size: 1.5rem;
 }
 .desc-div button:last-child{
-    color: red;
+    color: var(--theme-primary);
+}
+.horizontal-scroll-list {
+  width: 100%;
+  overflow: hidden;
+  background: #fafafa;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  height: 2.5em;
+  position: relative;
+}
+
+.horizontal-scroll-list ul {
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  animation: scroll-horizontal 40s linear 3s infinite;
+}
+
+.horizontal-scroll-list li {
+  display: inline-block;
+  padding: 0 2em;
+  font-size: 1em;
+  line-height: 2.5em;
+}
+
+@keyframes scroll-horizontal {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+#add-item button.hover.bottom.right::before{
+    margin-right: -100px;
+    transform: translateX(10px);
 }

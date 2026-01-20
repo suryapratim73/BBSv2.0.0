@@ -10,8 +10,8 @@
 </head>
 <body>
     <header role="banner">
-        <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." aria-label="Search bills">
-        <button data-cmd="toggle-filter-option" class="main-ui-btn" aria-label="Toggle filter options" aria-expanded="false" aria-controls="filter-options">Filter</button>
+        <input type="text" oninput="_searchHandler(event)" placeholder="Type to search bill.." aria-label="Search bills" tabindex="0">
+        <button data-cmd="toggle-filter-option" class="main-ui-btn" aria-label="Toggle filter options" aria-expanded="false" aria-controls="filter-options" tabindex="0">Filter</button>
         <div id="filter-options" class="hide" role="menu">
             <p data-cmd="paid" role="menuitem">Paid</p>
             <p data-cmd="unpaid" role="menuitem">Unpaid</p>
@@ -75,7 +75,7 @@
                 <div id="tbody"></div>
             </div>
             <div id="sec-3">
-                <button onclick="closeModal(event)">Close</button>
+                <button onclick="closeModal(event)" tabindex="0">Close</button>
             </div>
         </div>
     </template>
