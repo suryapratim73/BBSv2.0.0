@@ -1019,7 +1019,7 @@ async function overviewContentDBQuery(year){
   if(!dbInitialized) return;
   let stocks = typeof global.stocks!="undefined" ? global.stocks : await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
   stocks = stocks.filter(({ quantity }) => quantity <= minStock);
-  let unPaidBills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
+  let unPaidBills = await getAllSales(sale,year,appLogger,getFivePercentOfMemory);
   unPaidBills = unPaidBills.filter(({ billDate }) => {
                       let dueDt = new Date(billDate);
                       dueDt = dueDt.getTime() + creditLimitDays * 24 * 60 * 60 * 1000;
@@ -1063,7 +1063,7 @@ ipcMain.on("new-sale-purchase", (e, mode) => {
 
 ipcMain.handle("get-sale-content", async (e,allYear=false) => {
   if(!dbInitialized) return;
-  let bills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
+  let bills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,year,appLogger,getFivePercentOfMemory);
   bills = typeof global.bills!="undefined" ? global.bills : bills.filter(bill=>(bill.billDate.getTime()>(new Date().setMonth(new Date().getMonth()-2,1))));
   let preset;
   if(typeof process.presets.appPreset.saleOverviewMain==="undefined")

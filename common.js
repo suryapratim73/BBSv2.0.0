@@ -432,8 +432,8 @@ function checkNLogMemoryUsage(cacheType,appLogger,getFivePercentOfMemory){
 
 exports.checkNLogMemoryUsage = checkNLogMemoryUsage;
 
-exports.getAllSales = async function(sale,appLogger,getFivePercentOfMemory){
-    let {strtDt,endDt} = getFinYearStrtEndDt(0);
+exports.getAllSales = async function(sale,year,appLogger,getFivePercentOfMemory){
+    let {strtDt,endDt} = getFinYearStrtEndDt(year);
     let sales = (await (await sale.sync())
             .findAll({where:{
                     billDate:{
