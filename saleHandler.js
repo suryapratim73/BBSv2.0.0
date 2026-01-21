@@ -265,7 +265,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 ] : []
             }};
         Reflect.deleteProperty(custObj,"email");
-        customerList.push(new People(custObj));
+        global.customerList.push(new People(custObj));
         customer.findOrCreate({
             where:{
                 id:custId

@@ -1,5 +1,5 @@
 {
-    "version":"2.21.4",
+    "version":"2.21.5",
     "highlights":[
         "Optimised Bill Cancellation Process",
         "Caching introduced for faster and snappy experience",
@@ -10,7 +10,8 @@
         "Added font-scaling for longer/shorter words in GST Invoice",
         "Added keyboard shortcuts for faster billing",
         "Added auto-assign stateNcode feild based on GSTIN",
-        "Various bug fixes and performance improvements"
+        "Various bug fixes and performance improvements",
+        "2.21.5: New Customer Sale entry bug fix"
     ],
     "fullchange":[
         "Optimised Bill Cancellation Process",
@@ -22,6 +23,7 @@
         "Added font-scaling for longer/shorter words in GST Invoice",
         "Added keyboard shortcuts for faster billing",
         "Added auto-assign stateNcode feild based on GSTIN",
-        "Various bug fixes and performance improvements"
+        "Various bug fixes and performance improvements",
+        "2.21.5: New Customer Sale entry bug fix"
     ]
 }
