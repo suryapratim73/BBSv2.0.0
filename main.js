@@ -40,6 +40,7 @@ const {
   queryStock,
   checkNLogMemoryUsage,
   placeOfJurisdiction,
+  notifyCustomer,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -793,12 +794,12 @@ function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller"]
   .forEach(key=>{
-    if(key in policy2 || key in policy || key in policy3){
-      let value = policy2[key] ?? policy[key] ?? policy3[key];
+    let value = policy2[key] ?? policy[key] ?? policy3[key];
+    if(!value || value===null) return;
+    if(key in policy2 || key in policy || key in policy3)
       process.presets[key] = /^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value;
-    }
     else
     if(key==="placeOfJurisdiction")
       process.presets[key] = placeOfJurisdiction(policy3);
@@ -1651,6 +1652,20 @@ ipcMain.on("company-profile-info", async (e, data) => {
       res(JSON.parse(data.toString()));
     });
   });
+  if(typeof data.billTemplate!="undefined"){
+    data.paperSize = typeof data.billTemplate.paperSize!="undefined" ? data.billTemplate.paperSize : "A4";
+    data.margin = typeof data.billTemplate.margin!="undefined" ? Number(data.billTemplate.margin) : 10;
+    if(typeof data.billTemplate.paperSize!="undefined")
+      delete data.billTemplate.paperSize;
+    if(typeof data.billTemplate.margin!="undefined")
+      delete data.billTemplate.margin;
+    // Validate margin
+    if(data.margin<=10)
+      data.margin = 10;
+    else
+    if(data.margin>=26)
+      data.margin = 26;
+  }
   companyObj = {
     ...companyObj,
     ...data,
@@ -1823,7 +1838,14 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
         {
           label:"Mark as paid",
           click:markBillAsPaid.bind(obj,null,targetWin)
-        }
+        },
+        // {
+        //   label: "Notify Customer",
+        //   click: () => {
+        //     errIdentifier = "Notify Customer";
+        //     notifyCustomer(window, obj,customer,appLogger,getFivePercentOfMemory);
+        //   },
+        // }// Notify customer
       ];
     }
     else
@@ -2421,16 +2443,16 @@ function downloadUpdate(appVersion){
   let abortController = new AbortController();
   let cancelToken = uuid.v4();
 
-  if(process.platform==="linux"){
+  if(process.platform==="linux"){// /download/update?channel=production&platform=win
     fileName = `bbs_${appVersion}_amd64.deb`;
     fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
-    downloadURL = process.env.UPDATE_REST+`download/linux/bbs_${appVersion}_amd64.deb`;
+    downloadURL = process.env.UPDATE_REST+`download/update?channel=production&platform=linux`;
   }
   else
   if(process.platform==="win32"){
     fileName = `bbs_${appVersion}_setup.exe`;
     fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_setup.exe`);
-    downloadURL = process.env.UPDATE_REST+`download/win/`;
+    downloadURL = process.env.UPDATE_REST+`download/update?channel=production&platform=win`;
   }
   else
   if(process.platform==="darwin"){
@@ -2454,7 +2476,8 @@ function downloadUpdate(appVersion){
     signal:abortController.signal
   })
   .then(resp=>{
-    if(resp.ok) appLogger({message:"Response received from server"});
+    if(resp.status === 200)
+      appLogger({message:"Response received from server"});
     mainWin.setProgressBar(-1);
     return new Promise((res,rej)=>{
       resp.data.pipe(fileWriter);
@@ -2511,122 +2534,132 @@ async function checkForUpdates(flag="auto") {
     });
   }
   appLogger({message:"Checking for update"});
-  let { isOnline, appVersion, err, changelog } = await new Promise((res) => {
-    mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
-    setTimeout(()=>{
-      mainWin.webContents.send("check-for-update", UPDATE_REST, app.getVersion());
-    },5000)
-    ipcMain.on(
-      "check-for-update-response",
-      (e, { isOnline = false, appVersion, err, changelog }) => {
-        res({ isOnline, appVersion, err, changelog });
-      }
-    );
-  });
-  if (err) {
-    // Logic for error Handling
-    if(isOnline)
-      appLogger({
-        title:"Error",
-        message:String(err),
-        func:"Check for update error"
-      });
-    if(flag!=="auto")
-      return dialog.showMessageBox({
-        title:"Failed to connect",
-        message: "Update server is offline. Check later.",
-        icon:appIcon
-      });
-  }
-  if (isOnline === false){
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"Check for update error",
-      notify:false
-    });
-    return dialog.showMessageBox(mainWin, {
-      title: "No Connection",
-      message: "Failed to connect to update server.",
-      icon:appIcon
-    });
-  }
-  // Parse and santize appVersion
-  if (
-    appVersion &&
-    typeof appVersion === "string" &&
-    new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)
-  ) {
-    let resp = versionChecker(app.getVersion(),appVersion);
-    if(!resp) 
-      return;// (updateCommon.bind({fileName:"Bigbyte Business Service Setup 2.19.14.exe",version:"2.19.14"}))()
+  let isOnline = await checkForInternet();
+  try{
+    let resp = await axios.get(UPDATE_REST+"version?channel=production&platform=win");
+    /** 
+     * Sample response structure
+     * {
+          "channel": "production",
+          "versions": {
+            "win": {
+              "version": "1.0.0",
+              "changelog": "Bug fixes and improvements",
+              "size": 1048576,
+              "released_at": "2025-01-10T10:30:00.000Z"
+            }
+          }
+        }
+     */
+    if(resp.status===200){
+      let data = resp.data;
+      let appVersion = data?.versions?.win?.version || data.version;
+      let changelog = data?.versions?.win?.changelog || data.changelog;
+      isOnline = true;
+      // Parse and santize appVersion
+      if(appVersion && typeof appVersion === "string" && new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)){
+        let resp = versionChecker(app.getVersion(),appVersion);
+        if(!resp) 
+          return;// (updateCommon.bind({fileName:"Bigbyte Business Service Setup 2.19.14.exe",version:"2.19.14"}))()
 
-    let message;
-    if (resp===1)
-      message = "A new version of BBS is available for download.";
-    if (resp===2)
-      message = "A minor feature update is available for download.";
-    if (resp===3)
-      message = "Bug fix available for download.";
-    changelog.highlights?.forEach((log,i)=>{
-      message += (i+1)+") "+log + ". ";
-      changeLogArr.push(log);
-    });
-    let evObj = {
-      label:`Update Available`,
-      type: "app-update",
-      time: new Date(),
-      tag: "app-update",
-      version:appVersion,
-      color: "#A020F0",
-      changeLogArr
+        let message;
+        if (resp===1)
+          message = "A new version of BBS is available for download.";
+        if (resp===2)
+          message = "A minor feature update is available for download.";
+        if (resp===3)
+          message = "Bug fix available for download.";
+        changelog.highlights?.forEach((log,i)=>{
+          message += (i+1)+") "+log + ". ";
+          changeLogArr.push(log);
+        });
+        let evObj = {
+          label:`Update Available`,
+          type: "app-update",
+          time: new Date(),
+          tag: "app-update",
+          version:appVersion,
+          color: "#A020F0",
+          changeLogArr
+        }
+        ipcMain.emit("manage-schedule","app-update",evObj,"exp-a",false);
+        mainWin.webContents.send("check-notification");
+        if(resp===0){
+          if(flag!=="auto")
+            return dialog.showMessageBox({
+              title:"No new update",
+              message: "Application is at latest release version",
+              icon:appIcon
+            });// App is already updated.
+          else
+            return;
+        }
+        let { response } = await dialog.showMessageBox(mainWin, {
+          title: "Update available for download",
+          message,
+          buttons: ["Download", "Cancel"],
+          noLink:true,
+          icon:appIcon
+        });
+        if (response === 1) return ;
+        // If app is not already updated.
+        try{
+          let updtConf = fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json") ? JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString()) : undefined;
+          if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded!==appVersion && fs.existsSync(updtConf?.path2file)){
+            // Older version of app setup exist. So deleting and downloading latest.
+            // fs.rmSync(updtConf.path2file);
+            return downloadUpdate(appVersion);
+          }
+          else
+          if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded===appVersion && fs.existsSync(updtConf?.path2file)){
+            // Update already downloaded and ready for install
+            appLogger({ message: "Update is already downloaded." })
+            updateCommon.call({version:appVersion,fileName:updtConf.fileName});
+          }
+          else{
+            //Downloading update as it is not downloaded
+            downloadUpdate(appVersion);
+          }
+        }
+        catch(err){
+          appLogger({
+            title:"Error",
+            message:String(err),
+            func:"Update conf read error"
+          });
+          downloadUpdate(appVersion);
+        }
+      }
     }
-    ipcMain.emit("manage-schedule","app-update",evObj,"exp-a",false);
-    mainWin.webContents.send("check-notification");
-    if(resp===0){
+  }
+  catch(err){
+    if (err) {
+      // Logic for error Handling
+      if(isOnline)
+        appLogger({
+          title:"Error",
+          message:String(err),
+          func:"Check for update error"
+        });
       if(flag!=="auto")
         return dialog.showMessageBox({
-          title:"No new update",
-          message: "Application is at latest release version",
+          title:"Failed to connect",
+          message: "Update server is offline. Check later.",
           icon:appIcon
-        });// App is already updated.
-      else
-        return;
+        });
     }
-    let { response } = await dialog.showMessageBox(mainWin, {
-      title: "Update available for download",
-      message,
-      buttons: ["Download", "Cancel"],
-      noLink:true,
-      icon:appIcon
-    });
-    if (response === 1) return ;
-    // If app is not already updated.
-    try{
-      let updtConf = JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString());
-      if(updtConf.updateDownloaded && updtConf.versionDownloaded!==appVersion && fs.existsSync(updtConf.path2file)){
-        // Older version of app setup exist. So deleting and downloading latest.
-        // fs.rmSync(updtConf.path2file);
-        return downloadUpdate(appVersion);
-      }
-      else
-      if(updtConf.updateDownloaded && updtConf.versionDownloaded===appVersion && fs.existsSync(updtConf.path2file)){
-        // Update already downloaded and ready for install
-        appLogger({ message: "Update is already downloaded." })
-        updateCommon.call({version:appVersion,fileName:updtConf.fileName});
-      }
-      else{
-        //Downloading update as it is not downloaded
-        downloadUpdate(appVersion);
-      }
-    }
-    catch(err){
+    if (isOnline === false){
       appLogger({
         title:"Error",
         message:String(err),
-        func:"Update conf read error"
+        func:"Check for update error",
+        notify:false
       });
-      downloadUpdate(appVersion);
+      return dialog.showMessageBox(mainWin, {
+        title: "No Connection",
+        message: "Failed to connect to update server.",
+        icon:appIcon
+      });
     }
   }
 }
@@ -3058,7 +3091,7 @@ async function schemaDownloader(){
       }
       catch(err){
         appLogger({
-          title:"Schema download error",
+          title:"Schema download failure",
           message:err,
           func:"schemaDownloader"
         });

@@ -515,6 +515,7 @@ async function showForm(e,cmd,show,prevData={}){
             if(cmd==="bill-template"){
                 compInfo = await ipcRenderer.invoke("get-company-info");
                 let { file,applyTemplate,applyEmblem=false,emblem="",applySeal,seal,captions=[ {first:"Original Buyer's Copy"}, {second:"Transporter's Copy"}, {third:'Book Copy'} ] } = compInfo.billTemplate;
+                let { paperSize="A4", margin=10 } = compInfo;
                 if(applyTemplate){
                     form.querySelector(`[name="applyTemplate"] option[value="${applyTemplate===true?'choosefile':'false'}"]`)
                     .setAttribute("selected",true);
@@ -541,6 +542,10 @@ async function showForm(e,cmd,show,prevData={}){
                     let key = Object.keys(obj)[0];
                     form.querySelector(`input[name="${key}"]`).value = obj[key];
                 });
+                if(paperSize)
+                    form.querySelector(`[name="paperSize"] option[value="${paperSize}"]`)
+                    .setAttribute("selected",true);
+                form.querySelector(`input[name="margin"]`).value = margin;
             }
             else
             if(cmd==="company-profile"){
@@ -978,24 +983,6 @@ function revalidateInput(e){
     if(Number(e.target.value)>Number(e.target.max))
         e.target.value = e.target.max;
 }
-
-ipcRenderer.on("check-for-update",async (e,UPDATE_REST,appVersion)=>{
-    let changelog = [];
-    try{
-        if(navigator.onLine){
-            let resp = await fetch(UPDATE_REST+"version");
-            if(resp.ok){
-                let obj = await resp.json();
-                appVersion = obj.version;
-                changelog = obj.changelog;
-            }
-        }
-        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,changelog});
-    }
-    catch(err){
-        ipcRenderer.send("check-for-update-response",{isOnline:navigator.onLine,appVersion,err,changelog});
-    }
-});
 
 document.addEventListener("click",(e)=>{
     if(e.target.classList.contains("drop-down-btn")) return;

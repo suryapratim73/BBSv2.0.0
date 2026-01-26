@@ -1,5 +1,5 @@
 const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper } = require("../js/common");
-const { ipcRenderer } = require("electron");
+const { ipcRenderer, net } = require("electron");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
 let fs = require("fs");
@@ -135,8 +135,9 @@ ipcRenderer.on("customer-list",(e,customerObj)=>{
     spinner.remove(window);
     removeAllElem("#customer-list .customer-div");
     customerObj.forEach((_customerList)=>{
-        let { name,balance,id,netPurchase } = _customerList;
+        let { name,balance=0,id,netPurchase=0 } = _customerList;
         name = name.trim();
+        if(parseInt(netPurchase)===NaN || parseInt(balance)===NaN || typeof netPurchase === "string") return console.log(_customerList);
         let startLetter = name.charAt(0).toLowerCase();
         if(!startLetter || !/[a-z]/.test(startLetter)) return;
         customerList.push(_customerList);

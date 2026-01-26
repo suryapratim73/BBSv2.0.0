@@ -10,10 +10,11 @@ const { emblemMaker } = require('../lib/common');
 // let path2
 if(process.APP_ENV==="DEV"){}
 
-function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true,temp){
+function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true,temp,paperSize){
     let docOpts = {
         margin,
-        autoFirstPage
+        autoFirstPage,
+        size: paperSize || "A4"
     }
     if(template){
         let { size,applyMargin,margin } = template;
@@ -48,15 +49,15 @@ async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
 exports.billPDF = async function(billObj,temp=false){
     const {billMeta,customer,orderItems} = billObj;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    let { margin } = saleConfig;
+    let { margin, paperSize } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
         let { main } = require("../lib/execCustomTemplate");
         let data = fs.readFileSync(saleConfig.billTemplate.file);
         let template = JSON.parse(data.toString());
-        const {doc,pdfPath} = initBillPDF(billObj,template,true,temp);   
+        const {doc,pdfPath} = initBillPDF(billObj,template,true,temp,paperSize);   
         return main(doc,pdfPath,billObj,template);
     }
-    const {doc,pdfPath} = initBillPDF({...billObj,margin},null,false,temp);
+    const {doc,pdfPath} = initBillPDF({...billObj,margin},null,false,temp,paperSize);
     const {printObj:{captions}={captions:["Original Buyer's Copy"]}} = billMeta;
     let topY,bottomY,factor,myEmitter = new EventEmitter();
     myEmitter.on("pageAdded",async caption=>{

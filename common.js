@@ -5,8 +5,9 @@ const path = require("path");
 const fs = require("fs");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
 const { getMainWindow } = require("./createModal");
-const { getsaleConfigPolicyPath } = require("./template/js/common");
+const { getsaleConfigPolicyPath, init } = require("./template/js/common");
 const { end } = require("pdfkit");
+const { default: axios } = require("axios");
 
 
 exports.closeAndDisplay = function(msg){
@@ -280,7 +281,8 @@ exports.getBaseDir = function(){
         return app.getPath("appData")+"/BBS";
 }
 
-exports.initCustomerList = async function(customer,appLogger,getFivePercentOfMemory){
+exports.initCustomerList = initCustomerList;
+async function initCustomerList(customer,appLogger,getFivePercentOfMemory){
     try{
         global.customerList = [];
         (await (await customer.sync()).findAll())
@@ -316,7 +318,8 @@ exports.priceInspector = function(itemObj){
     });
 }
 
-exports.openFormatForDate = function(date=Date){
+exports.openFormatForDate = openFormatForDate;
+function openFormatForDate(date=Date){
     if(!(date instanceof Date)) return date;
     return date.toLocaleDateString("en-IN",{
                 month:"2-digit",
@@ -442,7 +445,7 @@ exports.getAllSales = async function(sale,year,appLogger,getFivePercentOfMemory)
                 },
                 order:[["entryNo","DESC"]]
             })).map(({dataValues})=>dataValues);
-    global.sales = sales;
+    global.sales = year==0 && sales;
     checkNLogMemoryUsage("sales",appLogger,getFivePercentOfMemory);
     return sales;
 }
@@ -600,4 +603,39 @@ exports.placeOfJurisdiction = function(biller) {
 
     // 3. Not found
     return "Howrah"; // Default fallback
+}
+
+exports.notifyCustomer = async function(window, billObj,customer,appLogger,getFivePercentOfMemory){
+    let { billDate,billNo,name,customerId } = billObj;
+    if(typeof global.customerList==="undefined")
+        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+    let custObj = global.customerList.find(cust=>cust.id===customerId);
+    if(!custObj || !custObj.email){
+        dialog.showErrorBox("Error",`No email found for customer ${name}. Please update customer details and try again.`);
+        return;
+    }
+    billDate = openFormatForDate(new Date(billDate));
+    let fileName = `./${name}_${billDate}_${billNo}.pdf`.replace(" ","\ ");
+    let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
+    console.log({biller:process.presets.biller});
+    if(!fs.existsSync(path2file)) return;
+    let base64File = fs.readFileSync(path2file).toString("base64");
+    axios.post("http://localhost:3030/send-bill-to-customer",{
+        to:name,
+        name,
+        attachment:{
+            fileName:`${name}_${billDate}_${billNo}.pdf`,
+            content:base64File
+        },
+        biller:process.presets.biller
+    }).then(response=>{
+        dialog.showMessageBox(window,{
+            type:"info",
+            title:"Success",
+            message:`Bill sent successfully to ${name}.`
+        })
+    })
+    .catch(err=>{
+        dialog.showErrorBox("Error",`Failed to send bill to ${name}.\n${err.message}`)
+    });
 }

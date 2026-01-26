@@ -231,44 +231,44 @@ async function mainForm(){
     document.querySelector("main").appendChild(page);
     // GST State Codes as per GST portal (returns abbreviations)
     const gstStateCodes = {
-        "01": "JK",   // Jammu & Kashmir
-        "02": "HP",   // Himachal Pradesh
-        "03": "PB",   // Punjab
-        "04": "CH",   // Chandigarh
-        "05": "UK",   // Uttarakhand
-        "06": "HR",   // Haryana
-        "07": "DL",   // Delhi
-        "08": "RJ",   // Rajasthan
-        "09": "UP",   // Uttar Pradesh
-        "10": "BR",   // Bihar
-        "11": "SK",   // Sikkim
-        "12": "AR",   // Arunachal Pradesh
-        "13": "NL",   // Nagaland
-        "14": "MN",   // Manipur
-        "15": "MZ",   // Mizoram
-        "16": "TR",   // Tripura
-        "17": "ML",   // Meghalaya
-        "18": "AS",   // Assam
-        "19": "WB",   // West Bengal
-        "20": "JH",   // Jharkhand
-        "21": "OR",   // Odisha
-        "22": "CT",   // Chhattisgarh
-        "23": "MP",   // Madhya Pradesh
-        "24": "GJ",   // Gujarat
-        "25": "DD",   // Daman & Diu
-        "26": "DN",   // Dadra & Nagar Haveli
-        "27": "MH",   // Maharashtra
-        "28": "AP",   // Andhra Pradesh (Old)
-        "29": "KA",   // Karnataka
-        "30": "GA",   // Goa
-        "31": "LD",   // Lakshadweep
-        "32": "KL",   // Kerala
-        "33": "TN",   // Tamil Nadu
-        "34": "PY",   // Puducherry
-        "35": "AN",   // Andaman & Nicobar Islands
-        "36": "TG",   // Telangana
-        "37": "AP",   // Andhra Pradesh (New)
-        "97": "OT"    // Other Territory
+        "01": "Jammu & Kashmir",   // Jammu & Kashmir
+        "02": "Himachal Pradesh",   // 
+        "03": "Punjab",   // Punjab
+        "04": "Chandigarh",   // Chandigarh
+        "05": "Uttarakhand",   // Uttarakhand
+        "06": "Haryana",   // Haryana
+        "07": "Delhi",   // Delhi
+        "08": "Rajasthan",   // Rajasthan
+        "09": "Uttar Pradesh",   // Uttar Pradesh
+        "10": "Bihar",   // Bihar
+        "11": "Sikkim",   // Sikkim
+        "12": "Arunachal Pradesh",   // Arunachal Pradesh
+        "13": "Nagaland",   // Nagaland
+        "14": "Manipur",   // Manipur
+        "15": "Mizoram",   // Mizoram
+        "16": "Tripura",   // Tripura
+        "17": "Meghalaya",   // Meghalaya
+        "18": "Assam",   // Assam
+        "19": "West Bengal",   // West Bengal
+        "20": "Jharkhand",   // Jharkhand
+        "21": "Odisha",   // Odisha
+        "22": "Chhattisgarh",   // Chhattisgarh
+        "23": "Madhya Pradesh",   // Madhya Pradesh
+        "24": "Gujarat",   // Gujarat
+        "25": "Daman & Diu",   // Daman & Diu
+        "26": "Dadra & Nagar Haveli",   // Dadra & Nagar Haveli
+        "27": "Maharashtra",   // Maharashtra
+        "28": "Andhra Pradesh (Old)",   // Andhra Pradesh (Old)
+        "29": "Karnataka",   // Karnataka
+        "30": "Goa",   // Goa
+        "31": "Lakshadweep",   // Lakshadweep
+        "32": "Kerala",   // Kerala
+        "33": "Tamil Nadu",   // Tamil Nadu
+        "34": "Puducherry",   // Puducherry
+        "35": "Andaman & Nicobar Islands",   // Andaman & Nicobar Islands
+        "36": "Telangana",   // Telangana
+        "37": "Andhra Pradesh (New)",   // Andhra Pradesh (New)
+        "97": "Other Territory"    // Other Territory
     };
     if(currentStep===2){
         billMeta.billDate = (preset.mode==="edit-bill") ? billMeta.billDate : await ipcRenderer.invoke("get-date");

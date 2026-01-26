@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "2.21.5",
+  "version": "2.21.6",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
@@ -56,7 +56,7 @@
     "appId": "com.mbtccodemint.bbs",
     "productName": "Bigbyte Business Service",
     "executableName": "BBS",
-    "copyright": "Copyright © year Codemint",
+    "copyright": "Copyright © 2026 Codemint",
     "nodeVersion": "22.3.0",
     "linux": {
       "target": [

@@ -740,6 +740,23 @@
                 </div>
             </div>
             <div>
+                <div>
+                    <label for="paperSize">Choose Paper Size</label>
+                </div>
+                <div>
+                    <select name="paperSize"  id="paperSize" tabindex="0">
+                        <option value="A4" selected>A4</option>
+                        <option value="LETTER">US Letter</option>
+                    </select>
+                </div>
+                <div>
+                    <div><label for="margin">Set Margin</label></div>
+                </div>
+                <div>
+                    <input type="text" name="margin" id="margin" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0" value="10"> <i> mm</i>
+                </div>
+            </div>
+            <div>
                 <button class="main-ui-btn hover bottom" type="submit" data-msg="Save bill template settings" tabindex="0">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>

@@ -80,6 +80,10 @@ ipcMain.on("get-customer",async e=>{
     let _customerList = typeof global.customerList !== "undefined" ? global.customerList : (await getCustomerList())
     global.customerList = _customerList;
     checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
+    if(typeof global.sales!=="undefined"){
+        let custIds = [...new Set(global.sales.map(({customerId})=>(customerId)))];
+        _customerList = _customerList.filter(({id})=>custIds.findIndex(custId=>custId===id)!==-1);
+    }
     e.sender.send("customer-list",_customerList);
 });
 

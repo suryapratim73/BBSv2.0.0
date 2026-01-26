@@ -1,29 +1,17 @@
 {
-    "version":"2.21.5",
+    "version":"2.21.6",
     "highlights":[
-        "Optimised Bill Cancellation Process",
-        "Caching introduced for faster and snappy experience",
-        "Caching monitotred and restricted to avoid memory overload",
-        "Presenting only current financial year data",
-        "New setting to set place of jurisdiction in GST Invoice - Company Profile Setting",
-        "Improved GST checker",
-        "Added font-scaling for longer/shorter words in GST Invoice",
-        "Added keyboard shortcuts for faster billing",
-        "Added auto-assign stateNcode feild based on GSTIN",
-        "Various bug fixes and performance improvements",
-        "2.21.5: New Customer Sale entry bug fix"
+        "Preset undefine error fix",
+        "GST State Code defults to full State Name",
+        "Customer Portal will now only show customers who purchased in this financial year",
+        "Added support for US-Letter paper size in PDF generation",
+        "Now Paper Margin are configurable in Settings"
     ],
     "fullchange":[
-        "Optimised Bill Cancellation Process",
-        "Caching introduced for faster and snappy experience",
-        "Caching monitotred and restricted to avoid memory overload",
-        "Presenting only current financial year data",
-        "New setting to set place of jurisdiction in GST Invoice - Company Profile Setting",
-        "Improved GST checker",
-        "Added font-scaling for longer/shorter words in GST Invoice",
-        "Added keyboard shortcuts for faster billing",
-        "Added auto-assign stateNcode feild based on GSTIN",
-        "Various bug fixes and performance improvements",
-        "2.21.5: New Customer Sale entry bug fix"
+        "Preset undefine error fix",
+        "GST State Code defults to full State Name",
+        "Customer Portal will now only show customers who purchased in this financial year",
+        "Added support for US-Letter paper size in PDF generation",
+        "Now Paper Margin are configurable in Settings"
     ]
 }
