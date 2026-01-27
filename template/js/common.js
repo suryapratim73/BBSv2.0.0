@@ -1,6 +1,7 @@
 let {ipcRenderer,app} = require("electron");
 const uuid = require("uuid");
 const path = require("path");
+const { type } = require("os");
 require("dotenv").config();
 
 
@@ -1235,6 +1236,9 @@ exports.addRow = function(e){
 
 exports.calculateAmounts = function(){
     if(Object.keys(selectedItem).length===0) return;
+    if(typeof bodyRow==="undefined" || !bodyRow)
+        bodyRow = traverseParent(document.activeElement,"row");
+    console.log({bodyRow})
     let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
     let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;

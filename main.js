@@ -778,11 +778,11 @@ function setAppPresets(){
   let policy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   let policy2 = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
   let policy3 = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-  if(!/^\d.-\d.$/.test(policy.financialYearStartDate))
+  if(!/^\d.-\d.$/.test(policy?.financialYearStartDate))
     policy.financialYearStartDate = "01-03";
   if("financialYearStartDate" in policy){
-    process.presets.financialYearStartDate = policy.financialYearStartDate;
-    process.presets.gstInterval = policy.gstInterval;
+    process.presets.financialYearStartDate = policy?.financialYearStartDate ?? "01-03";
+    process.presets.gstInterval = policy?.gstInterval ?? 1;
   }
   else{
     process.presets.gstInterval = 1;
@@ -797,14 +797,12 @@ function setAppPresets(){
   ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller"]
   .forEach(key=>{
     let value = policy2[key] ?? policy[key] ?? policy3[key];
-    if(!value || value===null) return;
-    if(key in policy2 || key in policy || key in policy3)
+    if(typeof value === "undefined" || value===null) return;
+    if(key !="placeOfJurisdiction" && (key in policy2 || key in policy || key in policy3))
       process.presets[key] = /^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value;
     else
     if(key==="placeOfJurisdiction")
       process.presets[key] = placeOfJurisdiction(policy3);
-    else
-      process.presets[key] = undefined;
   });
 }
 

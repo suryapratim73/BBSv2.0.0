@@ -1,17 +1,11 @@
 {
-    "version":"2.21.6",
+    "version":"2.21.7",
     "highlights":[
         "Preset undefine error fix",
-        "GST State Code defults to full State Name",
-        "Customer Portal will now only show customers who purchased in this financial year",
-        "Added support for US-Letter paper size in PDF generation",
-        "Now Paper Margin are configurable in Settings"
+        "Sell-price selection from drop-down menu calculates the amount"
     ],
     "fullchange":[
         "Preset undefine error fix",
-        "GST State Code defults to full State Name",
-        "Customer Portal will now only show customers who purchased in this financial year",
-        "Added support for US-Letter paper size in PDF generation",
-        "Now Paper Margin are configurable in Settings"
+        "Sell-price selection from drop-down menu calculates the amount"
     ]
 }
