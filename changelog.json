@@ -1,11 +1,11 @@
 {
-    "version":"2.21.7",
+    "version":"2.21.8",
     "highlights":[
-        "Preset undefine error fix",
-        "Sell-price selection from drop-down menu calculates the amount"
+        "SalePage crash on 2md edit fix",
+        "Scoll functionality improved on Customer-portal"
     ],
     "fullchange":[
-        "Preset undefine error fix",
+        "SalePage crash on 2md edit fix",
         "Sell-price selection from drop-down menu calculates the amount"
     ]
 }

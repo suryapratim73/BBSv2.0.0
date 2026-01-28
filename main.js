@@ -3579,15 +3579,11 @@ ipcMain.on("new-bill",async (e,customerObj)=>{
   };
 });
 
-ipcMain.on("edit-bill",async (e,customerId,billNo,billDate,itemList)=>{
+ipcMain.on("edit-bill",async (e,customerId,itemList,entryNo)=>{
   if(!["all", "admin", "bill"].includes(currentUser.role)) return;
   let saleObj = (await sale.findOne({
     where:{
-      [Op.and]:[
-        {customerId},
-        {billNo:Number(billNo)},
-        {billDate:new Date(billDate)}
-      ]
+      entryNo
     }
   }))?.dataValues;
   let customerObj = (await customer.findOne({

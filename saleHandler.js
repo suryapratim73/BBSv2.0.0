@@ -39,7 +39,11 @@ exports.saleWindow = ()=>{
         saleWindow = createModal(windowOptions,getTemplatePath("salePage"));
         // saleWindow.webContents.openDevTools()
         saleWindow.on("unresponsive",(e)=>{
-            dialog.showErrorBox("Error",String(e))
+            appLogger({
+                title:"Error",
+                message:"Sale window unresponsive",
+                func:"saleWindow - unresponsive"
+            });
         });
         // saleWindow.webContents.toggleDevTools()
         saleWindow?.on("close",(e)=>{

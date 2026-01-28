@@ -554,7 +554,7 @@ async function billUtils(e){
         ipcRenderer.send("print",name,billDate,billNo);
     else if(cmd==="add-item"){
         let itemList = await ipcRenderer.invoke("get-bill-items-portal",id,billNo,billDate);
-        ipcRenderer.send("edit-bill",id,billNo,billDate,itemList);
+        ipcRenderer.send("edit-bill",id,itemList,entryNo);
     }
     else
     if(cmd==="cancel-bill")
@@ -661,6 +661,21 @@ ipcRenderer.on("show-bill",(e,billObj)=>{
         selectedDiv.querySelector(".col").click();
 });
 
+function scrollHelper2(e,mainSection,secMainSection,rows){
+    let focusssedRow = rows.find(row=>(row.dataset?.hasFocus=="1"));
+    let focussedIndex;
+    if(typeof focusssedRow==="undefined"){
+        focusssedRow = rows[0];
+        focusssedRow.dataset.hasFocus = 1;
+        focussedIndex = 0;
+        scrollHelper(rows,focussedIndex,e.key,true,mainSection,secMainSection);
+    }
+    else{
+        focussedIndex = rows.findIndex(row=>(row.dataset?.hasFocus=="1"));
+        scrollHelper(rows,focussedIndex,e.key,false,mainSection,secMainSection);
+    }
+}
+
 document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){
         if(document.querySelector(".modal:not(.hide)")){
@@ -674,18 +689,7 @@ document.addEventListener("keydown",e=>{
             let secMainSection = mainSection.querySelector(".occupied h1");
             if(rows.length===0)
                 rows = [...document.querySelectorAll(".customer-div")]
-            let focusssedRow = rows.find(row=>(row.dataset?.hasFocus=="1"));
-            let focussedIndex;
-            if(typeof focusssedRow==="undefined"){
-                focusssedRow = rows[0];
-                focusssedRow.dataset.hasFocus = 1;
-                focussedIndex = 0;
-                scrollHelper(rows,focussedIndex,e.key,true,mainSection,secMainSection);
-            }
-            else{
-                focussedIndex = rows.findIndex(row=>(row.dataset?.hasFocus=="1"));
-                scrollHelper(rows,focussedIndex,e.key,false,mainSection,secMainSection);
-            }
+            scrollHelper2(e,mainSection,secMainSection,rows);
         }
         if(e.key==="Enter"){
             rows.find(row=>(row.dataset?.hasFocus=="1")).click();
@@ -697,13 +701,10 @@ document.addEventListener("keydown",e=>{
             document.querySelector("#btn-container button[data-cmd='back']").click();
         else
         if(e.key==="ArrowUp" || e.key==="ArrowDown"){
-            rows2 = rows2.length>0 ? rows2 : [...document.querySelectorAll("#bill-table .body.row")];
-            let focussedIndex = rows2.findIndex(row=>(row.dataset?.hasFocus=="1"));
-            let firstFlag = focussedIndex < 0;
-            focussedIndex = focussedIndex < 0 ? 0 : focussedIndex;
+            rows2 = [...document.querySelectorAll("#bill-table .body.row")];
             let mainSection = document.getElementById("bill-table");// Work in progress
-            let secMainSection = mainSection.querySelector(".head.row")
-            scrollHelper(rows2,focussedIndex,e.key,firstFlag,mainSection,secMainSection);
+            let secMainSection = mainSection.querySelector(".head.row");
+            scrollHelper2(e,mainSection,secMainSection,rows2);
         }
         else
         if(e.ctrlKey){
