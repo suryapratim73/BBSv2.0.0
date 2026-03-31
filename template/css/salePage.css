@@ -41,6 +41,11 @@ main{
 .page>div>div{
     flex: 1;
 }
+.row.head{
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
 .row{
     border:unset;
     margin-bottom: 0.5rem;
@@ -129,6 +134,7 @@ input,select{
     height: auto;
     min-height: 50%;
     max-height: 100%;
+    position: relative;
 }
 #summary-div p{
     margin: 0 0.5rem;
@@ -166,7 +172,9 @@ input,select{
 }
 #tbody{
     border: unset;
-    overflow: visible;
+    overflow: scroll;
+    position: relative;
+    max-height: 80%;
 }
 option{
     color:black;

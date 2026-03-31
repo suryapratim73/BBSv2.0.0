@@ -8,6 +8,13 @@ const fs = require("fs");
 const { default: axios } = require("axios");
 const readLine = require("readline");
 
+// Helper function to get platform-specific installer filename
+function getInstallerFileName(version) {
+    if (process.platform === "win32") return `bbs_${version}_setup.exe`;
+    if (process.platform === "linux") return `bbs_${version}_amd64.deb`;
+    return null;
+}
+
 let windowOptions = {
     width: 800,
     height: 600
@@ -25,13 +32,19 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
         let backupFolderPath = path.resolve(appPath,"./Backup/version_"+app.getVersion());
         fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(data));
         fs.mkdirSync(backupFolderPath,{ recursive:true });
+        let installerFileName = getInstallerFileName(app.getVersion());
         let fileList = [
             {fileName:"bbs.db",path2file:path.resolve(appPath,"./db/bbs.db")},
             {fileName:"appDefault.json",path2file:path.resolve(appPath,"./config/appDefault.json")},
             {fileName:"policy.json",path2file:path.resolve(appPath,"./config/policy.json")},
-            {fileName:"saleConfig.json",path2file:path.resolve(appPath,"./config/saleConfig.json")},
-            {fileName:"bbs_"+app.getVersion()+"_setup.exe",path2file:path.resolve(appPath,"./bbs_"+app.getVersion()+"_setup.exe")}
+            {fileName:"saleConfig.json",path2file:path.resolve(appPath,"./config/saleConfig.json")}
         ];
+        if (installerFileName) {
+            fileList.push({
+                fileName: installerFileName,
+                path2file: path.resolve(appPath, "./" + installerFileName)
+            });
+        }
         fs.writeFileSync(path.resolve(backupFolderPath,"./fileList.json"),JSON.stringify(fileList));
         fileList.forEach(({path2file:filePath,fileName})=>{
             appLogger({
@@ -44,8 +57,7 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
             })
             if(fs.existsSync(filePath)){
                 fs.copyFileSync(filePath,path.resolve(backupFolderPath,"./"+fileName));
-                if(/setup/.test(fileName))
-                    fs.unlinkSync(filePath);
+                // Don't delete installer - preserve it for potential rollback
             }
             else
                 appLogger({
@@ -97,7 +109,7 @@ ipcMain.on("get-version-contents", async (e)=>{
             title:"Error",
             message:String(err),
             func:"get-version-contents IPC"
-        })
+        });
         e.sender.send("get-version-contents-response",[],app.getVersion());
     }
 });
@@ -121,11 +133,6 @@ async function showUpdateSuccessMsg(){// Runs after update completion
         updateConf.currentVersion = app.getVersion();
         fs.writeFileSync(path.resolve(appPath,"./updtConf.json"),JSON.stringify(updateConf));
         fs.appendFileSync(path.resolve(appPath,"./logs/versionLogs.txt"),JSON.stringify(updtLogEntry)+"\n");
-        // let installerFiles = fs.readdirSync(appPath,{withFileTypes:true}).filter(file=>file.isFile() && file.name.match(/bbs.+setup.exe/));
-        // if(installerFiles instanceof Array && installerFiles.length>0)
-        //     installerFiles.forEach(file=>{
-        //         fs.unlinkSync(path.resolve(appPath,"./"+file.name));
-        //     });
         dialog.showMessageBox({
             title:"Update Complete",
             message:"App has been updated, check versionManager for update details."
@@ -137,7 +144,7 @@ async function showUpdateSuccessMsg(){// Runs after update completion
             title:"Error",
             message:String(err),
             func:"showUpdateSuccessMsg function"
-        })
+        });
     }
 }
 
@@ -145,86 +152,119 @@ ipcMain.handle("get-app-path",()=>{
     return appPath;
 });
 
-ipcMain.on("btn-ctrl-backend",async (e,cmd,versionObj)=>{
-    let backupFolderPath = path.resolve(appPath,"./Backup/version_"+versionObj.appVersion);
-    const { updateCommon } = require("./main");
-    if(!(fs.existsSync(backupFolderPath))) return;
-    let installerFile = path.resolve(backupFolderPath,"./"+"bbs_"+versionObj.appVersion+"_setup.exe")
-    let relPath = path.relative(installerFile,app.getPath("appData"));
-    if(cmd==="restore"){
-        let fileList = JSON.parse(fs.readFileSync(path.resolve(backupFolderPath,"./fileList.json")).toString());
-        fileList.forEach(({fileName,path2file})=>{
-            let srcFilePath = path.resolve(backupFolderPath,"./"+fileName);
-            let destFolder = path.resolve(path2file,"../"); 
-            if(fs.existsSync(srcFilePath) && fs.existsSync(destFolder))
-                fs.copyFileSync(srcFilePath,destFolder);
-        });
-        if(fs.existsSync(installerFile))
-            updateCommon.call({fileName:versionObj.fileName,version:versionObj.appVersion},false,relPath);
-        else
+ipcMain.handle("btn-ctrl-backend",async (e,cmd,versionObj)=>{
+    try {
+        // Input validation
+        if (!versionObj || !versionObj.appVersion || !versionObj.fileName) {
             appLogger({
-                title:"Installer Missing",
-                message:"Installer file missing in backup folder, cannot proceed with downgrade. Path: "+installerFile,
-                func:"versionManager IPC restore"
-            })
-    }
-    else
-    if(cmd==="open-folder")
-        shell.openExternal(backupFolderPath);
-    else
-    if(cmd==="delete-version"){
-        fs.rmdirSync(backupFolderPath,{ recursive:true,force:true });
-        let lines = await versionLogReader();
-        lines = lines.filter(obj=>obj.appVersion!==versionObj.appVersion);
-        fs.unlinkSync(path.resolve(appPath,"./logs/versionLogs.txt"));
-        lines.forEach(line=>{
-            fs.appendFileSync(path.resolve(appPath,"./logs/versionLogs.txt"),JSON.stringify(line)+"\n");
+                title: "Error",
+                message: "Invalid version object provided",
+                func: "btn-ctrl-backend IPC"
+            });
+            return { success: false, error: "Invalid version object" };
+        }
+
+        let backupFolderPath = path.resolve(appPath,"./Backup/version_"+versionObj.appVersion);
+        
+        if(!fs.existsSync(backupFolderPath)) {
+            appLogger({
+                title: "Error",
+                message: "Backup folder not found: " + backupFolderPath,
+                func: "btn-ctrl-backend IPC"
+            });
+            return { success: false, error: "Backup folder not found" };
+        }
+        
+        let installerFileName = getInstallerFileName(versionObj.appVersion);
+        if (!installerFileName) {
+            return { success: false, error: "Unsupported platform" };
+        }
+        
+        let installerFile = path.resolve(backupFolderPath,"./"+installerFileName);
+        let relPath = path.relative(app.getPath("appData"), installerFile);
+        
+        if(cmd==="restore"){
+            let fileListPath = path.resolve(backupFolderPath,"./fileList.json");
+            if (!fs.existsSync(fileListPath)) {
+                appLogger({
+                    title: "Error",
+                    message: "File list not found in backup folder",
+                    func: "btn-ctrl-backend IPC restore"
+                });
+                return { success: false, error: "File list not found" };
+            }
+            
+            let fileList = JSON.parse(fs.readFileSync(fileListPath).toString());
+            fileList.forEach(({fileName,path2file})=>{
+                try {
+                    let srcFilePath = path.resolve(backupFolderPath,"./"+fileName);
+                    if(fs.existsSync(srcFilePath) && fs.existsSync(path.dirname(path2file))) {
+                        fs.copyFileSync(srcFilePath, path2file);
+                        appLogger({
+                            title: "File Restored",
+                            message: `Copied ${fileName} to ${path2file}`,
+                            func: "btn-ctrl-backend IPC restore"
+                        });
+                    } else {
+                        appLogger({
+                            title: "Warning",
+                            message: `Could not restore ${fileName} - source or destination missing`,
+                            func: "btn-ctrl-backend IPC restore"
+                        });
+                    }
+                } catch (err) {
+                    appLogger({
+                        title: "Error",
+                        message: `Failed to copy ${fileName}: ${String(err)}`,
+                        func: "btn-ctrl-backend IPC restore"
+                    });
+                }
+            });
+            
+            if(fs.existsSync(installerFile)) {
+                // Use IPC emit to call updateCommon in main.js (avoid circular dependency)
+                ipcMain.emit("execute-update", null, versionObj.fileName, versionObj.appVersion, false, relPath);
+                return { success: true, message: "Restore initiated" };
+            } else {
+                appLogger({
+                    title:"Installer Missing",
+                    message:"Installer file missing in backup folder, cannot proceed with downgrade. Path: "+installerFile,
+                    func:"versionManager IPC restore"
+                });
+                return { success: false, error: "Installer file not found" };
+            }
+        }
+        else if(cmd==="open-folder"){
+            shell.openExternal(backupFolderPath);
+            return { success: true };
+        }
+        else if(cmd==="delete-version"){
+            fs.rmdirSync(backupFolderPath,{ recursive:true,force:true });
+            let lines = await versionLogReader();
+            lines = lines.filter(obj=>obj.appVersion!==versionObj.appVersion);
+            
+            // Write all lines at once instead of delete+append loop
+            let logFilePath = path.resolve(appPath,"./logs/versionLogs.txt");
+            fs.writeFileSync(
+                logFilePath,
+                lines.map(line => JSON.stringify(line)).join('\n') + (lines.length > 0 ? '\n' : '')
+            );
+            
+            appLogger({
+                title: "Version Deleted",
+                message: `Deleted backup for version ${versionObj.appVersion}`,
+                func: "btn-ctrl-backend IPC delete-version"
+            });
+            return { success: true };
+        } else {
+            return { success: false, error: "Unknown command: " + cmd };
+        }
+    } catch(err) {
+        appLogger({
+            title: "Error",
+            message: String(err),
+            func: "btn-ctrl-backend IPC"
         });
+        return { success: false, error: err.message };
     }
 });
-
-// let data = {
-//     currentVersion:app.getVersion(),
-//     path2file:path.resolve(app.getPath("appData"),`./BBS/${this.fileName}`),
-//     time:Date.now(),
-//     updateDownloaded:true,
-//     versionDownloaded:this.version,
-//     installMoment:"now",
-//     updateComplete:false,
-//     platform:process.platform,
-//     fileName:this.fileName
-//   }
-
-// Redundant code
-
-// updateConf.currentUser = app.getVersion();
-//             updateConf.updateComplete = true;
-//             updateConf.currentVersion = app.getVersion();
-//             fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json",JSON.stringify(updateConf));
-
-// dialog.showMessageBox({
-//     title:"Info",
-//     message:strtMsg,
-//     buttons:["Ok"],
-//     noLink:true,
-//     icon:appIcon
-//   });
-//   spawn("rm -r ~/.config/BBS/*.deb",{
-//     shell:true,
-//     stdio:["pipe","pipe","pipe"]
-//   }).stdio.every(stream=>{
-//     stream.on("data",(data)=>{
-//       appLogger({
-//         message:data,
-//         title:"STDIO"
-//       })
-//     });
-//   })
-
-
-// let strtMsg = process.argv.find(str=>str.startsWith("msg="));
-// if(strtMsg && typeof strtMsg==="string")
-//   mainWindow.once("focus",()=>{
-//     strtMsg=strtMsg.split("=").pop();
-    
-//   });

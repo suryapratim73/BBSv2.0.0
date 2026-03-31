@@ -11,6 +11,7 @@ const { emblemMaker } = require('../lib/common');
 if(process.APP_ENV==="DEV"){}
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true,temp,paperSize){
+    const { getPDF_FileName } = require('../common');
     let docOpts = {
         margin,
         autoFirstPage,
@@ -26,12 +27,12 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     }
     const doc = new PDFDocument(docOpts);
     let pdfPath = app.getPath("documents");
-    let ext = temp===true ? "_temp" : "";
     if(!fs.existsSync(pdfPath+"/Bills/"))
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
-    doc.pipe(fs.createWriteStream(path.join(pdfPath,`${name}_${billDate}_${billNo}${ext}.pdf`)));
-    pdfPath = path.join(pdfPath,`${name}_${billDate}_${billNo}${ext}.pdf`);
+    let pdfFileName = getPDF_FileName(name,billDate,billNo,temp)
+    doc.pipe(fs.createWriteStream(path.join(pdfPath,pdfFileName)));
+    pdfPath = path.join(pdfPath,pdfFileName);
     return {doc,pdfPath};
 }
 

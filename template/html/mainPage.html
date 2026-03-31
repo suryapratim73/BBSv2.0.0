@@ -883,6 +883,18 @@
                 </div>
             </div>
             <div>
+                <div><label for="fileNameFormat">Bill PDF File Name Format</label></div>
+                <div>
+                    <select name="fileNameFormat" id="fileNameFormat">
+                        <option value="name_billDate_billNo" selected>(Customer Company Name)_(Bill Date)_(Bill Number).pdf</option>
+                        <option value="billNo_billDate_name">(Bill Number)_(Bill Date)_(Customer Company Name).pdf</option>
+                        <option value="billNo_name_billDate">(Bill Number)_(Customer Company Name)_(Bill Date).pdf</option>
+                        <option value="name_billNo">(Customer Company Name)_(Bill Number).pdf</option>
+                        <option value="billNo_name">(Bill Number)_(Customer Company Name).pdf</option>
+                    </select>
+                </div>
+            </div>
+            <div>
                 <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save invoice number" tabindex="0">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>

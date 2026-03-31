@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
 const uuid = require("uuid");
-const { DataTypes, Op } = require("sequelize");
+const { DataTypes, Op, where } = require("sequelize");
 const { deserializeSchema } = require("./model/schemaLoader");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -183,8 +183,9 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
 }
 
 async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
+    const { cityListWithCodes } = require("./common");
     closeFlag = true;
-    saleWindow = BrowserWindow.fromId(e.sender.id);
+    saleWindow = BrowserWindow.fromId(e.sender.id) || BrowserWindow.getFocusedWindow();
     if(flag==="regular")
         saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
@@ -233,8 +234,10 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         netDue = Math.round(netAmt + netTax);
     else
         netDue = Math.round(netAmt + netTax - netPayment);
-    if(deliveryType!=="hand")
-        freight.findOrCreate({
+    if(deliveryType!=="hand"){
+        if(transportId==="")
+            transportId = uuid.v5(JSON.stringify({transportName,transportAddress,transportContact,transportGST}),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+        await freight.findOrCreate({
             where:{id:transportId},
             defaults:{
                 id:transportId,
@@ -244,12 +247,13 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 gst:transportGST
             }
         })
-        .then(()=>appLogger("Transporter db updated!!"))
+        .then(()=>{appLogger("Transporter db updated!!")})
         .catch(err=>appLogger({
             title:"Error",
             message:String(err),
             func:"save_exit - transporter findOrCreate"
         }));
+    }
     let match = await customer.findOne({where:{id:custId}});
     // Saving new customer or updating existing customer - shipping info
     if(!match){// New customer block
@@ -303,7 +307,39 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     }
     else{// Existing customer block
         let shipInfos = match.moreInfo?.shipInfos ?? [];// Existing customer shipping infos
-        let shipInfoIndex = shipInfos.findIndex(obj=>obj.shipTo===billMeta.shipTo && obj.shipAddr===billMeta.shipAddr && obj.shipPh===billMeta.shipPh && obj.shipGST===billMeta.shipGST);
+        shipInfos = shipInfos.filter(obj=>obj.shipTo!=="");// Removing empty shipping info if exist
+        let _shipInfos = [];
+        function getCityNameNAbbreviation(addr){
+            return cityListWithCodes.find(({name,commonAbbreviation})=>new RegExp(name,"i").test(addr) || (commonAbbreviation && new RegExp(commonAbbreviation,"i").test(addr)));
+        }
+        function isDuplicate(shipInfo,_shipInfo){
+            let cityCheckFlag = false, pincodeCheckFlag = false;
+            // Check 1: Identical objects
+            if(shipInfo.shipTo.toLowerCase() === _shipInfo.shipTo.toLowerCase() && shipInfo.shipAddr.toLowerCase() === _shipInfo.shipAddr.toLowerCase() && shipInfo.shipPh === _shipInfo.shipPh && shipInfo.shipGST === _shipInfo.shipGST)
+                return -1;// Duplicate // Ditto same shipping info must be duplicate even if shipTo name is written in different case
+            // Check 2: Kol = Kolkata type duplicate by city name and phone number
+            let { name:cityName,commonAbbreviation,pincode } = getCityNameNAbbreviation(shipInfo.shipAddr) || {};
+            let { name:_cityName,commonAbbreviation:_commonAbbreviation,pincode:_pincode } = getCityNameNAbbreviation(_shipInfo.shipAddr) || {};
+            if(!cityName || !_cityName || !commonAbbreviation || !_commonAbbreviation || !pincode || !_pincode)
+                return 0;// May be duplicate // Must have been some missing info in cityListWithCodes.json to identify city name or abbreviation from address, so skipping duplicate check for this pair of shipping infos
+            if(cityName.toLowerCase() === _cityName.toLowerCase() || commonAbbreviation.toLowerCase() === _commonAbbreviation.toLowerCase())
+                cityCheckFlag = true;// Duplicate // Same city name or common abbreviation but in different case must be duplicate
+            if(new RegExp(cityName,"i").test(_shipInfo.shipAddr) || new RegExp(commonAbbreviation,"i").test(shipInfo.shipAddr))
+                cityCheckFlag = true;// Duplicate // Kol or Kolkata must match as they represent same city but written in different way
+            if(pincode && _pincode && pincode === _pincode)
+                pincodeCheckFlag = true;// Duplicate // Same pincode must be duplicate
+            if(cityCheckFlag && pincodeCheckFlag)
+                return -1;// Duplicate
+            return 0;// Not duplicate
+        }
+        for(let i=0;i<shipInfos.length;i++){// Filtering Kol = Kolkata type duplicate shipping infos
+            if(_shipInfos.findIndex(obj=>isDuplicate(obj,shipInfos[i]))===-1)
+                _shipInfos.push(shipInfos[i]);// Section need testing - To be done
+        }
+        shipInfos = _shipInfos;
+        console.log({shipInfos});
+        let shipInfoIndex = shipInfos.findIndex(obj=>obj.shipTo===billMeta.shipTo && obj.shipAddr.toLowerCase()===billMeta.shipAddr.toLowerCase() && obj.shipPh===billMeta.shipPh && obj.shipGST===billMeta.shipGST);
+        console.log({shipInfoIndex})
         if(shipInfoIndex===-1 && billMeta.shipTo!==""){// New shipping info added for existing customer only if not empty
             shipInfos.push({
                 name:billMeta.shipTo,
@@ -312,6 +348,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 shipPh:billMeta.shipPh,
                 shipGST:billMeta.shipGST
             });
+            console.log({shipInfos})
             match.moreInfo = {  
                 ...match.moreInfo,
                 email,
@@ -467,6 +504,8 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     if(billType!=="monthly")
         return billPDF({billMeta,customer:customerObj,orderItems});
     closeFlag = true;
+    ipcMain.emit("refresh-customer-list");
+    console.log({costomerObj:global.customerList.find(obj=>obj.id===custId)})
 }
 
 ipcMain.on("save-exit-sale-bill",save_exit);
@@ -498,7 +537,14 @@ ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
 });
 
 ipcMain.handle("get-transporter",async ()=>{
-    return (await (await freight.sync()).findAll()).map(({dataValues})=>dataValues);
+    return (await (await freight.sync()).findAll({
+        where:{
+            id:{
+                [Op.ne]:""
+            }
+        },
+        order:[["name","ASC"]]
+    })).map(({dataValues})=>dataValues);
 });
 
 ipcMain.on("get-sales",async e=>{

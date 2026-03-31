@@ -1,11 +1,19 @@
 {
-    "version":"2.21.8",
+    "version":"2.21.9",
     "highlights":[
-        "SalePage crash on 2md edit fix",
-        "Scoll functionality improved on Customer-portal"
+        "Sale invoice calculation error fix",
+        "Transporter data now saves correctly",
+        "Customer and supplier data loading optimized for better performance",
+        "Version Manager bug fixes and improvements",
+        "Update download pause and resume functionality with file integrity checks and file repair capabilities",
+        "SalePage UI improvements and bug fixes"
     ],
     "fullchange":[
-        "SalePage crash on 2md edit fix",
-        "Sell-price selection from drop-down menu calculates the amount"
+        "Sale invoice calculation error fix",
+        "Transporter data now saves correctly",
+        "Customer and supplier data loading optimized for better performance",
+        "Version Manager bug fixes and improvements",
+        "Update download pause and resume functionality with file integrity checks and file repair capabilities",
+        "SalePage UI improvements and bug fixes"
     ]
 }

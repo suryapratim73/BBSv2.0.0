@@ -45,7 +45,7 @@ if [[ $mode -eq 2 || $mode -eq "-u" ]];then
         elevate install $mode "/home/$usr" $2
     fi
     echo "Launching BBS" >> "/home/$usr/.config/BBS/logs/appLogs.txt"
-    bash -c "sudo -u $usr bbs msg='Update complete.'"
+    bash -c "sudo -u $usr bbs bbs://update-complete"
 else
     install 1 "/home/$usr" $@
 fi

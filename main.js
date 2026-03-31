@@ -15,8 +15,24 @@ const {
   powerMonitor,
   Notification,
   shell,
-  nativeImage
+  nativeImage,
+  protocol
 } = require("electron");
+
+// CRITICAL: Register custom protocol BEFORE any other code runs
+// This must be done before app.ready and before any other initialization
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme:"bbs",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    }
+  }
+]);
+
 // in the main process:, initializing remote for renderer
 require('@electron/remote/main').initialize();
 const {
@@ -41,6 +57,14 @@ const {
   checkNLogMemoryUsage,
   placeOfJurisdiction,
   notifyCustomer,
+  getPDF_FileName,
+  saveDownloadState,
+  loadDownloadState,
+  clearDownloadState,
+  verifyPartialFile,
+  computeFullFileHash,
+  verifyFileIntegrityByChunks,
+  reDownloadCorruptedSections,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -63,32 +87,29 @@ let {
   sequelize,
   purchase,
   user,
-  schemas,
   finData,
   customer,
   supplier
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
-const { Op, Sequelize, UUIDV4,DataTypes } = require("sequelize");
+const { Sequelize, UUIDV4,DataTypes } = require("sequelize");
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
-const { title } = require("process");
 const { getFileMonitor } = require("./fileMonitor");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
 const { deserializeSchema } = require("./model/schemaLoader");
-const { end } = require("pdfkit");
 
 // Load dynamicSchemas from JSON (server-delivered)
 let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;
@@ -136,8 +157,6 @@ const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
   ];
 
-// appIcon = appIcon.resize({height:1024,width:1024});
-// appIcon.addRepresentation({scaleFactor:10})
 
 function updateCloseFlag() {
   closeFlag = true;
@@ -192,6 +211,46 @@ class Job{
       ...args
     ];
   }
+}
+
+// Handle protocol URLs from external launches (e.g., updator.bat using bbs://update-complete)
+function handleProtocolUrl(url) {
+  console.log("========================================");
+  console.log("🔗 Protocol URL Handler Triggered!");
+  console.log("URL:", url);
+  console.log("========================================");
+  
+  if (!url || !url.startsWith('bbs://')) {
+    console.log("Not a bbs:// URL, ignoring");
+    return;
+  }
+  
+  // Parse the protocol URL for actions
+  if (url.includes('update-complete')) {
+    console.log("Showing update complete notification");
+    
+    // Show notification
+    const notification = new Notification({
+      title: "Update Complete",
+      body: "BBS has been successfully updated to the latest version!",
+      icon: appIcon
+    });
+    notification.show();
+    
+    // Focus main window
+    const mainWin = getMainWindow();
+    if (mainWin) {
+      if (mainWin.isMinimized()) mainWin.restore();
+      mainWin.focus();
+    }
+    
+    appLogger({
+      title: "Update Notification",
+      message: "Update complete notification shown via protocol URL"
+    });
+  }
+  // Add more protocol URL handlers here as needed
+  // e.g., bbs://open-customer/123, bbs://new-sale, etc.
 }
 
 async function createWindow() {
@@ -306,8 +365,17 @@ async function createWindow() {
     if(process.env.APP_ENV!="DEV" && !app.requestSingleInstanceLock())
       app.quit();
     else{
-      app.on("second-instance",()=>{
+      app.on("second-instance",(event, commandLine)=>{
         if(process.env.APP_ENV==="DEV") return;
+        
+        // Check for protocol URL in command line (e.g., from updator.bat)
+        console.log("Second instance detected, commandLine:", commandLine);
+        const protocolUrl = commandLine.find(arg => arg.startsWith('bbs://'));
+        if (protocolUrl) {
+          handleProtocolUrl(protocolUrl);
+        }
+        
+        // Focus window
         if(mainWindow.isMinimized())
           mainWindow.restore();
         mainWindow.focus();
@@ -472,7 +540,7 @@ ipcMain.handle("get-users", async () => {
       return [];
 });
 
-// app.whenReady().then(createWindow);
+app.setAsDefaultProtocolClient("bbs");
 
 app.on("quit", async () => {
   try{
@@ -696,7 +764,7 @@ app.on("ready", async () => {
             focussedWindow.restore();
         }
       });
-      globalShortcut.register("CommandOrControl+F4",()=>{
+      globalShortcut.register("CommandOrControl+Esc",()=>{
         let win = BrowserWindow.getFocusedWindow();
         if(win && win!==mainWindow)
           win.close();
@@ -729,11 +797,9 @@ app.on("ready", async () => {
       let attendees = todaysAttendance?.attendees ?? [];
       if (attendees.length > 0)
         attendees = attendees.filter(({ presence }) => presence === 0);
-      if (
-        mainWindow &&
-        (!todaysAttendance || (todaysAttendance && attendees.length > 0))
-      )
+      if (mainWindow && (!todaysAttendance || (todaysAttendance && attendees.length > 0)))
         takeAttendance(mainWindow);
+      // Paying salary - need check
       if (new Date().getDate() > 1) {
         let payHistory = (
           await people.findAll({
@@ -753,7 +819,6 @@ app.on("ready", async () => {
       // Initiating theme
       if (process.platform === "linux") setLinuxThemeObserver();
       await initTheme();
-      
       // Start file monitor for unprinted bills (async to avoid blocking)
       try {
         fileMonitor = getFileMonitor();
@@ -770,11 +835,80 @@ app.on("ready", async () => {
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });
-  // Condition App basewd on policies
+  // Initialize app presets
   setAppPresets();
+  // App registration check
+  appRegistrationHandler();
 });
 
-function setAppPresets(){
+async function appRegistrationHandler(silent=true){
+  // Check App registration status and get regitration info and subscription status
+  let { diskSerial,motherboadSerial } = await new Promise((res)=>{
+    let platform = process.platform;
+    let diskSerial, motherboadSerial;
+    switch(platform){
+      case "win32":
+        try{
+          const cmd = execSync('wmic diskdrive get SerialNumber').toString();
+          diskSerial = cmd.split('\n')[1].trim();
+          const cmd2 = execSync('wmic baseboard get SerialNumber').toString();
+          motherboadSerial = cmd2.split('\n')[1].trim();
+        }
+        catch(err){
+          diskSerial = null;
+          motherboadSerial = null;
+        }
+      break;
+      case "linux":
+        try{
+          const cmd = execSync('lsblk -o SERIAL -dn $(df / | tail -1 | cut -d" " -f1)').toString();
+          diskSerial = cmd.split('\n')[0].trim();
+          const cmd2 = execSync('cat /sys/devices/virtual/dmi/id/board_serial').toString();
+          motherboadSerial = cmd2.split('\n')[0].trim();
+        }
+        catch(err){
+          diskSerial = null;
+          motherboadSerial = null;
+        }
+      break;
+    }
+    res({ diskSerial,motherboadSerial });
+  });
+  if(!diskSerial || !motherboadSerial)
+    return;
+  const deviceId = uuid.v5(`${diskSerial}-${motherboadSerial}`, uuid.NIL);
+  global.deviceUUID = deviceId;
+  let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://localhost:3030/";
+  if(typeof process.presets.gst === "undefined" || process.presets.gst===""){
+    appLogger({
+      title:"App Registration Error: Require GST Number",
+      message:"GST Number missing/undefined. App update will require registration.Please define your GST number from Settings -> Company & Billing -> Company Profile -> Basic",
+      func:"app ready - get registration info"
+    });
+  }
+  axios.post(serverUrl+"silent-register",
+    {
+      deviceId,
+      gstNumber:process.presets.gst
+    },{timeout:5000})
+  .then(({data})=>{
+    global.userId = data.id;
+    console.log({userId:data.id})
+  })
+  .catch(err=>{
+    global.userId = null;
+    let title = "App Registration Info Error";
+    if(silent)
+      title = "App Registration Info Exception";
+    appLogger({
+      title,
+      message: String(err),
+      func: "app ready - get registration info"
+    });
+  });
+}
+
+async function setAppPresets(){
   let policy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   let policy2 = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
   let policy3 = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
@@ -794,7 +928,7 @@ function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat"]
   .forEach(key=>{
     let value = policy2[key] ?? policy[key] ?? policy3[key];
     if(typeof value === "undefined" || value===null) return;
@@ -805,6 +939,8 @@ function setAppPresets(){
       process.presets[key] = placeOfJurisdiction(policy3);
   });
 }
+
+ipcMain.on("update-presets",setAppPresets);
 
 function checkIfMonthPassed(lastDt=Date){
   return true;//Remove after test
@@ -1511,6 +1647,52 @@ ipcMain.handle("verify-code", async (e, { code }) => {
   return res;
 });
 
+// NEW: Check for paused downloads function
+function checkForPausedDownload() {
+  const state = loadDownloadState(appLogger);
+  
+  if (!state || state.status !== 'paused') return;
+  
+  const percentComplete = Math.round((state.bytesDownloaded / state.totalBytes) * 100);
+  const sizeMB = Math.round(state.bytesDownloaded / 1024 / 1024);
+  const totalMB = Math.round(state.totalBytes / 1024 / 1024);
+  
+  appLogger({
+    title: "Paused Download Found",
+    version: state.version,
+    progress: `${percentComplete}% (${sizeMB}MB / ${totalMB}MB)`
+  });
+  
+  const mainWin = getMainWindow();
+  
+  dialog.showMessageBox(mainWin, {
+    type: "question",
+    title: "Resume Download?",
+    message: `You have a paused download for BBS v${state.version}`,
+    detail: `Progress: ${percentComplete}% complete (${sizeMB}MB / ${totalMB}MB)\n\nWould you like to resume the download?`,
+    buttons: ["Resume", "Cancel Download", "Later"],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+    icon: appIcon
+  }).then(({ response }) => {
+    if (response === 0) {
+      // Resume
+      downloadUpdate(state.version, state);
+    } else if (response === 1) {
+      // Cancel download
+      if (fs.existsSync(state.filePath)) {
+        fs.rmSync(state.filePath);
+      }
+      clearDownloadState();
+      appLogger({ message: "User cancelled paused download" });
+    } else {
+      // Later - do nothing
+      appLogger({ message: "User chose to resume download later" });
+    }
+  });
+}
+
 ipcMain.on("app-login", async () => {
   appLogger({ message: "App Login Handler" });
   currentUser.login();
@@ -1538,8 +1720,11 @@ ipcMain.on("app-login", async () => {
       clearInterval(idleLockTimer);
       idleLockTimer = setInterval(lockOnIdle.bind({idleTime:policy.idleTime}),5000);
     }
-    if(["admin","all"].includes(currentUser.role))
-      dbInitialized = await schemaValidation_migrationHandler(getMainWindow(),appPath)
+    if(["admin","all"].includes(currentUser.role)){
+      dbInitialized = await schemaValidation_migrationHandler(getMainWindow(),appPath);
+      // NEW: Check for paused downloads after login
+      checkForPausedDownload();
+    }
   }
 });
 
@@ -1745,7 +1930,7 @@ function openBillPDFExt(billObj,mode=1){
     });
   let { billDate,billNo,name } = billObj;
   billDate = openFormatForDate(new Date(billDate));
-  let fileName = `./${name}_${billDate}_${billNo}.pdf`.replace(" ","\ ");
+  let fileName = getPDF_FileName(name,billDate,billNo,false);
   let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
   if(!fs.existsSync(path2file)) return;
   if(mode===2)
@@ -1837,13 +2022,13 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
           label:"Mark as paid",
           click:markBillAsPaid.bind(obj,null,targetWin)
         },
-        // {
-        //   label: "Notify Customer",
-        //   click: () => {
-        //     errIdentifier = "Notify Customer";
-        //     notifyCustomer(window, obj,customer,appLogger,getFivePercentOfMemory);
-        //   },
-        // }// Notify customer
+        {
+          label: "Notify Customer",
+          click: () => {
+            errIdentifier = "Notify Customer";
+            notifyCustomer(window, obj,customer,appLogger,getFivePercentOfMemory);
+          },
+        }// Notify customer
       ];
     }
     else
@@ -2356,6 +2541,11 @@ ipcMain.on("app-registration", async (e, gst) => {
 
 //App update logic
 exports.updateCommon = updateCommon;
+
+// IPC handler for executing update (used by versionManager to avoid circular dependency)
+ipcMain.on("execute-update", (e, fileName, version, showMsgFlag, relPath) => {
+  updateCommon.call({ fileName, version, isSaved: true }, showMsgFlag, relPath);
+});
 async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   let data = {
     currentVersion:app.getVersion(),
@@ -2368,7 +2558,10 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     platform:process.platform,
     fileName:this.fileName
   }
-  recordDownloadedVersion(data);
+  if(this.hashInfo) // Storing hashInfo only once when app checks for update.
+    data.hashInfo = this.hashInfo;
+  if(this.isSaved===false)// Saving the update data only when it's not saved previously. This is to avoid overwriting the data when user tries to install update later and then tries to install again from settings without downloading again.
+    recordDownloadedVersion(data);
   if(showMsgFlag){
     let resp = await dialog.showMessageBox({
       title:"Download complete",
@@ -2407,8 +2600,8 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
-    // Try to run a bash or some shell script to update BBS
-    proc = spawn("updator.bat",[data.path2file],{
+    // Pass parent PID to batch file so it can wait for app to fully exit
+    proc = spawn("updator.bat",[process.pid, data.path2file],{
       shell:true,
       cwd:__dirname,
       detached:true,
@@ -2422,81 +2615,410 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     
     appLogger({
       title:"Spawned updator",
-      message:`Process detached, app will quit in 1 second`,
+      message:`Process detached, app will quit now`,
+      pid: process.pid,
       filePath:data.path2file,
       fileExists:fs.existsSync(data.path2file)
     });
     
-    setTimeout(()=>{
-      app.quit()
-    },1000);
+    // Quit immediately - batch file will wait for full exit
+    app.quit();
   }
 }
 
-function downloadUpdate(appVersion){
+// NEW downloadUpdate function with pause/resume support + file integrity verification + file repair
+function downloadUpdate(appVersion, resumeState = null, hashInfo) {
   appLogger({
-    message:"Downloading update"
+    message: resumeState ? "Resuming download" : "Starting new download",
+    resumeFrom: resumeState?.bytesDownloaded || 0
   });
-  let fileWriter, downloadURL,fileName,mainWin = getMainWindow();
-  let abortController = new AbortController();
+  
+  let fileWriter, downloadURL, fileName, filePath, mainWin = getMainWindow();
+  let abortControllerPause = new AbortController();
+  let abortControllerCancel = new AbortController();
+  let pauseToken = uuid.v4();
   let cancelToken = uuid.v4();
+  let lastSavedPercent = 0;
+  let bytesDownloaded = resumeState?.bytesDownloaded || 0;
+  let downloadTotalBytes = resumeState?.totalBytes || null;
 
-  if(process.platform==="linux"){// /download/update?channel=production&platform=win
+  // Platform-specific file setup
+  if (process.platform === "linux") {
     fileName = `bbs_${appVersion}_amd64.deb`;
-    fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_amd64.deb`);
-    downloadURL = process.env.UPDATE_REST+`download/update?channel=production&platform=linux`;
-  }
-  else
-  if(process.platform==="win32"){
+    filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=linux&id=${global.userId}`;
+  } else if (process.platform === "win32") {
     fileName = `bbs_${appVersion}_setup.exe`;
-    fileWriter = fs.createWriteStream(app.getPath("appData")+`/BBS/bbs_${appVersion}_setup.exe`);
-    downloadURL = process.env.UPDATE_REST+`download/update?channel=production&platform=win`;
-  }
-  else
-  if(process.platform==="darwin"){
-    // mac case
+    filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
+  } else if (process.platform === "darwin") {
+    // Mac case
+    fileName = `bbs_${appVersion}.dmg`;
+    filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=mac&id=${global.userId}`;
   }
 
-  ipcMain.handleOnce(cancelToken,()=>{
-    abortController.abort("Aborted by user");
-    if(fs.existsSync(app.getPath("appData")+`/BBS/${fileName}`))
-      fs.rmSync(app.getPath("appData")+`/BBS/${fileName}`)
-    return
+  // If resuming, verify partial file
+  if (resumeState) {
+    const verification = verifyPartialFile(filePath, bytesDownloaded);
+    if (!verification.valid) {
+      appLogger({
+        title: "Warning",
+        message: `Partial file verification failed: ${verification.reason}`,
+        action: "Starting fresh download"
+      });
+      // Clear state and start fresh
+      clearDownloadState(appLogger);
+      if (fs.existsSync(filePath)) {
+        fs.rmSync(filePath);
+      }
+      resumeState = null;
+      bytesDownloaded = 0;
+    }
+  }
+
+  // Create file writer (append mode if resuming)
+  fileWriter = fs.createWriteStream(filePath, {
+    flags: resumeState ? 'a' : 'w'
   });
 
-  axios.get(downloadURL,{
-    responseType:"stream",
-    onDownloadProgress(e){
-      let total = e.total;
-      let current = e.loaded;
-      updateProgressbar(mainWin,current,total,"Downloading update...","",{useCancel:true,cancelBtnText:"Cancel",cancelToken});
-    },
-    signal:abortController.signal
-  })
-  .then(resp=>{
-    if(resp.status === 200)
-      appLogger({message:"Response received from server"});
-    mainWin.setProgressBar(-1);
-    return new Promise((res,rej)=>{
-      resp.data.pipe(fileWriter);
-      fileWriter.on("error",(err)=>{
-        rej(err);
-        fileWriter.close();
-      });
-      fileWriter.on("close",()=>{
-        res(true);
-      });
+  // PAUSE HANDLER
+  ipcMain.handleOnce(pauseToken, () => {
+    appLogger({ message: "Download paused by user" });
+    abortControllerPause.abort("Paused by user");
+    
+    // Don't delete file - keep for resume
+    fileWriter.end(() => {
+      appLogger({ message: "File stream closed for pause" });
     });
-  })
-  .then(updateCommon.bind({fileName,version:appVersion}))
-  .catch(err=>{
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"Download-update"
-    })
+    
+    mainWin.setProgressBar(-1);
+    return true;
   });
+
+  // CANCEL HANDLER
+  ipcMain.handleOnce(cancelToken, () => {
+    appLogger({ message: "Download cancelled by user" });
+    abortControllerCancel.abort("Cancelled by user");
+    
+    // Close stream and delete file
+    fileWriter.end(() => {
+      if (fs.existsSync(filePath)) {
+        fs.rmSync(filePath);
+        appLogger({ message: "Partial file deleted" });
+      }
+    });
+    
+    // Clear download state
+    clearDownloadState(appLogger);
+    mainWin.setProgressBar(-1);
+    return true;
+  });
+
+  // Prepare axios config
+  const axiosConfig = {
+    responseType: "stream",
+    onDownloadProgress(progressEvent) {
+      let total = progressEvent.total || downloadTotalBytes;
+      if (!downloadTotalBytes && total) {
+        downloadTotalBytes = total;
+      }
+      let current = progressEvent.loaded;
+      let totalDownloaded = bytesDownloaded + current;
+      
+      // Update progress bar with dual buttons
+      updateProgressbar(
+        mainWin,
+        totalDownloaded,
+        total,
+        "Downloading update...",
+        `${Math.round(totalDownloaded / 1024 / 1024)}MB / ${Math.round(total / 1024 / 1024)}MB`,
+        {
+          usePause: true,
+          useCancel: true,
+          pauseToken,
+          cancelToken,
+          pauseBtnText: "Pause",
+          cancelBtnText: "Cancel"
+        }
+      );
+
+      // Save state periodically (every 5%)
+      const currentPercent = Math.floor((totalDownloaded / total) * 100);
+      if (currentPercent - lastSavedPercent >= 5) {
+        saveDownloadState({
+          fileName,
+          filePath,
+          downloadURL,
+          bytesDownloaded: totalDownloaded,
+          totalBytes: total,
+          version: appVersion,
+          status: 'downloading'
+        });
+        lastSavedPercent = currentPercent;
+      }
+    },
+    signal: AbortSignal.any([
+      abortControllerPause.signal,
+      abortControllerCancel.signal
+    ])
+  };
+
+  // Add Range header if resuming
+  if (resumeState && bytesDownloaded > 0) {
+    axiosConfig.headers = {
+      'Range': `bytes=${bytesDownloaded}-`
+    };
+    appLogger({
+      title: "Resume Download",
+      message: `Requesting bytes from ${bytesDownloaded}`
+    });
+  }
+
+  // Start download
+  axios.get(downloadURL, axiosConfig)
+    .then(resp => {
+      // Check if server supports resume
+      if (resumeState && resp.status !== 206) {
+        appLogger({
+          title: "Warning",
+          message: "Server doesn't support Range requests (no 206 status)",
+          status: resp.status,
+          action: "Download will continue but resume may not work properly"
+        });
+      }
+
+      if (resp.status === 200 || resp.status === 206) {
+        appLogger({ message: "Response received from server", status: resp.status });
+      }
+
+      mainWin.setProgressBar(-1);
+
+      return new Promise((resolve, reject) => {
+        resp.data.pipe(fileWriter);
+        
+        fileWriter.on("error", (err) => {
+          fileWriter.close();
+          reject(err);
+        });
+        
+        fileWriter.on("close", async () => {
+          // This can be triggered on both pause and completion, so we check if the file is fully downloaded before resolving.
+          const stats = fs.statSync(filePath);
+          if (stats.size >= downloadTotalBytes) {
+            appLogger({ message: "File fully downloaded" });
+            // Check hash if info available
+            if(!hashInfo)
+              hashInfo = JSON.parse(fs.readFileSync(path.resolve(app.getPath("appData"),"./BBS/updtConf.json"))).hashInfo || null;
+            if(hashInfo){
+              mainWin.setProgressBar(2); // Indeterminate progress
+              mainWin.webContents.send("notification",{
+                title:"Verifying file integrity",
+                message:"Computing file hash, please wait..."
+              },true);
+              
+              let fullFileHash = await computeFullFileHash(filePath, (processed, total) => {
+                const progress = processed / total;
+                mainWin.setProgressBar(progress);
+              });
+              
+              mainWin.setProgressBar(-1);
+              if(fullFileHash === hashInfo.fullFileHash){
+                appLogger({ message: "File integrity verified with SHA-256 hash" });
+                return resolve(true);
+              }
+              else{
+                appLogger({ 
+                  title: "Hash Mismatch",
+                  message: "Downloaded file hash does not match expected hash,downloading the corrupted sections again.",
+                  expectedHash: hashInfo.fullFileHash,
+                  actualHash: fullFileHash,
+                });
+                
+                mainWin.setProgressBar(2); // Indeterminate progress for chunk verification
+                mainWin.webContents.send("notification",{
+                  title:"Analyzing corrupted sections",
+                  message:"Identifying which parts need repair..."
+                },true);
+                
+                const corruptedSections = await verifyFileIntegrityByChunks(filePath, hashInfo, appLogger, (current, total) => {
+                  const progress = current / total;
+                  mainWin.setProgressBar(progress);
+                });
+                
+                mainWin.setProgressBar(-1);
+                
+                // Inform user about corrupted sections and retry download for those sections
+                mainWin.webContents.send("notification",{
+                  title:"Download integrity issue",
+                  message:`Some sections of the downloaded file are corrupted. Retrying download for those sections. Please wait...`, 
+                },true);
+                let successfulRepair = false;
+                for(let tryCount=0; tryCount<3; tryCount++){
+                  try{
+                    mainWin.setProgressBar(2); // Indeterminate for re-download
+                    mainWin.webContents.send("notification",{
+                      title:`Repair attempt ${tryCount+1}/3`,
+                      message:`Re-downloading ${corruptedSections.length} corrupted section(s)...`
+                    },true);
+                    
+                    await reDownloadCorruptedSections(corruptedSections, appLogger);
+                    
+                    mainWin.webContents.send("notification",{
+                      title:"Re-verifying integrity",
+                      message:"Checking if repair was successful..."
+                    },true);
+                    
+                    let fullFileHashAfterFix = await computeFullFileHash(filePath, (processed, total) => {
+                      const progress = processed / total;
+                      mainWin.setProgressBar(progress);
+                    });
+                    
+                    mainWin.setProgressBar(-1);
+                    if(fullFileHashAfterFix === hashInfo.fullFileHash){
+                      appLogger({ message: "File successfully repaired and verified" });
+                      successfulRepair = true;
+                      resolve(true);
+                    }
+                    else{
+                      appLogger({ message: `Hash still mismatched after repair attempt ${tryCount+1}` });
+                      mainWin.setProgressBar(2);
+                      corruptedSections = await verifyFileIntegrityByChunks(filePath, hashInfo, appLogger, (current, total) => {
+                        const progress = current / total;
+                        mainWin.setProgressBar(progress);
+                      });
+                      mainWin.setProgressBar(-1);
+                      if(tryCount < 2) {
+                        await new Promise(res=>setTimeout(res,5000)); // Wait before retry
+                      }
+                    }
+                  }
+                  catch(err){
+                    appLogger({
+                      title:"Problem re-downloading corrupted sections",
+                      message:String(err),
+                      attempt: tryCount + 1,
+                      func:"Download Update - reDownloadCorruptedSections"
+                    });
+                    mainWin.webContents.send("notification",{
+                      title:"Problem re-downloading corrupted sections",
+                      message:`Attempt ${tryCount+1}: There was a problem re-downloading the corrupted sections. Retrying...`,
+                    },true);
+                    if(tryCount < 2) {
+                      await new Promise(res=>setTimeout(res,10000)); // Wait for 10 seconds before retry
+                    }
+                  }
+                }
+                if(!successfulRepair){
+                  appLogger({
+                    title:"Failed to fix corrupted download",
+                    message:"Failed to fix the corrupted download after multiple attempts. Please try downloading again later or contact support.",
+                    func:"Download Update - reDownloadCorruptedSections"
+                  });
+                  mainWin.webContents.send("notification",{
+                    title:"Failed to fix corrupted download",
+                    message:`Failed to fix the corrupted download after multiple attempts. Please try downloading again later or contact support.`,
+                  },true);
+                  const error = new Error("Failed to fix corrupted download after multiple attempts");
+                  error.code = "CORRUPTED_DOWNLOAD";
+                  return reject(error);
+                }
+              }
+            }
+            else{
+              // No hashInfo available - cannot verify integrity
+              appLogger({ title: "Warning", message: "No hash info available, skipping integrity verification" });
+              return resolve(true);
+            }
+          }
+          else {
+            appLogger({ message: "File stream closed, but download not complete", downloadedBytes: stats.size, expectedBytes: downloadTotalBytes });
+            // If abort was triggered, let the catch block handle it
+            // Otherwise this is an unexpected incomplete download
+            if (!abortControllerPause.signal.aborted && !abortControllerCancel.signal.aborted) {
+              const error = new Error("Download incomplete - file size mismatch");
+              error.code = "INCOMPLETE_DOWNLOAD";
+              return reject(error);
+            }
+          }
+        });
+      });
+    })
+    .then(updateCommon.bind({ fileName, version: appVersion, hashInfo, isSaved: false }))
+    .catch(err => {
+      if (err.message === "Paused by user") {
+        // Save final state as paused
+        const stats = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+        if (stats) {
+          saveDownloadState({
+            fileName,
+            filePath,
+            downloadURL,
+            bytesDownloaded: stats.size,
+            totalBytes: downloadTotalBytes || stats.size,
+            version: appVersion,
+            status: 'paused'
+          });
+        }
+        
+        dialog.showMessageBox(mainWin, {
+          title: "Download Paused",
+          message: "Download has been paused. You can resume it later from the menu or on next app start.",
+          type: "info",
+          icon: appIcon
+        });
+      } 
+      else 
+      if (err.message === "Cancelled by user") {
+        appLogger({ message: "Download cancelled, cleanup complete" });
+      }
+      else
+      if(err.code === "CORRUPTED_DOWNLOAD" || err.code === "INCOMPLETE_DOWNLOAD"){
+        dialog.showErrorBox(
+          err.code === "CORRUPTED_DOWNLOAD" ? "Corrupted Download" : "Incomplete Download",
+          err.message
+        );
+        clearDownloadState();// Clear state to allow fresh download next time
+        mainWin.setProgressBar(-1);
+        if(fs.existsSync(filePath)){
+          fs.rmSync(filePath);
+        }
+        let corruptedSectionsPath = path.resolve(app.getPath("appData"),"./BBS/corruptedSections.json");
+        if(fs.existsSync(corruptedSectionsPath)){
+          fs.rmSync(corruptedSectionsPath);
+        }
+      }
+      else {
+        // Network error or other issue - save as paused for retry
+        appLogger({
+          title: "Error",
+          message: String(err),
+          func: "Download-update"
+        });
+        
+        const stats = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+        if (stats && stats.size > 0) {
+          saveDownloadState({
+            fileName,
+            filePath,
+            downloadURL,
+            bytesDownloaded: stats.size,
+            totalBytes: downloadTotalBytes || stats.size,
+            version: appVersion,
+            status: 'paused'
+          });
+          
+          dialog.showErrorBox(
+            "Download Error",
+            `Download interrupted: ${err.message}\n\nYou can resume the download later.`
+          );
+        }
+      }
+      
+      mainWin.setProgressBar(-1);
+    });
 }
+
 
 function versionChecker(version1,version2,log=true){
     let [major, minor, bugFix] = version1.split(".");
@@ -2534,31 +3056,19 @@ async function checkForUpdates(flag="auto") {
   appLogger({message:"Checking for update"});
   let isOnline = await checkForInternet();
   try{
-    let resp = await axios.get(UPDATE_REST+"version?channel=production&platform=win");
-    /** 
-     * Sample response structure
-     * {
-          "channel": "production",
-          "versions": {
-            "win": {
-              "version": "1.0.0",
-              "changelog": "Bug fixes and improvements",
-              "size": 1048576,
-              "released_at": "2025-01-10T10:30:00.000Z"
-            }
-          }
-        }
-     */
+    let updateURL = process.env.APP_ENV==="DEV" ? "http://localhost:3030/" : UPDATE_REST;
+    let resp = await axios.get(updateURL+"version?channel=production&platform=win&id="+global.userId,{timeout:5000});
     if(resp.status===200){
       let data = resp.data;
-      let appVersion = data?.versions?.win?.version || data.version;
-      let changelog = data?.versions?.win?.changelog || data.changelog;
+      let appVersion = data.version;
+      let changelog = data.changelog;
+      let hashInfo = data.hashInfo;
       isOnline = true;
       // Parse and santize appVersion
       if(appVersion && typeof appVersion === "string" && new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)){
         let resp = versionChecker(app.getVersion(),appVersion);
         if(!resp) 
-          return;// (updateCommon.bind({fileName:"Bigbyte Business Service Setup 2.19.14.exe",version:"2.19.14"}))()
+          return;
 
         let message;
         if (resp===1)
@@ -2604,19 +3114,13 @@ async function checkForUpdates(flag="auto") {
         try{
           let updtConf = fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json") ? JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString()) : undefined;
           if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded!==appVersion && fs.existsSync(updtConf?.path2file)){
-            // Older version of app setup exist. So deleting and downloading latest.
-            // fs.rmSync(updtConf.path2file);
-            return downloadUpdate(appVersion);
+            return downloadUpdate(appVersion,null,hashInfo);
           }
           else
           if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded===appVersion && fs.existsSync(updtConf?.path2file)){
             // Update already downloaded and ready for install
             appLogger({ message: "Update is already downloaded." })
-            updateCommon.call({version:appVersion,fileName:updtConf.fileName});
-          }
-          else{
-            //Downloading update as it is not downloaded
-            downloadUpdate(appVersion);
+            updateCommon.call({version:appVersion,fileName:updtConf.fileName,isSaved:true});
           }
         }
         catch(err){
@@ -2625,7 +3129,7 @@ async function checkForUpdates(flag="auto") {
             message:String(err),
             func:"Update conf read error"
           });
-          downloadUpdate(appVersion);
+          downloadUpdate(appVersion,null,hashInfo);
         }
       }
     }
@@ -2664,6 +3168,61 @@ async function checkForUpdates(flag="auto") {
 
 ipcMain.on("start-update",(e,appVersion)=>{
   downloadUpdate(appVersion);
+});
+
+// NEW: Resume download handler
+ipcMain.handle("resume-download", async (e) => {
+  const state = loadDownloadState(appLogger);
+  
+  if (!state) {
+    return { 
+      success: false, 
+      error: "No paused download found" 
+    };
+  }
+  
+  if (state.status !== 'paused') {
+    return { 
+      success: false, 
+      error: `Download is ${state.status}, not paused` 
+    };
+  }
+  
+  appLogger({
+    title: "Resuming Download",
+    version: state.version,
+    bytesDownloaded: state.bytesDownloaded,
+    totalBytes: state.totalBytes,
+    percentComplete: Math.round((state.bytesDownloaded / state.totalBytes) * 100)
+  });
+  
+  // Resume the download
+  downloadUpdate(state.version, state, null);
+  
+  return { success: true };
+});
+
+// NEW: Cancel paused download
+ipcMain.handle("cancel-paused-download", async (e) => {
+  const state = loadDownloadState(appLogger);
+  
+  if (!state) {
+    return { success: false, error: "No download state found" };
+  }
+  
+  // Delete partial file
+  if (fs.existsSync(state.filePath)) {
+    fs.rmSync(state.filePath);
+    appLogger({
+      message: "Deleted partial download file",
+      file: state.filePath
+    });
+  }
+  
+  // Clear state
+  clearDownloadState();
+  
+  return { success: true };
 });
 
 // First Boot IPCs
@@ -2850,12 +3409,17 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
 ipcMain.handle("billing-format-ipc",(e,data)=>{
   try{
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    if("format" in data)
-      saleConfig.format = data.format;
-    if(parseInt(data.billNo))
+    if(parseInt(data.billNo)){
       saleConfig.billNo = Number(data.billNo);
+      billNoCounter(saleConfig.billNo);
+    }
+    Reflect.deleteProperty(data,"billNo");
+    saleConfig = {
+      ...saleConfig,
+      ...data
+    };
     fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
-    billNoCounter(saleConfig.billNo);
+    setAppPresets();
     return true;
   }
   catch(err){
@@ -3190,9 +3754,41 @@ async function schemaValidator(){
   }
 }
 
-function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait...",text2="",cancelObj={useCancel:false}){
-  win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
-  win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),{text,text2,cancelObj});
+// OLD updateProgressbar function (commented out for resume download feature)
+// function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait...",text2="",cancelObj={useCancel:false}){
+//   win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
+//   win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),{text,text2,cancelObj});
+// }
+
+// NEW updateProgressbar function with pause and cancel support
+function updateProgressbar(win, value, maxVal, text = "DB migration in progress,please wait...", text2 = "", actionButtons = { usePause: false, useCancel: false }) {
+  win.setProgressBar(Math.round(value / maxVal), { mode: "normal" });
+  
+  // Support both old cancelObj format and new actionButtons format for backward compatibility
+  if ('useCancel' in actionButtons && !('usePause' in actionButtons) && !('pauseToken' in actionButtons)) {
+    // Old format - just use it as is
+    win.webContents.send("execute-progressbar", Math.round(value * 100 / maxVal), { 
+      text, 
+      text2, 
+      cancelObj: actionButtons 
+    });
+  } else {
+    // New format with pause and cancel support
+    const buttonConfig = {
+      usePause: actionButtons.usePause || false,
+      useCancel: actionButtons.useCancel || false,
+      pauseToken: actionButtons.pauseToken,
+      cancelToken: actionButtons.cancelToken,
+      pauseBtnText: actionButtons.pauseBtnText || "Pause",
+      cancelBtnText: actionButtons.cancelBtnText || "Cancel"
+    };
+    
+    win.webContents.send("execute-progressbar", Math.round(value * 100 / maxVal), { 
+      text, 
+      text2, 
+      actionButtons: buttonConfig 
+    });
+  }
 }
 // dbMigrator()
 // Migration is now handled by server schema updates and Sequelize sync

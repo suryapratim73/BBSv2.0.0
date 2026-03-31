@@ -477,6 +477,13 @@ async function showForm(e,cmd,show,prevData={}){
             else
                 document.querySelector(`#${show} #${form.id}`).classList.remove("hide");
             form.querySelector("input")?.focus();
+            if(cmd==="bill-no"){
+                let fileNameFormat = (await ipcRenderer.invoke("get-presets")).fileNameFormat;
+                if(fileNameFormat)
+                    form.querySelector(`#fileNameFormat>option[value="${fileNameFormat}"]`)
+                    .setAttribute("selected",true);
+            }
+            else
             if(cmd==="session-management"){
                 try{
                     let cookies = await ipcRenderer.invoke("check-session-info");

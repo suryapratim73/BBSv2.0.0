@@ -884,13 +884,15 @@ exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,
     list?.forEach(obj=>{
         let option = document.createElement("option");
         for(let key in obj){
-            if(key==="name"){
-                option.value = obj[key];
+            if(key==="name" || key==="superkey"){
+                option.value = obj["superkey"] || obj[key]; // Set value to superkey if exists, else set to name
                 if(textFormat.length>0)
                     option.textContent = textFormat.reduce((acc,key)=>{
-                        acc += key + ": " +obj[key] + " ";
+                        acc += "name" + ": " +obj.name + " ";// Hardcoded name in case superkey as key comes before name in textFormat array, can be changed as per requirement
                         return acc;
                     },"");
+                if(key==="superkey")
+                    break; // 
             }
             option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
         }
@@ -1195,9 +1197,25 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 option.textContent = ph;
                 dl.appendChild(option)
             });
-        if(typeof customer.moreInfo.shipInfos!=="undefined"){
-            appendToDL("",shipInfoDatalist,true,null,[],customer.moreInfo.shipInfos);// To be done
-        }
+        let shipInfos = customer.moreInfo.shipInfos ?? []; // Always an array, if shipInfos is not present in moreInfo, it will be initialized as an empty array
+        shipInfos = [
+            ...shipInfos,
+            // Adding the default shipping info from customer info to shipInfos array to show in datalist options along with other shipping infos if present in moreInfo - Test Successful - ✅
+            {
+                shipTo: customer.name,
+                shipAddr: customer.address,
+                shipPh: JSON.parse(customer.phones || "[]")?.[0] ?? "",
+                shipGST: customer.gst
+            }
+        ]
+        shipInfos = shipInfos.map((info,index,arr)=>{
+            if(info.shipTo===customer.name && info.shipAddr===customer.address && info.shipPh===JSON.parse(customer.phones || "[]")?.[0] && info.shipGST===customer.gst)// Default option for customer info - Test Successful - ✅
+                return {...info,superkey:customer.name+"_default"};
+            if(arr.findIndex(i=>i.name===info.name && i!==info)!==-1)// i!==info object reference check to avoid same name check with itself in shipInfos array
+                return {...info,superkey:info.name+"_"+(index+1)};// Renaming superkey if duplicate names are found in shipInfos array to avoid datalist option value duplication which results in option merge in datalist - people can have same company name for different shipping addresses
+            return {...info,superkey:info.name};
+        });
+        appendToDL("",shipInfoDatalist,true,null,[],shipInfos);// Test Successful - ✅
     }
     else
     if(e.target.dataset.name==="transportName"){// Done
@@ -1234,10 +1252,10 @@ exports.addRow = function(e){
     }
 }
 
-exports.calculateAmounts = function(){
+exports.calculateAmounts = function(e){
     if(Object.keys(selectedItem).length===0) return;
     if(typeof bodyRow==="undefined" || !bodyRow)
-        bodyRow = traverseParent(document.activeElement,"row");
+        bodyRow = traverseParent(document.activeElement,"row") || e.target.closest(".body.row");// If bodyRow is not defined or null, find the closest one
     let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
     let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
@@ -1736,4 +1754,22 @@ exports.scrollHelper = function(arr,index,direction,firstFlag=false,mainSection,
             index--;
         scrollHelper2(++index,index-1);
     }
+}
+
+// gstChecksum function - validates the GSTIN number format and checksum
+exports.gstChecksum = function(gst) {
+    // GSTIN format: 2 digits (state), 5 letters, 4 digits, 1 letter, 1 alphanumeric, 'Z', 1 alphanumeric
+    const regex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}$/;
+    if (!regex.test(gst)) return false;
+    const factor = [1,2,1,2,1,2,1,2,1,2,1,2,1,2];
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let sum = 0;
+    for (let i = 0; i < 14; i++) {
+        let codePoint = chars.indexOf(gst[i]);
+        let product = codePoint * factor[i];
+        sum += Math.floor(product / 36) + (product % 36);
+    }
+    let checksum = (36 - (sum % 36)) % 36;
+    let expected = chars[checksum];
+    return gst[14] === expected;
 }

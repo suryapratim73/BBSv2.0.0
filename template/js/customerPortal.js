@@ -129,6 +129,7 @@ function drawPieChart(){
 }
 
 ipcRenderer.on("customer-list",(e,customerObj)=>{
+    console.log(customerObj);
     customerList = [];
     currentPage = 1;
     rows = [];

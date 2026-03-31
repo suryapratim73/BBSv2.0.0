@@ -48,17 +48,35 @@ async function btnCtrl(e){
     let cmd = btn.dataset.cmd;
     let appPath = await ipcRenderer.invoke("get-app-path");
     let versionObj = JSON.parse(btn.parentNode.dataset?.versionObj ?? "{}");
-    if(cmd==="restore"){
-        let appVersion = versionObj.appVersion;
-        if(fs.existsSync(path.resolve(appPath,"./Backup/version_"+appVersion)))
-            ipcRenderer.send("btn-ctrl-backend",cmd,versionObj);
+    
+    try {
+        let result;
+        if(cmd==="restore"){
+            let appVersion = versionObj.appVersion;
+            if(fs.existsSync(path.resolve(appPath,"./Backup/version_"+appVersion))) {
+                result = await ipcRenderer.invoke("btn-ctrl-backend",cmd,versionObj);
+            } else {
+                alert("Backup folder not found");
+                return;
+            }
+        }
+        else if(cmd==="open-folder") {
+            result = await ipcRenderer.invoke("btn-ctrl-backend",cmd,versionObj);
+        }
+        else if(cmd==="delete-version") {
+            result = await ipcRenderer.invoke("btn-ctrl-backend",cmd,versionObj);
+        }
+        
+        // Handle response
+        if (result && !result.success) {
+            alert(`Error: ${result.error || "Operation failed"}`);
+        } else if (result && result.message) {
+            alert(result.message);
+        }
+    } catch (err) {
+        console.error("Error in btnCtrl:", err);
+        alert(`Error: ${err.message}`);
     }
-    else
-    if(cmd==="open-folder")
-        ipcRenderer.send("btn-ctrl-backend",cmd,versionObj);
-    else
-    if(cmd==="delete-version")
-        ipcRenderer.send("btn-ctrl-backend",cmd,versionObj);
 }
 // changelog,
 // fileName,

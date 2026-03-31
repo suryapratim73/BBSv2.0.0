@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize, textRollAnnimation, traverseParent } =  require("../js/common");
+const {toggleDevTool,reduceOrder,clickOrFocusinHandler,applyDiscount,reassignSummaryDivFeilds,showPaymentMode,updateBillValue,addRow,calculateAmounts,getsaleConfigPolicyPath,appendToDL,validateInput,roundOffTo2DecimalPlace, showToastNotification, closeToast, retractHandler, deleteRowCommon, applyTheme, removeAllElem,selectionHandler, assignDeliveryOptions, execRetractHandler, deleteKey, validateInput2, upperCaseInput, appendToHost, createModal, closeModal, capitalize, textRollAnnimation, traverseParent, gstChecksum } =  require("../js/common");
 
 const uuid = require("uuid");
 let fs = require("fs");
@@ -285,6 +285,7 @@ async function mainForm(){
             let input = document.getElementById("bill-number-regular");
             input?.setAttribute("list","available-bill-no-div");
         }
+        // Default values for no manual typing
         document.querySelector(`[data-name="billNo"]`).value = billMeta.billNo;
         document.querySelector(`[data-name="shipTo"]`).value = customer.name;
         document.querySelector(`[data-name="shipAddr"]`).value = customer.address ?? "";
@@ -566,7 +567,7 @@ function showPage4(e,cmd){
 function addDescToItem(e){
     e.preventDefault();
     let cmd = e.target.dataset.cmd;
-    let descDiv = bodyRow.querySelector(".desc-div");
+    let descDiv = bodyRow.querySelector(".desc-div") || e.target.closest(".desc-div");
     if(cmd==="rej"){
         descDiv.querySelector("input").value = "";
         if("desc" in selectedItem)
@@ -737,24 +738,6 @@ function saveExit(){
         showToastNotification("Please wait, databse initialization is in progress.",["animation-common","move-left","red-toast-box"],"page-4",32);
 }
 
-// gstChecksum function - validates the GSTIN number format and checksum
-function gstChecksum(gst) {
-    // GSTIN format: 2 digits (state), 5 letters, 4 digits, 1 letter, 1 alphanumeric, 'Z', 1 alphanumeric
-    const regex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}$/;
-    if (!regex.test(gst)) return false;
-    const factor = [1,2,1,2,1,2,1,2,1,2,1,2,1,2];
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let sum = 0;
-    for (let i = 0; i < 14; i++) {
-        let codePoint = chars.indexOf(gst[i]);
-        let product = codePoint * factor[i];
-        sum += Math.floor(product / 36) + (product % 36);
-    }
-    let checksum = (36 - (sum % 36)) % 36;
-    let expected = chars[checksum];
-    return gst[14] === expected;
-}
-
 function setShipInfo(e){
     let val = e.target.value;
     let option = shipInfoDatalist.querySelector(`option[value="${val}"]`);
@@ -765,6 +748,8 @@ function setShipInfo(e){
     document.querySelector('[data-name="shipGST"]').value = shipGST;
 }
 
+
+/* Keyboard Shortcuts Section *//***************/
 document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){
         if(document.querySelector(".modal:not(.hide)")){
@@ -803,7 +788,7 @@ document.addEventListener("keydown",e=>{
     if(e.ctrlKey && e.key==="p" && currentStep===4 && billMeta.billType==="regular")
         document.querySelector(`[data-type="print"]`).click();
     else
-    if(e.shiftKey && e.key==="R" && currentStep===3)
+    if(e.ctrlKey && e.key==="r" && currentStep===3)
         traverseParent(document.activeElement,"row","div").focus();
     else
     if(!e.ctrlKey && !e.shiftKey && e.key==="ArrowDown" && currentStep===3 && typeof bodyRow!=="undefined"){
@@ -823,12 +808,12 @@ document.addEventListener("keydown",e=>{
         bodyRow = [...document.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0];
         if(bodyRow){
             bodyRow = bodyRow.previousElementSibling;
-            bodyRow.focus();
+            bodyRow?.focus();
         }
         else
         if(document.activeElement.nodeName!=="INPUT"){
             bodyRow = document.querySelector(".body.row");
-            bodyRow.focus();
+            bodyRow?.focus();
         }
     }
     else
@@ -865,12 +850,11 @@ document.addEventListener("keydown",e=>{
         let focusedElem = document.activeElement;
         if(typeof bodyRow==="undefined"){
             bodyRow = [...document.querySelectorAll(".body.row")].filter(row=>document.activeElement===row)[0];
-            bodyRow = traverseParent(bodyRow,"row","div");
+            bodyRow = traverseParent(bodyRow,"row","div") || e.target.closest(".body.row");
         }
         else
         if(bodyRow.id==="table"){
-            bodyRow =  document.activeElement;
-            bodyRow = traverseParent(bodyRow,"row","div");
+            bodyRow =  document.activeElement.closest(".body.row");
         }
         let prevRow = bodyRow.previousElementSibling;
         let nextRow = bodyRow.nextElementSibling;
@@ -879,6 +863,10 @@ document.addEventListener("keydown",e=>{
         else
         if(e.key==="ArrowUp" && prevRow)// Already at the top
             prevRow.before(bodyRow);
+        [...document.querySelectorAll(".body.row")]
+        .forEach((row,index)=>{// Update row numbers after rearrangement
+            row.querySelector("p").textContent = index+1;
+        });
         focusedElem.focus();
     }
 });

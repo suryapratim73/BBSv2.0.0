@@ -4,7 +4,7 @@ const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stoc
 const { getTemplatePath } = require("./viewManager");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage } = require("./common");
+const { getLedgerModel, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage, getPDF_FileName } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
@@ -73,12 +73,19 @@ async function getCustomerList(){
 }
 
 ipcMain.on("refresh-customer-list",async ()=>{
-    await getCustomerList();
+    global.customerList = undefined;
+    global.customerList = await getCustomerList();
 });
 
 ipcMain.on("get-customer",async e=>{
     let _customerList = typeof global.customerList !== "undefined" ? global.customerList : (await getCustomerList())
     global.customerList = _customerList;
+    if(typeof _customerList[0].balance === "undefined"){
+        global.customerList = undefined;
+        global.customerList = await getCustomerList();
+        e.sender.send("customer-list",global.customerList);
+        return;
+    }
     checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
     if(typeof global.sales!=="undefined"){
         let custIds = [...new Set(global.sales.map(({customerId})=>(customerId)))];
@@ -107,8 +114,9 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
-    if(fs.existsSync(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))){
-        shell.openExternal(path.resolve(app.getPath("documents"),`./Bills/${name}_${billDate}_${billNo}.pdf`))
+    let pdfFileName = getPDF_FileName(name,billDate,billNo,false)
+    if(fs.existsSync(path.resolve(app.getPath("documents"),pdfFileName))){
+        shell.openExternal(path.resolve(app.getPath("documents"),pdfFileName))
         .then(console.log)
         .catch((err)=>{
             console.log("Failed to open",err)

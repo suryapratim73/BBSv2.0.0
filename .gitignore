@@ -24,3 +24,5 @@ model/*.json
 Backup/
 schemaManager.js
 views/
+*.md
+download-state.json
