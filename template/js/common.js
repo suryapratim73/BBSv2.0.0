@@ -843,7 +843,7 @@ exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
     bodyRow.remove();
     [...document.querySelectorAll(".body.row>div:first-child>p")]
     .forEach((p,index)=>{
-        let bodyRow = p.parentNode.parentNode;
+        let bodyRow = p.closest(".body.row");
         p.textContent = index + 1;
         let itemObj = itemList.find(obj=>obj[key]===bodyRow.dataset[key]);
         bodyRow.dataset[key] = uuid.v5((index+1).toString(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
@@ -907,10 +907,10 @@ exports.showDeleteBTN = function(e){
     let target = e.target;
     let bodyRow;
     if(["INPUT","P"].includes(target.nodeName))
-        bodyRow = target.parentNode.parentNode;
+        bodyRow = target.closest(".body.row");
     else
     if(target.nodeName==="DIV" && target.classList.contains("col"))
-        bodyRow = target.parentNode;
+        bodyRow = target.closest(".body.row");
     if(bodyRow){
         removeAllElem(".body-row-options");
         bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true))
@@ -1124,7 +1124,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     let defaultGST = presets?.default_gst ?? 0;
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
-        bodyRow = e.target.parentNode.parentNode;
+        bodyRow = e.target.closest(".body.row");
         selectedItem.pInfo = JSON.parse(selectedItem?.pInfo || "{}");
         for(let key in match){
             if(["sgst","cgst","igst"].includes(key) && typeof igstFlag!=="undefined"){
@@ -1153,13 +1153,22 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             if(key==="standardSellPrice"){
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
                 if(selectedItem.specialPrice!==""){
-                    let list = JSON.parse(selectedItem.specialPrice)
-                                .filter(obj=>obj.customerId===customer.id)
-                                .map(obj=>({...obj,name:obj.rate}));
-                    let dl = document.createElement("datalist");
-                    dl.id = "rate-list";
-                    removeAllElem("#rate-list")
-                    appendToDL("",dl,true,null,[],list)
+                    selectedItem.specialPrice = JSON.parse(selectedItem.specialPrice) instanceof Array ? selectedItem.specialPrice : "[]";
+                    let list;
+                    try{
+                        list = JSON.parse(selectedItem.specialPrice)
+                                    .filter(obj=>obj.customerId===customer.id)
+                                    .map(obj=>({...obj,name:obj.rate}));
+                    }
+                    catch(err){
+                        list = [];
+                    }
+                    if(list.length>0){
+                        let dl = document.createElement("datalist");
+                        dl.id = "rate-list";
+                        removeAllElem("#rate-list")
+                        appendToDL("",dl,true,null,[],list)
+                    }
                 }
             }
             bodyRow.dataset[key] = match[key];
@@ -1255,7 +1264,7 @@ exports.addRow = function(e){
 exports.calculateAmounts = function(e){
     if(Object.keys(selectedItem).length===0) return;
     if(typeof bodyRow==="undefined" || !bodyRow)
-        bodyRow = traverseParent(document.activeElement,"row") || e.target.closest(".body.row");// If bodyRow is not defined or null, find the closest one
+        bodyRow = e.target.closest(".body.row");// If bodyRow is not defined or null, find the closest one
     let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
     let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;

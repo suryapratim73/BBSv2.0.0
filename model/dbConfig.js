@@ -40,7 +40,7 @@ const sequelize = new Sequelize({
             }
         }
     },
-    transactionType:"IMMEDIATE"
+    transactionType:"DEFERRED"
 });
 
 async function appendToFile(fd,data){

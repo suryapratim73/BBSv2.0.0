@@ -61,7 +61,8 @@ async function calcNetTax(table,startDate,endDate){
 }
 
 ipcMain.on("get-all-gst-current-month",async e=>{
-    let { gstInterval=1,financialYearStartDate=new Date((new Date()).getFullYear(),3,1) } = process.presets;
+    try {
+        let { gstInterval=1,financialYearStartDate=new Date((new Date()).getFullYear(),3,1) } = process.presets;
     let startDate = new Date(),endDate = new Date();
     let [dt,mnth] = financialYearStartDate.toLocaleDateString("en-IN").split("/");
     let financialYearCommissionDt = new Date();
@@ -112,6 +113,10 @@ ipcMain.on("get-all-gst-current-month",async e=>{
         // console.log("\x1b[33m%s\x1b[33m",{inTax,outTax,startDate:startDate.toDateString(),endDate:endDate.toDateString()})
     }
     e.sender.send("monthly-gst",monthlyGSTs);
+    } catch(err) {
+        console.error("Error in get-all-gst-current-month:", err);
+        e.sender.send("monthly-gst-error", err.message);
+    }
 });
 
 async function getPeriodicSalePurchase(table,where,attributes){
@@ -169,7 +174,8 @@ ipcMain.on("get-total-sale-purchase",async (e,period)=>{
 });
 
 ipcMain.handle("get-sale-purchase-by-date",async (e,date=new Date())=>{
-    let sales = (await sale.findAll({
+    try {
+        let sales = (await sale.findAll({
         where:{
             billDate:{
                 [Op.between]:[date-date.getHours()*60*60*1000,date]
@@ -186,4 +192,8 @@ ipcMain.handle("get-sale-purchase-by-date",async (e,date=new Date())=>{
         attributes:["billAmt"]
     })).map(({dataValues})=>dataValues);
     return { sales,purchases }
+    } catch(err) {
+        console.error("Error in get-sale-purchase-by-date:", err);
+        return { sales: [], purchases: [], error: err.message };
+    }
 });

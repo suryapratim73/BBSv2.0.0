@@ -786,13 +786,11 @@ exports.notifyCustomer = async function(window, billObj,customer,appLogger,getFi
     //     dialog.showErrorBox("Error",`No email found for customer ${name}. Please update customer details and try again.`);
     //     return;
     // }
-    billDate = openFormatForDate(new Date(billDate));
-    let fileName = `./${name}_${billDate}_${billNo}.pdf`.replace(" ","\ ");
+    let fileName = exports.getPDF_FileName(name,new Date(billDate),billNo);
     let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
-    console.log({biller:process.presets.biller});
     if(!fs.existsSync(path2file)) return;
     let base64File = fs.readFileSync(path2file).toString("base64");
-    let updateRestURL = process.env.APP_ENV==="DEV" ? "localhost:3030" : process.env.UPDATE_REST;
+    let updateRestURL = process.env.UPDATE_REST;// process.env.APP_ENV==="DEV" ? "localhost:3030" : process.env.UPDATE_REST;
     axios.post(`https://${updateRestURL}/send-bill-to-customer`,{
         to:[
             {
@@ -822,6 +820,8 @@ exports.notifyCustomer = async function(window, billObj,customer,appLogger,getFi
 
 exports.getPDF_FileName = function(name,billDate,billNo,temp=false){
     let ext = temp==true ? "_temp" : "";
+    if(billDate instanceof Date)
+        billDate = openFormatForDate(billDate);// Date is formatted as per our standard
     let pdfFileName = `${name}_${billDate}_${billNo}${ext}.pdf`;
     let dirPath = path.resolve(app.getPath("documents"),"./Bills");
     if(fs.existsSync(path.resolve(dirPath,pdfFileName)))// For backward compatibility with old file naming convention
@@ -840,7 +840,7 @@ exports.getPDF_FileName = function(name,billDate,billNo,temp=false){
         if(temp)             
             pdfFileName = pdfFileName.replace(".pdf","_temp.pdf");
     }
-    return pdfFileName;
+    return `${pdfFileName}`;// The name can have blank spaces which will quotes
 }
 
 // ============================================================

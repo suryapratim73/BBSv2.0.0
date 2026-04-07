@@ -11,7 +11,7 @@ const { emblemMaker } = require('../lib/common');
 if(process.APP_ENV==="DEV"){}
 
 function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},template,autoFirstPage=true,temp,paperSize){
-    const { getPDF_FileName } = require('../common');
+    const { getPDF_FileName, openFormatForDate } = require('../common');
     let docOpts = {
         margin,
         autoFirstPage,
@@ -30,7 +30,7 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     if(!fs.existsSync(pdfPath+"/Bills/"))
         fs.mkdirSync(path.join(pdfPath,"Bills"));
     pdfPath = path.join(pdfPath,"Bills");
-    let pdfFileName = getPDF_FileName(name,billDate,billNo,temp)
+    let pdfFileName = getPDF_FileName(name,billDate,billNo,temp);
     doc.pipe(fs.createWriteStream(path.join(pdfPath,pdfFileName)));
     pdfPath = path.join(pdfPath,pdfFileName);
     return {doc,pdfPath};
@@ -142,90 +142,179 @@ exports.billPDF = async function(billObj,temp=false){
     return pdfPath;
 }
 
-exports.ledgerPDF = function(entryArr,{name,address,phones,gst},startDate,endDate,prevClose,ledgerBalance){
-    let path2pdf = app.getPath("temp"),initY;
-    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    let pageAddedEvent = new EventEmitter();
-    let { margin } = saleConfig;
-    const doc = new PDFDocument({margin,size:"A4",autoFirstPage:false});
-    let rowObj = {};
-    doc.pipe(fs.createWriteStream(path.join(path2pdf,"ledger.pdf")));
-    doc.fontSize(12)
-    .font(saleConfig.titleFontFamily);
-    pageAddedEvent.addListener("pageAdded",()=>{
-        createLedgerHead(doc,{name,address,phones,gst,startDate,endDate},margin,prevClose,ledgerBalance);
-        rowObj = {
-            col1:"Sl. No.",
-            col2:"Date",
-            col3:"Particular",
-            col4:"Debit(Dr)/Credit(Cr)",
-            col5:"Balance"
+/**
+ * Process a sale or purchase entry into ledger row format
+ */
+function processSalePurchaseEntry(entry) {
+    const { date, billNo, billAmt, type, payments } = entry;
+    const amount = billAmt - payments;
+    const debitCredit = type === "sale" ? "Dr" : "Cr";
+    
+    return {
+        date: date,
+        particular: `${capitalize(type)}: Bill Number:${billNo}`,
+        amount: `${amount} ${debitCredit}`
+    };
+}
+
+/**
+ * Process a payment entry into ledger row format
+ */
+function processPaymentEntry(entry) {
+    try {
+        const { itemList, payments } = entry;
+        const payObj = JSON.parse(`${itemList}`);
+        const payDate = new Date(payObj.paymode === "cash" ? new Date() : payObj["pay-dt"]);
+        
+        let particular;
+        if (payObj.paymode === "cash") {
+            particular = "Payment received by cash";
+        } else {
+            const trnsRef = payObj.paymode === "cheque" ? payObj.chkNo : payObj.bankTrnRef;
+            particular = `Payment received by ${payObj.paymode}: ${trnsRef}`;
+        }
+        
+        return {
+            date: payDate,
+            particular: particular,
+            amount: `${payments} Cr`
         };
-        createLedgerBody(doc,rowObj);
+    } catch (err) {
+        console.error("Error processing payment entry:", err);
+        return null;
+    }
+}
+
+/**
+ * Process an outgoing payment entry into ledger row format
+ */
+function processOutPaymentEntry(entry) {
+    try {
+        const { itemList, payments } = entry;
+        const payObj = JSON.parse(`${itemList}`);
+        const payDate = new Date(payObj.payDate);
+        
+        const particular = payObj.ref === "cash" 
+            ? "Payment made by cash" 
+            : `Payment reference: ${payObj.ref}`;
+        
+        return {
+            date: payDate,
+            particular: particular,
+            amount: `${payments} Dr`
+        };
+    } catch (err) {
+        console.error("Error processing out-payment entry:", err);
+        return null;
+    }
+}
+
+/**
+ * Convert ledger entries to row format
+ */
+function prepareEntryRows(entryArr) {
+    const rows = [];
+    
+    for (const entry of entryArr) {
+        const { type, balance } = entry;
+        let processedEntry = null;
+        
+        if (["sale", "purchase"].includes(type)) {
+            processedEntry = processSalePurchaseEntry(entry);
+        } else if (type === "payment") {
+            processedEntry = processPaymentEntry(entry);
+        } else if (type === "out-payment") {
+            processedEntry = processOutPaymentEntry(entry);
+        }
+        
+        if (processedEntry) {
+            rows.push({
+                date: processedEntry.date,
+                particular: processedEntry.particular,
+                amount: processedEntry.amount,
+                balance: balance
+            });
+        }
+    }
+    
+    // Sort by date
+    return rows.sort((a, b) => a.date - b.date);
+}
+
+/**
+ * Generate a PDF document for ledger entries
+ */
+exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, endDate, prevClose, ledgerBalance) {
+    let pdfPath = app.getPath("documents");
+    const saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    const { margin } = saleConfig;
+    const pageAddedEvent = new EventEmitter();
+    const { openFormatForDate } = require('../common');
+
+
+    if (!fs.existsSync(pdfPath + "/Ledger/")) {
+        fs.mkdirSync(pdfPath + "/Ledger/");
+    }
+    pdfPath = pdfPath + "/Ledger/";
+
+    // Initialize PDF document
+    const doc = new PDFDocument({
+        margin,
+        size: "A4",
+        autoFirstPage: false
     });
+    startDate = openFormatForDate(new Date(startDate));
+    endDate = openFormatForDate(new Date(endDate));
+    const pdfFilePath = path.join(pdfPath, `${name}_${startDate}_to_${endDate}_ledger.pdf`);
+    doc.pipe(fs.createWriteStream(pdfFilePath));
+    doc.fontSize(12).font(saleConfig.titleFontFamily);
+    
+    // Setup page header event
+    pageAddedEvent.addListener("pageAdded", () => {
+        createLedgerHead(doc, {name, address, phones, gst, startDate, endDate}, margin, prevClose, ledgerBalance);
+        
+        const headerRow = {
+            col1: "Sl. No.",
+            col2: "Date",
+            col3: "Particular",
+            col4: "Debit(Dr)/Credit(Cr)",
+            col5: "Balance"
+        };
+        createLedgerBody(doc, headerRow);
+    });
+    
+    // Add first page
     doc.addPage();
     pageAddedEvent.emit("pageAdded");
-    let { height } = doc.page,newArr = [];
-    for(let index = 0;index<entryArr.length;index++){
-        let {date,billNo,billAmt,type,payments,balance,itemList} = entryArr[index],payParticular;
-        rowObj.col1 = index+1;
-        if(["sale","purchase"].includes(type)){
-            rowObj.col2 = date;//
-            rowObj.col3 = `${capitalize(type)}: Bill Number:${billNo}`;
-            rowObj.col4 = `${billAmt-payments} ${type==="sale" ? "Dr" : "Cr"}`;
-        }
-        else
-        if(type==="payment"){
-            try{
-                let payObj = JSON.parse(`${itemList}`);
-                rowObj.col2 = new Date(payObj.paymode==="cash" ? new Date() : payObj["pay-dt"])//.toLocaleDateString("en-IN");
-                if(payObj.paymode=="cash")
-                    payParticular = "Payment received by cash";
-                else{
-                    let trnsRef = payObj.paymode==="cheque" ? payObj.chkNo : payObj.bankTrnRef;
-                    payParticular = `Payment received by ${payObj.paymode}: ${trnsRef}`
-                }
-                rowObj.col3 = payParticular;
-                rowObj.col4 = payments+" Cr";
-            }
-            catch(err){
-                console.log(err)
-            }
-        }
-        else
-        if(type==="out-payment"){
-            try{
-                let payObj = JSON.parse(`${itemList}`);
-                rowObj.col2 = new Date(payObj.payDate)//.toLocaleDateString("en-IN");
-                if(payObj.ref=="cash")
-                    payParticular = "Payment made by cash";
-                else
-                    payParticular = `Payment reference: ${payObj.ref}`
-                rowObj.col3 = payParticular;
-                rowObj.col4 = payments+" Dr";
-            }
-            catch(err){
-                console.log(err)
-            }
-        }
-        rowObj.col5 = balance;
-        newArr.push({...rowObj});
-    }
-    newArr = newArr.sort(({col2},{col2:_col2})=>(col2-_col2))
-    newArr.forEach((rowObj,i)=>{
-        rowObj.col1 = i+1;
-        rowObj.col2 = rowObj.col2.toLocaleDateString("en-IN");
-        createLedgerBody(doc,rowObj);
+    
+    const { height } = doc.page;
+    const sortedRows = prepareEntryRows(entryArr);
+    
+    // Render each entry row
+    sortedRows.forEach((row, index) => {
+        const rowData = {
+            col1: index + 1,
+            col2: row.date.toLocaleDateString("en-IN"),
+            col3: row.particular,
+            col4: row.amount,
+            col5: row.balance
+        };
+        
+        createLedgerBody(doc, rowData);
         doc.stroke();
-        if(doc.y+doc.currentLineHeight()>height-2*margin){
+        
+        // Add new page if needed
+        if (doc.y + doc.currentLineHeight() > height - 2 * margin) {
             doc.addPage();
             pageAddedEvent.emit("pageAdded");
         }
     });
-    //End PDF date,billNo,billAmt,payments,netDue
+    
+    // Finalize PDF
     doc.save().end();
     pageAddedEvent.removeAllListeners("pageAdded");
-    return path.join(path2pdf,"ledger.pdf");
+    
+    return pdfFilePath;
 }
 
 exports.roadChallanPDF = function(roadChallanObj){

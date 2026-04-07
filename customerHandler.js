@@ -87,11 +87,37 @@ ipcMain.on("get-customer",async e=>{
         return;
     }
     checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
-    if(typeof global.sales!=="undefined"){
+    if(typeof global.sales!=="undefined" && global.sales instanceof Array){
         let custIds = [...new Set(global.sales.map(({customerId})=>(customerId)))];
         _customerList = _customerList.filter(({id})=>custIds.findIndex(custId=>custId===id)!==-1);
     }
-    e.sender.send("customer-list",_customerList);
+    let { strtDt=null,endDt=null } = getFinYearStrtEndDt(0) ?? {};
+    try{
+        let customerIdArr = (await sale.findAll({
+            where:{
+                billDate:{
+                    [Op.between]:[strtDt,endDt]
+                },
+            },
+            attributes:["customerId"]
+        })).map(({dataValues})=>dataValues);
+        customerIdArr = [...new Set(customerIdArr.map(({customerId})=>(customerId)))];
+        let _customerIdArr = _customerList.map(({id})=>id);
+        _customerIdArr = new Set(_customerIdArr);
+        if(new Set([...customerIdArr,..._customerIdArr]).size!==customerIdArr.length){
+            global.customerList = undefined;
+            global.customerList = await getCustomerList();
+            global.customerList = global.customerList.filter(({id})=>customerIdArr.findIndex(custId=>custId===id)!==-1);
+            _customerList = global.customerList;
+        }
+        e.sender.send("customer-list",_customerList);
+    }
+    catch(err){
+        console.log({err});
+        global.customerList = undefined;
+        _customerList = await getCustomerList();
+        e.sender.send("customer-list",_customerList);
+    }
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
@@ -114,9 +140,10 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
+    billDate = new Date(billDate);
     let pdfFileName = getPDF_FileName(name,billDate,billNo,false)
-    if(fs.existsSync(path.resolve(app.getPath("documents"),pdfFileName))){
-        shell.openExternal(path.resolve(app.getPath("documents"),pdfFileName))
+    if(fs.existsSync(path.resolve(app.getPath("documents"),"./bills",pdfFileName))){
+        shell.openExternal(path.resolve(app.getPath("documents"),"./bills",pdfFileName))
         .then(console.log)
         .catch((err)=>{
             console.log("Failed to open",err)
@@ -210,7 +237,7 @@ ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
     })))?.dataValues.balance ?? 0;
     lastBalance = Number(lastBalance);
     try{
-        Promise.all([
+        await Promise.all([
             (await customerLedger.sync()).create({
                 date:payObj.paymode==="cash" ? new Date() : payObj["pay-dt"],
                 type:"payment",
@@ -364,43 +391,37 @@ function displayConfirmMsg(msg,appLogMsg,id,itemList,retAmt,retDate){
 ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id})=>{
     try{
         const {retAmt} = await returnOps(id,itemList,billMeta,retDate,-1);
-        (await outPayments.sync()).create({
+        await (await outPayments.sync()).create({
             beneficiaryId: id,
             type: "return",
             payment: retAmt,
             date: new Date(retDate)
-        })
-        .then(()=>{
-            let msg = {
-                type: "info",
-                title: "Stocks updated",
-                message: "Returned items registered successfully and the selected bill is now unreturnable."
-            };
-            displayConfirmMsg(msg,"received goods return from customer",id,itemList,retAmt,retDate);
-        })
-        .catch(console.log);
+        });
+        let msg = {
+            type: "info",
+            title: "Stocks updated",
+            message: "Returned items registered successfully and the selected bill is now unreturnable."
+        };
+        displayConfirmMsg(msg,"received goods return from customer",id,itemList,retAmt,retDate);
     }
     catch(err){console.log({err})}
 });
 
 ipcMain.on("supp-return-obj",async (e,{itemList,billMeta,retDate,id})=>{
     try{
-        const {retAmt} = returnOps(id,itemList,billMeta,retDate,1);
-        (await inPayments.sync()).create({
+        const {retAmt} = await returnOps(id,itemList,billMeta,retDate,1);
+        await (await inPayments.sync()).create({
             id,
             type: "return",
             payment: retAmt,
             date: new Date(retDate)
-        })
-        .then(()=>{
-            let msg = {
-                type: "info",
-                title: "Stocks updated",
-                message: "Returned items registered successfully."
-            };
-            displayConfirmMsg(msg,"returned goods to supplier",id,itemList,retAmt,retDate);
-        })
-        .catch(console.log)
+        });
+        let msg = {
+            type: "info",
+            title: "Stocks updated",
+            message: "Returned items registered successfully."
+        };
+        displayConfirmMsg(msg,"returned goods to supplier",id,itemList,retAmt,retDate);
     }
     catch(err){
         console.log({err});
@@ -441,13 +462,10 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
 ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
     let { billNo,billDate } = process.presets.billMeta;
     let {billNo:new_billNo,billDate:newBillDate,customerId:id,entryNo} = billMeta;
-    let deltaList = [];
-    if(typeof billDate==="object" && billDate instanceof Date){
-        let dd = billDate.getDate()<10 ? "0"+billDate.getDate() : billDate.getDate();
-        let mm = (billDate.getMonth()+1)<10 ? "0"+(billDate.getMonth()+1) : (billDate.getMonth()+1);
-        let yyyy = billDate.getFullYear();
-        billDate = `${yyyy}-${mm}-${dd}`;
-    }
+    
+    billDate = openFormatForDate(new Date(billDate));
+    newBillDate = openFormatForDate(new Date(newBillDate));
+    
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billObj = await sale.findOne({
@@ -455,63 +473,36 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             entryNo
         }
     });
-    // Calculating Bill Item Deltas Start
-    newitemList.forEach(itemObj=>{
-        //sellId,qty,rate
-        let _itemObj = olditemList.find(_itemObj=>_itemObj.name==itemObj.name);
-        if(_itemObj){
-            // previously declared items
-            if(Math.abs(_itemObj.quantity-itemObj.qty)>0 || Math.abs(_itemObj.rate-itemObj.rate)>0){
-                itemObj.quantity = itemObj.qty;
-                // Reflect.deleteProperty(itemObj,"qty")
-                deltaList.push({
-                    tag:"updated",
-                    itemObj,
-                    _itemObj
-                });
-            }
-        }
-        else{
-            // new items
-            deltaList.push({
-                tag:"new",
-                itemObj
-            });
-        }
+    
+    // Calculate stock deltas (difference between old and new)
+    let stockDeltas = new Map();
+    
+    // Subtract old quantities
+    olditemList.forEach(({name,quantity})=>{
+        stockDeltas.set(name, (stockDeltas.get(name) || 0) - quantity);
     });
-    // Check for deleted items
-    olditemList.forEach(itemObj=>{
-        let _itemObj = newitemList.find(_itemObj=>_itemObj.name==itemObj.name);
-        if(!_itemObj){
-            deltaList.push({
-                tag:"deleted",
-                itemObj
-            });
-        }
+    
+    // Add new quantities
+    newitemList.forEach(({name,qty})=>{
+        stockDeltas.set(name, (stockDeltas.get(name) || 0) + qty);
     });
-    // Calculating Bill Item Deltas End
-    // Recreating Bill Item Table if Bill No or Bill Date changed
-    if(new_billNo!=billNo || newBillDate!=billDate){
-        await billItemModel.drop();
-        newBillDate = new Date(newBillDate);
-        newBillDate = `${newBillDate.getFullYear()}-${newBillDate.getMonth()+1}-${newBillDate.getDate()}`;
-        billItemModel = await getBillModel(id,new_billNo,newBillDate,billItemSchema);
-        await billItemModel.bulkCreate(olditemList);
-    }
-    let { billAmt:_billAmt,netAmt:_netAmt,tax:_tax } =  olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
+    
+    // Calculate bill totals from new items
+    let { billAmt,netAmt,tax } = newitemList.reduce((acc,{igst,sgst,qty:quantity,rate})=>{
         let tax = igst>0 ? igst : 2*sgst;
         acc.netAmt += quantity*rate;
         acc.billAmt += quantity*rate*(1+tax/100);
         acc.tax += quantity*rate*tax/100;
         return acc;
     },{ billAmt:0,netAmt:0,tax:0 });
-    let { billAmt,netAmt,tax } =  newitemList.reduce((acc,{igst,sgst,qty:quantity,rate})=>{
+    
+    // Calculate old bill totals for ledger balance adjustment
+    let { billAmt:_billAmt } = olditemList.reduce((acc,{igst,sgst,quantity,rate})=>{
         let tax = igst>0 ? igst : 2*sgst;
-        acc.netAmt += quantity*rate;
         acc.billAmt += quantity*rate*(1+tax/100);
-        acc.tax += quantity*rate*tax/100;
         return acc;
-    },{ billAmt:0,netAmt:0,tax:0 });
+    },{ billAmt:0 });
+    
     let entries = (await customerLedger.findAll({
         where:{
             [Op.and]:[
@@ -524,8 +515,31 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             ]
         }
     }));
+    
+    // Drop old table and recreate with new items
+    await billItemModel.drop();
+    billItemModel = await getBillModel(id,new_billNo,newBillDate,billItemSchema);
+    
     Promise.all([
-        //Sale Table update
+        // Create new bill items (map qty->quantity, sellUnit->unit, no itemNo)
+        billItemModel.bulkCreate(newitemList.map(item => ({
+            name: item.name,
+            hsn: item.hsn,
+            quantity: item.qty,
+            unit: item.sellUnit,
+            rate: item.rate,
+            cgst: item.cgst,
+            sgst: item.sgst,
+            igst: item.igst,
+            tax: item.igst>0 ? item.igst : 2*item.cgst,
+            desc: item.desc || "",
+            type: item.type || null,
+            isGrouped: item.isGrouped || false,
+            grpId: item.grpId || null,
+            grpName: item.grpName || null
+        }))),
+        
+        // Update Sale Table
         (()=>{
             billObj.setBillValues = {
                 billAmt,
@@ -544,60 +558,33 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             };
             return billObj.save();
         })(),
-        // Customer Ledger update
-        ...entries.map(entry=>{
-            entry.updateBalance = roundOffTo2DecimalPlace(billAmt-_billAmt);
-            return entry.save();
+        
+        // Update Customer Ledger balances
+        ...entries.map(entry=>{// This setup require testing on clean data
+            let updtObj = entry.billNo===billNo ? {
+                billDate:newBillDate,
+                billNo:new_billNo,
+                billAmt:billAmt,
+                balance: sequelize.literal(`balance + ${billAmt - _billAmt}`)
+            } : {
+                balance: sequelize.literal(`balance + ${billAmt - _billAmt}`)
+            };
+            
+            return customerLedger.update(updtObj,{
+                where:{
+                    entryNo:entry.entryNo
+                }
+            });
         }),
-        //Stock update
-        ...deltaList.map(async ({tag,itemObj,_itemObj={}})=>{
-            if(tag=="updated"){
-                (await billItemModel.update(itemObj,{
-                    where:{
-                        name:itemObj.name
-                    }
-                }));                
-                let stockInst = await stock.findOne({
-                    where:{
-                        name:itemObj.name
-                    }
-                });
-                stockInst.reduceStock = itemObj.qty - _itemObj.quantity;
-                return stockInst.save();
-            }
-            else
-            if(tag=="new"){
-                billItemModel.create({
-                    name:itemObj.name,
-                    hsn:itemObj.hsn,
-                    quantity:itemObj.qty,
-                    unit:itemObj.sellUnit,
-                    rate:itemObj.rate,
-                    cgst:itemObj.cgst,
-                    sgst:itemObj.sgst,
-                    igst:itemObj.igst,
-                    tax:itemObj.igst>0?itemObj.igst:2*itemObj.cgst
-                });
-                let stockInst = await stock.findOne({
-                    where:{
-                        name:itemObj.name
-                    }
-                });
-                stockInst.reduceStock = itemObj.qty;
-                return stockInst.save();
-            }
-            else{
-                (await billItemModel.findOne({
-                    where:{
-                        name:itemObj.name
-                    }
-                })).destroy();
-                let stockInst = await stock.findOne({
-                    where:{
-                        name:itemObj.name
-                    }
-                });
-                stockInst.reduceStock = -itemObj.quantity;
+        
+        // Update Stock quantities based on deltas
+        ...Array.from(stockDeltas.entries()).map(async ([itemName, qtyDelta]) => {
+            if(qtyDelta === 0) return;
+            let stockInst = await stock.findOne({
+                where: { name: itemName }
+            });
+            if(stockInst) {
+                stockInst.reduceStock = qtyDelta;
                 return stockInst.save();
             }
         })
@@ -620,7 +607,10 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             print({printObj,path2pdf});
         Reflect.deleteProperty(process.presets,"target");
     })
-    .catch(console.log)
+    .catch(err => {
+        console.error("Error in add-item-to-bill:", err);
+        dialog.showErrorBox("Bill Update Failed", `Failed to update bill: ${err.message}`);
+    })
 });
 
 ipcMain.handle("get-bill-items-portal",async (e,id,billNo,billDate)=>{
@@ -753,6 +743,10 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
         else
             appLogger({title:"Error removing event",message:"Event not found"})
     })
+    .catch(err => {
+        console.error("Error in cancel-bill:", err);
+        dialog.showErrorBox("Bill Cancellation Failed", `Failed to cancel bill: ${err.message}`);
+    })
 });
 
 ipcMain.on("add-opening-balance",async (e,id,balance)=>{
@@ -821,7 +815,7 @@ async function markBillAsPaid(obj,targetWin){
             getTargetWindow(targetWin).webContents.send("msg-from-backend","Payment added.","info",1,billObj);
     })
     .catch(err=>{
-        console.log(err)
+        console.error("Error in markBillAsPaid:", err);
     });
 }
 

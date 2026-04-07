@@ -87,23 +87,32 @@ exports.orderManager = (main,cb)=>{
 }
 
 ipcMain.handle("get-sale-bill-number",()=>{
-    let billNo = billNoCounter();
+    try {
+        let billNo = billNoCounter();
     appLogger({
         title:"Log",
         message:JSON.stringify({billNo}),
         func:"IPC event:get-sale-bill-number"
     });
     return billNo;
+    } catch(err) {
+        console.error("Error in get-sale-bill-number:", err);
+        return null;
+    }
 });
 
 ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
-    console.log({currentStep});
+    try {
+        console.log({currentStep});
     if(currentStep>1 && process.presets.mode!="edit-bill")
         reduceBillNo();
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
     if("presets" in process && process?.presets?.target==="salePage")
         Reflect.deleteProperty(process.presets,"target");
+    } catch(err) {
+        console.error("Error in cancel-sale-bill:", err);
+    }
 });
 
 function itemAnalyzer(orderItems){
@@ -337,9 +346,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 _shipInfos.push(shipInfos[i]);// Section need testing - To be done
         }
         shipInfos = _shipInfos;
-        console.log({shipInfos});
         let shipInfoIndex = shipInfos.findIndex(obj=>obj.shipTo===billMeta.shipTo && obj.shipAddr.toLowerCase()===billMeta.shipAddr.toLowerCase() && obj.shipPh===billMeta.shipPh && obj.shipGST===billMeta.shipGST);
-        console.log({shipInfoIndex})
         if(shipInfoIndex===-1 && billMeta.shipTo!==""){// New shipping info added for existing customer only if not empty
             shipInfos.push({
                 name:billMeta.shipTo,
@@ -511,13 +518,19 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
 ipcMain.on("save-exit-sale-bill",save_exit);
 
 ipcMain.handle("get-customers",async ()=>{
-    if(typeof global.customerList === "undefined")
-        await initCustomerList(customer,appLogger,getFivePercentOfMemory);
-    return global.customerList;
+    try {
+        if(typeof global.customerList === "undefined")
+            await initCustomerList(customer,appLogger,getFivePercentOfMemory);
+        return global.customerList;
+    } catch(err) {
+        console.error("Error in get-customers:", err);
+        return [];
+    }
 });
 
 ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
-    let path2pdf = await save_exit(e,billObj,flag);
+    try {
+        let path2pdf = await save_exit(e,billObj,flag);
     if(!path2pdf) return;
     // return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
@@ -534,10 +547,15 @@ ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
         }
     else
         dialog.showErrorBox("Print blocked","Bill status is currently 'open', set the bill status to 'close' and try again.")
+    } catch(err) {
+        console.error("Error in salepage-print-doc:", err);
+        dialog.showErrorBox("Print Error", "Error printing document: " + err.message);
+    }
 });
 
 ipcMain.handle("get-transporter",async ()=>{
-    return (await (await freight.sync()).findAll({
+    try {
+        return (await (await freight.sync()).findAll({
         where:{
             id:{
                 [Op.ne]:""
@@ -545,6 +563,10 @@ ipcMain.handle("get-transporter",async ()=>{
         },
         order:[["name","ASC"]]
     })).map(({dataValues})=>dataValues);
+    } catch(err) {
+        console.error("Error in get-transporter:", err);
+        return [];
+    }
 });
 
 ipcMain.on("get-sales",async e=>{
@@ -559,17 +581,27 @@ ipcMain.on("get-sales",async e=>{
 });
 
 ipcMain.handle("get-sales",async e=>{
-    return (await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues);
+    try {
+        return (await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues);
+    } catch(err) {
+        console.error("Error in get-sales (handle):", err);
+        return [];
+    }
 });
 
 ipcMain.handle("get-ledger-balance",async (e,custId)=>{
-    let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
-    return (await ((await customerLedger.sync()).findOne({
-        attributes:["balance"],
-        order:[
-            ["entryNo","DESC"]
-        ]
-    })))?.dataValues.balance ?? 0;
+    try {
+        let customerLedger = await getLedgerModel(custId,customerLedgerSchema);
+        return (await ((await customerLedger.sync()).findOne({
+            attributes:["balance"],
+            order:[
+                ["entryNo","DESC"]
+            ]
+        })))?.dataValues.balance ?? 0;
+    } catch(err) {
+        console.error("Error in get-ledger-balance:", err);
+        return 0;
+    }
 });
 
 ipcMain.on("new-order",async (e,{billMeta,mode})=>{

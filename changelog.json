@@ -1,19 +1,17 @@
 {
-    "version":"2.21.9",
+    "version":"2.21.10",
     "highlights":[
         "Sale invoice calculation error fix",
-        "Transporter data now saves correctly",
-        "Customer and supplier data loading optimized for better performance",
-        "Version Manager bug fixes and improvements",
-        "Update download pause and resume functionality with file integrity checks and file repair capabilities",
-        "SalePage UI improvements and bug fixes"
+        "Date shift bug in bill edit fixed",
+        "Improved overall bill editing and ledger updation process",
+        "Printable ledger of customer now saves in Documents/Ledger folder",
+        "Improved ledger pdf design and formatting for professionalism and readability"
     ],
     "fullchange":[
         "Sale invoice calculation error fix",
-        "Transporter data now saves correctly",
-        "Customer and supplier data loading optimized for better performance",
-        "Version Manager bug fixes and improvements",
-        "Update download pause and resume functionality with file integrity checks and file repair capabilities",
-        "SalePage UI improvements and bug fixes"
+        "Date shift bug in bill edit fixed",
+        "Improved overall bill editing and ledger updation process",
+        "Printable ledger of customer now saves in Documents/Ledger folder",
+        "Improved ledger pdf design and formatting for professionalism and readability"
     ]
 }

@@ -65,6 +65,7 @@ const {
   computeFullFileHash,
   verifyFileIntegrityByChunks,
   reDownloadCorruptedSections,
+  getFinYearStrtEndDt,
 } = require("./common");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
@@ -92,7 +93,7 @@ let {
   supplier
 } = require("./model/dbConfig");
 const winManager = require("electron-window-state");
-const { Sequelize, UUIDV4,DataTypes } = require("sequelize");
+const { Sequelize, UUIDV4,DataTypes, Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
@@ -110,6 +111,7 @@ const { getFileMonitor } = require("./fileMonitor");
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
 const { deserializeSchema } = require("./model/schemaLoader");
+const { enable } = require("@electron/remote/main");
 
 // Load dynamicSchemas from JSON (server-delivered)
 let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;
@@ -2024,6 +2026,7 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
         },
         {
           label: "Notify Customer",
+          enabled:false, // Not ready yet
           click: () => {
             errIdentifier = "Notify Customer";
             notifyCustomer(window, obj,customer,appLogger,getFivePercentOfMemory);
@@ -2286,6 +2289,11 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
         }
       ];
     }
+    // 
+    // else
+    // if(mode===""){// 
+
+    // }
   }
   catch(err){
     appLogger({
@@ -3382,28 +3390,23 @@ ipcMain.on("close",(e,label)=>{
 ipcMain.on("print-ledger",async (e,id,period,mode)=>{
   let ledgerSchema = mode==1?supplierLedgerSchema:customerLedgerSchema;
   let ledger = await getLedgerModel(id,ledgerSchema);
-  let entryArr = (await ledger.findAll()).map(({dataValues})=>dataValues);
-  let startDate,endDate,date = new Date();
-  if(period==="0"){
-    startDate = new Date(date.getFullYear(),3,1);
-    endDate = date;
-  }
-  else
-  if(period==="1"){
-    startDate = new Date(date.getFullYear()-1,3,1);
-    endDate = new Date(date.getFullYear(),3,1);
-  }
-  else{
-    endDate = date;
-    startDate = entryArr[0].date;
-  }
-  let { balance:prevClose=0 } = [...entryArr.filter(({date})=>date<startDate)].pop() ?? {};
-  let { balance:ledgerBalance } = [...entryArr.filter(({date})=>date<endDate)].pop();
-  entryArr.map(({dataValues})=>({...dataValues}));
-  entryArr = entryArr.filter(obj=>obj.date>=startDate);
+  let { strtDt:startDate, endDt:endDate} = getFinYearStrtEndDt(Number(period));
+  let entryArr = (await ledger.findAll({
+    where:{
+      date:{
+        [Op.between]:[
+          startDate,
+          endDate
+        ]
+      }
+    }
+  })).map(({dataValues})=>dataValues);
+  let prevClose = entryArr[0].balance - entryArr[0].billAmt;
+  let ledgerBalance = entryArr.at(-1).balance;
   let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
   let path2pdf = ledgerPDF(entryArr,peopleObj,startDate,endDate,prevClose,ledgerBalance);
-  ipcMain.emit("show-print-modal",path2pdf);
+  console.log("Generated PDF at path:", path2pdf);
+  // ipcMain.emit("show-print-modal",path2pdf);
 });
 
 ipcMain.handle("billing-format-ipc",(e,data)=>{
