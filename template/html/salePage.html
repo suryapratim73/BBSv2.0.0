@@ -226,7 +226,8 @@
                     <div class="col sm"><p>IGST</p></div>
                     <div class="col md"><p>Total</p></div>
                 </div>
-                <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)" role="rowgroup">
+                <!-- <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onchange="selectionHandler(event)" role="rowgroup"> -->
+                <div id="tbody" onmouseover="textRollAnnimation(event)" class="hide-scrollbar" oninput="calculateAmounts(event)" onclick="clickOrFocusinHandler(event)" onfocus="clickOrFocusinHandler(event)" role="rowgroup">
                     <div class="row row-control-div" id="add-item">
                         <button type="button" class="main-ui-btn hover bottom right" onclick="addRow(event)" aria-label="Add new item row" data-msg="Add new item row (Ctrl++)" tabindex="0">+</button>
                     </div>

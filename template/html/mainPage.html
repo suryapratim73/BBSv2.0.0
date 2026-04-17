@@ -1174,8 +1174,9 @@
             <div>
                 <progress id="progress" max="100"></progress>
             </div>
-            <div>
-                <button id="progress-cancel-btn" class="hide hover bottom" data-msg="Cancel operation" tabindex="0">Cancel</button>
+            <div class="btn-container">
+                <button id="progress-pause-btn" class="hide hover bottom" data-cmd="pause" data-msg="Pause/Resume" data-paused="false" tabindex="0">Pause</button>
+                <button id="progress-cancel-btn" class="hide hover bottom" data-cmd="cancel" data-msg="Cancel operation" tabindex="0">Cancel</button>
             </div>
         </div>
     </template>

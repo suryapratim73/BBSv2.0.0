@@ -836,8 +836,9 @@ exports.dataModal = function([reducedObjs,key="Amt"],e){
 }
 
 exports.deleteRowCommon = function(bodyRow,itemList,key="uid"){
-    if(!bodyRow)
-        bodyRow = document.querySelector(".body.row:last-child");
+    if(!bodyRow && bodyRow instanceof HTMLElement)
+        bodyRow = bodyRow.closest(".body.row");
+    if(!bodyRow) return;
     let uid = bodyRow.dataset[key];
     itemList = itemList.filter(obj=>obj[key]!==uid);
     bodyRow.remove();
@@ -1125,6 +1126,10 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
     if(e.target.dataset.name==="name" && currentStep===3){
         selectedItem = match;
         bodyRow = e.target.closest(".body.row");
+        if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row"))
+            return;
+        if(bodyRow.querySelector(`[data-name="qty"]`).value.length>0 && Number(bodyRow.querySelector(`[data-name="qty"]`).value)!==0)
+            return;
         selectedItem.pInfo = JSON.parse(selectedItem?.pInfo || "{}");
         for(let key in match){
             if(["sgst","cgst","igst"].includes(key) && typeof igstFlag!=="undefined"){
@@ -1265,6 +1270,8 @@ exports.calculateAmounts = function(e){
     if(Object.keys(selectedItem).length===0) return;
     if(typeof bodyRow==="undefined" || !bodyRow)
         bodyRow = e.target.closest(".body.row");// If bodyRow is not defined or null, find the closest one
+    if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) 
+        return;// If the closest bodyRow is not valid, return
     let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
     let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
     let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
@@ -1441,7 +1448,6 @@ exports.reduceOrder = function(){
 }
 
 exports.clickOrFocusinHandler = function(e){
-    // if(currentStep!==3) return;
     if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
         return deleteRow(e);
     if(e.target.dataset.cmd==="desc-btn" && e.type==="focusin")
@@ -1449,6 +1455,8 @@ exports.clickOrFocusinHandler = function(e){
     bodyRow = e.target.parentNode.parentNode;
     if(bodyRow.classList.contains("desc-div"))
         bodyRow = bodyRow.parentNode;
+    if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row"))
+        return;
     if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
         selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
     if(typeof displaySection==="function")
@@ -1633,25 +1641,55 @@ exports.upperCaseInput = function(e){
         e.preventDefault();
 }
 
-exports.createORexecuteProgressbar = function(value=0,{text,text2,cancelObj:{useCancel,cancelBtnText,cancelToken}}){
+exports.createORexecuteProgressbar = function(value=0,{text,text2,cancelObj:{useCancel,cancelBtnText,cancelToken,usePause,pauseBtnTextObj,pauseToken}={}}={}){
     let progressbar = document.getElementById("progressbar");
-    if(!progressbar)
+    if(!progressbar){
         progressbar = document.body.appendChild(document.getElementById("progressbar-template").content.cloneNode(true).querySelector("div"));
+        progressbar.addEventListener("click",btnClickHandler1);
+    }
+    let cancelBTN = progressbar.querySelector("#progress-cancel-btn");
+    let pauseBTN = progressbar.querySelector("#progress-pause-btn");
     progressbar.querySelector("#progress").value = value;
     progressbar.querySelector("#progress-text").textContent = text;
     progressbar.querySelector("#progress-context").textContent = text2;
     progressbar.querySelector("#percentage").textContent = `${value}%`;
-    if(useCancel){
-        let cancelBTN = progressbar.querySelector("#progress-cancel-btn");
+    if(useCancel && cancelBTN.classList.contains("hide")){
         cancelBTN.classList.remove("hide");
         cancelBTN.textContent = cancelBtnText;
-        cancelBTN.addEventListener("click",async ()=>{
-            await ipcRenderer.invoke(cancelToken);
-            progressbar.remove();
-        })
+        cancelBTN.dataset.token = cancelToken;
+    }
+    if(usePause && pauseBTN.classList.contains("hide")){
+        pauseBTN.classList.remove("hide");
+        pauseBTN.textContent = pauseBtnTextObj.pause;
+        pauseBTN.dataset.token = pauseToken;
+        pauseBTN.dataset.pauseBtnTextObj = JSON.stringify(pauseBtnTextObj);
+        pauseBTN.dataset.paused = "false";
     }
     if(value===100)
         progressbar.remove();
+}
+
+function btnClickHandler1(e){
+    let { cmd } = e.target.dataset;
+    if(cmd==="cancel"){
+        ipcRenderer.invoke("cancel-download");
+    }
+    else
+    if(cmd==="pause"){
+        let pauseBTN = e.target;
+        let isPaused = pauseBTN.dataset.paused === "true";
+        if(isPaused){
+            pauseBTN.dataset.paused = "false";
+            isPaused = false;
+            pauseBTN.textContent = JSON.parse(pauseBTN.dataset.pauseBtnTextObj).resume;
+        }
+        else{
+            pauseBTN.dataset.paused = "true";
+            isPaused = true;
+            pauseBTN.textContent = JSON.parse(pauseBTN.dataset.pauseBtnTextObj).pause;
+        }
+        ipcRenderer.invoke("pause-download", isPaused);
+    }
 }
 
 exports.deepCompareJSON = function deepCompareJSON(obj1,obj2){

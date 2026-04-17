@@ -37,10 +37,9 @@ module.exports = mainWindow=>{
                 {
                     label: "Check for update",
                     click: ()=>{
-                        const { checkForUpdates } = require("./main");
-                        checkForUpdates("manual")
+                        ipcMain.emit("check-for-update");
                     },
-                    accelerator: "Shift+F5"
+                    accelerator: "CommandOrControl+Shift+U"
                 },
                 // {
                 //     label: "Help",

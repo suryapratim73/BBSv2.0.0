@@ -1,17 +1,13 @@
 {
-    "version":"2.21.10",
+    "version":"2.21.11",
     "highlights":[
-        "Sale invoice calculation error fix",
-        "Date shift bug in bill edit fixed",
-        "Improved overall bill editing and ledger updation process",
-        "Printable ledger of customer now saves in Documents/Ledger folder",
-        "Improved ledger pdf design and formatting for professionalism and readability"
+        "Improved Download pause/resume functionality for better user control and experience",
+        "Fixed Date format compatibility issue in template: default 2",
+        "Fixed automatic null write issue in salePage"
     ],
     "fullchange":[
-        "Sale invoice calculation error fix",
-        "Date shift bug in bill edit fixed",
-        "Improved overall bill editing and ledger updation process",
-        "Printable ledger of customer now saves in Documents/Ledger folder",
-        "Improved ledger pdf design and formatting for professionalism and readability"
+        "Improved Download pause/resume functionality for better user control and experience",
+        "Fixed Date format compatibility issue in template: default 2",
+        "Fixed automatic null write issue in salePage"
     ]
 }

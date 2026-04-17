@@ -68,6 +68,7 @@ unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
 availableBillNoDL.id = "available-bill-no-div";
 shipInfoDatalist.id = "ship-info-dl";
+process.allowMatch = true; // To allow datalist options to be selected even if they don't match the input (for custom entries)
 
 const {
     unitMap = [],
@@ -417,14 +418,7 @@ async function mainForm() {
             billMeta.billDate = new Date(dateStr + 'T00:00:00.000Z');
             
             document.querySelector(`[data-name="billDate"]`).value = dateStr; 
-            // Bill Date mismatch bug
-            console.log({
-                originalBillDate: billDateObj.toISOString(),
-                normalizedBillDate: billMeta.billDate.toISOString(),
-                dateStr: dateStr,
-                indianStandard: new Date(billMeta.billDate).toLocaleDateString("en-IN"),
-                inputValue: document.querySelector(`[data-name="billDate"]`).value,
-            })  
+            // Bill Date mismatch bug - fixed
             if (!page2initialized) {
                 currentBillNo =
                     preset.mode === "edit-bill"
@@ -456,12 +450,6 @@ async function mainForm() {
         }
         setFooter();
         if (currentStep === 3) {
-            document
-                .querySelector("#tbody")
-                ?.addEventListener("focusin", clickOrFocusinHandler);
-            document
-                .querySelector("#tbody")
-                ?.addEventListener("click", clickOrFocusinHandler);
             appendToHost(
                 "#roll-text-template",
                 document.querySelector("footer"),
@@ -1073,13 +1061,6 @@ function showPrintDialog() {
 ipcRenderer.on("print-obj", (e, printObj) => {
     try {
         billMeta.printObj = printObj;
-        console.log({
-            message: "Response from print-modal",
-            printObj,
-            cond1: typeof preset !== "undefined" && preset?.target === "salePage",
-            cond1a: typeof preset !== "undefined",
-            cond1b: preset.target === "salePage",
-        });
         if (preset.target === "salePage" && preset.mode === "edit-bill") {
             ipcRenderer.send("cancel-sale-bill", currentStep);
             printObj.customer = customer;

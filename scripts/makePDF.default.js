@@ -48,6 +48,7 @@ async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
 }
 
 exports.billPDF = async function(billObj,temp=false){
+    const { openFormatForDate } = require('../common');
     const {billMeta,customer,orderItems} = billObj;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, paperSize } = saleConfig;
@@ -64,6 +65,8 @@ exports.billPDF = async function(billObj,temp=false){
     myEmitter.on("pageAdded",async caption=>{
         let { width } = doc.page;
         factor = (width-margin)/20;
+        if(billMeta.billDate instanceof Date)
+            billMeta.billDate = openFormatForDate(billMeta.billDate);
         createHeader2(doc,billMeta,customer,caption);
         topY = doc.y;
         bottomY = createFooter2(doc,billMeta,customer,margin);
@@ -89,6 +92,7 @@ exports.billPDF = async function(billObj,temp=false){
         doc.font(defaultFontFamily).fontSize(defaultFontSize).moveDown();
     });
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===false && saleConfig.billTemplate.file==="default2"){// For Krishna Da
+        // Default 2 template
         for(let x=0;x<captions.length;x++){
             let caption = captions[x];
             myEmitter.emit("newPage",caption);
@@ -106,6 +110,7 @@ exports.billPDF = async function(billObj,temp=false){
         doc.save().end();
         return pdfPath;
     }
+    // Default 1 template
     doc.addPage();
     let j,lastJ=0,lastI=0;
     loop1:

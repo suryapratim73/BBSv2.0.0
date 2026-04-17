@@ -1343,6 +1343,10 @@ ipcRenderer.on("execute-progressbar",(e,val,obj)=>{
     createORexecuteProgressbar(val,obj)
 });
 
+ipcRenderer.on("remove-progressbar",()=>{
+    removeAllElem("#progressbar")
+});
+
 let itemFormContent = function(form){
     if(!(this instanceof Array)) return console.log(this)
     let itemObj = this.pop();

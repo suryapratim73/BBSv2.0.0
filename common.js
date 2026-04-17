@@ -938,13 +938,11 @@ function clearDownloadState() {
   try {
     if (fs.existsSync(statePath)) {
       fs.rmSync(statePath);
-      const { appLogger } = require('./common.js');
-      appLogger({ message: "Download state cleared" });
+      exports.appLogger({ message: "Download state cleared" });
     }
     return true;
   } catch (err) {
-    const { appLogger } = require('./common.js');
-    appLogger({
+    exports.appLogger({
       title: "Error",
       message: String(err),
       func: "clearDownloadState"

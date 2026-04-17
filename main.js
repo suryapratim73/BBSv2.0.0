@@ -112,6 +112,8 @@ let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData")
 
 const { deserializeSchema } = require("./model/schemaLoader");
 const { enable } = require("@electron/remote/main");
+const { save } = require("pdfkit");
+const { main } = require("./lib/execCustomTemplate");
 
 // Load dynamicSchemas from JSON (server-delivered)
 let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;
@@ -1652,7 +1654,7 @@ ipcMain.handle("verify-code", async (e, { code }) => {
 // NEW: Check for paused downloads function
 function checkForPausedDownload() {
   const state = loadDownloadState(appLogger);
-  
+
   if (!state || state.status !== 'paused') return;
   
   const percentComplete = Math.round((state.bytesDownloaded / state.totalBytes) * 100);
@@ -2636,19 +2638,40 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
 
 // NEW downloadUpdate function with pause/resume support + file integrity verification + file repair
 function downloadUpdate(appVersion, resumeState = null, hashInfo) {
+  /**
+   * Date: 11/04/2026
+   * Task remains:(Postponed for now - will be implemented in future updates)
+   * - Check if partial files are auto detected on app start and offer resume option if valid (currently only resume from settings)
+   * - Give user option to close the download progress modal when download is "paused" state.
+   * - Show download progress in app notification panel as well.
+   * - Create schedule to auto download with conditions like "only on wifi" or "only when idle" and test the functionality.
+   * - (Least priority) Make this function more modular and reusable for other large file downloads in the app like SLM or backup restore. 
+   */
   appLogger({
     message: resumeState ? "Resuming download" : "Starting new download",
     resumeFrom: resumeState?.bytesDownloaded || 0
   });
   
   let fileWriter, downloadURL, fileName, filePath, mainWin = getMainWindow();
-  let abortControllerPause = new AbortController();
+  let abortControllerPause = typeof global.isPaused=="undefined" ? new AbortController() : global.abortControllerPause;
   let abortControllerCancel = new AbortController();
-  let pauseToken = uuid.v4();
+  let pauseToken = typeof global.isPaused=="undefined" ? uuid.v4() : global.pauseToken;
   let cancelToken = uuid.v4();
   let lastSavedPercent = 0;
   let bytesDownloaded = resumeState?.bytesDownloaded || 0;
   let downloadTotalBytes = resumeState?.totalBytes || null;
+  let timeoutCheckInterval;
+  const SAVE_STATE_INTERVAL = 5; // Save state every 5 seconds
+  global.abortControllerPause = abortControllerPause;
+  global.pauseToken = pauseToken;
+  global.isPaused = typeof global.isPaused=="undefined" ? "false" : global.isPaused;
+
+  if(typeof global.state!=="undefined" && global.state.status==="downloading"){
+    return appLogger({
+      title:"Download in progress",
+      message:"A download is already in progress. Please pause or cancel the current download before starting a new one."
+    });
+  }// Block multiple download attempts - this can happen if user clicks "Download update" multiple times from settings before the first download starts (due to async nature of download start)
 
   // Platform-specific file setup
   if (process.platform === "linux") {
@@ -2656,9 +2679,14 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
     filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
     downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=linux&id=${global.userId}`;
   } else if (process.platform === "win32") {
+    // Download pause/resume functionality test in progress
+    // Commented out codes are for testing with local server
     fileName = `bbs_${appVersion}_setup.exe`;
-    filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
-    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
+    // filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
+    filePath = path.resolve(__dirname, `./ext/${fileName}`);
+    // downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
+    downloadURL = `http://192.168.0.110:3030/download/update?channel=production&platform=win&id=${global.userId}`;
+    // downloadURL = `http://localhost:3030/download/update?channel=production&platform=win&id=${global.userId}`;
   } else if (process.platform === "darwin") {
     // Mac case
     fileName = `bbs_${appVersion}.dmg`;
@@ -2673,7 +2701,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       appLogger({
         title: "Warning",
         message: `Partial file verification failed: ${verification.reason}`,
-        action: "Starting fresh download"
+        action: "Starting fresh download",
+        verification
       });
       // Clear state and start fresh
       clearDownloadState(appLogger);
@@ -2691,43 +2720,69 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
   });
 
   // PAUSE HANDLER
-  ipcMain.handleOnce(pauseToken, () => {
-    appLogger({ message: "Download paused by user" });
-    abortControllerPause.abort("Paused by user");
-    
+  ipcMain.removeHandler("pause-download");
+  ipcMain.handle("pause-download", (e,isPaused) => {    
     // Don't delete file - keep for resume
-    fileWriter.end(() => {
-      appLogger({ message: "File stream closed for pause" });
+    global.isPaused = isPaused;
+    appLogger({
+      title: "Download paused",
+      message: isPaused ? "Pausing download..." : "Resuming download..."
     });
-    
-    mainWin.setProgressBar(-1);
+    if(isPaused){
+      fileWriter.end(() => {
+        appLogger({ message: "File stream closed for pause" });
+        abortControllerPause.abort("Paused by user");
+      });
+      mainWin.webContents.send("msg-from-backend","Download paused");
+    }
+    else{
+      // Resume download
+      const state = loadDownloadState(appLogger);
+      if(state){
+        global.state = {
+          ...state,
+          status: 'resuming'
+        }; // Store in global to access in axios config
+        global.isPaused = undefined;
+        downloadUpdate(appVersion, state, hashInfo);
+        mainWin.webContents.send("msg-from-backend","Resuming download...");
+      }
+    }
     return true;
   });
 
   // CANCEL HANDLER
-  ipcMain.handleOnce(cancelToken, () => {
+  ipcMain.removeHandler("cancel-download");
+  ipcMain.handleOnce("cancel-download", () => {
     appLogger({ message: "Download cancelled by user" });
-    abortControllerCancel.abort("Cancelled by user");
-    
     // Close stream and delete file
     fileWriter.end(() => {
-      if (fs.existsSync(filePath)) {
-        fs.rmSync(filePath);
-        appLogger({ message: "Partial file deleted" });
-      }
+      console.log({msg:"fileWriter.end callback function"});
+      abortControllerCancel.abort("Cancelled by user");
+      const state = loadDownloadState(appLogger);
+      saveDownloadState({
+        ...state,
+        status:"cancelled"
+      });
+      global.state = {
+        ...state,
+        status:"cancelled"
+      };
     });
     
-    // Clear download state
-    clearDownloadState(appLogger);
-    mainWin.setProgressBar(-1);
     return true;
   });
 
   // Prepare axios config
+  let lastProgressSentTime = Date.now();
   const axiosConfig = {
     responseType: "stream",
     onDownloadProgress(progressEvent) {
+      lastProgressSentTime = Date.now();
       let total = progressEvent.total || downloadTotalBytes;
+      if(typeof global.state!=="undefined" && global.state.status==="resuming"){
+        total = global.state.totalBytes;
+      }
       if (!downloadTotalBytes && total) {
         downloadTotalBytes = total;
       }
@@ -2746,14 +2801,16 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
           useCancel: true,
           pauseToken,
           cancelToken,
-          pauseBtnText: "Pause",
+          pauseBtnTextObj: {
+            pause: "Pause",
+            resume: "Resume"
+          },
           cancelBtnText: "Cancel"
         }
       );
-
       // Save state periodically (every 5%)
       const currentPercent = Math.floor((totalDownloaded / total) * 100);
-      if (currentPercent - lastSavedPercent >= 5) {
+      if (currentPercent - lastSavedPercent >= SAVE_STATE_INTERVAL) {
         saveDownloadState({
           fileName,
           filePath,
@@ -2771,6 +2828,20 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       abortControllerCancel.signal
     ])
   };
+
+  // Timeout check to detect stalled downloads (no progress for 60 seconds)
+  timeoutCheckInterval = setInterval(() => {
+    const stalledTime = Date.now() - lastProgressSentTime;
+    if (stalledTime > 60*1000) {
+      clearInterval(timeoutCheckInterval);
+      appLogger({
+        title: "Download stalled",
+        message: `No progress event received for ${stalledTime / 1000} seconds. Aborting download.`,
+      });
+      mainWin.webContents.send("msg-from-backend","Download stalled. Please try again later.");
+      abortControllerPause.abort("Download stalled");
+    }
+  },30000);
 
   // Add Range header if resuming
   if (resumeState && bytesDownloaded > 0) {
@@ -2800,18 +2871,94 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
         appLogger({ message: "Response received from server", status: resp.status });
       }
 
-      mainWin.setProgressBar(-1);
+      resp.data.on("close",()=>{
+        if(typeof global.state!=="undefined" && global.state.status==="cancelled"){
+          mainWin.setProgressBar(-1);
+          mainWin.webContents.send("remove-progressbar");
+          mainWin.webContents.send("msg-from-backend","Download cancelled","error");
+        }
+      });
+
 
       return new Promise((resolve, reject) => {
         resp.data.pipe(fileWriter);
         
         fileWriter.on("error", (err) => {
           fileWriter.close();
+          if(timeoutCheckInterval) clearInterval(timeoutCheckInterval);
+          if(err.code==="ENOSPC"){
+            appLogger({
+              title: "Disk space error",
+              message: "Not enough disk space to complete the download.",
+              error: String(err)
+            });
+            saveDownloadState({
+              fileName,
+              filePath,
+              downloadURL,
+              bytesDownloaded,
+              totalBytes: downloadTotalBytes,
+              version: appVersion,
+              status: 'paused',
+              error: 'Not enough disk space'
+            });
+            mainWin.webContents.send("msg-from-backend","Not enough disk space to complete the download.");
+          }
+          else
+          if(err.code==="EACCES"){
+            appLogger({
+              title: "Permission error",
+              message: "Insufficient permissions to complete the download.",
+              error: String(err)
+            });
+            clearDownloadState(appLogger);
+            mainWin.webContents.send("msg-from-backend","Insufficient permissions to complete the download. Please check your permissions and try again.");
+          }
           reject(err);
         });
         
+        // Handle abort signals
+        const abortHandler = function(){
+          if(!resp.data.destroyed && fs.existsSync(filePath)){
+            resp.data.unpipe(fileWriter);
+            resp.data.destroy();
+            let state = loadDownloadState(appLogger);
+            let stats = fs.statSync(filePath);
+            // Save state with current progress and paused status
+            saveDownloadState({
+              ...state,
+              bytesDownloaded: stats.size,
+              status: 'paused'
+            });// Save state on abort to allow resume\
+            // Reset global properties to allow future pause/resume cycles
+            global.isPaused = false;
+            global.pauseToken = uuid.v4();
+            global.abortControllerPause = new AbortController();
+            global.abortControllerCancel = new AbortController();
+            global.cancelToken = uuid.v4();
+          }
+          if(this.name==="cancel"){
+            clearDownloadState(appLogger);
+            mainWin.setProgressBar(-1);
+            mainWin.webContents.send("remove-progressbar");
+            mainWin.webContents.send("msg-from-backend","Download cancelled","error");
+          }
+        }
+
         fileWriter.on("close", async () => {
           // This can be triggered on both pause and completion, so we check if the file is fully downloaded before resolving.
+          // Cleanup abort listeners
+          abortControllerCancel.signal.removeEventListener("abort", abortHandler);
+          abortControllerPause.signal.removeEventListener("abort", abortHandler);
+          if(timeoutCheckInterval) clearInterval(timeoutCheckInterval);
+          if(!fs.existsSync(filePath)){
+            appLogger({
+              title: "File not found after stream closed",
+              message: "The file stream was closed but the file does not exist on disk. This may indicate an issue during download or an external deletion.",
+              filePath
+            });
+            return reject(new Error("File not found after stream closed"));
+          }
           const stats = fs.statSync(filePath);
           if (stats.size >= downloadTotalBytes) {
             appLogger({ message: "File fully downloaded" });
@@ -2886,7 +3033,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
                     if(fullFileHashAfterFix === hashInfo.fullFileHash){
                       appLogger({ message: "File successfully repaired and verified" });
                       successfulRepair = true;
-                      resolve(true);
+                      return resolve(true);
                     }
                     else{
                       appLogger({ message: `Hash still mismatched after repair attempt ${tryCount+1}` });
@@ -2949,13 +3096,25 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
               return reject(error);
             }
           }
+          if(typeof global.state!=="undefined" && global.state.status==="cancelled"){
+            global.state = undefined;
+            clearDownloadState();
+            if(fs.existsSync(filePath))
+              fs.rmSync(filePath);
+          }
         });
+
+        abortControllerPause.signal.addEventListener("abort",abortHandler.bind({name:"pause"}));
+        abortControllerCancel.signal.addEventListener("abort",abortHandler.bind({name:"cancel"}));
       });
     })
-    .then(updateCommon.bind({ fileName, version: appVersion, hashInfo, isSaved: false }))
-    .catch(err => {
+    // .then(updateCommon.bind({ fileName, version: appVersion, hashInfo, isSaved: false }))
+    .catch(async err => {
+      if(timeoutCheckInterval)
+        clearInterval(timeoutCheckInterval);
       if (err.message === "Paused by user") {
         // Save final state as paused
+        await new Promise((res)=>setImmediate(res));
         const stats = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
         if (stats) {
           saveDownloadState({
@@ -2968,17 +3127,12 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             status: 'paused'
           });
         }
-        
-        dialog.showMessageBox(mainWin, {
-          title: "Download Paused",
-          message: "Download has been paused. You can resume it later from the menu or on next app start.",
-          type: "info",
-          icon: appIcon
-        });
+        mainWin.send("msg-from-backend","Download Paused","info");
       } 
       else 
       if (err.message === "Cancelled by user") {
         appLogger({ message: "Download cancelled, cleanup complete" });
+        // mainWin.setProgressBar(-1);
       }
       else
       if(err.code === "CORRUPTED_DOWNLOAD" || err.code === "INCOMPLETE_DOWNLOAD"){
@@ -2998,6 +3152,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       }
       else {
         // Network error or other issue - save as paused for retry
+        console.error("Last Case: Download error:", err);
         appLogger({
           title: "Error",
           message: String(err),
@@ -3016,14 +3171,14 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             status: 'paused'
           });
           
-          dialog.showErrorBox(
-            "Download Error",
-            `Download interrupted: ${err.message}\n\nYou can resume the download later.`
-          );
+          // dialog.showErrorBox(
+          //   "Download Error",
+          //   `Download interrupted: ${err.message}\n\nYou can resume the download later.`
+          // );
         }
       }
       
-      mainWin.setProgressBar(-1);
+      // mainWin.setProgressBar(-1);
     });
 }
 
@@ -3050,6 +3205,11 @@ function versionChecker(version1,version2,log=true){
     if(Number(_major) == Number(major) && Number(_minor) == Number(minor) && Number(_bugFix) == Number(bugFix))
       return 0;
 }
+
+ipcMain.on("check-for-update",()=>{
+  // checkForInternet("manual");
+  downloadUpdate("2.19.10")
+});
 
 async function checkForUpdates(flag="auto") {
   let { UPDATE_REST } = process.env;
@@ -3176,61 +3336,6 @@ async function checkForUpdates(flag="auto") {
 
 ipcMain.on("start-update",(e,appVersion)=>{
   downloadUpdate(appVersion);
-});
-
-// NEW: Resume download handler
-ipcMain.handle("resume-download", async (e) => {
-  const state = loadDownloadState(appLogger);
-  
-  if (!state) {
-    return { 
-      success: false, 
-      error: "No paused download found" 
-    };
-  }
-  
-  if (state.status !== 'paused') {
-    return { 
-      success: false, 
-      error: `Download is ${state.status}, not paused` 
-    };
-  }
-  
-  appLogger({
-    title: "Resuming Download",
-    version: state.version,
-    bytesDownloaded: state.bytesDownloaded,
-    totalBytes: state.totalBytes,
-    percentComplete: Math.round((state.bytesDownloaded / state.totalBytes) * 100)
-  });
-  
-  // Resume the download
-  downloadUpdate(state.version, state, null);
-  
-  return { success: true };
-});
-
-// NEW: Cancel paused download
-ipcMain.handle("cancel-paused-download", async (e) => {
-  const state = loadDownloadState(appLogger);
-  
-  if (!state) {
-    return { success: false, error: "No download state found" };
-  }
-  
-  // Delete partial file
-  if (fs.existsSync(state.filePath)) {
-    fs.rmSync(state.filePath);
-    appLogger({
-      message: "Deleted partial download file",
-      file: state.filePath
-    });
-  }
-  
-  // Clear state
-  clearDownloadState();
-  
-  return { success: true };
 });
 
 // First Boot IPCs
@@ -3432,8 +3537,6 @@ ipcMain.handle("billing-format-ipc",(e,data)=>{
 });
 
 ipcMain.on("printObj",print);
-
-module.exports.checkForUpdates = checkForUpdates;
 
 // BBS timer codes
 
@@ -3757,16 +3860,10 @@ async function schemaValidator(){
   }
 }
 
-// OLD updateProgressbar function (commented out for resume download feature)
-// function updateProgressbar(win,value,maxVal,text="DB migration in progress,please wait...",text2="",cancelObj={useCancel:false}){
-//   win.setProgressBar(Math.round(value/maxVal),{mode:"normal"});
-//   win.webContents.send("execute-progressbar",Math.round(value*100/maxVal),{text,text2,cancelObj});
-// }
-
 // NEW updateProgressbar function with pause and cancel support
-function updateProgressbar(win, value, maxVal, text = "DB migration in progress,please wait...", text2 = "", actionButtons = { usePause: false, useCancel: false }) {
-  win.setProgressBar(Math.round(value / maxVal), { mode: "normal" });
-  
+function updateProgressbar(win, value, maxVal, text = "DB migration in progress,please wait...", text2 = "", actionButtons = { usePause: false, useCancel: false, pauseToken: null, cancelToken: null, pauseBtnText: "Pause", cancelBtnText: "Cancel"}) {
+  win.setProgressBar(value / maxVal, { mode: "normal" });
+  console.log({msg:"updateProgressbar function"})
   // Support both old cancelObj format and new actionButtons format for backward compatibility
   if ('useCancel' in actionButtons && !('usePause' in actionButtons) && !('pauseToken' in actionButtons)) {
     // Old format - just use it as is
@@ -3782,14 +3879,14 @@ function updateProgressbar(win, value, maxVal, text = "DB migration in progress,
       useCancel: actionButtons.useCancel || false,
       pauseToken: actionButtons.pauseToken,
       cancelToken: actionButtons.cancelToken,
-      pauseBtnText: actionButtons.pauseBtnText || "Pause",
+      pauseBtnTextObj: actionButtons.pauseBtnTextObj || { pause: "Pause", resume: "Resume" },
       cancelBtnText: actionButtons.cancelBtnText || "Cancel"
     };
     
     win.webContents.send("execute-progressbar", Math.round(value * 100 / maxVal), { 
       text, 
       text2, 
-      actionButtons: buttonConfig 
+      cancelObj: buttonConfig 
     });
   }
 }
