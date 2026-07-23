@@ -3259,7 +3259,7 @@ function versionChecker(version1,version2,log=true){
 
 ipcMain.on("check-for-update",()=>{
   // checkForInternet("manual");
-  downloadUpdate("2.19.10")
+  checkForUpdates();
 });
 
 async function checkForUpdates(flag="auto") {
