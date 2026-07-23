@@ -1,0 +1,47 @@
+@import "../css/common.css";
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f5f5;
+}
+
+.kiosk-modal {
+    width: 360px; padding: 28px 24px; background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15); text-align: center;
+}
+.km-header h2 { font-size: 1.2rem; color: #333; }
+.km-subtitle { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+.km-qr-wrap {
+    margin: 20px auto; width: 200px; height: 200px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fafafa; border-radius: 12px; border: 2px solid #eee;
+}
+.km-qr-wrap img { width: 180px; height: 180px; }
+
+.km-url {
+    font-size: 0.85rem; color: #663399; font-weight: 500;
+    margin-bottom: 12px; word-break: break-all;
+}
+
+.km-pin-box {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-bottom: 20px;
+}
+.km-pin-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.1em; }
+.km-pin-value {
+    font-size: 1.6rem; font-weight: 700; letter-spacing: 0.15em;
+    color: #333; background: #f0f0f0; padding: 6px 20px; border-radius: 8px;
+}
+
+.km-footer { display: flex; gap: 10px; }
+.km-footer button {
+    flex: 1; padding: 10px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.km-btn-close { background: #eee; color: #444; }
+.km-btn-stop  { background: #ff4444; color: #fff; }
+.km-btn-close:hover { background: #ddd; }
+.km-btn-stop:hover  { background: #cc0000; }

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <link rel="stylesheet" href="../css/logViewer.css">
+    <script src="../js/logViewer.js" defer></script>
+</head>
+<body>
+    <header role="banner">
+        <div id="header-left">
+            <h1>Log Viewer</h1>
+        </div>
+        <div id="header-right">
+            <button class="main-ui-btn" data-cmd="refresh-logs" onclick="actionHandler(event)" aria-label="Refresh logs" tabindex="0">
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                <span>Refresh</span>
+            </button>
+            <button class="main-ui-btn" data-cmd="export-logs" onclick="actionHandler(event)" aria-label="Export logs to file" tabindex="0">
+                <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+                <span>Export</span>
+            </button>
+            <button class="main-ui-btn" data-cmd="download-logs" onclick="actionHandler(event)" aria-label="Open log folder in file explorer" tabindex="0">
+                <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                <span>Download logs</span>
+            </button>
+            <button class="main-ui-btn" data-cmd="open-log-folder" onclick="actionHandler(event)" aria-label="Open log folder in file explorer" tabindex="0">
+                <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                <span>Open Folder</span>
+            </button>
+        </div>
+    </header>
+    <nav role="navigation" aria-label="Log filter controls">
+        <div id="filter-bar">
+            <div id="level-filters" role="group" aria-label="Filter logs by level">
+                <button class="filter-btn level-chip selected" data-level="all" onclick="filterHandler(event)" aria-pressed="true" tabindex="0">
+                    <span>All</span>
+                    <span class="chip-count" data-level="all">0</span>
+                </button>
+                <button class="filter-btn level-chip" data-level="info" onclick="filterHandler(event)" aria-pressed="false" tabindex="0">
+                    <i class="fa-solid fa-circle-info level-icon-info" aria-hidden="true"></i>
+                    <span>Info</span>
+                    <span class="chip-count" data-level="info">0</span>
+                </button>
+                <button class="filter-btn level-chip" data-level="warn" onclick="filterHandler(event)" aria-pressed="false" tabindex="0">
+                    <i class="fa-solid fa-triangle-exclamation level-icon-warn" aria-hidden="true"></i>
+                    <span>Warn</span>
+                    <span class="chip-count" data-level="warn">0</span>
+                </button>
+                <button class="filter-btn level-chip" data-level="error" onclick="filterHandler(event)" aria-pressed="false" tabindex="0">
+                    <i class="fa-solid fa-circle-xmark level-icon-error" aria-hidden="true"></i>
+                    <span>Error</span>
+                    <span class="chip-count" data-level="error">0</span>
+                </button>
+            </div>
+            <div id="search-bar">
+                <i class="fa-solid fa-magnifying-glass" id="search-icon" aria-hidden="true"></i>
+                <input type="text" id="search-input" placeholder="Search logs..." oninput="searchHandler(event)" aria-label="Search log entries" tabindex="0">
+                <button class="filter-btn" id="clear-search-btn" data-cmd="clear-search" onclick="actionHandler(event)" aria-label="Clear search" tabindex="0" title="Clear search">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div id="toggle-options">
+                <label class="toggle-label" for="auto-scroll-toggle" tabindex="0">
+                    <input type="checkbox" id="auto-scroll-toggle" checked onchange="toggleHandler(event)" aria-label="Toggle auto-scroll">
+                    <span>Auto-scroll</span>
+                </label>
+                <label class="toggle-label" for="wrap-text-toggle" tabindex="0">
+                    <input type="checkbox" id="wrap-text-toggle" onchange="toggleHandler(event)" aria-label="Toggle text wrapping">
+                    <span>Wrap text</span>
+                </label>
+            </div>
+        </div>
+    </nav>
+    <main role="main">
+        <div id="log-table" class="table" role="table" aria-label="Application log entries">
+            <div class="row head" role="row">
+                <p class="col sm" role="columnheader">#</p>
+                <p class="col md" role="columnheader">Level</p>
+                <p class="col lg" role="columnheader">Timestamp</p>
+                <p class="col md" role="columnheader">Source</p>
+                <p class="col eq-space" role="columnheader">Message</p>
+            </div>
+            <div class="tbody" role="rowgroup"></div>
+        </div>
+        <div id="log-detail-panel" class="hide">
+            <div id="detail-header">
+                <h2>Log Detail</h2>
+                <button class="filter-btn" onclick="closeDetailPanel()" aria-label="Close detail panel" tabindex="0">
+                    <i class="fa-solid fa-xmark" aria-hidden="true">Close</i>
+                </button>
+            </div>
+            <div id="detail-content">
+                <div class="detail-field">
+                    <label>Timestamp</label>
+                    <p data-field="timestamp"></p>
+                </div>
+                <div class="detail-field">
+                    <label>Level</label>
+                    <p data-field="level"></p>
+                </div>
+                <div class="detail-field">
+                    <label>Source</label>
+                    <p data-field="source"></p>
+                </div>
+                <div class="detail-field">
+                    <label>Message</label>
+                    <pre data-field="message"></pre>
+                </div>
+                <div class="detail-field" id="detail-stack-field">
+                    <label>Stack Trace</label>
+                    <pre data-field="stack"></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer role="contentinfo">
+        <div id="status-bar">
+            <span id="log-count">Showing 0 of 0 log entries</span>
+            <span id="status-separator">|</span>
+            <span id="connection-status">
+                <i class="fa-solid fa-circle" id="status-dot" aria-hidden="true"></i>
+                <span id="status-text">Disconnected</span>
+            </span>
+        </div>
+    </footer>
+    <template id="log-body-row-template">
+        <div class="body row" tabindex="0" role="row" aria-label="Log entry">
+            <p class="col sm" data-colName="index"></p>
+            <p class="col md" data-colName="level"></p>
+            <p class="col lg" data-colName="timestamp"></p>
+            <p class="col md" data-colName="source"></p>
+            <p class="col eq-space" data-colName="message"></p>
+        </div>
+    </template>
+    <template id="no-logs-template">
+        <div id="no-logs-placeholder">
+            <i class="fa-regular fa-folder-open" aria-hidden="true"></i>
+            <p>No log entries found</p>
+        </div>
+    </template>
+</body>
+</html>

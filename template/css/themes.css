@@ -1,0 +1,564 @@
+/* ============================================================
+   Weather & Festive Theme System
+   Classes applied to <body> by viewManager.js (main process)
+   ============================================================ */
+
+/* ---- Kiosk Status Button ---- */
+#kiosk-status-btn {
+    font-size: 0.7rem;
+    opacity: 0.85;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.2s, color 0.3s;
+}
+#kiosk-status-btn[data-status="online"]  { color: #4caf50; }
+#kiosk-status-btn[data-status="offline"] { opacity: 0.4; }
+
+/* ---- Weather Theme Toggle ---- */
+#reset-weather-btn {
+    display: none;
+    font-size: 0.7rem;
+    opacity: 0.5;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.2s;
+}
+/* Show toggle when useWeatherTheme flag is enabled */
+body[data-use-weather-theme="true"] #reset-weather-btn {
+    display: block;
+}
+/* Active state — weather theme is live */
+body.weather-theme-active #reset-weather-btn {
+    opacity: 0.85;
+    background: var(--theme-secondary);
+    color: var(--theme-primary);
+    position: relative;
+    z-index: 1;
+    border-radius: 15px;
+    margin: 4px;
+}
+body.weather-theme-active #reset-weather-btn::after,body[data-weather-reset="true"] #reset-weather-btn::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    z-index: 2;
+    width: 15px;
+    height: 15px;
+    background: var(--theme-primary);
+    top: 30%;
+    left: 10%;
+}
+/* Inactive state — weather theme was reset */
+body[data-weather-reset="true"] #reset-weather-btn {
+    opacity: 0.35;
+    background: var(--theme-secondary);
+    color: var(--theme-primary);
+    position: relative;
+    z-index: 1;
+    border-radius: 15px;
+    margin: 4px;
+}
+#reset-weather-btn:hover {
+    opacity: 1;
+}
+
+/* ---- Logo, Scheduler, Notification & Lock Screen Weather Background ---- */
+#nav-div > div:first-child,
+#scheduler-div,
+#notification-div,
+[data-ui="login-form"] {
+    position: relative;
+    background-color: var(--weather-logo-solid, var(--theme-primary));
+    background-image: var(--weather-logo-bg, none);
+    background-size: cover;
+    transition: background-color 2s ease, background-image 2s ease;
+    overflow: hidden;
+}
+#nav-div > div:first-child h1 {
+    position: relative;
+    z-index: 1;
+}
+#scheduler-div > *,
+#notification-div > *,
+[data-ui="login-form"] > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Weather animation layer */
+#nav-div > div:first-child::after,
+#scheduler-div::after,
+#notification-div::after,
+[data-ui="login-form"]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+}
+
+/* ============================================================
+   Weather Animations — Keyframes
+   ============================================================ */
+
+/* Rain — diagonal streaks falling */
+@keyframes rainFall {
+    0%   { background-position: 0 0, 0 0; }
+    100% { background-position: 0 40px, 0 40px; }
+}
+body.theme-monsoon #nav-div > div:first-child::after,
+body.theme-monsoon #scheduler-div::after,
+body.theme-monsoon #notification-div::after,
+body.theme-monsoon [data-ui="login-form"]::after {
+    background:
+        repeating-linear-gradient(
+            -25deg,
+            transparent, transparent 6px,
+            rgba(255,255,255,0.2) 6px, rgba(255,255,255,0.2) 8px
+        ),
+        repeating-linear-gradient(
+            -25deg,
+            transparent, transparent 12px,
+            rgba(255,255,255,0.1) 12px, rgba(255,255,255,0.1) 14px
+        );
+    background-size: 80px 40px, 60px 30px;
+    animation: rainFall 0.6s linear infinite;
+}
+
+/* Snow — dots floating down with slight sway */
+@keyframes snowFall {
+    0%   { transform: translateY(-5px) translateX(0); }
+    25%  { transform: translateY(8px) translateX(3px); }
+    50%  { transform: translateY(18px) translateX(-2px); }
+    75%  { transform: translateY(28px) translateX(2px); }
+    100% { transform: translateY(38px) translateX(-1px); }
+}
+body.theme-winter #nav-div > div:first-child::after,
+body.theme-winter #scheduler-div::after,
+body.theme-winter #notification-div::after,
+body.theme-winter [data-ui="login-form"]::after {
+    background:
+        radial-gradient(circle at 20% 0%, white 1.5px, transparent 2px),
+        radial-gradient(circle at 50% 0%, white 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 0%, white 1.5px, transparent 2px),
+        radial-gradient(circle at 35% 0%, white 1px, transparent 1.5px),
+        radial-gradient(circle at 85% 0%, white 1.5px, transparent 2px);
+    background-size: 100% 40px;
+    background-repeat: repeat;
+    animation: snowFall 3s ease-in-out infinite;
+}
+
+/* Sun — slow shimmer / heat haze */
+@keyframes sunShimmer {
+    0%, 100% { opacity: 0.2; background-position: 50% 20%; }
+    50%      { opacity: 0.4; background-position: 50% 22%; }
+}
+body.theme-summer #nav-div > div:first-child::after,
+body.theme-summer #scheduler-div::after,
+body.theme-summer #notification-div::after,
+body.theme-summer [data-ui="login-form"]::after {
+    background: radial-gradient(ellipse at 50% 20%, rgba(255,255,255,0.5), transparent 60%);
+    animation: sunShimmer 3s ease-in-out infinite;
+}
+
+/* Clouds — slow drift */
+@keyframes cloudDrift {
+    0%   { background-position: -20% 0, 120% 60%; }
+    100% { background-position: 120% 0, -20% 60%; }
+}
+body.theme-cloudy #nav-div > div:first-child::after,
+body.theme-cloudy #scheduler-div::after,
+body.theme-cloudy #notification-div::after,
+body.theme-cloudy [data-ui="login-form"]::after {
+    background:
+        radial-gradient(ellipse 60% 30% at 30% 30%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(ellipse 50% 25% at 70% 60%, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%, 200% 100%;
+    background-repeat: no-repeat;
+    animation: cloudDrift 8s linear infinite;
+}
+
+/* Haze — slow breath / pulse */
+@keyframes hazePulse {
+    0%, 100% { opacity: 0.25; backdrop-filter: blur(0px); }
+    50%      { opacity: 0.45; backdrop-filter: blur(1px); }
+}
+body.theme-haze #nav-div > div:first-child::after,
+body.theme-haze #scheduler-div::after,
+body.theme-haze #notification-div::after,
+body.theme-haze [data-ui="login-form"]::after {
+    background: rgba(220, 210, 190, 0.3);
+    animation: hazePulse 4s ease-in-out infinite;
+}
+
+/* Thunderstorm — rain + occasional lightning flash */
+@keyframes thunderFlash {
+    0%, 90%, 92%, 94%, 100% { opacity: 0; }
+    91% { opacity: 0.7; }
+    93% { opacity: 0.3; }
+}
+body.theme-thunderstorm #nav-div > div:first-child::after,
+body.theme-thunderstorm #scheduler-div::after,
+body.theme-thunderstorm #notification-div::after,
+body.theme-thunderstorm [data-ui="login-form"]::after {
+    background:
+        repeating-linear-gradient(
+            -30deg,
+            transparent, transparent 4px,
+            rgba(255,255,255,0.18) 4px, rgba(255,255,255,0.18) 7px
+        ),
+        repeating-linear-gradient(
+            -30deg,
+            transparent, transparent 10px,
+            rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 12px
+        ),
+        rgba(255, 255, 220, 0.5);
+    background-size: 70px 40px, 50px 30px, 100% 100%;
+    background-repeat: repeat, repeat, no-repeat;
+    animation:
+        rainFall 0.5s linear infinite,
+        thunderFlash 5s ease-out infinite;
+}
+
+/* Festive — gentle sparkle */
+@keyframes festiveSparkle {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 0.5; }
+}
+body.theme-festive #nav-div > div:first-child::after,
+body.theme-festive #scheduler-div::after,
+body.theme-festive #notification-div::after,
+body.theme-festive [data-ui="login-form"]::after {
+    background:
+        radial-gradient(circle at 15% 25%, white 1px, transparent 2px),
+        radial-gradient(circle at 55% 20%, gold 1px, transparent 2px),
+        radial-gradient(circle at 75% 40%, white 1px, transparent 2px),
+        radial-gradient(circle at 30% 55%, gold 1px, transparent 2px),
+        radial-gradient(circle at 65% 65%, white 1px, transparent 2px),
+        radial-gradient(circle at 45% 75%, gold 1px, transparent 2px);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    animation: festiveSparkle 2s ease-in-out infinite;
+}
+
+/* Night — stars twinkling */
+@keyframes starsTwinkle {
+    0%, 100% { opacity: 0.5; }
+    30%      { opacity: 0.8; }
+    60%      { opacity: 0.3; }
+    85%      { opacity: 0.7; }
+}
+body.theme-night #nav-div > div:first-child::after,
+body.theme-night #scheduler-div::after,
+body.theme-night #notification-div::after,
+body.theme-night [data-ui="login-form"]::after {
+    background:
+        radial-gradient(circle at 15% 20%, white 1px, transparent 1.5px),
+        radial-gradient(circle at 55% 15%, white 0.8px, transparent 1.3px),
+        radial-gradient(circle at 78% 30%, white 1px, transparent 1.5px),
+        radial-gradient(circle at 25% 55%, white 0.8px, transparent 1.3px),
+        radial-gradient(circle at 60% 60%, white 1px, transparent 1.5px),
+        radial-gradient(circle at 40% 75%, white 0.8px, transparent 1.3px),
+        radial-gradient(circle at 80% 70%, white 0.8px, transparent 1.3px);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    animation: starsTwinkle 3.5s ease-in-out infinite;
+}
+
+/* ---- Body Tint Overlay ---- */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: var(--weather-bg-tint, transparent);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 2s ease;
+}
+body.weather-theme-active::before {
+    opacity: 1;
+}
+
+/* ---- App Banner ---- */
+#app-banner {
+    display: none;
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    gap: 12px;
+    z-index: 100;
+    animation: bannerSlideIn 0.5s ease;
+    text-align: center;
+    flex-wrap: wrap;
+}
+#app-banner.visible {
+    display: flex;
+}
+#app-banner .banner-cta {
+    padding: 3px 14px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+#app-banner .banner-cta:hover {
+    background: rgba(255,255,255,0.35);
+}
+#app-banner .banner-dismiss {
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 1.1rem;
+    line-height: 1;
+    margin-left: 4px;
+}
+#app-banner .banner-dismiss:hover {
+    opacity: 1;
+}
+@keyframes bannerSlideIn {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);      opacity: 1; }
+}
+
+/* ============================================================
+   Weather Theme Classes
+   Override --theme-* variables to tint the nav sidebar + logo
+   ============================================================ */
+
+/* ---- ☀️ Summer / Clear / Sunny ---- */
+body.theme-summer {
+    --theme-primary: #d4700a;
+    --theme-primary-lighter: #e8842c;
+    --theme-shadow-color: #b8a090;
+    --weather-logo-solid: #fff5e0;
+    --weather-logo-bg: radial-gradient(ellipse at 50% 20%, #ffe0a0, #ffb84d 60%, transparent);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(255,165,50,0.05) 0%,
+                      transparent 50%);
+}
+
+/* ---- 🌧️ Monsoon / Rain / Drizzle ---- */
+body.theme-monsoon {
+    --theme-primary: #2c5f8a;
+    --theme-primary-lighter: #4a7da8;
+    --theme-shadow-color: #8a9aaa;
+    --weather-logo-solid: #c8dff5;
+    --weather-logo-bg:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px),
+        linear-gradient(180deg, #c8dff5 0%, #8bb8d6 60%, #2c5f8a 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(44,95,138,0.04) 0%,
+                      transparent 50%);
+}
+
+/* ---- ❄️ Winter / Snow / Cold ---- */
+body.theme-winter {
+    --theme-primary: #6b8fad;
+    --theme-primary-lighter: #8aacc7;
+    --theme-shadow-color: #a0b8cc;
+    --weather-logo-solid: #e8f4fc;
+    --weather-logo-bg:
+        radial-gradient(circle at 20% 30%, white 1px, transparent 2px),
+        radial-gradient(circle at 70% 50%, white 1px, transparent 2px),
+        radial-gradient(circle at 40% 70%, white 1px, transparent 2px),
+        radial-gradient(circle at 80% 20%, white 1px, transparent 2px),
+        linear-gradient(180deg, #e8f4fc 0%, #c0ddf0 60%, #a8d4ea 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(180,210,235,0.06) 0%,
+                      transparent 50%);
+}
+
+/* ---- ⛅ Cloudy / Overcast ---- */
+body.theme-cloudy {
+    --theme-primary: #6b7b8a;
+    --theme-primary-lighter: #8a9aaa;
+    --theme-shadow-color: #98a8b4;
+    --weather-logo-solid: #e0e5ea;
+    --weather-logo-bg:
+        radial-gradient(ellipse 80% 50% at 30% 60%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(ellipse 60% 40% at 60% 40%, rgba(255,255,255,0.5), transparent),
+        linear-gradient(180deg, #e0e5ea 0%, #c5cdd5 60%, #a0aab4 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(140,155,168,0.04) 0%,
+                      transparent 50%);
+}
+
+/* ---- 🌫️ Haze / Mist / Fog / Dust ---- */
+body.theme-haze {
+    --theme-primary: #9b8c7a;
+    --theme-primary-lighter: #b8a898;
+    --theme-shadow-color: #c0b4a4;
+    --weather-logo-solid: #f0e8d8;
+    --weather-logo-bg: linear-gradient(180deg, #f0e8d8 0%, #e0d4c0 40%, #d4c8b0 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(180,160,130,0.05) 0%,
+                      transparent 50%);
+}
+
+/* ---- ⛈️ Thunderstorm ---- */
+body.theme-thunderstorm {
+    --theme-primary: #4a3f6b;
+    --theme-primary-lighter: #6b5f8a;
+    --theme-shadow-color: #7b7a90;
+    --weather-logo-solid: #e8e0f0;
+    --weather-logo-bg:
+        linear-gradient(135deg, transparent 40%, rgba(255,255,200,0.5) 42%, transparent 44%),
+        linear-gradient(135deg, transparent 55%, rgba(255,255,200,0.3) 57%, transparent 59%),
+        linear-gradient(180deg, #e8e0f0 0%, #c8c0d8 50%, #9088a8 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(80,60,110,0.05) 0%,
+                      transparent 50%);
+}
+
+/* ---- 🎉 Festive (server override for Diwali, Holi, etc.) ---- */
+body.theme-festive {
+    --theme-primary: #cc5500;
+    --theme-primary-lighter: #e87820;
+    --theme-shadow-color: #d4a050;
+    --weather-logo-solid: #fff0d0;
+    --weather-logo-bg: linear-gradient(135deg, #ffd700 0%, #ff8c1a 40%, #ff4488 80%, #ffd700 100%);
+    --weather-bg-tint: linear-gradient(180deg,
+                      rgba(255,107,53,0.06) 0%,
+                      transparent 50%);
+}
+
+/* ---- 🌙 Night (weather condition) ---- */
+body.theme-night {
+    --theme-primary: #1a1a3e;
+    --theme-primary-lighter: #2d3561;
+    --theme-shadow-color: #3a3f6b;
+    --weather-logo-solid: #0d0d2b;
+    --weather-logo-bg:
+        radial-gradient(circle at 25% 30%, white 0.5px, transparent 1px),
+        radial-gradient(circle at 60% 20%, white 0.5px, transparent 1px),
+        radial-gradient(circle at 45% 60%, white 0.5px, transparent 1px),
+        radial-gradient(circle at 75% 70%, white 0.5px, transparent 1px),
+        radial-gradient(circle at 20% 80%, white 0.5px, transparent 1px),
+        linear-gradient(180deg, #0d0d2b 0%, #1a1a3e 60%, #2d3561 100%);
+    --weather-bg-tint: transparent;
+}
+
+/* ============================================================
+   Dark Mode Overrides (system dark theme)
+   Darker, richer palette — stacks with weather themes
+   ============================================================ */
+body.dark-mode.theme-summer {
+    --theme-primary: #994c00;
+    --theme-primary-lighter: #bb6a1a;
+    --theme-shadow-color: #6b5040;
+    --weather-logo-solid: #2a1a08;
+    --weather-logo-bg: radial-gradient(ellipse at 50% 20%, #cc8000, #994c00 60%, transparent);
+}
+body.dark-mode.theme-monsoon {
+    --theme-primary: #1a3a54;
+    --theme-primary-lighter: #2a5070;
+    --theme-shadow-color: #3a4a5a;
+    --weather-logo-solid: #0a1a2a;
+    --weather-logo-bg:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.08) 2px, rgba(255,255,255,0.08) 4px),
+        linear-gradient(180deg, #1a3a54 0%, #122840 60%, #0a1a2a 100%);
+}
+body.dark-mode.theme-winter {
+    --theme-primary: #3a5068;
+    --theme-primary-lighter: #4a6682;
+    --theme-shadow-color: #4a5a68;
+    --weather-logo-solid: #0a1a28;
+    --weather-logo-bg: linear-gradient(180deg, #1a3040 0%, #122838 60%, #0a1a28 100%);
+}
+body.dark-mode.theme-cloudy {
+    --theme-primary: #3a4450;
+    --theme-primary-lighter: #4a5662;
+    --theme-shadow-color: #4a5058;
+    --weather-logo-solid: #1a1e24;
+    --weather-logo-bg: linear-gradient(180deg, #2a3038 0%, #1e242c 60%, #141820 100%);
+}
+body.dark-mode.theme-haze {
+    --theme-primary: #5a4e3e;
+    --theme-primary-lighter: #6e6050;
+    --theme-shadow-color: #5a5048;
+    --weather-logo-solid: #1e1810;
+    --weather-logo-bg: linear-gradient(180deg, #3a3028 0%, #2a2218 60%, #1e1810 100%);
+}
+body.dark-mode.theme-thunderstorm {
+    --theme-primary: #2a1f3e;
+    --theme-primary-lighter: #3e3058;
+    --theme-shadow-color: #3a3050;
+    --weather-logo-solid: #100818;
+    --weather-logo-bg: linear-gradient(180deg, #1a1030 0%, #120828 60%, #0a0518 100%);
+}
+body.dark-mode.theme-festive {
+    --theme-primary: #993300;
+    --theme-primary-lighter: #bb5510;
+    --theme-shadow-color: #6a3020;
+    --weather-logo-solid: #1a0800;
+    --weather-logo-bg: linear-gradient(135deg, #aa8800 0%, #cc4400 40%, #aa2255 80%, #aa8800 100%);
+}
+body.dark-mode.theme-night {
+    --theme-primary: #0a0a1e;
+    --theme-primary-lighter: #1a1a3e;
+    --theme-shadow-color: #0d0d2b;
+    --weather-logo-solid: #050510;
+    --weather-logo-bg: linear-gradient(180deg, #050510 0%, #0a0a1e 60%, #1a1a3e 100%);
+}
+
+/* ============================================================
+   Night-Time Overrides (6 PM – 6 AM)
+   Cooler tones, dimmer effects — stacks with both weather & dark mode
+   ============================================================ */
+body.night-mode {
+    --weather-bg-tint-opacity: 0.08;
+}
+body.night-mode::before {
+    background: rgba(10, 20, 40, 0.15);
+}
+body.night-mode #nav-div > div:first-child::after,
+body.night-mode #scheduler-div::after,
+body.night-mode #notification-div::after,
+body.night-mode [data-ui="login-form"]::after {
+    opacity: 0.35;
+}
+
+body.night-mode.theme-summer {
+    --weather-logo-solid: #3a2010;
+    --weather-logo-bg: radial-gradient(ellipse at 50% 20%, #ffb040, #d4700a 60%, transparent);
+}
+body.night-mode.theme-monsoon {
+    --weather-logo-solid: #0a1e30;
+    --weather-logo-bg:
+        repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 6px),
+        linear-gradient(180deg, #1a3048 0%, #122838 60%, #0a1a28 100%);
+}
+body.night-mode.theme-winter {
+    --weather-logo-solid: #0a1a2a;
+    --weather-logo-bg: linear-gradient(180deg, #1a2e3e 0%, #102438 60%, #081828 100%);
+}
+body.night-mode.theme-cloudy {
+    --weather-logo-solid: #14181e;
+    --weather-logo-bg: linear-gradient(180deg, #1e242c 0%, #161a22 60%, #0e1218 100%);
+}
+body.night-mode.theme-haze {
+    --weather-logo-solid: #1a1410;
+    --weather-logo-bg: linear-gradient(180deg, #2a2218 0%, #1e1810 60%, #141008 100%);
+}
+body.night-mode.theme-thunderstorm {
+    --weather-logo-solid: #0a0512;
+    --weather-logo-bg: linear-gradient(180deg, #120a20 0%, #0a0518 60%, #050310 100%);
+}
+body.night-mode.theme-festive {
+    --weather-logo-solid: #1a0800;
+    --weather-logo-bg: linear-gradient(135deg, #886600 0%, #aa3300 40%, #881144 80%, #886600 100%);
+}
+body.night-mode.theme-night {
+    --weather-logo-solid: #020208;
+    --weather-logo-bg: linear-gradient(180deg, #020208 0%, #050510 60%, #0a0a1e 100%);
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Available</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/updatePrompt.css">
+    <script src="../js/common.js" defer></script>
+    <script src="../js/updatePrompt.js" defer></script>
+</head>
+<body>
+    <div class="cover"></div>
+    <div class="modal update-prompt-modal">
+        <!-- Header -->
+        <div class="up-header">
+            <div class="up-version-row">
+                <h1>Update Available</h1>
+                <span class="up-badge">NEW</span>
+            </div>
+            <p class="up-version" id="up-version">v0.0.0</p>
+            <p class="up-tagline" id="up-tagline"></p>
+        </div>
+
+        <!-- Highlights -->
+        <div class="up-body thin-scrollbar">
+            <h2>What's New</h2>
+            <div class="up-highlights" id="up-highlights" aria-label="Update highlights">
+            </div>
+
+            <!-- Full Changes (collapsed) -->
+            <details class="up-fullchange" id="up-fullchange-details">
+                <summary>
+                    <span>Full Changes</span>
+                    <span class="up-nerd-tag">for nerds</span>
+                </summary>
+                <div class="up-fullchange-list" id="up-fullchange-list" aria-label="Full changelog">
+                </div>
+            </details>
+
+            <!-- Extras: Demo Video + QR -->
+            <div class="up-extras hide" id="up-extras">
+                <!-- Demo Video (collapsed if present) -->
+                <details class="up-video-details hide" id="up-video-details">
+                    <summary>
+                        <span>▶ Demo Video</span>
+                    </summary>
+                    <div class="up-video-wrapper" id="up-video-wrapper">
+                    </div>
+                </details>
+
+                <!-- QR Code -->
+                <div class="up-qr hide" id="up-qr">
+                    <p class="up-qr-label">Scan for full details</p>
+                    <img class="up-qr-img" id="up-qr-img" src="" alt="QR code to changelog page" />
+                    <p class="up-qr-url" id="up-qr-url"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="up-actions">
+            <button class="main-ui-btn up-btn-download" onclick="handleDownload()" tabindex="0">
+                Download Now
+            </button>
+            <button onclick="handleLater()" tabindex="0">
+                Later
+            </button>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="up-highlight-string-template">
+        <div class="up-highlight-item">
+            <span class="up-bullet"></span>
+            <p class="up-highlight-text"></p>
+        </div>
+    </template>
+
+    <template id="up-highlight-card-template">
+        <div class="up-highlight-card">
+            <div class="up-highlight-card-header">
+                <span class="up-bullet"></span>
+                <p class="up-highlight-text"></p>
+                <span class="up-badge up-badge-sm hide">NEW</span>
+            </div>
+            <p class="up-highlight-desc"></p>
+        </div>
+    </template>
+
+    <template id="up-fullchange-item-template">
+        <div class="up-fullchange-item">
+            <span class="up-bullet up-bullet-sm"></span>
+            <p class="up-fullchange-text"></p>
+        </div>
+    </template>
+</body>
+</html>

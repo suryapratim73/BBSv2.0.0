@@ -36,10 +36,10 @@ protocol.registerSchemesAsPrivileged([
 // in the main process:, initializing remote for renderer
 require('@electron/remote/main').initialize();
 const {
+  initBillManager,
+  getBillManager,
   billNoCounter,
   getLastBillNo,
-  loggerFH,
-  getLoggerFD,
   User,
   customEncoder,
   customDecoder,
@@ -66,7 +66,14 @@ const {
   verifyFileIntegrityByChunks,
   reDownloadCorruptedSections,
   getFinYearStrtEndDt,
+  generateSecureSalt,
+  getDeviceSerials,
+  saveSecret,
+  getSecret,
+  deleteSecret,
+  getBillsDir
 } = require("./common");
+// const { getBillsDir } = require("./paths");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
@@ -79,7 +86,7 @@ let {
   getTargetWindow,
   getMainWindow,
 } = require("./createModal");
-const { getTemplatePath, initialize } = require("./viewManager");
+const { getTemplatePath, initializeThemeAndBanners, reapplyTheme, storeUserThemeObj, clearWeatherInterval, registerIPC: registerThemeIPC } = require("./viewManager");
 let {
   attendances,
   people,
@@ -98,7 +105,7 @@ const bcrypt = require("bcrypt");
 const uuid = require("uuid");
 const speakeasy = require("speakeasy");
 const axios = require("axios");
-const { spawn, execSync } = require("child_process");
+const { spawn } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
 const { orderManager } = require("./saleHandler");
@@ -106,6 +113,7 @@ const AdmZip = require("adm-zip");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
 const { getFileMonitor } = require("./fileMonitor");
+const { openCatalogueCreator } = require("./catalogueHandler");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -129,11 +137,8 @@ try {
     dynamicSchemas = deserializeSchema(dynamicSchemaJson, DataTypes);
     ({ billItemSchema, customerLedgerSchema, supplierLedgerSchema } = dynamicSchemas);
 } catch (err) {
-    appLogger({title:"Schema loading error:", msg: String(err)});
-    appLogger("\n⚠️  Schema files not found!");
-    appLogger("Please initialize schemas from server:");
-    appLogger("  1. Set SCHEMA_SERVER_URL in .env file");
-    appLogger("  2. App will auto-download schemas on first run\n");
+    appLogger({title:"Schema loading error", message: String(err), func:"main-init"});
+    appLogger({title:"Schema Bootstrap", message:"Schema files not found. Set SCHEMA_SERVER_URL in .env or connect to internet for auto-download.", func:"main-init"});
     // Set flag to trigger bootstrap dialog
 }
 let closeFlag = false,
@@ -250,7 +255,8 @@ function handleProtocolUrl(url) {
     
     appLogger({
       title: "Update Notification",
-      message: "Update complete notification shown via protocol URL"
+      message: "Update complete notification shown via protocol URL",
+      func: "handleProtocolURL"
     });
   }
   // Add more protocol URL handlers here as needed
@@ -263,14 +269,14 @@ async function createWindow() {
     // Attempt to initialize schemas
     try {
       if(await checkForInternet()===false){
-        appLogger({ title: "No internet connection, skipping schema validation." });
+        appLogger({ title: "No internet connection", message: "Skipping schema validation.", func: "createWindow" });
         app.dialog.showErrorBox("No Internet Connection", "Schema Bootstrap requires an internet connection. Please connect to the internet and try again.");
         app.quit();
       }
-      appLogger("Downloading schemas")
+      appLogger({title:"Schema Bootstrap", message:"Downloading schemas", func:"createWindow", appendToLog: false, allowConsole: true})
       let { serverSchema, serverDynamic } = await schemaDownloader();
       saveSchemaLocally(serverSchema,serverDynamic);
-      appLogger("Bootstrap Case: ✅ Schemas downloaded successfully. Restarting app...");
+      appLogger({title:"Schema Bootstrap", message:"Schemas downloaded successfully. Restarting app...", func:"createWindow", appendToLog: false, allowConsole: true});
       app.relaunch();
       app.exit(0);
       return;
@@ -334,7 +340,8 @@ async function createWindow() {
           title:"App Session Info",
           message:{
             "Time left":roundOffTo2DecimalPlace((cookieObj.expirationDate - Date.now()/1000)/(60*60))+" Hours"
-          }
+          },
+          func:"createWindow"
         });
         let { id, name, secret, role, session, sessionTime, usePasswd } = _user;
         currentUser = new User(
@@ -349,7 +356,6 @@ async function createWindow() {
         currentUser.login();
         global.user = currentUser;
         fileName = "mainPage";
-        autoPrintMonthlyBills();
         let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
         if("lockOnIdle" in policy && policy.lockOnIdle){
           clearInterval(idleLockTimer);
@@ -386,13 +392,15 @@ async function createWindow() {
       });
     }
 
-    // Removing temporary files.    
+    // Removing temporary files.
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
     try{
-      let files = fs.readdirSync(path.resolve(app.getPath("documents"),"./Bills/"))
+      let billsDir = getBillsDir();
+      if (!fs.existsSync(billsDir)) return;
+      let files = fs.readdirSync(billsDir)
       files.filter(file=>/_temp/.test(file))
       .forEach(file=>{
-        fs.unlinkSync(path.resolve(app.getPath("documents"),"./Bills/"+file))
+        fs.unlinkSync(path.resolve(billsDir, file))
       })
     }
     catch(err){
@@ -419,7 +427,8 @@ async function createWindow() {
     catch(err){
       appLogger({
         title:"Schema Validation Error",
-        message:String(err)
+        message:String(err),
+        func:"createWindow"
       });
     }
 
@@ -452,20 +461,23 @@ async function createWindow() {
         force:true,
         alter:true
       }).catch(console.warn);
-      appLogger({message:"Database initialized."});
+      appLogger({title:"Database", message:"Database initialized.", func:"createWindow"});
       dbInitialized = true;
       mainWindow.webContents.send("Database initialized");
       if(fs.existsSync(app.getPath("appData")+"/temp.json")){
         let pageWiseData = JSON.parse(fs.readFileSync(app.getPath("appData")+"/temp.json").toString());
         appLogger({
           title:"Restoring initial Data",
+          message:"Restoring page wise data from temp.json",
+          func:"createWindow",
           data:JSON.stringify(pageWiseData)
         });
       }
       if(unsavedUsers.length>0){
         appLogger({
           title:"Message",
-          message:"Saving unsaved users."
+          message:"Saving unsaved users.",
+          func:"createWindow"
         });
         Promise.all(
           unsavedUsers.map(async data=>{
@@ -489,7 +501,8 @@ async function createWindow() {
           unsavedUsers = [];
           appLogger({
             title:"Success",
-            message:"Users saved"
+            message:"Users saved",
+            func:"createWindow"
           });
         })
         .catch(err=>{
@@ -547,6 +560,7 @@ ipcMain.handle("get-users", async () => {
 app.setAsDefaultProtocolClient("bbs");
 
 app.on("quit", async () => {
+  clearWeatherInterval();
   try{
     if(dbInitialized)
       await sequelize.close()
@@ -567,19 +581,6 @@ app.on("quit", async () => {
     getsaleConfigPolicyPath(),
     JSON.stringify(saleConfig)
   );
-  let fds = getLoggerFD();
-  appLogger({title:"Log FDs",message:fds});
-  if(fds.length>0)
-    fds.forEach((fd) => {
-      if(typeof fd ==="number")
-        fs.close(fd, (err) => {
-          if (err) appLogger({
-            title:"Error",
-            message:String(err),
-            func:"Log FDs in app quit event"
-          });
-        });
-    });
 });
 
 app.on("window-all-closed", () => {
@@ -619,7 +620,7 @@ function paySalary(refWindow) {
 app.on("ready", async () => {
   if(typeof process.presets==="undefined")
     process.presets = {};
-  appLogger("ready event")
+  appLogger({title:"Log", message:"ready event", func:"app ready event"})
   let policyJsonSchema = {
     "noReturn": 120,
     "gstRecurranceTerm": 1,
@@ -671,14 +672,12 @@ app.on("ready", async () => {
     output: process.stdout,
     terminal: false,
   });
-  appLogger({APP_ENV:process.env.APP_ENV})
+  appLogger({title:"APP_ENV", message:process.env.APP_ENV, func:"app ready event"})
   readInterface.on("line", (line) => fileList.push(JSON.parse(line)));
   readInterface.on("close",async () => {
     try {
       if(process.env.APP_ENV!=="DEV" && !fs.existsSync(app.getPath("appData")+"/BBS"))
         fs.mkdirSync(app.getPath("appData")+"/BBS",{recursive:true});
-      loggerFH("dbLogs.txt");
-      loggerFH("appLogs.txt");
       await Promise.all(
         fileList.map(async ({ fPath, fileName, type, dir }) => {
           //check for dir
@@ -691,7 +690,7 @@ app.on("ready", async () => {
             if (!fs.existsSync(path.resolve(rootPath, dir)))
               fs.mkdir(path.resolve(rootPath, dir), (err) => {
                 if (err) rej(err);
-                appLogger({title:"Directory created",message:path.resolve(rootPath, dir)});
+                appLogger({title:"Directory created",message:path.resolve(rootPath, dir),func:"app ready event"});
                 res(true)
               });
             //check for files
@@ -703,7 +702,7 @@ app.on("ready", async () => {
                 else if (fileName === "appDefault.json") schema = appDefaultSchema;
                 fs.writeFile(path.resolve(rootPath,fPath), JSON.stringify(schema), (err) => {
                   if (err) rej(err);
-                  appLogger({title:"File created",message:path.resolve(rootPath,fPath)});
+                  appLogger({title:"File created",message:path.resolve(rootPath,fPath),func:"app ready event"});
                   res(true);
                 });
               } // Specify condition for otherfile types for later versions
@@ -714,44 +713,21 @@ app.on("ready", async () => {
       ).catch(err=>{
         appLogger({title:"Error",message:String(err),func:"Filelist check error"});
       });
-      fileList
-      .filter(({type})=>type==="record")
-      .forEach(({fileName,fPath})=>{
-        loggerFH(fileName,fPath);
-      });
-      appLogger({message:"Filelist check complate"});
+      appLogger({title:"Filelist check",message:"Filelist check complete",func:"app 'ready' event"});
       fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
         if (err) return console.error(err);
-        const { billNo } = JSON.parse(data.toString());
+        const saleConfig = JSON.parse(data.toString());
         appLogger({
           title:"Log",
-          message:JSON.stringify({billNo}),
+          message:JSON.stringify({billNo: saleConfig.billNo}),
           func:"app 'ready' event"
         })
-        billNoCounter(billNo);
+        initBillManager(saleConfig);
       });
       global.shouldWait = false;
       // Adding tab switcher - global shortcuts
       let mainWindow = await createWindow();
-      
-      // Initialize ViewManager with server configuration
-      if (process.env.UPDATE_REST) {
-        try {
-          initialize({
-            enabled: true,
-            baseUrl: process.env.UPDATE_REST,
-            viewEndpoint: '/api/views'
-          });
-          appLogger({ message: 'ViewManager initialized with server URL' });
-        } catch (err) {
-          appLogger({
-            title: 'ViewManager Init Error',
-            message: String(err),
-            func: 'app ready - viewManager init'
-          });
-        }
-      }
-      
+
       createNotifications();
       let focussedWindow = BrowserWindow.getFocusedWindow();
       globalShortcut.register("CommandOrControl+Up", () => {
@@ -843,44 +819,190 @@ app.on("ready", async () => {
   setAppPresets();
   // App registration check
   appRegistrationHandler();
+
+
+  let secret = await getSecret();
+
+  if(!secret) {
+    // Generate a new secret and save it - first launch logic
+    secret = crypto.randomBytes(64).toString('hex');
+    await saveSecret(secret);
+  }
+
+  encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
 });
+
+async function encryptAndUploadS3(){
+  try{
+    const yesterday = new Date(Date.now() - 24*60*60*1000);
+    const crypto = require("crypto");
+    let baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
+    let path2Logs = path.resolve(baseLogDir,"upload/");
+    if(!fs.existsSync(path2Logs)) return; // Will try later
+    const todaysDate = new Date().toISOString().split("T")[0];
+    let logFiles = fs.readdirSync(path2Logs).filter(file=>!file.match(todaysDate) && file.endsWith(".txt"));
+    console.log({logFiles});
+    const secret = await getSecret(); // Retrieve the secret from secure storage
+    const { motherboardSerial,diskSerial } = await getDeviceSerials();
+    if(!motherboardSerial || !diskSerial || !process.presets.gst) return; // Skip if hardware IDs are not available
+    const rootData = process.presets.gst + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
+    const kek = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
+    if (kek.length !== 32) throw new Error("KEK must be 256 bits!");
+    let logFilesLength = logFiles.length;
+    await new Promise((resolve,reject)=>{
+      for(let file of logFiles){
+        const iv = crypto.randomBytes(16);
+        const kekcipher = crypto.createCipheriv("aes-256-gcm",kek,iv); // Wrap DEK with KEK
+        const dek = crypto.randomBytes(32); // Data Encryption Key
+        const encryptedDEK = Buffer.concat([kekcipher.update(dek), kekcipher.final()]);
+        const authTag = kekcipher.getAuthTag();
+        const wrappedDek = Buffer.concat([iv, authTag, encryptedDEK]);
+        const fileName = file.split(".")[0] + ".enc";
+        const encryptedFilePath = path.resolve(baseLogDir,"upload/"+fileName);// new enc file for each log file
+        if(fs.existsSync(encryptedFilePath)) {
+          logFilesLength--;
+          fs.unlinkSync(path.resolve(path2Logs,file)); // Delete original log file
+          if(logFilesLength===0) resolve(true);
+          continue;// Already encrypted and uploaded - avoid re-encrypting
+        }
+        const writeStream = fs.createWriteStream(encryptedFilePath);
+        const logIv = crypto.randomBytes(16);
+        const cipher = crypto.createCipheriv("aes-256-gcm", dek, logIv);
+        writeStream.write(Buffer.from("V1")); // Versioning
+        writeStream.write(Buffer.from([wrappedDek.length]));
+        writeStream.write(wrappedDek);
+        writeStream.write(logIv);
+        let filePath = path.resolve(path2Logs,file);
+        // Encrypt file with DEK and upload to S3
+        // After successful upload, delete local file
+        const readStream = fs.createReadStream(filePath);
+        readStream.pipe(cipher).pipe(writeStream,{end:false});// Write stream must not end until auth tag is written
+        readStream.on('error', (err) => {
+          console.error("Read Stream Error:", err);
+        });
+        cipher.on('error', (err) => {
+          console.error("GCM Cipher Error:", err);
+          writeStream.end();
+          reject(err);
+        });
+        cipher.on('end', () => {
+          writeStream.write(cipher.getAuthTag());
+          writeStream.end();
+          logFilesLength--;
+          fs.unlinkSync(filePath); // Delete original log file    
+          if(logFilesLength===0) resolve(true);
+        });
+      }
+      if(logFilesLength===0)
+        resolve(true);// In case there are no log files to encrypt, resolve immediately
+    });
+    // Upload encrypted files to S3
+    // Expected launch date: 2026-12-1. After this date, stop uploading logs to S3.
+    // App will continue to encrypt logs locally, but will not upload to S3 after this date.
+    // This is to avoid unnecessary S3 storage costs after the expected launch date.
+    if(new Date()<new Date("2026-12-1")) return; // Stop uploading after this date
+    let encryptedFiles = fs.readdirSync(path.resolve(baseLogDir,"upload/")).filter(file=>file.endsWith(".enc"));
+    for(let file of encryptedFiles){
+      let filePath = path.resolve(baseLogDir,"upload/"+file);
+      uploadToS3(filePath,file).then((success)=>{
+        if(!success) return; // upload failed — error already logged by uploadToS3
+        console.log("Writing upload tracker for:", file);
+        fs.writeFileSync(path.resolve(baseLogDir,"upload_tracker.txt"),JSON.stringify({lastUploaded:file,uploadedAt:new Date().toISOString()})+"\n",{flag:"a"});
+      }).catch(err=>{
+        appLogger({
+          title: "S3 Upload Error",
+          message: String(err),
+          func: "encryptAndUploadS3 - uploadToS3"
+        });
+      });
+    }
+  }
+  catch(err){
+    appLogger({
+      title: "Error",
+      message: String(err),
+      func: "encryptAndUploadS3"
+    });
+  }
+}
+
+async function uploadToS3(filePath,fileName,logType="device_log"){
+  try{
+    // Read the upload_tracker.txt to check if this file has already been uploaded
+    let uploadTrackerPath = path.resolve(process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/"),"upload_tracker.txt");
+    let rl = readLine.createInterface({
+      input: fs.createReadStream(uploadTrackerPath),
+      output: process.stdout,
+      terminal: false
+    });
+    let alreadyUploaded = false;
+    for await (let line of rl) {
+      if(line.trim()==="") continue;
+      try { line = JSON.parse(line); } catch(_) { continue; }
+      if(line.lastUploaded===fileName){
+        alreadyUploaded = true;
+        break;
+      }
+    }
+    rl.close();
+    if(alreadyUploaded) return false; // already done — not an error, just skip
+    // Read file and compute Content-MD5 BEFORE requesting signed URL.
+    // The server must include Content-MD5 in the signature (required for Object Lock buckets).
+    const fileBuffer = fs.readFileSync(filePath);
+    const contentMD5 = crypto.createHash("md5").update(fileBuffer).digest("base64");
+
+    // Get signed URL from server (pass contentMD5 so server can sign it)
+    let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";// "http://localhost:3030/";// "http://192.168.0.110:3030/";
+    let { signedUrl } = (await axios.post(serverUrl+"app-logs",{
+      deviceId:global.deviceUUID,
+      gstNumber:process.presets.gst,
+      logDt: (fileName.match(/\d{4}-\d{2}-\d{2}/) || [""])[0],// log-2026-06-25.enc => 2026-06-25
+      logType,
+      fileName,
+      contentMD5 // ← required: server must include this in the signed headers for Object Lock
+    },{timeout:5000})).data;
+    if(!signedUrl) throw new Error("Signed URL not received from server");
+    console.log("Uploading file to S3:", fileName, "via signed URL", signedUrl);
+    let resp = await axios.put(signedUrl, fileBuffer, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-MD5": contentMD5
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    });
+    if(resp.status===200){
+      console.log("File uploaded successfully:", fileName);
+      return true;
+    }
+    else{
+      throw new Error(`Failed to upload file. Status: ${resp.status}`);
+    }
+  }
+  catch(err){
+    // Log the full S3 error response body (contains XML with actual reason)
+    const s3Error = err.response?.data || err.message;
+    console.error("S3 PUT failed:", s3Error);
+    appLogger({
+      title: "S3 Upload Error",
+      message: (typeof s3Error === "string" ? s3Error : JSON.stringify(s3Error)),
+      func: "uploadToS3"
+    });
+    return false; // explicit failure — caller must not write tracker
+  }
+}
 
 async function appRegistrationHandler(silent=true){
   // Check App registration status and get regitration info and subscription status
-  let { diskSerial,motherboadSerial } = await new Promise((res)=>{
-    let platform = process.platform;
-    let diskSerial, motherboadSerial;
-    switch(platform){
-      case "win32":
-        try{
-          const cmd = execSync('wmic diskdrive get SerialNumber').toString();
-          diskSerial = cmd.split('\n')[1].trim();
-          const cmd2 = execSync('wmic baseboard get SerialNumber').toString();
-          motherboadSerial = cmd2.split('\n')[1].trim();
-        }
-        catch(err){
-          diskSerial = null;
-          motherboadSerial = null;
-        }
-      break;
-      case "linux":
-        try{
-          const cmd = execSync('lsblk -o SERIAL -dn $(df / | tail -1 | cut -d" " -f1)').toString();
-          diskSerial = cmd.split('\n')[0].trim();
-          const cmd2 = execSync('cat /sys/devices/virtual/dmi/id/board_serial').toString();
-          motherboadSerial = cmd2.split('\n')[0].trim();
-        }
-        catch(err){
-          diskSerial = null;
-          motherboadSerial = null;
-        }
-      break;
-    }
-    res({ diskSerial,motherboadSerial });
-  });
-  if(!diskSerial || !motherboadSerial)
+  let gstNumber = process.presets.gst;
+  let { diskSerial,motherboardSerial } = await getDeviceSerials();
+  if(!diskSerial || !motherboardSerial || !gstNumber || !(await checkForInternet()))
     return;
-  const deviceId = uuid.v5(`${diskSerial}-${motherboadSerial}`, uuid.NIL);
+  const secret = await getSecret(); // Returns the random string
+  const rootData = gstNumber + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
+  const encryptionKey = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
+  const salt = generateSecureSalt(encryptionKey ,`${diskSerial}-${motherboardSerial}`);
+  const deviceId = uuid.v5(`${diskSerial}-${motherboardSerial}`, salt);
   global.deviceUUID = deviceId;
   let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://localhost:3030/";
   if(typeof process.presets.gst === "undefined" || process.presets.gst===""){
@@ -893,7 +1015,7 @@ async function appRegistrationHandler(silent=true){
   axios.post(serverUrl+"silent-register",
     {
       deviceId,
-      gstNumber:process.presets.gst
+      gstNumber
     },{timeout:5000})
   .then(({data})=>{
     global.userId = data.id;
@@ -932,7 +1054,7 @@ async function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat","useWeatherTheme","useFuzzySearch"]
   .forEach(key=>{
     let value = policy2[key] ?? policy[key] ?? policy3[key];
     if(typeof value === "undefined" || value===null) return;
@@ -941,6 +1063,12 @@ async function setAppPresets(){
     else
     if(key==="placeOfJurisdiction")
       process.presets[key] = placeOfJurisdiction(policy3);
+  });
+  ["useWeatherTheme","useFuzzySearch"]
+  .forEach(key=>{
+    // Setting default values - true values
+    if(typeof process.presets[key]==="undefined")
+      process.presets[key] = true;
   });
 }
 
@@ -956,142 +1084,6 @@ function checkIfMonthPassed(lastDt=Date){
   else
   if(today.getFullYear()===lastDt.getFullYear() && today.getMonth()>lastDt.getMonth())
     return true;
-}
-
-async function autoPrintMonthlyBills(){// Lookup required
-  return
-  let date = new Date();
-  //Below code runs on commence of every new month.
-  let { rPath,rootPath } = loggerFH("appLogs.txt");
-  let path2AppLogger = path.resolve(rootPath,rPath); 
-  let lastLogin = await new Promise((res,rej)=>{
-    let lastLogin;
-    let rl = readLine.createInterface({
-      input:fs.createReadStream(path2AppLogger)
-    });
-    rl.on("line",(line)=>{
-      if(/App Login Handler/.test(line)){
-        let [ day,mnth,yr ] = line.split(" ")[0].split(",")[0].split("/");
-        mnth--;
-        let dt = new Date(yr,mnth,day);
-        if(!lastLogin || dt>lastLogin)
-          lastLogin = dt;
-      }
-    });
-    rl.on("close",()=>{
-      res(lastLogin);
-    });
-  });
-  
-  if(["admin","all","bill"].includes(currentUser.role) && checkIfMonthPassed(lastLogin)){
-    jobs = [];
-    let month = date.getMonth();
-    month = month>0?month--:11;
-    let year = date.getFullYear();
-    if(month===11)
-      year--;
-    let lastDay_lastMonth = new Date(Date.now() - (new Date()).getDate()*24*60*60*1000);
-    lastDay_lastMonth = "2023-10-31"
-    let sales = (await sale.findAll({
-      where:{
-        billType:"monthly",
-        autoBill:true,
-        billStatus:"open",
-        billformonth:monthNames[date.getMonth()]// change attribute to month
-      }
-    })).map(({dataValues})=>dataValues);
-    if(sales.length>0){
-      // Create bill-pdf for all monthly bills and then continue to print.
-      Promise.all(
-        sales.map(async saleObj=>{// Creating bill-pdf for auto-print bills
-          let {billDate,billNo,entryNo,customerId,delivery,tax,billAmt,autoBill} = saleObj;
-          if(billNo==="spot"){// Updating billNo and billDate only if billNo==spot
-            billNo = billNoCounter();
-            saleObj.billNo = billNo;
-            billDate = openFormatForDate(lastDay_lastMonth)
-            saleObj.billDate = billDate;
-          }
-          let customerObj = (await customer.findOne({
-            where:{
-              id:customerId
-            }
-          })).dataValues;
-          let billModel = await getBillModel(customerId,monthNames[date.getMonth()],billDate,billItemSchema);
-          let orderItems = (await billModel.findAll()).map(obj=>obj.dataValues);
-          
-          console.log({orderItems,monthName:monthNames[date.getMonth()]})
-          if(orderItems.length===0) return 
-          
-          saleObj.billDate = openFormatForDate(new Date(billDate));
-          let billMeta = {
-            ...saleObj,
-            ...delivery,
-            netTax:tax,
-            netAmtTax:billAmt,
-            printObj:{
-              captions:["Original Buyer's Copy","Book Copy"]//Use preset captions from user config
-            },
-            billDate:saleObj.billDate,
-          };//Recreate billMeta
-          // billMeta is incorrect - club sales by customerId then evaluate billMeta 
-          //for each customer. 
-          return;
-          path2pdf = await billPDF({billMeta,customer:customerObj,orderItems});
-          if(autoBill===true)
-            jobs.push(new Job(`print_${entryNo}`,"print",[path2pdf],printPDF));
-          return sale.update({
-            billStatus:"close",
-            billNo,
-            billDate,
-          },{
-            where:{
-              entryNo
-            }
-          })
-        })
-      ).then(async function printQuery(){
-        return;
-        let resp = await dialog.showMessageBox({
-          title:"Auto-print invoices",
-          message:"Bills ready for auto-print. Start printing now?",
-          buttons: [ "Print now","Remind me later","Don't print" ],
-          noLink:true,
-          icon:appIcon
-        });
-        if(resp.response===2){
-          return 
-        }// Don't auto-print
-        let scheduledTime = resp.response===0 ? 0 : 60*60*1000;
-        if(resp.response===1)
-          dialog.showMessageBox({
-            title:"Auto-print postponed",
-            message:"We will remind you to auto-print montly bill after an hour.",
-            icon:appIcon
-          })
-        setTimeout(()=>{
-          if(scheduledTime===0){
-            let modal = printDialog();
-            ipcMain.once("print-obj",(e,printObj)=>{
-              modal.close();
-              jobs.forEach(job=>{
-                job.updateArgs(printObj);
-                job.act("print");
-              });
-            });
-          }
-          else
-            printQuery();
-        },scheduledTime);
-      }).catch((err)=>{
-        console.log(err)
-        appLogger({
-          title:"Monthly-bill Print Error",
-          message:String(err),
-          func:"autoPrintMonthlyBills"
-        })
-      });
-    }
-  }
 }
 
 function printPDF(path2pdf,printObj,job){
@@ -1190,13 +1182,18 @@ ipcMain.handle("get-orders",async ()=>{
 ipcMain.on("new-sale-purchase", (e, mode) => {
   if (["all", "admin", "bill"].includes(currentUser.role) && mode === 1)
     Menu.getApplicationMenu().items[1].submenu.items[0].click();
-  else 
+  else
   if (["all", "admin", "purchase"].includes(currentUser.role) && mode === 2)
     Menu.getApplicationMenu().items[2].submenu.items[0].click();
   else
-  if(["all", "admin", "bill"].includes(currentUser.role) && mode>2)
-    Menu.getApplicationMenu().items[1].submenu.items[mode].click();
-  else 
+  if(["all", "admin", "bill"].includes(currentUser.role) && mode === 3) {
+    // Order viewer "+" — open sale page in proforma mode
+    process.presets.useProforma = true;
+    Menu.getApplicationMenu().items[1].submenu.items[0].click();
+    // Clean up the flag after sale page consumes it
+    setTimeout(() => { delete process.presets.useProforma; }, 2000);
+  }
+  else
     e.sender.send("error", "Insufficient permission");
 });
 
@@ -1317,9 +1314,6 @@ ipcMain.handle("update-wallpaper", async (e, { filePath, usePasswd, lockOnIdle:_
       );
     }
     currentUser.usePasswd = usePasswd;
-    await createSession(
-      Date.now()/1000 + currentUser.sessionTime - currentUser.lastLogin
-    );
     await user.update({ usePasswd }, { where: { id: currentUser.id } });
   } catch (err) {
     throw err;
@@ -1375,7 +1369,7 @@ ipcMain.handle("remove-secret", () => {
 });
 
 async function createSession(time) {
-  appLogger({message:"Creating session cookie."});
+  appLogger({title:"Session", message:"Creating session cookie.", func:"createSession"});
   let cookie = {
     name: "bbs_auth",
     value: JSON.stringify(currentUser),
@@ -1392,11 +1386,13 @@ async function createSession(time) {
   appLogger({
     title:"Creating a timeout for session expiry and logout",
     message:`Session will expire in ${time} seconds`,
+    func:"createSession",
+    allowConsole:true
   })
   setTimeout(async ()=>{
     // Test required - check if session is still valid
     ipcMain.emit("logout");
-    ipcMain.emit("lock");
+    // ipcMain.emit("lock");
   },time*1000);
   if (authCookies.length === 0) {
     await ses.cookies.set(cookie);
@@ -1454,10 +1450,11 @@ ipcMain.on("logout", async () => {
     });
     if (authCookies.length > 0)
       await ses.cookies.remove("http://localhost", "bbs_auth");
-    else appLogger({message:"Cookie don't exist"});
+    else appLogger({title:"Logout", message:"Cookie don't exist", func:"logout"});
     currentUser.logout();
     currentUser = null;
     mainWin.loadFile(getTemplatePath("lockScreen"));
+    mainWin.webContents.once("did-finish-load", () => reapplyTheme(mainWin));
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"logout-ipc"});
   }
@@ -1484,6 +1481,7 @@ function lock_unlockHelper(page, sig) {
     } catch (err) {
       appLogger({title:"Error",message:String(err),func:"lock_unlockHelper"});
     }
+    if (page === "lockScreen") reapplyTheme(mainWin);
     if (sig === "lock") {
       function menuItemIterator(menu){
         if(menu instanceof MenuItem)
@@ -1570,7 +1568,8 @@ ipcMain.handle("unlock-app", async (e, authData) => {
       catch(err){
         appLogger({
           title:"Password recovery failed",
-          message:String(err)
+          message:String(err),
+          func:"unlock-app"
         });
         dialog.showErrorBox("Password recovery failed",err.message);
         return 0;
@@ -1644,7 +1643,8 @@ ipcMain.handle("verify-code", async (e, { code }) => {
     } catch (err) {
       appLogger({
         title:"Error",
-        message:String(err)
+        message:String(err),
+        func:"verify-code"
       });
     }
   }
@@ -1663,8 +1663,10 @@ function checkForPausedDownload() {
   
   appLogger({
     title: "Paused Download Found",
+    message: `Version ${state.version} at ${percentComplete}% (${sizeMB}MB / ${totalMB}MB)`,
     version: state.version,
-    progress: `${percentComplete}% (${sizeMB}MB / ${totalMB}MB)`
+    progress: `${percentComplete}% (${sizeMB}MB / ${totalMB}MB)`,
+    func: "checkForPausedDownload"
   });
   
   const mainWin = getMainWindow();
@@ -1689,16 +1691,16 @@ function checkForPausedDownload() {
         fs.rmSync(state.filePath);
       }
       clearDownloadState();
-      appLogger({ message: "User cancelled paused download" });
+      appLogger({ title:"Paused Download", message: "User cancelled paused download", func:"checkForPausedDownload", appendToLog: false, allowConsole: true });
     } else {
       // Later - do nothing
-      appLogger({ message: "User chose to resume download later" });
+      appLogger({ title:"Paused Download", message: "User chose to resume download later", func:"checkForPausedDownload", appendToLog: false, allowConsole: true });
     }
   });
 }
 
 ipcMain.on("app-login", async () => {
-  appLogger({ message: "App Login Handler" });
+  appLogger({ title:"App Login", message: "App Login Handler", func:"app-login" });
   currentUser.login();
   global.user = currentUser;
   clearInterval(totpTimer);
@@ -1716,7 +1718,6 @@ ipcMain.on("app-login", async () => {
     appLogger({title:"Error",message:String(err),func:"app-login-ipc"});
   } finally {
     imposeRestriction();
-    autoPrintMonthlyBills();
     if(["admin","all"].includes(currentUser.role))
       checkForUpdates();
     let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
@@ -1776,6 +1777,7 @@ function imposeRestriction() {
 ipcMain.on("load-main-page", () => {
   let mainWindow = getMainWindow();
   mainWindow.loadFile(getTemplatePath("mainPage"));
+  // Apply weather theme & banners after main page loads
   let menu = Menu.getApplicationMenu();
   let fileMenuIndex = menu.items.findIndex((obj) => obj.label === "File");
   if (fileMenuIndex >= 0) {
@@ -1930,12 +1932,13 @@ function openBillPDFExt(billObj,mode=1){
   if(!["billDate","billNo","name"].find(key=>key in billObj)) 
     return appLogger({
       title:"Error",
-      message:"Invalid JSON format in billObj"
+      message:"Invalid JSON format in billObj",
+      func:"openBillPDFExt"
     });
   let { billDate,billNo,name } = billObj;
   billDate = openFormatForDate(new Date(billDate));
   let fileName = getPDF_FileName(name,billDate,billNo,false);
-  let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
+  let path2file = path.resolve(getBillsDir(),fileName);
   if(!fs.existsSync(path2file)) return;
   if(mode===2)
     return path2file;
@@ -2011,7 +2014,8 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
             if(!path2file)
               return appLogger({
                 title:"Error: Failed to print",
-                message:"File doesn't exists."
+                message:"File doesn't exists.",
+                func:"context menu - show bill"
               });
             let modal = printDialog(function(){
               this.webContents.send("hide-label");
@@ -2314,6 +2318,9 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
   });
 });
 
+// Register weather theme banner dismissal IPC
+registerThemeIPC(ipcMain);
+
 //Theme IPC
 ipcMain.handle("get-theme", async (e) => {
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
@@ -2343,9 +2350,35 @@ ipcMain.on("save-theme-setting", async (e, data) => {
         icon:appIcon
       });
       if (process.platform === "linux") setLinuxThemeObserver();
+      // Reload presets BEFORE initTheme so useWeatherTheme is current
+      setAppPresets();
       initTheme();
     }
   );
+});
+
+ipcMain.on("general-app-settings",(e, data, kioskSetting)=>{
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  let kioskPolicy = JSON.parse(fs.readFileSync(getKioskConfigPath()).toString());
+  appPolicy = {
+    ...appPolicy,
+    ...data,
+  };
+  fs.writeFileSync(getAppPolicyPath(),JSON.stringify(appPolicy,null,2));
+  kioskPolicy = {
+    ...kioskPolicy,
+    ...kioskSetting
+  };
+  fs.writeFileSync(getKioskConfigPath(),JSON.stringify(kioskPolicy,null,2));
+  setAppPresets();
+});
+
+ipcMain.handle("get-general-app-settings",()=>{
+  let kioskConf = loadKioskConfig()
+  return {
+    useFuzzySearch: process.presets.useFuzzySearch,
+    ...kioskConf
+  };
 });
 
 ipcMain.on("save-theme", (e, themeObj) => {
@@ -2408,12 +2441,16 @@ async function initTheme({ shouldUpdate = false } = {}, e = {}) {
     ...dataBuff,
     shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
   };
+  await storeUserThemeObj(themeObj); // cache for weather theme revert (merged with existing cookie)
   win?.webContents.send("apply-theme", themeObj);
   if (shouldUpdate) {
     BrowserWindow.getAllWindows().forEach((_win) => {
       if (_win !== win) _win.webContents.send("apply-theme", themeObj);
     });
   }
+  let mainWin = getMainWindow();
+  if(await checkForInternet()===true)
+    initializeThemeAndBanners(mainWin);
   return themeObj;
 }
 
@@ -2472,7 +2509,6 @@ ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
       else
       if(item==="logs"){
         fs.copyFileSync(path.resolve(appPath,"./logs/appLogs.txt"),path.resolve(filePath,"appLogs.txt"));
-        fs.copyFileSync(path.resolve(appPath,"./logs/dbLogs.txt"),path.resolve(filePath,"dbLogs.txt"));
       }
       else{// Config
         fs.copyFileSync(path.resolve(appPath,"./config/appDefault.json"),path.resolve(filePath,"appDefault.json"));
@@ -2587,7 +2623,9 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   }
   ipcMain.emit("manage-schedule",null,"app-update","exp-all",false);
   appLogger({
-    message:"Trying to install update."
+    title:"Update Install",
+    message:"Trying to install update.",
+    func:"updateCommon"
   });
   let proc;
   if(data.installMoment==="now"){// Close all windows,db and listeners before update
@@ -2598,8 +2636,10 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   }
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
+      title:"Update Install",
       message:"Launching updator.sh.",
-      cmd:`./updator.sh -u ${this.version}`
+      cmd:`./updator.sh -u ${this.version}`,
+      func:"updateCommon"
     });
     proc = spawn(`./updator.sh -u ${this.version}`,{
       cwd:__dirname,
@@ -2628,7 +2668,8 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
       message:`Process detached, app will quit now`,
       pid: process.pid,
       filePath:data.path2file,
-      fileExists:fs.existsSync(data.path2file)
+      fileExists:fs.existsSync(data.path2file),
+      func:"updateCommon"
     });
     
     // Quit immediately - batch file will wait for full exit
@@ -2648,8 +2689,10 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
    * - (Least priority) Make this function more modular and reusable for other large file downloads in the app like SLM or backup restore. 
    */
   appLogger({
+    title:"Download Update",
     message: resumeState ? "Resuming download" : "Starting new download",
-    resumeFrom: resumeState?.bytesDownloaded || 0
+    resumeFrom: resumeState?.bytesDownloaded || 0,
+    func:"downloadUpdate"
   });
   
   let fileWriter, downloadURL, fileName, filePath, mainWin = getMainWindow();
@@ -2669,7 +2712,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
   if(typeof global.state!=="undefined" && global.state.status==="downloading"){
     return appLogger({
       title:"Download in progress",
-      message:"A download is already in progress. Please pause or cancel the current download before starting a new one."
+      message:"A download is already in progress. Please pause or cancel the current download before starting a new one.",
+      func:"downloadUpdate"
     });
   }// Block multiple download attempts - this can happen if user clicks "Download update" multiple times from settings before the first download starts (due to async nature of download start)
 
@@ -2679,14 +2723,9 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
     filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
     downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=linux&id=${global.userId}`;
   } else if (process.platform === "win32") {
-    // Download pause/resume functionality test in progress
-    // Commented out codes are for testing with local server
     fileName = `bbs_${appVersion}_setup.exe`;
-    // filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
-    filePath = path.resolve(__dirname, `./ext/${fileName}`);
-    // downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
-    downloadURL = `http://192.168.0.110:3030/download/update?channel=production&platform=win&id=${global.userId}`;
-    // downloadURL = `http://localhost:3030/download/update?channel=production&platform=win&id=${global.userId}`;
+    filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
   } else if (process.platform === "darwin") {
     // Mac case
     fileName = `bbs_${appVersion}.dmg`;
@@ -2702,7 +2741,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
         title: "Warning",
         message: `Partial file verification failed: ${verification.reason}`,
         action: "Starting fresh download",
-        verification
+        verification,
+        func:"downloadUpdate"
       });
       // Clear state and start fresh
       clearDownloadState(appLogger);
@@ -2726,11 +2766,12 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
     global.isPaused = isPaused;
     appLogger({
       title: "Download paused",
-      message: isPaused ? "Pausing download..." : "Resuming download..."
+      message: isPaused ? "Pausing download..." : "Resuming download...",
+      func:"pause-download"
     });
     if(isPaused){
       fileWriter.end(() => {
-        appLogger({ message: "File stream closed for pause" });
+        appLogger({ title:"Download", message: "File stream closed for pause", func:"pause-download", appendToLog: false, allowConsole: true });
         abortControllerPause.abort("Paused by user");
       });
       mainWin.webContents.send("msg-from-backend","Download paused");
@@ -2754,7 +2795,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
   // CANCEL HANDLER
   ipcMain.removeHandler("cancel-download");
   ipcMain.handleOnce("cancel-download", () => {
-    appLogger({ message: "Download cancelled by user" });
+    appLogger({ title:"Download", message: "Download cancelled by user", func:"cancel-download", appendToLog: false, allowConsole: true });
     // Close stream and delete file
     fileWriter.end(() => {
       console.log({msg:"fileWriter.end callback function"});
@@ -2837,6 +2878,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       appLogger({
         title: "Download stalled",
         message: `No progress event received for ${stalledTime / 1000} seconds. Aborting download.`,
+        func:"downloadUpdate"
       });
       mainWin.webContents.send("msg-from-backend","Download stalled. Please try again later.");
       abortControllerPause.abort("Download stalled");
@@ -2850,7 +2892,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
     };
     appLogger({
       title: "Resume Download",
-      message: `Requesting bytes from ${bytesDownloaded}`
+      message: `Requesting bytes from ${bytesDownloaded}`,
+      func:"downloadUpdate"
     });
   }
 
@@ -2863,12 +2906,13 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
           title: "Warning",
           message: "Server doesn't support Range requests (no 206 status)",
           status: resp.status,
-          action: "Download will continue but resume may not work properly"
+          action: "Download will continue but resume may not work properly",
+          func:"downloadUpdate"
         });
       }
 
       if (resp.status === 200 || resp.status === 206) {
-        appLogger({ message: "Response received from server", status: resp.status });
+        appLogger({ title:"Download", message: "Response received from server", status: resp.status, func:"downloadUpdate", appendToLog: false, allowConsole: true });
       }
 
       resp.data.on("close",()=>{
@@ -2890,7 +2934,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             appLogger({
               title: "Disk space error",
               message: "Not enough disk space to complete the download.",
-              error: String(err)
+              error: String(err),
+              func:"downloadUpdate"
             });
             saveDownloadState({
               fileName,
@@ -2909,7 +2954,8 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             appLogger({
               title: "Permission error",
               message: "Insufficient permissions to complete the download.",
-              error: String(err)
+              error: String(err),
+              func:"downloadUpdate"
             });
             clearDownloadState(appLogger);
             mainWin.webContents.send("msg-from-backend","Insufficient permissions to complete the download. Please check your permissions and try again.");
@@ -2955,13 +3001,14 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             appLogger({
               title: "File not found after stream closed",
               message: "The file stream was closed but the file does not exist on disk. This may indicate an issue during download or an external deletion.",
-              filePath
+              filePath,
+              func:"downloadUpdate"
             });
             return reject(new Error("File not found after stream closed"));
           }
           const stats = fs.statSync(filePath);
           if (stats.size >= downloadTotalBytes) {
-            appLogger({ message: "File fully downloaded" });
+            appLogger({ title:"Download", message: "File fully downloaded", func:"downloadUpdate" });
             // Check hash if info available
             if(!hashInfo)
               hashInfo = JSON.parse(fs.readFileSync(path.resolve(app.getPath("appData"),"./BBS/updtConf.json"))).hashInfo || null;
@@ -2979,15 +3026,16 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
               
               mainWin.setProgressBar(-1);
               if(fullFileHash === hashInfo.fullFileHash){
-                appLogger({ message: "File integrity verified with SHA-256 hash" });
+                appLogger({ title:"Integrity Check", message: "File integrity verified with SHA-256 hash", func:"downloadUpdate" });
                 return resolve(true);
               }
               else{
-                appLogger({ 
+                appLogger({
                   title: "Hash Mismatch",
                   message: "Downloaded file hash does not match expected hash,downloading the corrupted sections again.",
                   expectedHash: hashInfo.fullFileHash,
                   actualHash: fullFileHash,
+                  func:"downloadUpdate"
                 });
                 
                 mainWin.setProgressBar(2); // Indeterminate progress for chunk verification
@@ -3031,12 +3079,12 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
                     
                     mainWin.setProgressBar(-1);
                     if(fullFileHashAfterFix === hashInfo.fullFileHash){
-                      appLogger({ message: "File successfully repaired and verified" });
+                      appLogger({ title:"Repair", message: "File successfully repaired and verified", func:"downloadUpdate" });
                       successfulRepair = true;
                       return resolve(true);
                     }
                     else{
-                      appLogger({ message: `Hash still mismatched after repair attempt ${tryCount+1}` });
+                      appLogger({ title:"Repair", message: `Hash still mismatched after repair attempt ${tryCount+1}`, func:"downloadUpdate" });
                       mainWin.setProgressBar(2);
                       corruptedSections = await verifyFileIntegrityByChunks(filePath, hashInfo, appLogger, (current, total) => {
                         const progress = current / total;
@@ -3082,12 +3130,12 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
             }
             else{
               // No hashInfo available - cannot verify integrity
-              appLogger({ title: "Warning", message: "No hash info available, skipping integrity verification" });
+              appLogger({ title: "Warning", message: "No hash info available, skipping integrity verification", func:"downloadUpdate" });
               return resolve(true);
             }
           }
           else {
-            appLogger({ message: "File stream closed, but download not complete", downloadedBytes: stats.size, expectedBytes: downloadTotalBytes });
+            appLogger({ title:"Download", message: "File stream closed, but download not complete", downloadedBytes: stats.size, expectedBytes: downloadTotalBytes, func:"downloadUpdate" });
             // If abort was triggered, let the catch block handle it
             // Otherwise this is an unexpected incomplete download
             if (!abortControllerPause.signal.aborted && !abortControllerCancel.signal.aborted) {
@@ -3131,7 +3179,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       } 
       else 
       if (err.message === "Cancelled by user") {
-        appLogger({ message: "Download cancelled, cleanup complete" });
+        appLogger({ title:"Download", message: "Download cancelled, cleanup complete", func:"downloadUpdate", appendToLog: false, allowConsole: true });
         // mainWin.setProgressBar(-1);
       }
       else
@@ -3188,10 +3236,13 @@ function versionChecker(version1,version2,log=true){
     let [_major, _minor, _bugFix] = version2.split(".");
     if(log)
       appLogger({
+        title:"Version Check",
+        message:`v${version1} vs v${version2}`,
         major,_major,minor,_minor,bugFix,_bugFix,
         cond1:Number(_major) === Number(major),
         cond2:Number(_minor) === Number(minor),
-        cond3:Number(_bugFix) === Number(bugFix)
+        cond3:Number(_bugFix) === Number(bugFix),
+        func:"versionChecker"
       });
     if (Number(_major) > Number(major))
       return 1;
@@ -3221,7 +3272,7 @@ async function checkForUpdates(flag="auto") {
       icon:appIcon
     });
   }
-  appLogger({message:"Checking for update"});
+  appLogger({title:"Update Check", message:"Checking for update", func:"checkForUpdates", appendToLog: false, allowConsole: true});
   let isOnline = await checkForInternet();
   try{
     let updateURL = process.env.APP_ENV==="DEV" ? "http://localhost:3030/" : UPDATE_REST;
@@ -3231,6 +3282,7 @@ async function checkForUpdates(flag="auto") {
       let appVersion = data.version;
       let changelog = data.changelog;
       let hashInfo = data.hashInfo;
+      let videoUrl = data.videoUrl || null;
       isOnline = true;
       // Parse and santize appVersion
       if(appVersion && typeof appVersion === "string" && new RegExp(/^([0-9]+\.){2}[0-9]+$/).test(appVersion)){
@@ -3245,8 +3297,7 @@ async function checkForUpdates(flag="auto") {
           message = "A minor feature update is available for download.";
         if (resp===3)
           message = "Bug fix available for download.";
-        changelog.highlights?.forEach((log,i)=>{
-          message += (i+1)+") "+log + ". ";
+        changelog.highlights?.forEach((log)=>{
           changeLogArr.push(log);
         });
         let evObj = {
@@ -3270,14 +3321,34 @@ async function checkForUpdates(flag="auto") {
           else
             return;
         }
-        let { response } = await dialog.showMessageBox(mainWin, {
-          title: "Update available for download",
-          message,
-          buttons: ["Download", "Cancel"],
-          noLink:true,
-          icon:appIcon
+        // Show update prompt modal instead of bare dialog
+        let userChoice = await new Promise((resolve) => {
+          let modal = createModal(
+            { width: 520, height: 580, resizable: false, parent: mainWin },
+            getTemplatePath("updatePrompt"),
+            { label: "Update-Prompt" }
+          );
+          modal.webContents.on("did-finish-load", async () => {
+            // Generate QR code pointing to the changelog page on our website
+            const qrCode = require("qrcode");
+            let changelogUrl = updateURL + "changelog?version=" + encodeURIComponent(appVersion);
+            let qrDataUrl = await qrCode.toDataURL(changelogUrl, { width: 180, margin: 1 });
+            modal.webContents.send("init-update-prompt", {
+              version: appVersion,
+              highlights: changelog.highlights || [],
+              fullchange: changelog.fullchange || [],
+              message,
+              changelogUrl,
+              qrDataUrl,
+              videoUrl
+            });
+          });
+          ipcMain.once("update-prompt-response", (e, action) => {
+            modal.close();
+            resolve(action);
+          });
         });
-        if (response === 1) return ;
+        if (userChoice === "cancel") return ;
         // If app is not already updated.
         try{
           let updtConf = fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json") ? JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString()) : undefined;
@@ -3287,7 +3358,7 @@ async function checkForUpdates(flag="auto") {
           else
           if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded===appVersion && fs.existsSync(updtConf?.path2file)){
             // Update already downloaded and ready for install
-            appLogger({ message: "Update is already downloaded." })
+            appLogger({ title:"Update", message: "Update is already downloaded.", func:"checkForUpdates", appendToLog: false, allowConsole: true })
             updateCommon.call({version:appVersion,fileName:updtConf.fileName,isSaved:true});
           }
         }
@@ -3309,7 +3380,8 @@ async function checkForUpdates(flag="auto") {
         appLogger({
           title:"Error",
           message:String(err),
-          func:"Check for update error"
+          func:"Check for update error",
+          notify:false
         });
       if(flag!=="auto")
         return dialog.showMessageBox({
@@ -3419,7 +3491,8 @@ ipcMain.on("write-settings",async (e,pageWiseData)=>{
     });
     appLogger({
       title:"Success",
-      message:"Written initial data to a temporary json file"
+      message:"Written initial data to a temporary json file",
+      func:"write-settings"
     })
   });
 });
@@ -3516,11 +3589,13 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
 
 ipcMain.handle("billing-format-ipc",(e,data)=>{
   try{
-    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     if(parseInt(data.billNo)){
-      saleConfig.billNo = Number(data.billNo);
-      billNoCounter(saleConfig.billNo);
+      // Re-init BillManager with the new starting number.
+      // The constructor persists lastIssued + fresh pool to saleConfig.json.
+      getBillManager().reset(Number(data.billNo));
     }
+    // Re-read config after BillManager may have written its fields
+    let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     Reflect.deleteProperty(data,"billNo");
     saleConfig = {
       ...saleConfig,
@@ -3568,9 +3643,10 @@ ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
     });
     appLogger({
       title:"Error saving event schedule",
-      message:"scheduler.json file missing"
+      message:"scheduler.json file missing",
+      func:"manage-schedule"
     });
-    return BrowserWindow.fromId(e.sender.id).close();  
+    return BrowserWindow.fromId(e.sender.id).close();
   }
   try{
     let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
@@ -3800,7 +3876,7 @@ async function schemaValidator(){
   try {
     // Fetch latest schemas from server and update local files    
     if(await checkForInternet()===false){
-      appLogger({ title: "No internet connection, skipping schema validation." });
+      appLogger({ title: "No internet connection", message: "Skipping schema validation.", func:"schemaValidator" });
       return false;
     }
     let { serverSchema,serverDynamic } = await schemaDownloader();
@@ -3808,10 +3884,10 @@ async function schemaValidator(){
     let serverDynamicHash = crypto.createHash('sha256').update(JSON.stringify(serverDynamic)).digest('hex');
     // If hashes match, no migration needed
     if (currentDynamicHash === serverDynamicHash && currentSchemaHash === serverSchemahash) {
-      appLogger({ title: "No schema changes detected, migration not needed." });
+      appLogger({ title: "Schema Check", message: "No schema changes detected, migration not needed.", func:"schemaValidator" });
       return false;
     } else {
-      appLogger({ title: "Schema change detected, starting migration." });
+      appLogger({ title: "Schema Change", message: "Schema change detected, starting migration.", func:"schemaValidator" });
       
       // Ask user confirmation for migration
       let mainWin = getMainWindow();
@@ -3826,7 +3902,7 @@ async function schemaValidator(){
         noLink: true
       });
       if (response === 1) {
-        appLogger({ title: "Migration cancelled by user." });
+        appLogger({ title: "Migration cancelled", message: "Migration cancelled by user.", func:"schemaValidator" });
         dialog.showMessageBoxSync({
           type:"info",
           title:"Schema Validation Postponed",
@@ -3845,8 +3921,9 @@ async function schemaValidator(){
       saveSchemaLocally(serverSchema,serverDynamic);
 
       appLogger({ 
-        title: "Proceeding with migration.", 
-        func: "schemaValidator" 
+        title: "Proceeding with migration.",
+        message: "Schema changes detected, starting migration process.",
+        func: "schemaValidator"
       });
       return true; // Migration needed
     }
@@ -3906,7 +3983,9 @@ async function dbMigrator(){// Work in progress, check the flow before testing
   const currentDynamicSchemas = fs.readFileSync(currentDynamicPath, 'utf8');
   let win = getMainWindow();
   appLogger({
-    title:"Taking Backup"
+    title:"Taking Backup",
+    message:"Starting DB backup before migration.",
+    func:"dbMigrator"
   });
 
   delete require.cache[require.resolve("./model/dbConfig")];
@@ -3921,7 +4000,7 @@ async function dbMigrator(){// Work in progress, check the flow before testing
     fs.copyFileSync(path.resolve(appPath,"./db/bbs.db"),path.resolve(appPath,"./db/bbs_backup.db"));
     backupDBPaths.push(path.resolve(appPath,"./db/bbs_backup.db"));
     backupDBPaths.push(path.resolve(appPath,"./db/bbs_replica.db"));
-    appLogger({title:"db copied successfully"});
+    appLogger({title:"DB Backup", message:"db copied successfully", func:"dbMigrator"});
     updateProgressbar(win,2,2,"DB migration in progress,please wait...","db copied successfully")
     let _sequelize = new Sequelize({
       dialect:"sqlite",
@@ -3964,7 +4043,7 @@ async function dbMigrator(){// Work in progress, check the flow before testing
       financial_record:_sequelize.define("financial_record",financialRecordSchema,{timestamps:false})
     };
     await _sequelize.sync();
-    appLogger("Connected to replica db");
+    appLogger({title:"DB Migration", message:"Connected to replica db", func:"dbMigrator"});
     let tables = Object.keys(schemas);
     let cust_ids = (await _models.customer.findAll({
       attributes:["id"]
@@ -4033,7 +4112,7 @@ async function dbMigrator(){// Work in progress, check the flow before testing
         return;
       }
     }
-    appLogger({msg:"Dynamic model definition in progress"})
+    appLogger({title:"DB Migration", message:"Dynamic model definition in progress", func:"dbMigrator"})
     await Promise.allSettled([
       ...[cust_ids]
       .map(async (arr)=>{
@@ -4063,14 +4142,14 @@ async function dbMigrator(){// Work in progress, check the flow before testing
         return;
       })
     ]);
-    appLogger({msg:"Models defined"});
-    appLogger({title:"Applying schema changes to tables."});
+    appLogger({title:"DB Migration", message:"Models defined", func:"dbMigrator"});
+    appLogger({title:"DB Migration", message:"Applying schema changes to tables.", func:"dbMigrator"});
     await sequelize.sync({
       force:true,
       alter:true
     })
     .catch(err=>appLogger({ title:"Sequelize Sync Error", message:String(err), func:"dbMigrator" }));
-    appLogger({msg:"sequelize sync done"});
+    appLogger({title:"DB Migration", message:"sequelize sync done", func:"dbMigrator"});
     for (let i=0;i<tables.length;i++){
       let table = tables[i];
       if(table==="customers" || table=="customer")
@@ -4163,7 +4242,8 @@ async function dbMigrator(){// Work in progress, check the flow before testing
       // Backup current schema_replica.json to versioned backup folder before overwriting
       appLogger({
         title:"DB Migration Status",
-        message:"Backing up old schema replicas"
+        message:"Backing up old schema replicas",
+        func:"dbMigrator"
       })
       
       try{
@@ -4181,7 +4261,8 @@ async function dbMigrator(){// Work in progress, check the flow before testing
         );
         appLogger({
           title:"Schema Backup",
-          message:`Backed up schema v${schemaVersion} to Backup/schemas/v${schemaVersion}/ for rollback`
+          message:`Backed up schema v${schemaVersion} to Backup/schemas/v${schemaVersion}/ for rollback`,
+          func:"dbMigrator"
         });
         
         // Backup dynamicSchemas_replica.json if it exists (OLD schema before migration)
@@ -4193,7 +4274,8 @@ async function dbMigrator(){// Work in progress, check the flow before testing
           );
           appLogger({
             title:"Schema Backup",
-            message:`Backed up dynamicSchemas v${schemaVersion}`
+            message:`Backed up dynamicSchemas v${schemaVersion}`,
+            func:"dbMigrator"
           });
         }
       }
@@ -4206,7 +4288,8 @@ async function dbMigrator(){// Work in progress, check the flow before testing
       }
       appLogger({
         title:"-----------DB Migration Complete------------",
-        message:"Terminating all ipcs and db connections to relaunch app."
+        message:"Terminating all ipcs and db connections to relaunch app.",
+        func:"dbMigrator"
       });
       try {
         ipcMain.eventNames().forEach(event=>{
@@ -4217,14 +4300,18 @@ async function dbMigrator(){// Work in progress, check the flow before testing
         await _sequelize.close();
         //Delete replica and backup db files
         appLogger({
-          title:"Cleaning up backup and replica db files"
+          title:"Cleaning up",
+          message:"Cleaning up backup and replica db files",
+          func:"dbMigrator"
         });
         backupDBPaths.forEach(dbPath=>{
           if(fs.existsSync(dbPath))
             fs.unlinkSync(dbPath);
         });
         appLogger({
-          title:"Relaunching app in 3 seconds..."
+          title:"App Relaunch",
+          message:"Relaunching app in 3 seconds...",
+          func:"dbMigrator"
         });
         setTimeout(()=>{
           app.relaunch();
@@ -4259,7 +4346,7 @@ ipcMain.on("set-app-status",(_,status)=>{
 })
 
 ipcMain.on("log",(e,msg)=>{
-  appLogger(msg);
+  appLogger(typeof msg === 'object' && msg !== null ? msg : {title:"Log", message:msg, func:"log"});
 });
 
 ipcMain.on("new-bill",async (e,customerObj)=>{
@@ -4313,7 +4400,550 @@ ipcMain.handle("get-presets",()=>{
   return process.presets;
 });
 
+// ---- Weather theme state IPC (called by every renderer page on startup) ----
+ipcMain.handle("get-weather-theme-state", () => {
+  if (!process.presets?.useWeatherTheme) return null;
+  const vm = require("./viewManager");
+  const theme = vm.lastTheme;
+  if (!theme) return null;
+  return {
+    theme,
+    classList: vm.buildThemeClass(theme).split(" "),
+    weatherColors: vm.getWeatherColors(theme)
+  };
+});
+
+// ---- Help Viewer ----
+let cachedServerHelp = null; // session cache — fetched once per launch
+
+async function fetchServerHelp() {
+    if (cachedServerHelp !== null) return cachedServerHelp;
+    const serverUrl = process.env.UPDATE_REST;
+    if (!serverUrl) { cachedServerHelp = ""; return ""; }
+    try {
+        const resp = await axios.get(`${serverUrl}api/help-content`, {
+            timeout: 4000,
+            params: { deviceId: global.deviceUUID, gstNumber: process.presets?.gst }
+        });
+        cachedServerHelp = resp.data?.content || "";
+    } catch (_) {
+        cachedServerHelp = ""; // server unreachable — not an error
+    }
+    return cachedServerHelp;
+}
+
+ipcMain.handle("get-help-content", async () => {
+  const helpPath = path.resolve(__dirname, "HELP.md");
+  let content = fs.readFileSync(helpPath, "utf8");
+  const role = global.user?.role || "admin";
+
+  // Merge server-served help (cloud services, pricing, BBS Connect, etc.)
+  const serverContent = await fetchServerHelp();
+  if (serverContent) {
+      content += "\n\n---\n\n" + serverContent;
+  }
+
+  return { content, role };
+});
+ipcMain.on("close-help-window", (e) => {
+  const win = BrowserWindow.fromId(e.frameId);
+  if (win) win.close();
+});
+
+// ---- Kiosk Mode ----
+const { start: kioskStart, stop: kioskStop, getStatus: kioskStatus, ENABLED: KIOSK_ENABLED } = require("./kioskServer");
+
+/**
+ * Resolves the path to the kiosk configuration file (kioskConf.json).
+ * In DEV mode: relative to the project root's config/ directory.
+ * In PROD mode: relative to the app's AppData/BBS/config/ directory.
+ * @returns {string} Absolute path to kioskConf.json
+ */
+function getKioskConfigPath() {
+  if (process.env.APP_ENV === "DEV") {
+    return path.resolve(__dirname, "config", "kioskConf.json");
+  }
+  return path.resolve(app.getPath("appData"), "BBS", "config", "kioskConf.json");
+}
+
+/**
+ * Loads the kiosk configuration from disk.
+ * @returns {object|null} Parsed kiosk config object, or null if the file doesn't exist
+ */
+function loadKioskConfig() {
+  const configPath = getKioskConfigPath();
+  if (fs.existsSync(configPath)) {
+    return JSON.parse(fs.readFileSync(configPath).toString());
+  }
+  return null;
+}
+
+// ---- Kiosk Config IPC Handlers ----
+
+/**
+ * Generates a WiFi Setup Guide PDF using pdfkit.
+ * Reads setup instructions from a text data file and renders them as a formatted PDF.
+ * The PDF is saved to the user's Documents folder and the file path is returned.
+ */
+ipcMain.handle("generate-wifi-setup-pdf", async () => {
+  const PDFDocument = require("pdfkit");
+  const guidePath = path.resolve(__dirname, "template", "data", "wifiSetupGuide.txt");
+
+  // Read the guide text from the data file
+  let guideText = "";
+  try {
+    guideText = fs.readFileSync(guidePath, "utf8");
+  } catch (err) {
+    appLogger({ title: "WiFi Guide PDF", message: "Failed to read guide text: " + String(err), func: "generate-wifi-setup-pdf" });
+    return { success: false, error: "Guide data file not found." };
+  }
+
+  // Determine output directory — save to Documents/BBS/
+  const documentsDir = app.getPath("documents");
+  const bbsDir = path.join(documentsDir, "BBS");
+  if (!fs.existsSync(bbsDir)) {
+    fs.mkdirSync(bbsDir, { recursive: true });
+  }
+  const pdfPath = path.join(bbsDir, "BBS_Kiosk_WiFi_Setup_Guide.pdf");
+
+  return new Promise((resolve) => {
+    try {
+      const doc = new PDFDocument({
+        margin: 50,
+        size: "A4",
+        info: {
+          Title: "BBS Kiosk — WiFi Setup Guide",
+          Author: "BBS",
+          Subject: "Kiosk WiFi Configuration Instructions"
+        }
+      });
+
+      const writeStream = fs.createWriteStream(pdfPath);
+      doc.pipe(writeStream);
+
+      // ---- Title Page Header ----
+      doc.fontSize(22).font("Helvetica-Bold").text("BBS KIOSK — WiFi SETUP GUIDE", {
+        align: "center"
+      });
+      doc.moveDown(0.5);
+
+      // Decorative line
+      const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      doc.moveTo(doc.page.margins.left, doc.y)
+         .lineTo(doc.page.margins.left + pageWidth, doc.y)
+         .strokeColor("#663399")
+         .lineWidth(2)
+         .stroke();
+      doc.moveDown(1);
+
+      // ---- Render the guide text line by line ----
+      const lines = guideText.split("\n");
+      doc.fontSize(11).font("Helvetica");
+
+      lines.forEach((line) => {
+        // Check if we're near the bottom of the page — add a new page if needed
+        if (doc.y > doc.page.height - doc.page.margins.bottom - 40) {
+          doc.addPage();
+          doc.fontSize(11).font("Helvetica");
+        }
+
+        // Render section headers (lines ending with all-caps or separator lines)
+        if (/^[A-Z][A-Z \-\—]+$/.test(line.trim()) && line.trim().length > 3) {
+          doc.moveDown(0.5);
+          doc.fontSize(13).font("Helvetica-Bold")
+             .fillColor("#663399")
+             .text(line.trim(), { continued: false });
+          doc.fillColor("#000");
+          doc.fontSize(11).font("Helvetica");
+          doc.moveDown(0.2);
+        } else if (/^-{3,}$/.test(line.trim())) {
+          // Separator line
+          doc.moveDown(0.3);
+          doc.moveTo(doc.page.margins.left, doc.y)
+             .lineTo(doc.page.margins.left + pageWidth, doc.y)
+             .strokeColor("#ccc")
+             .lineWidth(0.5)
+             .stroke();
+          doc.moveDown(0.3);
+        } else if (line.trim() === "") {
+          // Blank line — small vertical space
+          doc.moveDown(0.3);
+        } else {
+          // Regular text line
+          doc.fontSize(10).font("Helvetica")
+             .text(line, {
+               continued: false,
+               lineGap: 2
+             });
+        }
+      });
+
+      // ---- Footer on each page ----
+      const pageCount = doc.bufferedPageRange().count;
+      for (let i = 0; i < pageCount; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8).font("Helvetica")
+           .fillColor("#999")
+           .text(
+             "Generated by BBS Kiosk Setup Wizard | " + new Date().toLocaleDateString(),
+             doc.page.margins.left,
+             doc.page.height - doc.page.margins.bottom - 20,
+             { align: "center", width: pageWidth }
+           );
+        doc.fillColor("#000");
+      }
+
+      doc.end();
+
+      writeStream.on("finish", () => {
+        appLogger({
+          title: "WiFi Guide PDF",
+          message: "PDF generated at: " + pdfPath,
+          func: "generate-wifi-setup-pdf"
+        });
+        resolve({ success: true, path: pdfPath });
+      });
+
+      writeStream.on("error", (err) => {
+        appLogger({
+          title: "WiFi Guide PDF Error",
+          message: String(err),
+          func: "generate-wifi-setup-pdf"
+        });
+        resolve({ success: false, error: String(err) });
+      });
+    } catch (err) {
+      appLogger({
+        title: "WiFi Guide PDF Error",
+        message: String(err),
+        func: "generate-wifi-setup-pdf"
+      });
+      resolve({ success: false, error: String(err) });
+    }
+  });
+});
+
+ipcMain.handle("get-local-ip", () => {
+  const os = require("os");
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return "127.0.0.1";
+});
+
+ipcMain.handle("save-kiosk-config", (e, config) => {
+  const configPath = getKioskConfigPath();
+  // Ensure the config directory exists (for first-time setup in DEV mode)
+  const configDir = path.dirname(configPath);
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  appLogger({ title: "Kiosk Config", message: "Kiosk configuration saved.", func: "save-kiosk-config" });
+  return true;
+});
+
+ipcMain.handle("check-kiosk-config", () => {
+  return fs.existsSync(getKioskConfigPath());
+});
+
+// ---- Kiosk Status & Control ----
+
+ipcMain.handle("get-kiosk-status", () => {
+  if (!KIOSK_ENABLED) return { running: false, disabled: true };
+  return kioskStatus();
+});
+
+ipcMain.handle("toggle-kiosk-server", async () => {
+  if (!KIOSK_ENABLED) return { running: false, disabled: true };
+  const status = kioskStatus();
+  if (status.running) {
+    await kioskStop();
+  } else {
+    // Check if kiosk config exists before starting
+    const configPath = getKioskConfigPath();
+    if (!fs.existsSync(configPath)) {
+      // No config yet — open the setup wizard instead of starting
+      createModal(
+        { width: 560, height: 620, resizable: false, parent: getMainWindow() },
+        getTemplatePath("kioskSetupWizard"),
+        { label: "Kiosk-Setup" }
+      );
+      return kioskStatus(); // server is not running yet
+    }
+    const config = loadKioskConfig();
+    const pin = config?.pin || process.presets?.kioskPIN || "1234";
+    const port = config?.port || 3030;
+    await kioskStart(port, pin, config);
+  }
+  return kioskStatus();
+});
+
+ipcMain.handle("get-kiosk-info", () => {
+  if (!KIOSK_ENABLED) return { running: false, disabled: true };
+  const status = kioskStatus();
+  const config = loadKioskConfig();
+  return { ...status, pin: config?.pin || process.presets?.kioskPIN || "1234" };
+});
+
+ipcMain.on("toggle-kiosk-from-modal", async (e, action) => {
+  if(action === "stop") await kioskStop();
+  const mainWin = getMainWindow();
+  if(mainWin) mainWin.webContents.send("kiosk-status-update", kioskStatus());
+});
+
+/**
+ * Opens the kiosk setup wizard window.
+ * Used when no kioskConf.json exists or when the user needs to reconfigure.
+ */
+function openKioskSetupWizard() {
+  createModal(
+    { width: 560, height: 620, resizable: false, parent: getMainWindow() },
+    getTemplatePath("kioskSetupWizard"),
+    { label: "Kiosk-Setup" }
+  );
+}
+
+/**
+ * Starts the kiosk server and opens the QR code modal.
+ * Loads configuration from kioskConf.json for PIN and other settings.
+ */
+async function startKioskWithConfig() {
+  const config = loadKioskConfig();
+  const pin = config?.pin || "1234";
+  const port = config?.port || 3030;
+  const result = await kioskStart(port, pin, config);
+  if (result.success) {
+    // Open the QR code modal
+    createModal(
+      { width: 400, height: 520, resizable: false, parent: getMainWindow() },
+      getTemplatePath("kioskModal"),
+      { label: "Kiosk" }
+    );
+    // Update status button in mainPage
+    const mainWin = getMainWindow();
+    if (mainWin) mainWin.webContents.send("kiosk-status-update", kioskStatus());
+  } else {
+    dialog.showErrorBox("Kiosk Error", result.error || "Failed to start kiosk server");
+  }
+}
+
+ipcMain.on("open-kiosk", async () => {
+  const status = kioskStatus();
+  if (status.running) {
+    // Already running — just show the QR modal
+    createModal(
+      { width: 400, height: 520, resizable: false, parent: getMainWindow() },
+      getTemplatePath("kioskModal"),
+      { label: "Kiosk" }
+    );
+    return;
+  }
+  // Check for kiosk config before starting
+  if (!fs.existsSync(getKioskConfigPath())) {
+    // No config yet — launch the setup wizard
+    openKioskSetupWizard();
+    return;
+  }
+  await startKioskWithConfig();
+});
+
+/**
+ * IPC handler called by the setup wizard after the user completes configuration.
+ * Saves the config and starts the kiosk server.
+ */
+ipcMain.on("start-kiosk-after-setup", async () => {
+  await startKioskWithConfig();
+});
+
+// ---- Kiosk Sale Processing ----
+
+ipcMain.on("kiosk-create-sale", async (e, saleData) => {
+  // Ensure process.presets is initialized (save_exit accesses it)
+  if (typeof process.presets === "undefined") process.presets = {};
+
+  // Load kiosk configuration to determine processing mode
+  const config = loadKioskConfig();
+  const { customerId, customerName, items, payment = 0 } = saleData;
+
+  if (!items || !items.length) {
+    appLogger({ title: "Kiosk Sale Error", message: "No items in cart", func: "kiosk-create-sale" });
+    return;
+  }
+
+  // ---- Build customer object (matches save_exit's expected shape) ----
+  // The kiosk /api/customers endpoint returns limited fields; email is fetched from DB here
+  let customerObj = {
+    id: customerId || "",
+    name: customerName || "Walk-in Customer",
+    address: "",
+    phones: [],
+    gst: "",
+    email: ""
+  };
+
+  if (customerId) {
+    // Fetch full customer record from DB to get email and other details
+    try {
+      const custRecord = await customer.findOne({ where: { id: customerId } });
+      if (custRecord) {
+        customerObj = {
+          id: custRecord.id,
+          name: custRecord.name,
+          address: custRecord.address || "",
+          phones: JSON.parse(custRecord.phones || "[]"),
+          gst: custRecord.gst || "",
+          email: (custRecord.moreInfo || {}).email || ""
+        };
+      }
+    } catch (err) {
+      appLogger({ title: "Kiosk Sale", message: "Customer lookup failed: " + String(err), func: "kiosk-create-sale" });
+    }
+  } else {
+    // Anonymous walk-in sale — generate a stable ID for the walk-in customer
+    customerObj.id = uuid.v5("walk-in-" + Date.now(), "6ba7b814-9dad-11d1-80b4-00c04fd430c8");
+  }
+
+  // ---- Map kiosk cart items to orderItems format (matches helperFunc1's expected shape) ----
+  // Each order item needs: id, name, hsn, qty, sellUnit, rate, amt, cgst, sgst, igst, type, sellId, desc, pHistory
+  const orderItems = items.map((item, idx) => ({
+    id: item.id || "",
+    name: item.name,
+    hsn: item.hsn || "",
+    qty: item.qty,
+    sellUnit: item.unit || "pcs",         // kiosk's "unit" maps to sale handler's "sellUnit"
+    rate: item.rate,
+    amt: item.qty * item.rate,
+    cgst: item.sgst || 0,                 // kiosk uses sgst symmetrically for both CGST and SGST
+    sgst: item.sgst || 0,
+    igst: item.igst || 0,
+    type: "goods",                        // default to physical goods
+    sellId: "kiosk-" + Date.now() + "-" + idx,  // unique per-row identifier
+    desc: "",
+    pHistory: []
+  }));
+
+  // ---- Calculate bill totals ----
+  const netAmt = Math.round(orderItems.reduce((sum, it) => sum + it.amt, 0));
+  const netTax = Math.round(orderItems.reduce((sum, it) => {
+    const taxRate = it.igst > 0 ? it.igst : (it.cgst + it.sgst);
+    return sum + (it.amt * taxRate / 100);
+  }, 0));
+  const netAmtTax = netAmt + netTax;
+  const netPayment = Math.round(payment);
+  const paymentStatus = netPayment >= netAmtTax;
+
+  // ---- Build billMeta (matching save_exit's expected shape) ----
+  const kioskSessionId = "kiosk-" + Date.now();
+  const billNo = getBillManager().allocate(kioskSessionId);
+  const billMeta = {
+    billStatus: "closed",
+    deliveryType: "hand",                 // kiosk sales are always hand-delivery (walk-in)
+    billNo: String(billNo),
+    billDate: new Date(),
+    netAmt: netAmt,
+    netTax: netTax,
+    netAmtTax: netAmtTax,
+    netDue: netAmtTax - netPayment,
+    payment: netPayment > 0 ? [{ payment: netPayment }] : [],
+    paymentStatus: paymentStatus,
+    billType: "regular",
+    autoBill: true,
+    printObj: {
+      captions: [{ first: "Original Kiosk Copy" }]
+    },
+    shipTo: customerObj.name,
+    shipAddr: customerObj.address || "",
+    shipPh: Array.isArray(customerObj.phones) && customerObj.phones.length > 0 ? customerObj.phones[0] : "",
+    shipGST: customerObj.gst || "",
+    discVal: 0,
+    netQty: orderItems.reduce((sum, it) => sum + it.qty, 0)
+  };
+
+  // Synthetic event object for ipcMain.emit — save_exit uses e.sender.id for window lookup
+  // With flag="order-billed", window.close() is skipped, so a null sender ID is safe
+  const syntheticEvent = { sender: { id: null } };
+
+  try {
+    if (config && config.dbMode === "auto-bill") {
+      // ---- Auto-Bill Mode: Reuse the existing save_exit handler ----
+      // This does full processing: stock deduction, bill creation, ledger update, PDF generation
+      ipcMain.emit("save-exit-sale-bill", syntheticEvent, {
+        billMeta: billMeta,
+        customer: customerObj,
+        orderItems: orderItems,
+        orderId: ""
+      }, "order-billed");
+
+      // Consume the reserved bill number now that the sale is saved
+      getBillManager().consume(kioskSessionId);
+
+      appLogger({
+        title: "Kiosk Sale",
+        message: "Auto-bill sale processed: " + customerObj.name + " — " + orderItems.length + " items, ₹" + netAmtTax,
+        func: "kiosk-create-sale"
+      });
+    } else {
+      // ---- Order-Only Mode: Reuse the existing new-order handler ----
+      // This saves the sale to orders.json without stock deduction or bill generation
+      const orderBillMeta = {
+        name: customerObj.name,
+        address: customerObj.address || "",
+        gst: customerObj.gst || "",
+        email: customerObj.email || "",
+        phones: Array.isArray(customerObj.phones) ? JSON.stringify(customerObj.phones) : "",
+        orderItems: orderItems,
+        netAmtTax: netAmtTax,
+        netDue: netAmtTax - netPayment,
+        paymentStatus: paymentStatus,
+        netPayment: netPayment
+      };
+
+      ipcMain.emit("new-order", syntheticEvent, {
+        billMeta: orderBillMeta,
+        mode: "regular"
+      });
+
+      // Consume the reserved bill number
+      getBillManager().consume(kioskSessionId);
+
+      appLogger({
+        title: "Kiosk Sale",
+        message: "Order-only sale queued: " + customerObj.name + " — " + orderItems.length + " items, ₹" + netAmtTax,
+        func: "kiosk-create-sale"
+      });
+    }
+  } catch (err) {
+    appLogger({
+      title: "Kiosk Sale Error",
+      message: String(err),
+      func: "kiosk-create-sale"
+    });
+  }
+
+  // Broadcast updated status to the main window
+  const mainWin = getMainWindow();
+  if (mainWin) mainWin.webContents.send("kiosk-status-update", kioskStatus());
+});
+ipcMain.on("open-help", () => openHelpWindow());
+
+function openHelpWindow(mainWindow) {
+  const helpWin = createModal(
+    { width: 800, height: 600 },
+    getTemplatePath("helpViewer"),
+    { maxWinCount: 1, label: "Help" }
+  );
+  return helpWin;
+}
+
 ipcMain.on("booted",async (e)=>{
+  // Re-apply weather theme AFTER the renderer's applyTheme (common.js) has run
+  reapplyTheme(getMainWindow());
   let stockList = await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
   //standardSellPrice
   //pInfo : {}
@@ -4338,10 +4968,91 @@ ipcMain.on("booted",async (e)=>{
 });
 
 ipcMain.on("open-bills-folder",()=>{
-  // Open Bills folder
-  shell.openExternal(path.resolve(app.getPath("documents"),"./Bills"));
+  // Open Bills folder (__Bills in DEV mode)
+  let billsDir = getBillsDir();
+  if (!fs.existsSync(billsDir)) fs.mkdirSync(billsDir, { recursive: true });
+  shell.openExternal(billsDir);
 });
 
 ipcMain.handle("get-place-of-jurisdiction",async (e,address)=>{
   return await placeOfJurisdiction({address});
 });
+
+// ---- Update welcome + feature tour (driven by update.md) ----
+
+/** Parse update.md into { version, welcome, highlights, tourStops } */
+function parseUpdateMD(md) {
+  var result = { version: "", welcome: "", highlights: [], tourStops: [] };
+  if (!md) return result;
+
+  var section = null;
+  var lines = md.split(/\r?\n/);
+  var welcomeLines = [];
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+
+    // Version header
+    var vMatch = line.match(/^#\s*version:\s*(.+)/i);
+    if (vMatch) { result.version = vMatch[1].trim(); continue; }
+
+    // Section headers
+    if (/^##\s+welcome/i.test(line)) { section = "welcome"; continue; }
+    if (/^##\s+tour/i.test(line)) { section = "tour"; continue; }
+
+    if (section === "welcome") {
+      welcomeLines.push(line);
+    } else if (section === "tour") {
+      // Format: selector :: message
+      var tMatch = line.match(/^(.+?)\s*::\s*(.+)/);
+      if (tMatch) {
+        result.tourStops.push({ selector: tMatch[1].trim(), msg: tMatch[2].trim() });
+      }
+    }
+  }
+
+  result.welcome = welcomeLines.filter(function(l) { return l !== ""; }).join("\n");
+  return result;
+}
+
+ipcMain.handle("get-update-content", () => {
+  try {
+    var mdPath = path.resolve(__dirname, "update.md");
+    if (!fs.existsSync(mdPath)) return { version: "", welcome: "", tourStops: [] };
+
+    var md = fs.readFileSync(mdPath, "utf-8");
+    var content = parseUpdateMD(md);
+    if (!content.version) return { version: "", welcome: "", tourStops: [] };
+
+    // Check if this version was already shown
+    var p = path.resolve(app.getPath("appData"), "BBS", "updtConf.json");
+    var conf = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p).toString()) : {};
+    if (conf.updateSeenVersion === content.version)
+      return { version: content.version, welcome: "", tourStops: [] }; // already seen
+
+    return content;
+  } catch (_) { return { version: "", welcome: "", tourStops: [] }; }
+});
+
+ipcMain.on("set-update-seen", () => {
+  try {
+    var mdPath = path.resolve(__dirname, "update.md");
+    if (!fs.existsSync(mdPath)) return;
+    var md = fs.readFileSync(mdPath, "utf-8");
+    var content = parseUpdateMD(md);
+    if (!content.version) return;
+
+    var p = path.resolve(app.getPath("appData"), "BBS", "updtConf.json");
+    var conf = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p).toString()) : {};
+    conf.updateSeenVersion = content.version;
+    fs.writeFileSync(p, JSON.stringify(conf, null, 2));
+  } catch (_) { /* non-critical */ }
+});
+
+ipcMain.on("init-ngram-index",(e,nGramIndex)=>{
+  global.nGramIndex = nGramIndex;
+});
+
+// Serve the pre-built n-gram index to renderer windows so they can skip
+// the expensive trigram-calculation loop in appendToDL.
+ipcMain.handle("get-ngram-index",()=> global.nGramIndex || {});

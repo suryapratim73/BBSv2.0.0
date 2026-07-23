@@ -9,15 +9,15 @@
     <script src="../js/customerPortal.js" defer></script>
   </head>
   <body>
-    <div id="chart-div">
+    <div id="chart-div" data-ui="customer-chart">
       <div id="canvas-container">
         <canvas width="200" height="200"></canvas>
       </div>
       <p>Credit distribution pie chart</p>
       <p>* Click on color to bring customer into view</p>
     </div>
-    <div id="right-div">
-      <div id="searchbar">
+    <div id="right-div" data-ui="customer-detail">
+      <div id="searchbar" data-ui="customer-search">
         <div id="form">
           <div class="hide btn-container" id="btn-container">
             <button data-cmd="new-bill" data-keymap="n" class="main-ui-btn hover bottom" data-msg="Create a new bill (Ctrl+N)" tabindex="0">New Bill</button>
@@ -71,12 +71,16 @@
               name="searchText"
               placeholder="Search customer by any"
               tabindex="0"
+              data-usefuzzysearch="true"
+              data-tablename="customer"
+              list="customer-names"
+              oninput="fuzzySearchHandler(event)"
             />
           </div>
         </div>
       </div>
       <div id="main-section">
-        <div id="customer-list">
+        <div id="customer-list" data-ui="customer-list">
           <div class="hide" data-letter="a">
             <h1>A</h1>
           </div>
@@ -508,6 +512,7 @@
     </template>
     <!-- datalists -->
     <datalist id="stock-names"></datalist>
+    <datalist id="customer-names"></datalist>
     <datalist id="unit-dl"></datalist>
   </body>
 </html>

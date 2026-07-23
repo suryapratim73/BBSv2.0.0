@@ -11,7 +11,7 @@
 </head>
 
 <body>
-    <div id="page1" class="page ">
+    <div id="page1" class="page " data-ui="purchase-page-supplier">
         <form onsubmit="addSupplier(event)" aria-labelledby="supplier-form-heading">
             <h2 id="supplier-form-heading">Add <span class="highlight">Supplier</span> details</h2>
             <div>
@@ -44,7 +44,7 @@
             </div>
         </form>
     </div>
-    <div id="page2" class="page hide">
+    <div id="page2" class="page hide" data-ui="purchase-page-items">
         <h2>Add <span class="highlight">Bill </span>Items</h2>
         <div id="table" role="table" aria-label="Bill items table">
             <div class="row head" role="row">
@@ -72,7 +72,7 @@
             <button data-cmd="next" class="main-ui-btn" tabindex="0">Proceed</button>
         </div>
     </div>
-    <div id="page3" class="page hide">
+    <div id="page3" class="page hide" data-ui="purchase-page-headers">
         <form onsubmit="proceedHandler(event)" aria-labelledby="bill-headers-heading">
             <h2 id="bill-headers-heading">Add Purchase <span>Bill</span>Headers</h2>
             <div>
@@ -107,7 +107,7 @@
             </div>
         </form>
     </div>
-    <div id="page4" class="page hide">
+    <div id="page4" class="page hide" data-ui="purchase-page-payment">
         <form onsubmit="saveData(event)" aria-labelledby="payment-details-heading">
             <h2 id="payment-details-heading">Add <span>Payment</span> details</h2>
             <div id="main">

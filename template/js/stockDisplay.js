@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const {toggleDevTool,validateInput, initSearchHandler, capitalize, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace, retractHandler, applyTheme} = require("../js/common.js");
+const {toggleDevTool,validateInput, initSearchHandler, capitalize, showOrHideScrollSym, scrollSymSet, drawSpinner, createModal, closeModal, removeAllElem, drawLineGraph, dataModal, roundOffTo2DecimalPlace, retractHandler, applyTheme, appendToDL, fuzzySearchHandler, setNGramIndex} = require("../js/common.js");
 toggleDevTool(document);
 
 let tbody = document.querySelector("#tbody"),timer,bodyRow;
@@ -7,6 +7,12 @@ let tbody = document.querySelector("#tbody"),timer,bodyRow;
 async function initPage(){
     let spinner = drawSpinner(document);
     let stock = await ipcRenderer.invoke("get-stocks");
+    // Inject the pre-built n-gram index from the main process so appendToDL
+    // skips the expensive trigram-calculation loop.
+    var preBuiltIndex = await ipcRenderer.invoke("get-ngram-index");
+    if (preBuiltIndex) setNGramIndex(preBuiltIndex);
+    // Populate the datalist and build the n-gram index for fuzzy search
+    await appendToDL.call({tableName:"stock"}, "", document.getElementById("stock-names"), true, null, [], stock);
     let bodyRowTemp = document.getElementById("body-row-template");
     removeAllElem(".body.row");
     stock.forEach((itemObj,i)=>{

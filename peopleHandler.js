@@ -93,7 +93,7 @@ ipcMain.on("new-employee",(e,empObj)=>{
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         const {id=null,name=""} = dataValues;
-        appLogger("new Employee added to database",JSON.stringify({id,name}));
+        appLogger({title:"new Employee added to database", message:JSON.stringify({id,name}), func:"new-employee"});
         e.sender.send("new-employee-response");
     })
     .catch(console.log)

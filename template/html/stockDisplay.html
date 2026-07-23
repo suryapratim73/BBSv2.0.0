@@ -11,12 +11,12 @@
 <body>
     <nav role="navigation" aria-label="Inventory viewer navigation">
         <h1>Inventory viewer</h1>
-        <div id="searchbar-container" role="search">
-            <input type="text" spellcheck="false" oninput="searchHandler(event)" placeholder="Type to search through stock.." aria-label="Search stock inventory" tabindex="0">
+        <div id="searchbar-container" data-ui="stock-search" role="search">
+            <input type="text" spellcheck="false" oninput="searchHandler(event);fuzzySearchHandler(event)" placeholder="Type to search through stock.." aria-label="Search stock inventory" tabindex="0" data-usefuzzysearch="true" data-tablename="stock" list="stock-names">
         </div>
     </nav>
     <main role="main">
-        <div id="table" role="table" aria-label="Stock inventory table">
+        <div id="table" data-ui="stock-table" role="table" aria-label="Stock inventory table">
             <div class="row head" role="row">
                 <div class="col eq-space" role="columnheader"><p>Sl. No</p></div>
                 <div class="col eq-space" role="columnheader"><p>Stock Name</p></div>
@@ -28,6 +28,7 @@
             </div>
         </div>
     </main>
+    <datalist id="stock-names"></datalist>
     <template id="body-row-template">
         <div class="body row">
             <p class="col eq-space" data-colName="slNo"></p>

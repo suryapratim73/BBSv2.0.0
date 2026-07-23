@@ -57,7 +57,7 @@ ipcMain.on("update-stock",async (e,itemObj)=>{
         stock.standardSellPrice = standardSellPrice;
         stock.type = type;
         stock.pInfo = {...pInfo};
-        appLogger("stock information updated successfully",JSON.stringify({id,name}));
+        appLogger({title:"stock information updated successfully", message:JSON.stringify({id,name}), func:"update-stock"});
         e.sender.send("update-stock-response",stock);
     })
     .catch(console.log)
@@ -150,4 +150,21 @@ ipcMain.handle("refresh-stocklist",()=>{
 ipcMain.on("refresh-stocklist",()=>{
     global.stocks = undefined;
     return queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
+});
+
+ipcMain.on("delete-stock",async (e,id)=>{
+    try{
+        await stock.destroy({
+            where:{ id }
+        });
+        global.stocks = undefined;
+        ipcMain.emit("refresh-stocklist");
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"delete-stock"
+        });
+    }
 });

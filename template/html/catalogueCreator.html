@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogue Creator</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/catalogueCreator.css">
+    <script src="../js/catalogueCreator.js" defer></script>
+</head>
+<body>
+    <nav role="navigation" aria-label="Catalogue creator navigation">
+        <h1>Catalogue Creator</h1>
+        <div class="nav-actions">
+            <input type="text"
+                   id="search-input"
+                   spellcheck="false"
+                   oninput="handleSearch(event)"
+                   placeholder="Search items..."
+                   aria-label="Search catalogue items"
+                   tabindex="0">
+            <button id="btn-save"
+                    class="main-ui-btn"
+                    onclick="saveCatalogue()"
+                    tabindex="0">
+                Save Catalogue
+            </button>
+            <button id="btn-add-item"
+                    class="main-ui-btn"
+                    onclick="showAddItemModal()"
+                    tabindex="0">
+                + Add Item
+            </button>
+        </div>
+    </nav>
+    <main role="main">
+        <div class="catalogue-layout">
+            <!-- Left Panel: Uncategorized / All Items -->
+            <div class="panel uncategorized-panel" data-panel="uncategorized">
+                <div class="panel-header">
+                    <h2>Uncategorized Items</h2>
+                    <span class="item-count" id="uncategorized-count">0</span>
+                </div>
+                <div class="panel-body thin-scrollbar" id="uncategorized-list"
+                     ondragover="handleDragOver(event)"
+                     ondrop="handleDrop(event, '')"
+                     aria-label="Uncategorized items list">
+                </div>
+            </div>
+
+            <!-- Right Panel: Categories -->
+            <div class="panel categories-panel" data-panel="categories">
+                <div class="panel-header">
+                    <h2>Categories</h2>
+                    <button id="btn-add-category"
+                            class="main-ui-btn"
+                            onclick="addCategory()"
+                            tabindex="0">
+                        + New Category
+                    </button>
+                </div>
+                <div class="panel-body thin-scrollbar" id="categories-container"
+                     aria-label="Categories container">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Template: Catalogue Item Card -->
+    <template id="item-card-template">
+        <div class="item-card"
+             draggable="true"
+             data-item-id=""
+             ondragstart="handleDragStart(event)"
+             ondragend="handleDragEnd(event)">
+            <div class="item-card-header">
+                <span class="item-name"></span>
+                <div class="item-actions">
+                    <button class="btn-icon btn-ref-pic"
+                            title="Add/View Reference Picture"
+                            onclick="handleRefPic(event)"
+                            tabindex="0">
+                        🖼️
+                    </button>
+                    <button class="btn-icon btn-remove"
+                            title="Remove from category"
+                            onclick="removeItemFromCategory(event)"
+                            tabindex="0">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div class="item-card-body">
+                <span class="item-type"></span>
+                <span class="item-price"></span>
+            </div>
+            <div class="item-ref-pics" data-ref-pics>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: Category Section -->
+    <template id="category-section-template">
+        <div class="category-section"
+             data-category-key=""
+             ondragover="handleDragOver(event)"
+             ondrop="handleDrop(event, null)">
+            <div class="category-header">
+                <div class="category-title-group">
+                    <input type="text"
+                           class="category-name-input"
+                           value=""
+                           placeholder="Category name"
+                           onchange="handleCategoryRename(event)"
+                           onfocus="this.select()"
+                           tabindex="0"
+                           aria-label="Category name">
+                    <span class="category-item-count">0 items</span>
+                </div>
+                <button class="btn-icon btn-delete-category"
+                        title="Delete category (items return to uncategorized)"
+                        onclick="deleteCategory(event)"
+                        tabindex="0">
+                    🗑️
+                </button>
+            </div>
+            <div class="category-items"
+                 aria-label="Category items list">
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: Reference Picture Thumbnail -->
+    <template id="ref-pic-thumb-template">
+        <div class="ref-pic-thumb" data-pic-path="">
+            <img src="" alt="Reference" loading="lazy">
+            <button class="btn-icon btn-remove-pic"
+                    title="Remove this picture"
+                    onclick="removeRefPic(event)"
+                    tabindex="0">
+                ✕
+            </button>
+        </div>
+    </template>
+
+    <!-- Template: Add Item Modal (Overlay) -->
+    <template id="add-item-modal-template">
+        <div class="cover" onclick="closeAddItemModal()"></div>
+        <div class="modal add-item-modal">
+            <h2>Add New Item to Catalogue</h2>
+            <div class="modal-form">
+                <div class="form-row">
+                    <label for="new-item-name">Item Name *</label>
+                    <input type="text" id="new-item-name" placeholder="Enter item name" tabindex="0">
+                </div>
+                <div class="form-row">
+                    <label for="new-item-type">Type</label>
+                    <input type="text" id="new-item-type" placeholder="e.g., Grocery, Electronics" tabindex="0">
+                </div>
+                <div class="form-row">
+                    <label for="new-item-unit">Unit</label>
+                    <input type="text" id="new-item-unit" value="Kg" placeholder="Kg, Piece, Box..." tabindex="0">
+                </div>
+                <div class="form-row">
+                    <label for="new-item-hsn">HSN Code</label>
+                    <input type="number" id="new-item-hsn" value="7318" placeholder="HSN Code" tabindex="0">
+                </div>
+                <div class="form-row">
+                    <label for="new-item-price">Sell Price (₹)</label>
+                    <input type="number" id="new-item-price" value="0" placeholder="0.00" min="0" step="0.01" tabindex="0">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="main-ui-btn" onclick="createItem()" tabindex="0">Create Item</button>
+                <button onclick="closeAddItemModal()" tabindex="0">Cancel</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: Reference Picture Viewer Modal -->
+    <template id="ref-pic-viewer-template">
+        <div class="cover" onclick="closeRefPicViewer()"></div>
+        <div class="modal ref-pic-viewer-modal">
+            <div class="viewer-header">
+                <h2 id="ref-pic-item-name">Reference Pictures</h2>
+                <button class="btn-icon" onclick="closeRefPicViewer()" tabindex="0">✕</button>
+            </div>
+            <div class="viewer-body thin-scrollbar" id="ref-pic-viewer-body">
+            </div>
+            <div class="viewer-actions">
+                <button class="main-ui-btn" id="btn-add-pic" tabindex="0">+ Add Picture</button>
+                <button onclick="closeRefPicViewer()" tabindex="0">Done</button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

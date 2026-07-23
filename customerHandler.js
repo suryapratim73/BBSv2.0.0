@@ -4,7 +4,7 @@ const { customer, sale, inPayments, sequelize, returnRegister, outPayments, stoc
 const { getTemplatePath } = require("./viewManager");
 const path = require("path");
 const { Op,DataTypes } = require("sequelize");
-const { getLedgerModel, initCustomerList, print, getBillModel, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage, getPDF_FileName } = require("./common");
+const { getLedgerModel, initCustomerList, print, getBillModel, getBillManager, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage, getPDF_FileName, getBillsDir } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
 const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
@@ -13,7 +13,7 @@ const { billPDF } = require("./scripts/makePDF.default");
 const { deserializeSchema } = require("./model/schemaLoader");
 const { title } = require("process");
 
-
+// Fix Bill updation issue.
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
 
@@ -136,14 +136,16 @@ ipcMain.handle("get-full-customer-ledger",async (e,id)=>{
             ["entryNo","DESC"]
         ]
     })).map(({dataValues})=>dataValues);
+    // Order entries date-wise then return.
     return ledgerEntries;
 });
 
 ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
     billDate = new Date(billDate);
     let pdfFileName = getPDF_FileName(name,billDate,billNo,false)
-    if(fs.existsSync(path.resolve(app.getPath("documents"),"./bills",pdfFileName))){
-        shell.openExternal(path.resolve(app.getPath("documents"),"./bills",pdfFileName))
+    let pdfPath = path.resolve(getBillsDir(), pdfFileName);
+    if(fs.existsSync(pdfPath)){
+        shell.openExternal(pdfPath)
         .then(console.log)
         .catch((err)=>{
             console.log("Failed to open",err)
@@ -270,7 +272,7 @@ ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
                 netPayment -= billAmt;
             }
         })
-        appLogger("received payment",JSON.stringify({name,payment}));
+        appLogger({title:"received payment", message:JSON.stringify({customerId:id,name,payment,payObj}), func:"add-payment"});
         let msg = {
             type: "info",
             title: "Payment Added",
@@ -385,7 +387,7 @@ function displayConfirmMsg(msg,appLogMsg,id,itemList,retAmt,retDate){
     let focussedWindow = BrowserWindow.getFocusedWindow()
     dialog.showMessageBox(focussedWindow,msg)
         .then(()=>focussedWindow.close());
-    appLogger(appLogMsg,JSON.stringify({id,itemList,retAmt,retDate}));
+    appLogger({title:appLogMsg, message:JSON.stringify({id,itemList,retAmt,retDate}), func:"displayConfirmMsg"});
 }
 
 ipcMain.on("return-obj",async (e,{itemList,billMeta,retDate,id})=>{
@@ -462,10 +464,28 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
 ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
     let { billNo,billDate } = process.presets.billMeta;
     let {billNo:new_billNo,billDate:newBillDate,customerId:id,entryNo} = billMeta;
-    
+    let concatenatedObj = {
+        ...billMeta,
+        orderItems:newitemList,
+        customer:customerObj
+    };
+
     billDate = openFormatForDate(new Date(billDate));
     newBillDate = openFormatForDate(new Date(newBillDate));
     
+    // Adding support for grouped items
+    function _reduce(acc,obj){
+        if(obj.type=="grp")
+            obj.items.forEach(obj=>{
+                acc.push(obj);
+            });
+        else
+            acc.push(obj);
+        return acc;
+    }
+    olditemList = olditemList.reduce(_reduce,[]);
+    newitemList = newitemList.reduce(_reduce,[]);
+    // Bill date and number updation is not smooth, creates redundant tables. Fit it.
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     let billObj = await sale.findOne({
@@ -517,9 +537,19 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
     }));
     
     // Drop old table and recreate with new items
-    await billItemModel.drop();
-    billItemModel = await getBillModel(id,new_billNo,newBillDate,billItemSchema);
-    
+    try{
+        await billItemModel.drop();
+        delete sequelize.models[billItemModel.name]
+        billItemModel = await getBillModel(id,new_billNo,newBillDate,billItemSchema);
+    }
+    catch(e){
+        appLogger({
+            title:"Bill edit error",
+            message:String(e),
+            func:"add-item-to-bill IPC call"
+        })
+        return dialog.showErrorBox("Bill edit failed","Check log message for details.")
+    }
     Promise.all([
         // Create new bill items (map qty->quantity, sellUnit->unit, no itemNo)
         billItemModel.bulkCreate(newitemList.map(item => ({
@@ -595,6 +625,11 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             message:"Bill updated"
         });
         getTargetWindow("customer-portal").webContents.send("close-modal");
+        appLogger({
+            title:"Bill edited successfully",
+            message:JSON.stringify(concatenatedObj),
+            func:"add-item-to-bill"
+        });
         // This should replace the pdfFile
         if(typeof printObj==="undefined")
             printObj = { captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}] };
@@ -646,7 +681,7 @@ ipcMain.handle("update-customer-profile",async (e,custData)=>{
             message: "Customer profile updated successfully."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("customer-profile-update",JSON.stringify(selectedCustomer));
+        appLogger({title:"customer-profile-update", message:JSON.stringify(selectedCustomer), func:"update-customer-profile"});
         return "Updated!!"
 
     }
@@ -664,10 +699,11 @@ ipcMain.handle("get-customer-details",async (e,id)=>{
 
 ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
     // Check if the bill is eligible for deletion
-    // if(Date.now()-(new Date(billDate)).getTime()>3*24*60*60*1000) return dialog.showErrorBox("Bill cannot be cancelled","Bill cancellation date expired");
+    billNo = Number(billNo);
+    if(process.presets?.billMeta?.billNo===billNo)
+        return dialog.showErrorBox("Bill cancel failed","The Bill is already on Edit mode, save changes before proceeding to cancel.")
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let billItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
-    billNo = Number(billNo);
     billDate = new Date(billDate);
     let customerLedger = await getLedgerModel(id,customerLedgerSchema);
     // console.log({billItems})
@@ -714,18 +750,27 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
             else
                 return false;
         });
+        appLogger({
+            title:"Bill cancelled",
+            message:JSON.stringify({
+                billNo,
+                billDate,
+                billAmt
+            }),
+            func:"cancel-bill"
+        });
         if(i){
             schedules.splice(i,1);
             jsData.schedules = schedules;
             fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
             // getMainWindow().webContents.send("update-content");
-            let path2config = getsaleConfigPolicyPath()
+            let path2config = getsaleConfigPolicyPath();
             let saleConfig = JSON.parse(fs.readFileSync(path2config).toString());
             if(!("availableBillNo" in saleConfig))
                 saleConfig.availableBillNo = [billNo];
             else
                 saleConfig.availableBillNo.push(billNo);
-            fs.writeFileSync(path2config,JSON.stringify(saleConfig));
+            fs.writeFileSync(path2config, JSON.stringify(saleConfig));
             e.sender.send("close-modal");
             ipcMain.emit("refresh-stocklist");
             let entries = await customerLedger.findAll({
@@ -741,7 +786,7 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
             })
         }
         else
-            appLogger({title:"Error removing event",message:"Event not found"})
+            appLogger({title:"Error removing event", message:"Event not found", func:"cancel-bill"})
     })
     .catch(err => {
         console.error("Error in cancel-bill:", err);
@@ -756,6 +801,14 @@ ipcMain.on("add-opening-balance",async (e,id,balance)=>{
     selectedCustomer.dataValues.moreInfo.openingBalance = balance;
     await customer.update(selectedCustomer.dataValues,{
         where:{ id }
+    });
+    appLogger({
+        title:"Opening balance added",
+        message:JSON.stringify({
+            customerId:id,
+            opening_balance:balance
+        }),
+        func:"add-opening-balance"
     });
     getTargetWindow("customer-portal").webContents.send("close-modal");
 });

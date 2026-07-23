@@ -1,13 +1,18 @@
 {
   "name": "bbs",
-  "version": "2.21.11",
+  "version": "2.22.0",
   "description": "Business management application",
   "main": "main.js",
   "scripts": {
     "bbsDev": "nodemon --exec electron .",
     "build_linux": "electron-builder -l",
     "build_win": "electron-builder -w",
-    "build": "electron-builder -wl"
+    "build": "electron-builder -wl",
+    "test": "jest",
+    "test:unit": "jest",
+    "test:e2e": "playwright test",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "win": {
     "icon": "./logo.png"
@@ -27,6 +32,7 @@
     "bcrypt": "^5.1.0",
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
+    "keytar": "^7.9.0",
     "pdfkit": "^0.12.1",
     "qrcode": "^1.5.0",
     "sequelize": "^6.13.0",
@@ -36,9 +42,11 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "electron": "^31.0.1",
     "electron-builder": "^24.13.3",
     "electron-icon-builder": "^2.0.1",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.3"
   },
   "browserslist": {
@@ -118,7 +126,18 @@
       "!updtConf.json",
       "!changelog.json",
       "!*.md",
-      "!model/*.json"
+      "update.md",
+      "!model/*.json",
+      "!__tests__/**",
+      "!__mocks__/**",
+      "!e2e/**",
+      "!coverage/**",
+      "!test-results/**",
+      "!playwright-report/**",
+      "!jest.config.js",
+      "!playwright.config.js",
+      "HELP.md",
+      "update.md"
     ],
     "asar": false
   },

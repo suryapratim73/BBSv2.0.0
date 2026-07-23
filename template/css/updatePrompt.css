@@ -1,0 +1,348 @@
+/* ============================================
+   Update Prompt Modal — custom styles only.
+   Inherits .cover, .modal, .main-ui-btn, .hide,
+   .thin-scrollbar, nav, body, h1, h2, p, button
+   from common.css.
+   ============================================ */
+
+/* ---- Modal overrides (common.css .modal is grid-based) ---- */
+.update-prompt-modal {
+    width: 520px;
+    height: auto;
+    max-height: 580px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    z-index: 3;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Header ---- */
+.up-header {
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--theme-shadow-color);
+    flex-shrink: 0;
+}
+
+.up-version-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.3rem;
+}
+
+.up-version-row h1 {
+    font-size: 1.3rem;
+    color: var(--theme-text-color);
+    background-color: transparent;
+    margin: 0;
+}
+
+.up-badge {
+    display: inline-block;
+    background-color: var(--theme-primary);
+    color: var(--theme-secondary);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+}
+
+.up-badge-sm {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.35rem;
+    flex-shrink: 0;
+}
+
+.up-version {
+    font-size: 0.85rem;
+    color: var(--theme-shadow-color);
+    margin: 0;
+    background-color: transparent;
+}
+
+.up-tagline {
+    font-size: 0.85rem;
+    color: var(--theme-primary);
+    font-weight: 600;
+    margin: 0.25rem 0 0;
+    background-color: transparent;
+}
+
+/* ---- Body ---- */
+.up-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.5rem;
+    min-height: 0;
+}
+
+.up-body h2 {
+    font-size: 0.95rem;
+    color: var(--theme-text-color);
+    background-color: transparent;
+    margin: 0 0 0.75rem;
+}
+
+/* ---- Highlights ---- */
+.up-highlights {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* String highlight item */
+.up-highlight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+}
+
+.up-bullet {
+    width: 7px;
+    height: 7px;
+    min-width: 7px;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background-color: var(--theme-primary);
+}
+
+.up-bullet-sm {
+    width: 5px;
+    height: 5px;
+    min-width: 5px;
+    margin-top: 0.45rem;
+}
+
+.up-highlight-text {
+    font-size: 0.85rem;
+    color: var(--theme-text-color);
+    margin: 0;
+    line-height: 1.4;
+    background-color: transparent;
+}
+
+/* Card highlight (object format) */
+.up-highlight-card {
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    transition: border-color 0.15s;
+}
+
+.up-highlight-card:hover {
+    border-color: var(--theme-primary);
+}
+
+.up-highlight-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.up-highlight-card-header .up-highlight-text {
+    flex: 1;
+    font-weight: 600;
+}
+
+.up-highlight-desc {
+    font-size: 0.78rem;
+    color: var(--theme-shadow-color);
+    margin: 0.3rem 0 0 0.75rem;
+    line-height: 1.4;
+    background-color: transparent;
+}
+
+/* ---- Full Changes (details/summary) ---- */
+.up-fullchange {
+    border-top: 1px solid var(--theme-shadow-color);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.up-fullchange summary {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--theme-text-color);
+    list-style: none;
+    user-select: none;
+}
+
+.up-fullchange summary::-webkit-details-marker {
+    display: none;
+}
+
+.up-fullchange summary::before {
+    content: "▸";
+    display: inline-block;
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    color: var(--theme-primary);
+}
+
+.up-fullchange[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.up-nerd-tag {
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--theme-shadow-color);
+    font-style: italic;
+}
+
+.up-fullchange-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 0.6rem;
+    padding-left: 0.25rem;
+}
+
+.up-fullchange-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+}
+
+.up-fullchange-text {
+    font-size: 0.78rem;
+    color: var(--theme-text-color);
+    margin: 0;
+    line-height: 1.45;
+    background-color: transparent;
+}
+
+/* ---- Extras: Video + QR ---- */
+.up-extras {
+    border-top: 1px solid var(--theme-shadow-color);
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Demo video */
+.up-video-details {
+    margin-bottom: 0.5rem;
+}
+
+.up-video-details summary {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--theme-primary);
+    list-style: none;
+    user-select: none;
+}
+
+.up-video-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.up-video-details summary::before {
+    content: "▸";
+    display: inline-block;
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    color: var(--theme-primary);
+}
+
+.up-video-details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.up-video-wrapper {
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--theme-shadow-color);
+}
+
+.up-video-wrapper iframe,
+.up-video-wrapper video {
+    width: 100%;
+    height: 200px;
+    border: none;
+    display: block;
+}
+
+/* QR Code */
+.up-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 0 0.25rem;
+}
+
+.up-qr-label {
+    font-size: 0.75rem;
+    color: var(--theme-shadow-color);
+    background-color: transparent;
+    margin: 0;
+}
+
+.up-qr-img {
+    width: 100px;
+    height: 100px;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 8px;
+    padding: 4px;
+    background: white;
+}
+
+.up-qr-url {
+    font-size: 0.65rem;
+    color: var(--theme-shadow-color);
+    background-color: transparent;
+    margin: 0;
+    word-break: break-all;
+    text-align: center;
+    max-width: 280px;
+}
+
+/* ---- Actions ---- */
+.up-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--theme-shadow-color);
+    flex-shrink: 0;
+}
+
+.up-actions button {
+    padding: 0.45rem 1.1rem;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 6px;
+    background-color: var(--theme-secondary);
+    color: var(--theme-text-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+
+.up-actions button:hover {
+    opacity: 0.8;
+}
+
+.up-btn-download {
+    /* Extends .main-ui-btn from common.css */
+}

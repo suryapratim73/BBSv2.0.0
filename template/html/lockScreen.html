@@ -7,14 +7,15 @@
     <title>BBSv2.0.0</title>
     <script src="../js/lockScreen.js" defer></script>
     <link rel="stylesheet" href="../css/lockScreen.css">
+    <link rel="stylesheet" href="../css/themes.css">
 </head>
 <body>
-    <div>
-        <h1>BBS Login</h1>
+    <div data-ui="lockscreen-header">
+        <h1 data-ui="lockscreen-logo">BBS Login</h1>
         <p>Login to BBS using any user account but keep in mind that different user may have different access right.</p>
     </div>
-    <form onsubmit="unlockHandler(event,1)">
-        <h2>Welcome to BBS</h2>
+    <form data-ui="login-form" onsubmit="unlockHandler(event,1)">
+        <h2 data-ui="login-title">Welcome to BBS</h2>
         <div>
             <div><label for="name">Username</label></div>
             <div><input type="text" autofocus name="name" id="name" required tabindex="0"></div>

@@ -1,294 +1,585 @@
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const { app } = require('electron');
-
 /**
- * ViewManager - Manages HTML view paths with server fallback
- * 
- * This module provides centralized view path management:
- * 1. Checks for custom views from server
- * 2. Falls back to standard template directory
- * 3. Caches server responses for performance
+ * viewManager.js
+ *
+ * Centralized view + theme management:
+ *   1. getTemplatePath() — standard HTML template path (used by all handlers)
+ *   2. Weather-based theming — fetches theme from VPS, injects CSS class
+ *   3. Announcement banners — fetches banner config from VPS, injects into renderer
+ *
+ * Server endpoints (you build on VPS):
+ *   GET /api/weather-theme   → { theme: "monsoon" } or { theme: "none" }
+ *   GET /api/announcement     → banner config object or null
  */
 
-// Cache for server-fetched views
-const viewCache = new Map();
-const SERVER_CHECK_TIMEOUT = 3000; // 3 seconds timeout for server requests
+const path = require("path");
+const fs = require("fs");
+const axios = require("axios");
 
-// Configuration
-let serverConfig = {
-    enabled: false,
-    baseUrl: null,
-    viewEndpoint: '/api/views'
-};
+// ---- Config ----
+const TIMEOUT = 4000;
 
-// Base directories
-const TEMPLATE_DIR = path.join(__dirname, 'template', 'html');
-const CUSTOM_VIEWS_DIR = path.join(
-    process.env.APP_ENV === "PROD" 
-        ? app.getPath("appData") 
-        : __dirname,
-    'views'
-);
+// ---- Base directories ----
+const TEMPLATE_DIR = path.join(__dirname, "template", "html");
 
-/**
- * Initialize view manager with server configuration
- * @param {Object} config - Server configuration
- * @param {boolean} config.enabled - Whether to check server for views
- * @param {string} config.baseUrl - Base URL of the server
- * @param {string} config.viewEndpoint - Endpoint for view requests
- */
-function initialize(config = {}) {
-    const { appLogger } = require('./common');
-    serverConfig = { ...serverConfig, ...config };
-    
-    // Create custom views directory if it doesn't exist
-    if (!fs.existsSync(CUSTOM_VIEWS_DIR)) {
-        try {
-            fs.mkdirSync(CUSTOM_VIEWS_DIR, { recursive: true });
-        } catch (error) {
-            appLogger({ title: 'ViewManager Init Error', message: `Failed to create custom views directory: ${error.message}` });
-        }
-    }
-    
-    appLogger({ message: 'ViewManager initialized', serverEnabled: serverConfig.enabled });
+// ---- Cached state ----
+let lastTheme = null;
+let lastThemeChkTime = new Date(0); // epoch — forces first fetch
+let lastBanner = null;
+let inflightFetch = null;
+let lastUserThemeObj = null;
+let weatherInterval = null; // hourly refresh timer
+
+// ---- Dismissed banner storage ----
+function getDismissedPath() {
+    const { app } = require("electron");
+    const base = process.env.APP_ENV === "PROD"
+        ? app.getPath("appData")
+        : __dirname;
+    return path.resolve(base, "dismissed_banners.json");
 }
 
-/**
- * Get view path for a given view name
- * @param {string} viewName - Name of the view (without .html extension)
- * @param {Object} options - Additional options
- * @param {boolean} options.forceServer - Force server check even if cached
- * @param {boolean} options.fallbackOnly - Skip server check and use fallback directly
- * @returns {Promise<string>} - Path to the HTML file
- */
-async function getViewPath(viewName, options = {}) {
-    const { forceServer = false, fallbackOnly = false } = options;
-    
-    // Ensure .html extension
-    const fileName = viewName.endsWith('.html') ? viewName : `${viewName}.html`;
-    const viewKey = fileName.replace('.html', '');
-    
-    // Check cache first (unless force refresh)
-    if (!forceServer && viewCache.has(viewKey)) {
-        const cachedPath = viewCache.get(viewKey);
-        if (fs.existsSync(cachedPath)) {
-            return cachedPath;
-        } else {
-            viewCache.delete(viewKey);
-        }
-    }
-    
-    // Check custom views directory first
-    const customViewPath = path.join(CUSTOM_VIEWS_DIR, fileName);
-    if (fs.existsSync(customViewPath)) {
-        viewCache.set(viewKey, customViewPath);
-        return customViewPath;
-    }
-    
-    // Check server for custom view (if enabled and not fallback-only mode)
-    if (!fallbackOnly && serverConfig.enabled && serverConfig.baseUrl) {
-        try {
-            const serverPath = await checkServerForView(viewKey, fileName);
-            if (serverPath) {
-                return serverPath;
-            }
-        } catch (error) {
-            const { appLogger } = require('./common');
-            appLogger({ message: `Server check failed for view ${viewKey}: ${error.message}` });
-            // Continue to fallback
-        }
-    }
-    
-    // Fallback to standard template directory
-    const templatePath = path.join(TEMPLATE_DIR, fileName);
-    
-    if (fs.existsSync(templatePath)) {
-        viewCache.set(viewKey, templatePath);
-        return templatePath;
-    }
-    
-    // View not found
-    throw new Error(`View "${fileName}" not found in custom views, server, or template directory`);
-}
-
-/**
- * Check server for custom view
- * @param {string} viewKey - View identifier
- * @param {string} fileName - File name with extension
- * @returns {Promise<string|null>} - Path to downloaded view or null
- */
-async function checkServerForView(viewKey, fileName) {
-    const { appLogger } = require('./common');
+function getDismissedBanners() {
     try {
-        const url = `${serverConfig.baseUrl}${serverConfig.viewEndpoint}/${viewKey}`;
-        
-        const response = await axios.get(url, {
-            timeout: SERVER_CHECK_TIMEOUT,
-            validateStatus: (status) => status === 200 || status === 404
+        const p = getDismissedPath();
+        if (fs.existsSync(p)) {
+            return JSON.parse(fs.readFileSync(p, "utf8"));
+        }
+    } catch (_) { /* corrupt — start fresh */ }
+    return [];
+}
+
+function saveDismissedBanner(bannerId) {
+    try {
+        const dismissed = getDismissedBanners();
+        if (!dismissed.includes(bannerId)) {
+            dismissed.push(bannerId);
+            fs.writeFileSync(getDismissedPath(), JSON.stringify(dismissed), "utf8");
+        }
+    } catch (_) { /* not critical */ }
+}
+
+function isBannerDismissed(bannerId) {
+    return getDismissedBanners().includes(bannerId);
+}
+
+// ---- Standard template path (used by all handler files) ----
+function getTemplatePath(viewName) {
+    const fileName = viewName.endsWith(".html") ? viewName : `${viewName}.html`;
+    return `./template/html/${fileName}`;
+}
+
+// ---- Fetch weather theme from server ----
+async function fetchWeatherTheme(serverUrl, city) {
+    if (!city) return null;
+    const { appLogger } = require("./common");
+    appLogger({ title: "Log", message: `Fetching weather theme from server: ${serverUrl}api/weather-theme?city=${encodeURIComponent(city)}`, func: "viewManager.fetchWeatherTheme", appendToLog: true });
+    try {
+        if (lastThemeChkTime && (new Date() - lastThemeChkTime) < 3600000 && lastTheme) {
+            appLogger("Weather theme fetch skipped (last checked < 1 hour ago)");
+            return lastTheme; // avoid excessive server calls // 1 call per hour is enough, since weather doesn't change that fast
+        }
+        if(!lastTheme){
+            let _lastTheme = await getThemeCookie(); // restore user theme from cookie
+            lastThemeChkTime = new Date(_lastTheme?.lastThemeChkTime ?? new Date(0));
+            if(_lastTheme && typeof _lastTheme.themeFromServer !== 'undefined' && lastThemeChkTime && (new Date() - lastThemeChkTime) < 3600000) {
+                lastTheme = _lastTheme.themeFromServer;
+                appLogger({ title: "Log", message: `ViewManager: restored last theme from cookie`, func: "viewManager.fetchWeatherTheme", allowConsole: true, appendToLog: true });
+                return lastTheme; // return last theme if available, else null
+            }
+        }
+        const resp = await axios.get(`${serverUrl}api/weather-theme?city=${encodeURIComponent(city)}`, {
+            timeout: TIMEOUT
         });
-        
-        if (response.status === 404) {
-            // View not available on server
+        appLogger({ title: "Log", message: `Weather theme response: ${JSON.stringify(resp.data)}`, func: "viewManager.fetchWeatherTheme", appendToLog: true });
+        const theme = resp.data?.theme;
+        if(resp.status === 200)
+            lastThemeChkTime = new Date();
+        if (theme && theme !== "none") {
+            console.log("ViewManager: fetched weather theme from server:", { ...lastUserThemeObj, weatherColors: getWeatherColors(theme),themeFromServer:theme });
+            lastTheme = theme;
+            lastThemeChkTime = new Date();
+            await storeUserThemeObj({ ...lastUserThemeObj, weatherColors: getWeatherColors(theme),themeFromServer:theme,lastThemeChkTime }); // persist for restoration after weather clear
+            return theme;
+        }
+    } catch (err) {
+        console.error("Weather theme fetch error:", err.code || err.message);
+        appLogger({ title: "Log", message: `ViewManager: weather fetch skipped (${err.code || err.message})`, func: "viewManager.fetchWeatherTheme" });
+    }
+    return null;
+}
+
+// ---- Fetch announcement banner from server ----
+async function fetchAnnouncement(serverUrl, deviceId, gstNumber) {
+    const { appLogger } = require("./common");
+    try {
+        appLogger({ title: "Log", message: `Fetching announcement banner from server: ${serverUrl}api/announcement`, func: "viewManager.fetchAnnouncement", appendToLog: true });
+        const resp = await axios.get(`${serverUrl}api/announcement`, {
+            timeout: TIMEOUT,
+            params: { deviceId, gstNumber }
+        });
+        const data = resp.data;
+        if (!data || !data.id || !data.message) return null;
+
+        // Check if already dismissed
+        if (data.displayOnce !== false && isBannerDismissed(data.id)) {
             return null;
         }
-        
-        // Save the view content to custom views directory
-        const customPath = path.join(CUSTOM_VIEWS_DIR, fileName);
-        fs.writeFileSync(customPath, response.data, 'utf8');
-        
-        viewCache.set(viewKey, customPath);
-        appLogger({ message: `Downloaded custom view from server: ${viewKey}` });
-        
-        return customPath;
-    } catch (error) {
-        if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-            appLogger({ message: `Server unreachable for view ${viewKey}` });
-        } else {
-            appLogger({ title: 'ViewManager Error', message: `Error fetching view from server: ${error.message}` });
+
+        // Check expiry
+        if (data.validUntil && new Date(data.validUntil) < new Date()) {
+            return null;
         }
+
+        return data;
+    } catch (err) {
+        appLogger({ title: "Log", message: `ViewManager: announcement fetch skipped (${err.code || err.message})`, func: "viewManager.fetchAnnouncement" });
+    }
+    return null;
+}
+
+// ---- Fetch custom festive theme from server ----
+// Server returns JSON: { name, css, validUntil }
+// CSS is cached locally and only re-fetched when expired.
+let cachedCustomCSS = null;
+let customThemeMeta = null;
+
+function getCustomThemePath() {
+    const { app } = require("electron");
+    const base = process.env.APP_ENV === "PROD"
+        ? app.getPath("appData")
+        : __dirname;
+    return path.resolve(base, "custom_theme.json");
+}
+
+async function fetchCustomTheme(serverUrl, deviceId, gstNumber) {
+    // Check memory cache validity
+    if (cachedCustomCSS && customThemeMeta?.validUntil) {
+        if (new Date(customThemeMeta.validUntil) > new Date()) {
+            return cachedCustomCSS;
+        }
+    }
+
+    try {
+        const resp = await axios.get(`${serverUrl}api/custom-theme`, {
+            timeout: TIMEOUT,
+            params: { deviceId, gstNumber }
+        });
+        const data = resp.data;
+        if (!data || !data.css) return null;
+
+        // Check expiry
+        if (data.validUntil && new Date(data.validUntil) < new Date()) {
+            // Expired — clear any cached CSS
+            cachedCustomCSS = null;
+            customThemeMeta = null;
+            return null;
+        }
+
+        cachedCustomCSS = data.css;
+        customThemeMeta = data;
+
+        // Persist to disk for offline / next launch
+        try {
+            fs.writeFileSync(getCustomThemePath(), JSON.stringify(data), "utf8");
+        } catch (_) {}
+
+        return data.css;
+    } catch (_) {
+        // Server unreachable — try disk cache
+        try {
+            const p = getCustomThemePath();
+            if (fs.existsSync(p)) {
+                const data = JSON.parse(fs.readFileSync(p, "utf8"));
+                if (data.validUntil && new Date(data.validUntil) > new Date()) {
+                    cachedCustomCSS = data.css;
+                    customThemeMeta = data;
+                    return data.css;
+                }
+            }
+        } catch (__) {}
         return null;
     }
 }
 
-/**
- * Get view path synchronously (uses cached or template directory only)
- * @param {string} viewName - Name of the view
- * @returns {string} - Path to the HTML file
- */
-function getViewPathSync(viewName) {
-    const fileName = viewName.endsWith('.html') ? viewName : `${viewName}.html`;
-    const viewKey = fileName.replace('.html', '');
-    
-    // Check cache
-    if (viewCache.has(viewKey)) {
-        const cachedPath = viewCache.get(viewKey);
-        if (fs.existsSync(cachedPath)) {
-            return cachedPath;
-        }
-    }
-    
-    // Check custom views
-    const customViewPath = path.join(CUSTOM_VIEWS_DIR, fileName);
-    if (fs.existsSync(customViewPath)) {
-        viewCache.set(viewKey, customViewPath);
-        return customViewPath;
-    }
-    
-    // Fallback to template
-    const templatePath = path.join(TEMPLATE_DIR, fileName);
-    if (fs.existsSync(templatePath)) {
-        viewCache.set(viewKey, templatePath);
-        return templatePath;
-    }
-    
-    throw new Error(`View "${fileName}" not found`);
+// ---- Apply custom CSS to renderer ----
+// Uses insertCSS which layers on top of existing styles (no replacement).
+function applyCustomCSS(win, css) {
+    if (!win || win.isDestroyed() || !css) return;
+    try {
+        // Remove previous custom CSS by key, then re-insert
+        win.webContents.removeInsertedCSS("custom-theme").catch(() => {});
+        win.webContents.insertCSS(css, { key: "custom-theme" }).catch(() => {});
+    } catch (_) {}
 }
 
-/**
- * List all available views
- * @returns {Object} - Object containing arrays of custom, template, and all views
- */
-function listAvailableViews() {
-    const { appLogger } = require('./common');
-    const customViews = [];
-    const templateViews = [];
-    
-    // Get custom views
-    if (fs.existsSync(CUSTOM_VIEWS_DIR)) {
-        try {
-            const files = fs.readdirSync(CUSTOM_VIEWS_DIR);
-            customViews.push(...files.filter(f => f.endsWith('.html')).map(f => f.replace('.html', '')));
-        } catch (error) {
-            appLogger({ title: 'ViewManager Error', message: `Error reading custom views directory: ${error.message}` });
-        }
-    }
-    
-    // Get template views
-    if (fs.existsSync(TEMPLATE_DIR)) {
-        try {
-            const files = fs.readdirSync(TEMPLATE_DIR);
-            templateViews.push(...files.filter(f => f.endsWith('.html')).map(f => f.replace('.html', '')));
-        } catch (error) {
-            appLogger({ title: 'ViewManager Error', message: `Error reading template directory: ${error.message}` });
-        }
-    }
-    
-    // Combine and deduplicate
-    const allViews = [...new Set([...customViews, ...templateViews])];
-    
-    return {
-        custom: customViews,
-        template: templateViews,
-        all: allViews
+// ---- Clear custom CSS from renderer ----
+function clearCustomCSS(win) {
+    if (!win || win.isDestroyed()) return;
+    try {
+        win.webContents.removeInsertedCSS("custom-theme").catch(() => {});
+    } catch (_) {}
+}
+
+// ---- Theme class name builder ----
+function buildThemeClass(theme) {
+    if (!theme) return null;
+
+    // Night time modifier (6 PM – 6 AM)
+    const hour = new Date().getHours();
+    const isNight = hour >= 18 || hour < 6;
+
+    // Dark mode modifier (system preference)
+    const { nativeTheme } = require("electron");
+    const isDark = nativeTheme.shouldUseDarkColors;
+
+    // Compose: theme-{weather}[-night][-dark]
+    let cls = `theme-${theme}`;
+    if (isNight) cls += " night-mode";
+    if (isDark) cls += " dark-mode";
+    return cls;
+}
+
+// ---- Apply theme class to renderer body ----
+async function applyTheme(win, theme) {
+    if (!win || win.isDestroyed()) return;
+    const classList = buildThemeClass(theme);
+    if (!classList) return;
+
+    const allThemes = [
+        'theme-summer', 'theme-monsoon', 'theme-winter',
+        'theme-cloudy', 'theme-haze', 'theme-thunderstorm',
+        'theme-festive', 'theme-night',
+        'weather-theme-active', 'night-mode', 'dark-mode'
+    ];
+
+    // Match the CSS variables from themes.css for direct property override.
+    // These must run AFTER common.js/applyTheme, so via booted event.
+    const weatherColors = typeof lastUserThemeObj.weatherColors !== 'undefined' ? lastUserThemeObj.weatherColors : getWeatherColors(theme);
+    try {
+        win.webContents.executeJavaScript(`
+            (function() {
+                try {
+                    const body = document.body;
+                    if (!body) return;
+                    body.classList.remove(...${JSON.stringify(allThemes)});
+                    body.classList.add(...${JSON.stringify(classList.split(' '))}, 'weather-theme-active');
+                    body.dataset.useWeatherTheme = 'true';
+                    delete body.dataset.weatherReset;
+
+                    // Directly set --theme-* so common.js/applyTheme doesn't wipe them
+                    var root = document.documentElement;
+                    ${Object.entries(weatherColors).map(([k, v]) =>
+                        `root.style.setProperty('${k}', '${v}');`
+                    ).join("\n                    ")}
+                } catch(e) {}
+            })();
+        `).catch(() => {});
+    } catch (_) {}
+}
+
+// ---- Weather → CSS property mapping for direct style override ----
+function getWeatherColors(theme) {
+    const colors = {
+        summer:        { '--theme-primary': '#d4700a', '--theme-primary-lighter': '#e8842c', '--theme-shadow-color': '#b8a090' },
+        monsoon:       { '--theme-primary': '#2c5f8a', '--theme-primary-lighter': '#4a7da8', '--theme-shadow-color': '#8a9aaa' },
+        winter:        { '--theme-primary': '#6b8fad', '--theme-primary-lighter': '#8aacc7', '--theme-shadow-color': '#a0b8cc' },
+        cloudy:        { '--theme-primary': '#6b7b8a', '--theme-primary-lighter': '#8a9aaa', '--theme-shadow-color': '#98a8b4' },
+        haze:          { '--theme-primary': '#9b8c7a', '--theme-primary-lighter': '#b8a898', '--theme-shadow-color': '#c0b4a4' },
+        thunderstorm:  { '--theme-primary': '#4a3f6b', '--theme-primary-lighter': '#6b5f8a', '--theme-shadow-color': '#7b7a90' },
+        festive:       { '--theme-primary': '#cc5500', '--theme-primary-lighter': '#e87820', '--theme-shadow-color': '#d4a050' },
+        night:         { '--theme-primary': '#1a1a3e', '--theme-primary-lighter': '#2d3561', '--theme-shadow-color': '#3a3f6b' }
     };
+    return colors[theme] || {};
 }
 
-/**
- * Clear the view cache
- * @param {string} viewName - Optional specific view to clear, or clears all if omitted
- */
-function clearCache(viewName = null) {
-    const { appLogger } = require('./common');
-    if (viewName) {
-        const viewKey = viewName.replace('.html', '');
-        viewCache.delete(viewKey);
-        appLogger({ message: `Cleared cache for view: ${viewKey}` });
+// ---- Apply announcement banner to renderer ----
+function applyBanner(win, banner) {
+    if (!win || win.isDestroyed()) return;
+    try {
+        const bannerJSON = JSON.stringify({
+            id: banner.id,
+            message: banner.message,
+            bgColor: banner.bgColor || "#ff6b35",
+            textColor: banner.textColor || "#ffffff",
+            ctaText: banner.ctaText || "",
+            ctaUrl: banner.ctaUrl || ""
+        });
+
+        win.webContents.executeJavaScript(`
+            (function() {
+                try {
+                    var data = ${bannerJSON};
+                    var el = document.getElementById('app-banner');
+                    if (!el) return;
+
+                    el.innerHTML = '';
+                    el.style.backgroundColor = data.bgColor;
+                    el.style.color = data.textColor;
+
+                    var msg = document.createElement('span');
+                    msg.textContent = data.message;
+                    el.appendChild(msg);
+
+                    if (data.ctaText) {
+                        var cta = document.createElement('span');
+                        cta.className = 'banner-cta';
+                        cta.textContent = data.ctaText;
+                        cta.addEventListener('click', function() {
+                            require('electron').shell.openExternal(data.ctaUrl);
+                        });
+                        el.appendChild(cta);
+                    }
+
+                    var dismiss = document.createElement('span');
+                    dismiss.className = 'banner-dismiss';
+                    dismiss.title = 'Dismiss';
+                    dismiss.textContent = '\\u00d7';
+                    dismiss.addEventListener('click', function() {
+                        el.classList.remove('visible');
+                        require('electron').ipcRenderer.send('dismiss-banner', data.id);
+                    });
+                    el.appendChild(dismiss);
+
+                    el.classList.add('visible');
+                } catch(e) {}
+            })();
+        `).catch(() => {});
+    } catch (_) {}
+}
+
+function createThemeCookie(themeObj) {
+    const { session } = require("electron");
+    const sesCookies = session.defaultSession.cookies;
+    sesCookies.set({
+        url: "http://localhost",
+        name: "userThemeObj",
+        value: JSON.stringify(themeObj),
+        expirationDate: Math.floor(Date.now() / 1000) + 31536000 // 1 year
+    }).catch(() => {});
+}
+
+function getThemeCookie() {
+    const { session } = require("electron");
+    const sesCookies = session.defaultSession.cookies;
+    return sesCookies.get({ url: "http://localhost", name: "userThemeObj" })
+        .then(cookies => {
+            if (cookies.length > 0) {
+                try {
+                    return JSON.parse(cookies[0].value);
+                } catch (_) {
+                    return null;
+                }
+            }
+            return null;
+        })
+        .catch(() => null);
+}
+
+function clearThemeCookie() {
+    const { session } = require("electron");
+    const sesCookies = session.defaultSession.cookies;
+    sesCookies.remove("http://localhost", "userThemeObj").catch(() => {});
+}
+
+// ---- Store user theme for restoration after weather clear ----
+// Merges with existing cookie so concurrent writes (initTheme vs weather fetch)
+// don't wipe each other's fields (e.g. weatherColors / themeFromServer).
+async function storeUserThemeObj(themeObj) {
+    const existing = await getThemeCookie();
+    const merged = { ...existing, ...themeObj };
+    createThemeCookie(merged);
+    lastUserThemeObj = merged;
+}
+
+// ---- Clear all weather theme effects and restore user theme ----
+// Set permanent=true when disabling the feature entirely (hides toggle)
+function clearWeatherTheme(win, permanent = false) {
+    const { appLogger } = require("./common");
+    if (!win || win.isDestroyed()) return;
+
+    const allThemes = [
+        'theme-summer', 'theme-monsoon', 'theme-winter',
+        'theme-cloudy', 'theme-haze', 'theme-thunderstorm',
+        'theme-festive', 'theme-night',
+        'weather-theme-active', 'night-mode', 'dark-mode'
+    ];
+
+    const weatherProps = [
+        '--theme-primary', '--theme-primary-lighter', '--theme-shadow-color',
+        '--weather-logo-solid', '--weather-logo-bg', '--weather-bg-tint'
+    ];
+
+    const dataOp = permanent
+        ? "delete body.dataset.useWeatherTheme; delete body.dataset.weatherReset;"
+        : "body.dataset.weatherReset = 'true';"; // keep toggle visible, show inactive
+
+    try {
+        win.webContents.executeJavaScript(`
+            (function() {
+                try {
+                    var body = document.body;
+                    if (body) {
+                        body.classList.remove(...${JSON.stringify(allThemes)});
+                        ${dataOp}
+                    }
+                    var root = document.documentElement;
+                    ${weatherProps.map(p => `root.style.removeProperty('${p}');`).join("\n                    ")}
+                } catch(e) {}
+            })();
+        `).catch(() => {});
+
+        // Re-apply user's saved theme via IPC
+        if (lastUserThemeObj) {
+            win.webContents.send("apply-theme", lastUserThemeObj);
+        }
+        // Clear injected custom CSS if permanently disabling
+        if (permanent) clearCustomCSS(win);
+    } catch (_) {}
+
+    lastTheme = null;
+    lastBanner = null;
+    // Preserve user theme in cookie — only remove weather-specific fields
+    if (lastUserThemeObj) {
+        const { themeFromServer, weatherColors, ...userTheme } = lastUserThemeObj;
+        lastUserThemeObj = Object.keys(userTheme).length > 0 ? userTheme : null;
+        createThemeCookie(lastUserThemeObj || {});
     } else {
-        viewCache.clear();
-        appLogger({ message: 'Cleared all view cache' });
+        clearThemeCookie();
     }
+    appLogger({ title: "Log", message: "ViewManager: weather theme cleared, user theme restored", func: "viewManager.clearWeatherTheme" });
 }
 
-/**
- * Refresh a specific view from server
- * @param {string} viewName - Name of the view to refresh
- * @returns {Promise<string>} - Path to refreshed view
- */
-async function refreshView(viewName) {
-    clearCache(viewName);
-    return await getViewPath(viewName, { forceServer: true });
-}
+// ---- Main entry point — called after mainPage loads ----
+async function initializeThemeAndBanners(win) {
+    if (!win || win.isDestroyed()) return;
 
-/**
- * Delete a custom view
- * @param {string} viewName - Name of the view to delete
- */
-function deleteCustomView(viewName) {
-    const { appLogger } = require('./common');
-    const fileName = viewName.endsWith('.html') ? viewName : `${viewName}.html`;
-    const customPath = path.join(CUSTOM_VIEWS_DIR, fileName);
-    
-    if (fs.existsSync(customPath)) {
-        fs.unlinkSync(customPath);
-        clearCache(viewName);
-        appLogger({ message: `Deleted custom view: ${viewName}` });
-        return true;
+    // Gate: user must explicitly enable weather themes
+    if (!process.presets?.useWeatherTheme) {
+        clearWeatherTheme(win, true); // permanent — hide toggle entirely
+        clearWeatherInterval();
+        return;
     }
-    
-    return false;
+
+    const serverUrl = process.env.APP_ENV === "DEV" ? "http://192.168.0.110:3030/" : process.env.UPDATE_REST;//
+    if (!serverUrl) return;
+    const { appLogger } = require("./common");
+
+    // Store the promise so reapplyTheme can await it (fixes race with booted event)
+    inflightFetch = (async () => {
+        const city = process.presets?.placeOfJurisdiction;
+        const deviceId = global.deviceUUID;
+        const gst = process.presets?.gst;
+        const [theme, banner, customCSS] = await Promise.all([
+            fetchWeatherTheme(serverUrl, city),
+            fetchAnnouncement(serverUrl, deviceId, gst),
+            fetchCustomTheme(serverUrl, deviceId, gst)
+        ]);
+        return { theme, banner, customCSS };
+    })();
+
+    const { theme, banner, customCSS } = await inflightFetch;
+
+    if (theme) {
+        lastTheme = theme;
+        await applyTheme(win, theme);
+        appLogger({ title: "Log", message: `ViewManager: applied weather theme "${theme}"`, func: "viewManager.initializeThemeAndBanners" });
+    }
+
+    if (banner) {
+        lastBanner = banner;
+        applyBanner(win, banner);
+        appLogger({ title: "Log", message: `ViewManager: applied banner "${banner.id}"`, func: "viewManager.initializeThemeAndBanners" });
+    }
+
+    // Custom festive theme — layers on top, independent of weather
+    if (customCSS) {
+        applyCustomCSS(win, customCSS);
+        appLogger({ title: "Log", message: `ViewManager: applied custom theme "${customThemeMeta?.name || 'unnamed'}"`, func: "viewManager.initializeThemeAndBanners" });
+    } else {
+        clearCustomCSS(win);
+    }
+
+    // Start or restart hourly weather refresh
+    startWeatherInterval(win);
 }
 
-/**
- * Get the standard template path (for backward compatibility)
- * @param {string} viewName - Name of the view
- * @returns {string} - Relative path to template
- */
-function getTemplatePath(viewName) {
-    const fileName = viewName.endsWith('.html') ? viewName : `${viewName}.html`;
-    return `./template/html/${fileName}`;
+// ---- Hourly weather refresh ----
+function startWeatherInterval(win) {
+    clearWeatherInterval();
+    if (!process.presets?.useWeatherTheme) return;
+    const { appLogger } = require("./common");
+    weatherInterval = setInterval(async () => {
+        const serverUrl = process.env.APP_ENV === "DEV" ? "http://192.168.0.110:3030/" : process.env.UPDATE_REST;
+        if (!serverUrl) return;
+        const city = process.presets?.placeOfJurisdiction;
+        const theme = await fetchWeatherTheme(serverUrl, city);
+        if (theme && theme !== lastTheme) {
+            const { BrowserWindow } = require("electron");
+            const wins = BrowserWindow.getAllWindows();
+            await Promise.all(wins.map(w => {
+                if (!w.isDestroyed()) return applyTheme(w, theme);
+            }));
+            appLogger({ title: "Log", message: `ViewManager: hourly refresh — applied weather theme "${theme}"`, func: "viewManager.startWeatherInterval" });
+        }
+    }, 3600000); // 1 hour
+}
+
+function clearWeatherInterval() {
+    if (weatherInterval) { clearInterval(weatherInterval); weatherInterval = null; }
+}
+
+// ---- Reapply cached theme to a window (for lock screen etc.) ----
+async function reapplyTheme(win) {
+    if (!win || win.isDestroyed()) return;
+    if (!process.presets?.useWeatherTheme) return;
+
+    // Wait for any inflight fetch to complete (handles race with booted event)
+    if (inflightFetch) {
+        try { await inflightFetch; } catch (_) { /* fetch failed — nothing to apply */ }
+    }
+    if (!lastTheme) return;
+
+    await applyTheme(win, lastTheme);
+}
+
+// ---- IPC handlers ----
+function registerIPC(ipcMain) {
+    ipcMain.on("dismiss-banner", (e, bannerId) => {
+        saveDismissedBanner(bannerId);
+        const { appLogger } = require("./common");
+        appLogger({ title: "Log", message: `ViewManager: banner dismissed: ${bannerId}`, func: "viewManager.registerIPC" });
+    });
+
+    // Called when user toggles useWeatherTheme in settings
+    ipcMain.on("refresh-weather-theme", async () => {
+        const { BrowserWindow } = require("electron");
+        const win = BrowserWindow.getFocusedWindow();
+        if (!win) return;
+        lastTheme = null;
+        lastBanner = null;
+        inflightFetch = null;
+        await initializeThemeAndBanners(win);
+    });
+
+    // Called to manually reset to default theme (small toggle)
+    ipcMain.on("reset-weather-theme", () => {
+        const { BrowserWindow } = require("electron");
+        const win = BrowserWindow.getFocusedWindow();
+        if (win) clearWeatherTheme(win);
+    });
 }
 
 module.exports = {
-    initialize,
-    getViewPath,
-    getViewPathSync,
     getTemplatePath,
-    listAvailableViews,
-    clearCache,
-    refreshView,
-    deleteCustomView,
-    TEMPLATE_DIR,
-    CUSTOM_VIEWS_DIR
+    initializeThemeAndBanners,
+    reapplyTheme,
+    clearWeatherTheme,
+    storeUserThemeObj,
+    getThemeCookie,
+    clearThemeCookie,
+    buildThemeClass,
+    getWeatherColors,
+    clearWeatherInterval,
+    get lastTheme() { return lastTheme; }, // exposed for IPC state handler
+    registerIPC
 };

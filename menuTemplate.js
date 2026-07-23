@@ -11,6 +11,8 @@ const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
 const { versionManager } = require("./versionManager");
 const { billDesignerWindow } = require("./common");
+const { logViewer } = require("./logHandler");
+const { openCatalogueCreator } = require("./catalogueHandler");
 
 function appStateComplianceEnforcement(funcName,...params){
     if(!global.user) return;
@@ -41,17 +43,10 @@ module.exports = mainWindow=>{
                     },
                     accelerator: "CommandOrControl+Shift+U"
                 },
-                // {
-                //     label: "Help",
-                //     submenu: [
-                //         {
-                //             label: "BBS Manual"
-                //         },
-                //         {
-                //             label: "Open BBS Official Website"
-                //         }
-                //     ]
-                // },
+                {
+                    label: "Help",
+                    click: ()=>ipcMain.emit("open-help")
+                },
                 { type: "separator" },
                 {
                     label: "Lock",
@@ -87,12 +82,11 @@ module.exports = mainWindow=>{
                 },
                 {type:"separator"},
                 {
-                    label: "New order",
-                    click:()=>appStateComplianceEnforcement(orderRegister()),
-                    accelerator:"CommandOrControl+Shift+Return"
+                    label: "Start Kiosk Mode",
+                    click: ()=>ipcMain.emit("open-kiosk")
                 },
                 {
-                    label: "View & Update order",
+                    label: "View Orders",
                     click:()=>appStateComplianceEnforcement(orderManager(mainWindow)),
                     accelerator:"Shift+F5"
                 },
@@ -139,6 +133,11 @@ module.exports = mainWindow=>{
                     label:"Show Sales",
                     // accelerator:"T+S",
                     click: ()=>appStateComplianceEnforcement(showSales(mainWindow),"block-non-sp-key")
+                },
+                {type:"separator"},
+                {
+                    label: "Catalogue Creator",
+                    click: ()=>appStateComplianceEnforcement(openCatalogueCreator(mainWindow))
                 }
             ]
         },
@@ -153,6 +152,10 @@ module.exports = mainWindow=>{
                     label: "Business Statistics",
                     click: ()=>appStateComplianceEnforcement(createBusinessStatPage(mainWindow)),
                     accelerator:"F7"
+                },
+                {
+                    label: "View Logs",
+                    click: ()=>appStateComplianceEnforcement(logViewer(mainWindow))
                 },
                 // {
                 //     label: "GST Return JSON"

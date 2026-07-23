@@ -25,4 +25,11 @@ Backup/
 schemaManager.js
 views/
 *.md
+!HELP.md
+!update.md
 download-state.json
+.claude/
+# Test artifacts
+coverage/
+test-results/
+playwright-report/

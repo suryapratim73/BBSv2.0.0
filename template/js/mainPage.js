@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper, startUpdateTour,appendToDL,getNGramIndex } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -20,6 +20,13 @@ let themeObj = {
 let currentMode = "overview",reducedBills = [],reducedPurchases = [];
 let mode = 1,loggedinUser,compInfo,hiddenSection,caroselTimer,tags;
 let selectedRow;
+let nameDatalist = document.createElement("datalist"),
+    customerNameDatalist = document.createElement("datalist"),
+    transporterDatalist = document.createElement("datalist");
+
+nameDatalist.id = "stock-names";
+customerNameDatalist.id = "customer-names";
+transporterDatalist.id = "transport-dl";
 
 toggleDevTool(document);
 
@@ -39,20 +46,66 @@ async function initPage(){
             option.dataset.name = user.name;
             userListDL.appendChild(option);
         });
+        // Initiating Fuzzy map
+        removeAllElem("#stock-names, #customer-names, #unit-dl, #transport-dl, #available-bill-no-div, #ship-info-dl");// This should prevent duplicate datalists on re-init
+        await appendToDL.call({tableName:"stock"},"get-stocks", nameDatalist);
+        await appendToDL.call({tableName:"stock"},"get-services", nameDatalist);
+        await appendToDL.call({tableName:"customer"},"get-customers", customerNameDatalist);
+        await appendToDL.call({tableName:"transporter"},"get-transporter", transporterDatalist);
+        ipcRenderer.send("init-ngram-index",getNGramIndex());
     }
     catch(err){
         alert(err)
     }
     let themeObj = await ipcRenderer.invoke("init-theme");
-    applyTheme.call(document,null,themeObj); 
-    spinner.remove(window); 
+    applyTheme.call(document,null,themeObj);
+    spinner.remove(window);
+    // Check kiosk status on startup
+    ipcRenderer.invoke("get-kiosk-status").then(updateKioskButton);
+    ipcRenderer.on("kiosk-status-update", function(e, status) { updateKioskButton(status); });
+    startUpdateTour();
     ipcRenderer.send("booted")
 }
 initPage();
 
+function updateKioskButton(status) {
+    var btn = document.getElementById("kiosk-status-btn");
+    if (!btn) return;
+    // Hide button when kiosk is disabled (v2.22 — frontend incomplete)
+    if (status && status.disabled) { btn.classList.add("hide"); return; }
+    btn.classList.remove("hide");
+    if (status && status.running) {
+        btn.textContent = "Kiosk: On :" + (status.port || "");
+        btn.dataset.status = "online";
+    } else {
+        btn.textContent = "Kiosk: Off";
+        btn.dataset.status = "offline";
+    }
+}
+
 async function modeSwitcher(e){
     if(e.target.nodeName!=="P") return;
-    currentMode = e.target.dataset.cmd;
+    let cmd = e.target.dataset.cmd;
+
+    // Weather theme toggle
+    if(cmd === "reset-weather"){
+        if(document.body.classList.contains("weather-theme-active")){
+            ipcRenderer.send("reset-weather-theme"); // turn off
+        } else {
+            ipcRenderer.send("refresh-weather-theme"); // turn on
+        }
+        return;
+    }
+
+    // Kiosk server toggle
+    if(cmd === "kiosk-status"){
+        ipcRenderer.invoke("toggle-kiosk-server").then(function(status) {
+            updateKioskButton(status);
+        });
+        return;
+    }
+
+    currentMode = cmd;
     if(currentMode){
         let spinner = drawSpinner(document);
         [...document.querySelectorAll("#nav-div p")]
@@ -663,6 +716,9 @@ async function showForm(e,cmd,show,prevData={}){
                     else
                     if(feild.nodeName==="INPUT" && key==="useDarkTheme" && appPolicy.useDarkTheme)
                         feild.setAttribute("checked",true)
+                    else
+                    if(feild.nodeName==="INPUT" && key==="useWeatherTheme" && appPolicy.useWeatherTheme)
+                        feild.setAttribute("checked",true)
                 });
             }
             else
@@ -711,6 +767,15 @@ async function showForm(e,cmd,show,prevData={}){
                         document.getElementById(key+"-textarea").value = policy[key];
                 });
             }
+            else
+            if(cmd==="general"){
+                let settings = await ipcRenderer.invoke("get-general-app-settings");
+                ({ useFuzzySearch,pin="",port="" } = settings);
+                if(useFuzzySearch)
+                    form.useFuzzySearch.setAttribute("checked",useFuzzySearch);
+                form.pin.value = pin;
+                form.port.value = port;
+            }
         }
     }
     else
@@ -744,6 +809,7 @@ function showOrHideDiv(e){
 async function saveSettings(e){
     e.preventDefault();
     let data = Object.fromEntries(new FormData(e.target).entries());
+    let form = e.target;
     let {dataset:{cmd,show}} = e.target;
     if(cmd==="update-user"){
         if(data.password!==data["re-password"]){
@@ -831,6 +897,7 @@ async function saveSettings(e){
     if(cmd==="appearance-management"){
         data.applyTheme = data.applyTheme === "true" ? true : false;
         data.useDarkTheme = e.target.querySelector(`input[type="checkbox"]`).checked;
+        data.useWeatherTheme = e.target.querySelector(`input[name="useWeatherTheme"]`).checked;
         ipcRenderer.send("save-theme-setting",data);
     }
     else
@@ -877,6 +944,15 @@ async function saveSettings(e){
     else
     if(cmd==="company-setting")
         ipcRenderer.send("save-policy",data);
+    else
+    if(cmd==="general"){
+        let useFuzzySearch = form.useFuzzySearch.checked;
+        ({ pin=1234, port=3030 } = data);
+        pin = Number(pin);
+        port = Number(port)
+        ipcRenderer.send("general-app-settings",{useFuzzySearch},{pin,port});
+        showToastNotification("General App Settings saved.",["animation-common","move-left","blue-toast-box"],"main");
+    }
     showForm(null,"back",show);
 }
 

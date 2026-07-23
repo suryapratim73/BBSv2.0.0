@@ -129,22 +129,45 @@ input,select{
     justify-content: space-between;
     height: 100%;
     gap: 1.5rem;
+    position: relative;
 }
 #page-3>#table{
     height: auto;
     min-height: 50%;
-    max-height: 100%;
+    max-height: 90%;
     position: relative;
 }
 #summary-div p{
     margin: 0 0.5rem;
 }
 #page3-summary-div{
-    margin: unset;
-    margin-bottom: 0.5rem;
     padding: 0.5rem;
     border-radius: 15px;
-    height: 20%;
+    height: 60%;
+    position: absolute;
+    bottom: 0%;
+    width: 90%;
+    left: 5%;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+}
+#page3-summary-div>div{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+#page3-summary-div>div:first-child{
+    border-bottom: 1px solid black;
+    padding-bottom: 0.5rem;
+    flex: 10;
+}
+#page3-summary-div>div:last-child{
+    border-top: 1px solid black;
+    padding-top: 0.5rem;
+    display: flex;
+    justify-content: right;
 }
 #product-summary{
     flex: 2;
@@ -155,20 +178,70 @@ input,select{
     border-right: 1px dashed black;
     margin-right: 0.5rem;
 }
+#bill-summary{
+    flex: 1;
+    display: flex;
+    justify-content: start;
+    height: 100%;
+    flex-direction: column;
+    gap: 1rem;
+}
 .summary-col{
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
     margin-right: 0.5rem;
+    justify-content: start;
+    gap: 0.5rem;
+    width: 50%;
+    height: 80%;
+}
+#graph-container{
+    width: 100%;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+#graph-container canvas{
+    display: block;
+}
+#graph-container .no-data{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+    color: #ccc;
+    font-size: 2.5rem;
 }
 .summary-col>div,#bill-summary>div{
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.summary-col>div:last-child{
+    flex: 2;
+    justify-content: flex-end;
+}
+.summary-col>div>div{
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+#bill-summary>div{
+    flex-direction: row;
 }
 .summary-col:first-child .red{
     padding-right: 0.5rem;
+}
+.summary-col .blue{
+    /* width: 50%; */
+    text-align: right;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 #tbody{
     border: unset;
@@ -293,6 +366,7 @@ option{
     width: 100%;
     background: var(--theme-primary);
     padding: 1rem 0.5rem;
+    z-index: 5;
 }
 .desc-div input{
     border-radius: 5px;
@@ -352,4 +426,65 @@ option{
 #add-item button.hover.bottom.right::before{
     margin-right: -100px;
     transform: translateX(10px);
+}
+
+/* ---- Scrap Sale Page 3 ---- */
+#page-3-scrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+}
+#page-3-scrap > div {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 0 5px 0 #ccc;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: var(--theme-secondary, #fff);
+}
+#page-3-scrap > div > div:first-child {
+    flex: 1;
+}
+#page-3-scrap > div > div:last-child {
+    flex: 2;
+}
+#page-3-scrap input {
+    width: 100%;
+    font-size: 1.1rem;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: #000;
+}
+#scrap-summary-div {
+    box-shadow: 0 0 5px 0 #ccc;
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--theme-secondary, #fff);
+    flex-direction: column;
+    gap: 0;
+}
+#scrap-summary-div h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: var(--theme-primary, rebeccapurple);
+}
+#scrap-summary-div > div {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed #ddd;
+}
+#scrap-summary-div > div:last-child {
+    border-bottom: none;
+}
+.scrap-total {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--theme-primary, rebeccapurple);
+    border-top: 2px solid var(--theme-primary, rebeccapurple) !important;
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
 }

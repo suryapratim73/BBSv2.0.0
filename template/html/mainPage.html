@@ -7,27 +7,31 @@
     <script src="../js/mainPage.js" defer></script>
     <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
     <link rel="stylesheet" href="../css/mainPage.css">
+    <link rel="stylesheet" href="../css/themes.css">
 </head>
 <body>
-    <div id="nav-div" onclick="modeSwitcher(event)" role="navigation" aria-label="Main navigation">
-        <div>
-            <h1>BBS</h1>
+    <div id="app-banner" data-ui="app-banner"></div>
+    <div id="nav-div" data-ui="nav-sidebar" onclick="modeSwitcher(event)" role="navigation" aria-label="Main navigation">
+        <div data-ui="logo-container">
+            <h1 data-ui="app-logo">BBS</h1>
         </div>
-        <div role="menu">
-            <p data-cmd="overview" role="menuitem">Overview</p>
-            <p data-cmd="sale" role="menuitem">Sale</p>
-            <p data-cmd="purchase" role="menuitem">Purchase</p>
+        <div role="menu" data-ui="nav-menu-primary">
+            <p data-cmd="overview" data-ui="nav-overview" role="menuitem">Overview</p>
+            <p data-cmd="sale" data-ui="nav-sale" role="menuitem">Sale</p>
+            <p data-cmd="purchase" data-ui="nav-purchase" role="menuitem">Purchase</p>
         </div>
-        <div role="menu">
-            <p data-cmd="settings">Settings</p>
+        <div role="menu" data-ui="nav-menu-secondary">
+            <p data-cmd="settings" data-ui="nav-settings">Settings</p>
             <!-- <p data-cmd="help">Help</p> -->
-            <p data-cmd="logout">Logout</p>
-            <p data-cmd="lock">Lock</p>
+            <p data-cmd="logout" data-ui="nav-logout">Logout</p>
+            <p data-cmd="lock" data-ui="nav-lock">Lock</p>
+            <p id="reset-weather-btn" data-cmd="reset-weather" data-msg="Revert to default theme" class="hover top">Weather Theme</p>
+            <p id="kiosk-status-btn" data-cmd="kiosk-status" data-msg="Kiosk server status" class="hover top">Kiosk: Off</p>
         </div>
     </div>
-    <div id="main-div" role="main">
+    <div id="main-div" data-ui="main-content" role="main">
         <div>
-            <h1 id="gretings-header"></h1>
+            <h1 id="gretings-header" data-ui="greeting-header"></h1>
             <div>
                 <div>
                     <h2>Overview</h2>
@@ -39,7 +43,7 @@
                             <div>
                                 <div class="drop-down hide" id="sale-dropdown" role="menu">
                                     <div>
-                                        <a href="#" onclick="ipcRenderer.send('new-sale-purchase',3)">Create new order</a>
+                                        <a href="#" onclick="ipcRenderer.send('new-sale-purchase',3)">Start Kiosk Server</a>
                                     </div>
                                     <div>
                                         <a href="#" onclick="ipcRenderer.send('new-sale-purchase',4)">Update order</a>
@@ -59,12 +63,12 @@
             </div>
         </div>
         <div id="right-div">
-            <div id="knob" onclick="expandOrCollapsePanel()" aria-label="Toggle notification panel"></div>
-            <div id="panel" class="collapse-panel" data-collapsed="true" role="region" aria-label="Notifications panel">
+            <div id="knob" data-ui="notification-knob" onclick="expandOrCollapsePanel()" aria-label="Toggle notification panel"></div>
+            <div id="panel" data-ui="notification-panel" class="collapse-panel" data-collapsed="true" role="region" aria-label="Notifications panel">
                 <div>
                     <h2>Notifications</h2>
                 </div>
-                <div id="notification-div" class="hide-scrollbar" onclick="notificationAction(event)"></div>
+                <div id="notification-div" data-ui="notification-list" class="hide-scrollbar" onclick="notificationAction(event)"></div>
                 <div class="btn-div">
                     <button data-cmd="clear" data-msg="Clear all notifications" class="hover left" tabindex="0">Clear</button>
                 </div>
@@ -116,7 +120,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="scheduler-div" onclick="openScheduleManager(event)" onmouseenter="clearInterval(caroselTimer)" onmouseleave="carosel([...document.querySelectorAll('.event-page')],0)">
+                <div id="scheduler-div" data-ui="scheduler" onclick="openScheduleManager(event)" onmouseenter="clearInterval(caroselTimer)" onmouseleave="carosel([...document.querySelectorAll('.event-page')],0)">
                     <div class="event-page first-page">
                         <div class="event-div">
                             <div id="dt-div">
@@ -251,6 +255,7 @@
                     <div class="settings" data-mode="app-settings" id="app-settings">
                         <h2>App Settings</h2>
                         <div class="settings-div">
+                            <p class="bill purchase" data-cmd="general" data-show="app-settings" data-msg="Define settings like default app values, ">General App Setting</p>
                             <p data-cmd="set-2-factor-auth" data-show="app-settings" data-msg="Unlock using password and any authenticator app.">Set 2 factor authentication</p>
                             <!-- <p class="bill purchase hide" data-show="app-settings" data-cmd="enable-disable-sms-notification" data-msg="SMS notification helps you to notify customer about their due payment but will cost you some money per month based on your usage.">SMS Notification</p> -->
                             <p class="bill purchase" data-show="app-settings" data-cmd="lock-screen" data-msg="Change lock screen background.">Lock screen</p>
@@ -260,7 +265,6 @@
                             <p data-cmd="appearance-management" data-show="app-settings" data-msg="Configure app appearance and theming of BBS..">Appearance management</p>
                             <!-- <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p> -->
                             <p class="bill purchase" data-cmd="backup-manager" data-show="app-settings" data-msg="Local or cloud based backup settings.">Backup manager</p>
-                            <!-- <p class="bill purchase" data-cmd="general" data-show="app-settings" data-msg="Define settings like Financial year wise data">General App Setting</p> -->
                             <!-- <p class="bill purchase" data-cmd="registration" data-show="app-settings" data-msg="App registration.">App registration</p> -->
                         </div>
                     </div>
@@ -443,6 +447,12 @@
                 </div>
             </div>
             <div>
+                <div>
+                    <label for="useWeatherTheme">Use weather theme</label>
+                    <input type="checkbox" name="useWeatherTheme" id="useWeatherTheme" tabindex="0">
+                </div>
+            </div>
+            <div>
                 <button class="main-ui-btn hover bottom" type="button" data-show="app-settings" data-cmd="advance-theming" data-msg="Open advanced theme customization" tabindex="0">Advance theming options</button>
             </div>
             <div>
@@ -466,12 +476,6 @@
                     </div>
                     <div>
                         <div>
-                            <label for="secondary">Secondary color</label>
-                            <input type="color" name="secondary" id="secondary" tabindex="0">
-                        </div>
-                    </div>
-                    <div>
-                        <div>
                             <label for="font">Font color</label>
                             <input type="color" name="text" id="font" tabindex="0">
                         </div>
@@ -489,12 +493,6 @@
                         <div>
                             <label for="dark-primary">Primary color</label>
                             <input type="color" name="darkPrimary" id="dark-primary" tabindex="0">
-                        </div>
-                    </div>
-                    <div>
-                        <div>
-                            <label for="dark-secondary">Secondary color</label>
-                            <input type="color" name="darkSecondary" id="dark-secondary" tabindex="0">
                         </div>
                     </div>
                     <div>
@@ -620,6 +618,34 @@
             </div>
             <div>
                 <button class="main-ui-btn hover bottom" type="submit" data-msg="Create backup of selected items" tabindex="0">Create backup</button>
+                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
+            </div>
+        </form>
+    </template>
+    <template id="general-template">
+        <form onsubmit="saveSettings(event)" id="general" data-cmd="general" data-show="app-settings">
+            <h3>General App Settings</h3>
+            <div>
+                <div>
+                    <label for="useFuzzySearch">Use Fuzzy Search</label>
+                    <input type="checkbox" class="item" name="useFuzzySearch" id="fuzzy" tabindex="0">
+                </div>
+            </div>
+            <h3>Kiosk Settings</h3>
+            <div>
+                <div><label for="pin">Set Kiosk Pin</label></div>
+                <div>
+                    <input type="text" name="pin" id="pin" title="4 digit number - default value is 1234" pattern="\d{4}" onkeypress="validateInput2(event)">
+                </div>
+            </div>
+            <div>
+                <div><label for="port">Set Kiosk Port</label></div>
+                <div>
+                    <input type="text" name="port" id="port" placeholder="3030" title="4-5 digit port number - default value is 3030" pattern="\d{4,5}" onkeypress="validateInput2(event)">
+                </div>
+            </div>
+            <div>
+                <button class="main-ui-btn hover bottom" type="submit" data-msg="Submit General App Settings" tabindex="0">Save</button>
                 <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
             </div>
         </form>

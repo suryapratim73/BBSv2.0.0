@@ -259,7 +259,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                     message: "Bill added to your purchase and stocks and/or ledger updated."
                 };
                 closeAndDisplay(msg);
-                appLogger("sale",JSON.stringify({name,billNo,amount}));
+                appLogger({title:"purchase", message:JSON.stringify({suppObj,billMeta,itemList,payObj}), func:"purchase-data"});
                 if(paymentStatus===false){
                     let evObj = {
                         label:`Purchase Bill Number ${billNo} expired`,

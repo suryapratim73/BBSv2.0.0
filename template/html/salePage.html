@@ -9,19 +9,19 @@
     <script src="../js/salePage.js" defer></script>
 </head>
 <body>
-    <h1 id="page-header"></h1>
-    <form onsubmit="proceedOrFinishHandler(event)" role="main">
-        <main onchange="selectionHandler(event)"></main>
+    <h1 id="page-header" data-ui="page-header"></h1>
+    <form data-ui="sale-form" onsubmit="proceedOrFinishHandler(event)" role="main">
+        <main onchange="selectionHandler(event)" oninput="fuzzySearchHandler(event)"></main>
         <footer></footer>
     </form>
     <template id="page-1-template">
-        <div id="page-1" class="page" data-pageno="1" aria-labelledby="page-1-title">
+        <div id="page-1" class="page" data-ui="sale-page-customer" data-pageno="1" aria-labelledby="page-1-title">
             <div>
                 <div>
                     <label for="name" class="highlight" id="page-1-title">Name: </label>
                 </div>
                 <div class="row1">
-                    <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names" tabindex="0"/>
+                    <input required type="text" id="name" spellcheck="false" name="name" autofocus data-name="name" list="customer-names" tabindex="0" placeholder="Search by name, phone, gst and email" data-usefuzzysearch="true" data-tablename="customer" />
                 </div>
             </div>
             <div>
@@ -60,7 +60,7 @@
         </div>
     </template>
     <template id="page-2-template">
-        <div id="page-2" class="page" data-pageno="2">
+        <div id="page-2" class="page" data-ui="sale-page-details" data-pageno="2">
             <div>
                 <div>
                     <label for="billDate" class="highlight">Date: </label>
@@ -114,6 +114,14 @@
                         <div>
                             <label for="bill-type-monthly">Monthly: </label>
                             <input type="radio" data-name="billType" name="billType" id="bill-type-monthly" value="monthly" tabindex="0"/>
+                        </div>
+                        <div>
+                            <label for="bill-type-scrap">Scrap: </label>
+                            <input type="radio" data-name="billType" name="billType" id="bill-type-scrap" value="scrap" tabindex="0"/>
+                        </div>
+                        <div>
+                            <label for="bill-type-proforma">Proforma: </label>
+                            <input type="radio" data-name="billType" name="billType" id="bill-type-proforma" value="proforma" tabindex="0"/>
                         </div>
                     </div>
                 </div>
@@ -211,7 +219,7 @@
         </div>
     </template>
     <template id="page-3-template">
-        <div id="page-3" class="page" data-pageno="3">
+        <div id="page-3" class="page" data-ui="sale-page-items" data-pageno="3">
             <div id="table" role="table" aria-label="Bill items table">
                 <div class="row head" role="row">
                     <div class="col sm" role="columnheader"><p>Sl No.</p></div>
@@ -235,8 +243,36 @@
             </div>
         </div>
     </template>
+    <!-- Scrap Sale Page 3 — simplified Qty + Rate with 2% TDS -->
+    <template id="page-3-scrap-template">
+        <div id="page-3-scrap" class="page" data-ui="sale-page-items-scrap" data-pageno="3">
+            <div>
+                <div>
+                    <label for="scrap-qty" class="highlight">Quantity (Kg): </label>
+                </div>
+                <div>
+                    <input type="number" id="scrap-qty" name="scrapQty" placeholder="Enter weight in Kg" min="0.01" step="0.01" oninput="scrapCalc()" tabindex="0" required>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <label for="scrap-rate" class="highlight">Rate (₹/Kg): </label>
+                </div>
+                <div>
+                    <input type="number" id="scrap-rate" name="scrapRate" placeholder="Enter rate per Kg" min="0.01" step="0.01" oninput="scrapCalc()" tabindex="0" required>
+                </div>
+            </div>
+            <div id="scrap-summary-div" class="hide">
+                <h3>Tax Summary</h3>
+                <div><span>Taxable Value:</span><span id="scrap-taxable">₹0.00</span></div>
+                <div><span>GST (18%):</span><span id="scrap-gst">₹0.00</span></div>
+                <div><span>Scrap TDS (2%):</span><span id="scrap-tds">₹0.00</span></div>
+                <div class="scrap-total"><span>Total:</span><span id="scrap-total">₹0.00</span></div>
+            </div>
+        </div>
+    </template>
     <template id="page-4-template">
-        <div id="page-4" class="page" data-pageno="4">
+        <div id="page-4" class="page" data-ui="sale-page-payment" data-pageno="4">
             <div id="left-section">
                 <div id="payment-div" oninput="updateBillValue(event)" onkeypress="validateInput2(event)">
                     <div id="payment-mode">
@@ -342,6 +378,7 @@
     </template>
     <template id="footer-template">
         <div id="btn-container">
+            <button type="button" data-type="displaySection" onclick="displaySection()" class="hide hover top right" data-msg="Show bill summary (Ctrl+S)" tabindex="0">Summary</button>
             <button type="button" data-type="cancel" onclick="cancelAction()" class="hide hover top right" data-msg="Cancel and close (Esc)" tabindex="0">Cancel</button>
             <button type="button" data-type="back" onclick="proceedOrFinishHandler(event)" class="hide hover top right" data-msg="Go back to previous step (Ctrl+←)" tabindex="0">Back</button>
             <button type="submit" data-type="proceed" class="main-ui-btn hide hover top right" data-msg="Proceed to next step (Ctrl+Enter)" tabindex="0">Proceed</button>
@@ -354,7 +391,7 @@
     <template id="body-row-template">
         <div class="body row" tabindex="0">
             <div class="col sm"><p>1</p></div>
-            <div class="col lg"><input type="text" data-name="name" list="stock-names" tabindex="0"/></div>
+            <div class="col lg"><input type="text" data-name="name" list="stock-names" tabindex="0" data-usefuzzysearch="true" data-tablename="stock" /></div>
             <div class="col md"><input data-name="hsn" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>
             <div class="col md"><input data-name="qty" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0"/></div>
             <div class="col md"><input data-name="unit" type="text" list="unit-dl" tabindex="0"/></div>                            
@@ -375,49 +412,65 @@
     </template>
     <template id="summary-div-template">
         <div id="page3-summary-div">
-            <div id="product-summary">
-                <div class="summary-col">
-                    <div>
-                        <p>Product:</p>
-                        <p class="blue" data-name="name"></p>
+            <div>
+                <div id="product-summary">
+                    <div class="summary-col">
+                        <div>
+                            <div>
+                                <h2>Item Summary</h2>
+                            </div>
+                        </div>
+                        <div>
+                            <div>
+                                <p>Item:</p>
+                                <p class="blue" data-name="name"></p>
+                            </div>
+                            <div>
+                                <p>Available Qty:</p>
+                                <p class="blue" data-name="quantity"></p>
+                            </div>
+                            <div>
+                                <p>Buy Price:</p>
+                                <p class="blue" data-name="buyPrice"></p>
+                            </div>
+                            <div>
+                                <p>Last Sell Price:</p>
+                                <p class="blue" data-name="lastSellPrice">0</p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p>Available Qty:</p>
-                        <p class="blue" data-name="quantity"></p>
-                    </div>
-                    <div>
-                        <p>Buy Price:</p>
-                        <p class="blue" data-name="buyPrice"></p>
+                    <div class="summary-col">
+                        <div id="graph-container"></div>
+                        <div id="statistical-info">
+                            <div>
+                                <p>Standard Sell Price:</p>
+                                <p class="blue" data-name="standardSellPrice">0</p>
+                            </div>
+                            <div>
+                                <p>Special Sell Price:</p>
+                                <p class="blue" data-name="specialPrice">0</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="summary-col">
+                <div id="bill-summary">
+                    <h2>Transaction Summary</h2>
                     <div>
-                        <p>Last Sell Price:</p>
-                        <p class="blue" data-name="lastSellPrice">0</p>
+                        <p>Sold Qty:</p>
+                        <p class="highlight" data-name="netQty">0</p>
                     </div>
                     <div>
-                        <p>Standard Sell Price:</p>
-                        <p class="blue" data-name="standardSellPrice">0</p>
+                        <p>Amt:</p>
+                        <p class="highlight" data-name="netAmt">0</p>
                     </div>
                     <div>
-                        <p>Special Sell Price:</p>
-                        <p class="blue" data-name="specialPrice">0</p>
+                        <p>Amt with Tax:</p>
+                        <p class="highlight" data-name="netAmtTax">0</p>
                     </div>
                 </div>
             </div>
-            <div id="bill-summary">
-                <div>
-                    <p>Sold Qty:</p>
-                    <p class="highlight" data-name="netQty">0</p>
-                </div>
-                <div>
-                    <p>Amt:</p>
-                    <p class="highlight" data-name="netAmt">0</p>
-                </div>
-                <div>
-                    <p>Amt with Tax:</p>
-                    <p class="highlight" data-name="netAmtTax">0</p>
-                </div>
+            <div>
+                <button type="button" class="main-ui-btn hover top right" data-msg="Close" onclick="dismissSummary()">Dismiss</button>
             </div>
         </div>
     </template>
@@ -428,7 +481,7 @@
                     <label for="transport-name" class="highlight">Transport Name: </label>
                 </div>
                 <div class="row1">
-                    <input id="transport-name" list="transport-dl" name="transportName" placeholder="compulsory feild" required type="text" data-name="transportName" tabindex="0"/>
+                    <input id="transport-name" list="transport-dl" name="transportName" placeholder="compulsory feild" required type="text" data-name="transportName" tabindex="0" data-usefuzzysearch="true" data-tablename="transporter"/>
                 </div>
             </div>
             <div>

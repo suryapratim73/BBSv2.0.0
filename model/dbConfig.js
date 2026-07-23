@@ -1,6 +1,6 @@
 const {Sequelize, DataTypes, UUIDV4} = require("sequelize");
 const fs = require("fs");
-let {getLoggerFD, appLogger} = require("../common");
+let { appLogger } = require("../common");
 const { app } = require("electron");
 const path = require("path");
 const { serializeSchema } = require("./schemaLoader");
@@ -22,63 +22,23 @@ else
 const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:path.resolve(appPath,"./db/bbs.db"),
-    logging:function(...msg){
-        if(global.shouldWait)
-            tempStr += msg[0] + "\n";
-        else
-        if(global.shouldWait===false )
-        {
-            let loggerFD = getLoggerFD?.("dbLogs.txt");
-            if(tempStr){
-                appendToFile(loggerFD,tempStr+msg[0]);
-                console.log("Appending temStr");
-                tempStr = undefined;
-            }
-            else{
-                // console.log(msg[0])
-                appendToFile(loggerFD,msg[0]);
-            }
-        }
-    },
+    logging:null,
     transactionType:"DEFERRED"
 });
 
-async function appendToFile(fd,data){
-    let timer;
-    if(!fd){
-        fd = await new Promise(res=>{
-            timer = setInterval(()=>{
-                try{
-                    fd = require("../common").getLoggerFD?.("dbLogs.txt");
-                    if(fd){
-                        clearInterval(timer);
-                        res(fd);
-                    }
-                }
-                catch(err){
-                    console.log({err,msg:"Reattempting fd retrieval"})
-                }
-            },50);
-        });
-    }
-    fs.appendFile(fd,data+"\n",{flag:"a+"},(err)=>{
-        if(err) throw err;
-    });
-}
-
 sequelize.authenticate()
 .then(()=>{
-    appLogger("Connected to sqlite db");
+    appLogger({title:"SQLite DB Connection", message:"Connected to sqlite db", func:"dbConfig"});
 })
 .catch((err)=>{
-    appLogger({title:"SQLite DB Connection Error", msg: String(err)});
+    appLogger({title:"SQLite DB Connection Error", message: String(err), func:"dbConfig"});
 });
 
 let path2schema = path.resolve(appPath,"./model/schema.json");
 
 function exportModules(){
 let schemas = fs.readFileSync(path2schema);
-    appLogger("Schema file found. Loading schemas...",schemas);
+    appLogger({title:"Schema file found", message:"Loading schemas...", func:"dbConfig.exportModules"});
     const { supplier,freight,people,customerSchema,stockSchema,serviceSchema,purchaseSchema,saleSchema,outPaymentSchema,inPaymentSchema,returnRegister,attendanceSchema,requirementSchema,userSchema,financialRecordSchema } = require("./schemaLoader").deserializeSchema(schemas,DataTypes,UUIDV4);   
     module.exports = {
         supplier: sequelize.define("supplier",supplier,{
@@ -206,7 +166,8 @@ if(!fs.existsSync(path2schema)){
     if(!fs.existsSync(path2schemaJS)){
         appLogger({
             title:"Bootstrap Case: Schema JSON Files missing. Checking for schema JS files...",
-            path2schemaJS:fs.existsSync(path2schemaJS)
+            message:`schema JS file exists: ${fs.existsSync(path2schemaJS)}`,
+            func:"dbConfig"
         });
         global.needsSchemaBootstrap = true;
         module.exports = {};
@@ -214,7 +175,7 @@ if(!fs.existsSync(path2schema)){
     else{
         appLogger({
             title:"Schema JSON Files missing, but schema JS files found. Generating schema JSON files...",
-            path2schemaJS:fs.existsSync(path2schemaJS),
+            message:`schema JS file exists: ${fs.existsSync(path2schemaJS)}`,
             func:"dbConfig"
         });
         let { serializedSchema, serializedDynamic } = serializeSchema(path2schemaJS,path2dynamicJS);

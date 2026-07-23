@@ -1,4 +1,4 @@
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper, fuzzySearchHandler, setNGramIndex } = require("../js/common");
 const { ipcRenderer, net } = require("electron");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
@@ -28,7 +28,12 @@ const monthNames = ["January", "February", "March", "April", "May", "June",
 
 
 async function initPage(){
-    stockList = await appendToDL("get-stocks",document.getElementById("stock-names"));
+    // Inject the pre-built n-gram index from the main process so appendToDL
+    // skips the expensive trigram-calculation loop.
+    var preBuiltIndex = await ipcRenderer.invoke("get-ngram-index");
+    if (preBuiltIndex) setNGramIndex(preBuiltIndex);
+    stockList = await appendToDL.call({tableName:"stock"},"get-stocks",document.getElementById("stock-names"));
+    await appendToDL.call({tableName:"customer"},"get-customers",document.getElementById("customer-names"));
     unitMap.forEach(obj=>{
         let key = Object.keys(obj)[0];
         let option = document.createElement("option");
@@ -225,7 +230,7 @@ async function loadLedgerTable(_name){
         let particular,drcr;
         if(type==="sale"){
             particular = `Sale: Bill Number:${billNo}`;
-            drcr = `${billAmt-payments} Dr`;
+            drcr = `${Math.round(billAmt-payments)} Dr`;
         }
         else{
             particular = `Payment: Rs.${payments}`;

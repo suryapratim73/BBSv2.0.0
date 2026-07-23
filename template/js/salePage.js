@@ -32,6 +32,11 @@ const {
     textRollAnnimation,
     traverseParent,
     gstChecksum,
+    drawLineGraph,
+    fuzzySearchHandler,
+    reInitFuzzyIndexWithOptions,
+    setNGramIndex,
+    attempt,
 } = require("../js/common");
 
 const uuid = require("uuid");
@@ -42,19 +47,19 @@ toggleDevTool(document);
 
 let nameDatalist = document.createElement("datalist"),
     customerNameDatalist = document.createElement("datalist"),
+    transporterDatalist = document.createElement("datalist"),
     customer = {},
     currentStep = 1,
     selectedItem = {},
     orderItems = [],
     billMeta = {},
     payment = [],
-    transporterDatalist = document.createElement("datalist"),
     unitDatalist = document.createElement("datalist"),
     shipInfoDatalist = document.createElement("datalist"),
     page2initialized = false,
     footer = document.querySelector("footer"),
     bodyRow,
-    timer,
+    summaryDivTimer,
     currentBillNo,
     probableGrps = [],
     availableBillNoDL = document.createElement("datalist"),
@@ -64,8 +69,8 @@ let nameDatalist = document.createElement("datalist"),
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
-unitDatalist.id = "unit-dl";
 transporterDatalist.id = "transport-dl";
+unitDatalist.id = "unit-dl";
 availableBillNoDL.id = "available-bill-no-div";
 shipInfoDatalist.id = "ship-info-dl";
 process.allowMatch = true; // To allow datalist options to be selected even if they don't match the input (for custom entries)
@@ -77,10 +82,18 @@ const {
 } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath("../../")).toString());
 
 async function init() {
-    appendToDL("get-stocks", nameDatalist);
-    appendToDL("get-services", nameDatalist);
-    appendToDL("get-customers", customerNameDatalist);
-    appendToDL("get-transporter", transporterDatalist);
+    removeAllElem("#stock-names, #customer-names, #unit-dl, #transport-dl, #available-bill-no-div, #ship-info-dl");// This should prevent duplicate datalists on re-init
+    // Inject the pre-built n-gram index from the main process so appendToDL
+    // skips the expensive trigram-calculation loop for already-indexed tables.
+    var preBuiltIndex = await ipcRenderer.invoke("get-ngram-index");
+    if (preBuiltIndex) setNGramIndex(preBuiltIndex);
+    await appendToDL.call({tableName:"stock"},"get-stocks", nameDatalist);
+    await appendToDL.call({tableName:"stock"},"get-services", nameDatalist);
+    await appendToDL.call({tableName:"customer"},"get-customers", customerNameDatalist);
+    await appendToDL.call({tableName:"transporter"},"get-transporter", transporterDatalist);
+    reInitFuzzyIndexWithOptions("stock",nameDatalist);
+    reInitFuzzyIndexWithOptions("customer",customerNameDatalist);
+    reInitFuzzyIndexWithOptions("transporter",transporterDatalist);
     let billNos = Array.from(new Set(availableBillNo));
     billNos = billNos.map((no) => {
         return {
@@ -162,15 +175,40 @@ function setFooter() {
     if (currentStep < 4)
         footer.querySelector(`[data-type="proceed"]`).classList.remove("hide");
     else {
-        if (billMeta.billType === "regular")
+        if (billMeta.billType === "regular" || billMeta.billType === "scrap" || billMeta.billType === "proforma")
             footer.querySelector(`[data-type="print"]`).classList.remove("hide");
         footer.querySelector(`[data-type="save"]`).classList.remove("hide");
     }
     if (currentStep !== 1)
         footer.querySelector(`[data-type="back"]`).classList.remove("hide");
+    if (currentStep === 3)
+        footer.querySelector(`[data-type="displaySection"]`).classList.remove("hide");
 }
 
+// Scrap sale page-3 calculator
+function scrapCalc() {
+    var qty = parseFloat(document.getElementById("scrap-qty")?.value) || 0;
+    var rate = parseFloat(document.getElementById("scrap-rate")?.value) || 0;
+    var summary = document.getElementById("scrap-summary-div");
+    if (!summary) return;
+    if (qty > 0 && rate > 0) {
+        var taxable = qty * rate;
+        var gst = taxable * 0.18;
+        var tds = taxable * 0.02;
+        var total = taxable + gst + tds;
+        document.getElementById("scrap-taxable").textContent = "₹" + roundOffTo2DecimalPlace(taxable);
+        document.getElementById("scrap-gst").textContent = "₹" + roundOffTo2DecimalPlace(gst);
+        document.getElementById("scrap-tds").textContent = "₹" + roundOffTo2DecimalPlace(tds);
+        document.getElementById("scrap-total").textContent = "₹" + roundOffTo2DecimalPlace(total);
+        summary.classList.remove("hide");
+    } else {
+        summary.classList.add("hide");
+    }
+}
+window.scrapCalc = scrapCalc;
+
 function helperFunc1(itemObj) {
+    if(billMeta.billType === "scrap") return;
     try {
         let main = document.querySelector("main");
         main.querySelector("#add-item > button").click();
@@ -353,8 +391,12 @@ async function mainForm() {
     try {
         removeAllElem("main *");
         removeAllElem("footer .horizontal-scroll-list");
+        // Scrap sale uses simplified page 3 template; proforma uses normal page 3
+        var templateId = (currentStep === 3 && billMeta.billType === "scrap")
+            ? "page-3-scrap-template"
+            : "page-" + currentStep + "-template";
         let page = document
-            .getElementById(`page-${currentStep}-template`)
+            .getElementById(templateId)
             .content.cloneNode(true)
             .querySelector("div");
         document.querySelector("main").appendChild(page);
@@ -425,7 +467,25 @@ async function mainForm() {
                         ? billMeta.billNo
                         : await ipcRenderer.invoke("get-sale-bill-number");
                 billMeta.billNo = currentBillNo;
-                billMeta.billType = "regular";
+                // Proforma mode from order viewer "+" button
+                if(preset && preset.useProforma){
+                    billMeta.billType = "proforma";
+                    billMeta.billNo = "proforma_" + Date.now();
+                    delete preset.useProforma;
+                    // Auto-select the proforma radio
+                    var proformaRadio = document.getElementById("bill-type-proforma");
+                    if(proformaRadio) proformaRadio.checked = true;
+                    // Force bill-status to open and disable
+                    setTimeout(function(){
+                        var statusInputs = document.querySelectorAll("form input[name='bill-status']");
+                        statusInputs.forEach(function(input){
+                            if(input.id === "bill-status-open") input.checked = true;
+                            input.setAttribute("disabled", true);
+                        });
+                    }, 100);
+                } else {
+                    billMeta.billType = "regular";
+                }
                 page2initialized = true;
             } else currentBillNo = billMeta.billNo;
             if (availableBillNo.length > 0) {
@@ -581,6 +641,41 @@ function proceedOrFinishHandler(e) {
                 }
             } // Step 1,2 & 4
             else {
+                // ---- Scrap Sale: simplified single-item flow ----
+                if (billMeta.billType === "scrap") {
+                    var scrapQty = parseFloat(document.getElementById("scrap-qty")?.value) || 0;
+                    var scrapRate = parseFloat(document.getElementById("scrap-rate")?.value) || 0;
+                    if (scrapQty <= 0 || scrapRate <= 0) {
+                        showToastNotification(
+                            "Please enter valid Quantity and Rate.",
+                            ["animation-common", "move-left", "red-toast-box"],
+                            document.body,
+                        );
+                        nocFlag = false;
+                    } else {
+                        var taxableValue = scrapQty * scrapRate;
+                        billMeta.netAmt = roundOffTo2DecimalPlace(taxableValue);
+                        billMeta.netTax = roundOffTo2DecimalPlace(taxableValue * 0.18);
+                        billMeta.scrapTDSAmt = roundOffTo2DecimalPlace(taxableValue * 0.02);
+                        billMeta.netAmtTax = roundOffTo2DecimalPlace(taxableValue + billMeta.netTax);
+                        billMeta.netQty = scrapQty;
+                        // Create a single order item for the scrap sale
+                        orderItems = [{
+                            name: "Metal Scrap",
+                            hsn: "7204",
+                            qty: scrapQty,
+                            unit: "Kg",
+                            rate: scrapRate,
+                            sgst: 9,
+                            cgst: 9,
+                            igst: 0,
+                            type: "goods",
+                            sellId: "scrap-" + Date.now()
+                        }];
+                        nocFlag = true;
+                    }
+                } else {
+                // ---- Normal item-table flow ----
                 probableGrps = [];
                 nocFlag = true;
                 orderItems.forEach(async (itemObj) => {
@@ -706,7 +801,12 @@ function proceedOrFinishHandler(e) {
                     billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
                 }
                 probableGrps = probableGrps.filter((obj) => obj.items.length !== 1);
+                } // end non-scrap flow
             } // Step 3
+            if (currentStep === 1) {
+                // Datalist state is managed by fuzzySearchHandler in common.js —
+                // it restores the full list on selection and on < 3 char queries.
+            }
             if (nocFlag) currentStep++;
         } else if (e.type === "click" && e.target.dataset.type === "back") {
             currentStep--;
@@ -738,6 +838,7 @@ function proceedOrFinishHandler(e) {
 }
 
 function showItemMergeOpts() {
+    if(billMeta.billType === "scrap") return;
     try {
         removeAllElem("main *");
         appendToHost("#item-group-option-template", "main", "div");
@@ -751,6 +852,7 @@ function showItemMergeOpts() {
 }
 
 function revealMoreGrpOpts(e, mode) {
+    if(billMeta.billType === "scrap") return;
     try {
         let page = traverseParent(e.target, "page");
         if (mode === 1) {
@@ -785,6 +887,7 @@ function revealMoreGrpOpts(e, mode) {
 }
 
 function createNewGrp(e) {
+    if(billMeta.billType === "scrap") return;
     try {
         e.stopPropagation();
         let page = traverseParent(e.target, "page");
@@ -834,6 +937,7 @@ function createNewGrp(e) {
 }
 
 function showPage4(e, cmd) {
+    if(billMeta.billType === "scrap") return;
     try {
         if (cmd === "cancel-grp")
             orderItems = orderItems.reduce((acc, obj) => {
@@ -859,6 +963,7 @@ function showPage4(e, cmd) {
 }
 
 function addDescToItem(e) {
+    if(billMeta.billType === "scrap") return;
     try {
         e.preventDefault();
         let cmd = e.target.dataset.cmd;
@@ -875,6 +980,7 @@ function addDescToItem(e) {
 }
 
 function addLabelToGrp(e) {
+    if(billMeta.billType === "scrap") return;
     try {
         e.preventDefault();
         let label = e.target.label.value;
@@ -906,7 +1012,9 @@ function addLabelToGrp(e) {
 }
 
 function cancelAction() {
-    ipcRenderer.send("cancel-sale-bill", currentStep);
+    // Pass billNo so the main process can avoid releasing a number
+    // that's no longer the current counter (multi-window safety).
+    ipcRenderer.send("cancel-sale-bill", currentStep, billMeta.billNo);
 }
 
 ipcRenderer.on("get-current-step", cancelAction);
@@ -922,94 +1030,105 @@ function addPhone(e) {
     customerPhoneInput.setAttribute("placeholder", "Add new phone number");
 }
 
-function displaySection() {
+function displaySection(show=true) {
     try {
         if (currentStep !== 3) return;
         removeAllElem(".page #page3-summary-div");
-        appendToHost(
-            "#summary-div-template",
-            document.querySelector("#page-3"),
-            "DIV",
-        );
+        appendToHost("#summary-div-template",document.querySelector("#page-3"),"DIV");
         let summaryDiv = document.querySelector("#page3-summary-div");
-        [
-            ...summaryDiv.querySelectorAll("#product-summary>.summary-col .blue"),
-        ].forEach((p) => {
-            if (
-                p.dataset.name === "specialPrice" &&
-                typeof selectedItem.specialPrice === "string"
-            ) {
-                let sorted;
-                try {
-                    sorted = JSON.parse(selectedItem.specialPrice || "[]");
-                } catch (err) {
-                    sorted = [];
-                }
-                sorted = sorted
-                    .filter((obj) => obj.customerId == customer.id)
-                    .sort((obj1, obj2) => {
-                        if (new Date(obj1.billDate) < new Date(obj2.billDate)) return 1;
-                        else if (new Date(obj1.billDate) == new Date(obj2.billDate))
-                            return 0;
-                        else return -1;
-                    });
-                p.textContent = sorted?.[0]?.rate ?? 0;
-            } else if (
-                p.dataset.name === "quantity" &&
-                selectedItem.type !== "service"
-            ) {
-                let quantity = selectedItem.quantity ?? 0;
-                let totalQty = orderItems.reduce((acc, obj) => {
-                    if (
-                        obj.id === selectedItem.id &&
-                        "qty" in obj &&
-                        "id" in selectedItem &&
-                        "id" in obj
-                    ) {
-                        let res = unitMap.find((uObj) => obj?.sellUnit in uObj);
-                        let multiplier =
-                            typeof res === "object" ? Object.values(res)[0] : 1;
-                        return acc + obj.qty * multiplier;
-                    } else return acc;
-                }, 0);
-                p.textContent = quantity - totalQty;
-                if (Math.sign(quantity - totalQty) < 0) p.classList.add("red");
-                else p.classList.remove("red");
-            } else if (p.dataset.name === "standardSellPrice") {
-                let rate = Number(selectedItem.standardSellPrice);
-                if (rate === NaN) rate = 0;
-                else rate = Math.round(rate);
-                p.textContent = roundOffTo2DecimalPlace(rate);
-            } else p.textContent = selectedItem[p.dataset.name] ?? "";
+        summaryDivTimer = setTimeout(()=>{
+            removeAllElem("#page3-summary-div")
+        },5000);
+        summaryDiv.addEventListener("mouseover",()=>{
+            clearTimeout(summaryDivTimer);
         });
+        summaryDiv.addEventListener("mouseleave",()=>{
+            summaryDivTimer = setTimeout(()=>{
+                removeAllElem("#page3-summary-div")
+            },5000);
+        });
+        // New summary div design
+        let itemObj = selectedItem || {};
+        let {pHistory,pScore} = itemObj;
+        pHistory = pHistory ? attempt(()=>JSON.parse(pHistory),[]) : [];
+        pScore = Number(pScore || 0);
+        [...document.querySelectorAll("#product-summary .blue")]
+        .forEach(h2=>{
+            let key = h2.dataset.name;
+            if(key==="specialPrice"){
+                let res = JSON.parse(itemObj[key]).filter(obj=>obj.customerId===customer.id).sort((a,b)=>new Date(a) - new Date(b)).pop();
+                h2.textContent = roundOffTo2DecimalPlace(res?.rate ?? 0);
+            }
+            else
+                h2.textContent = key=="name" ? itemObj[key] : roundOffTo2DecimalPlace(itemObj[key]);
+        });
+        // ---- 6-month sell-rate line graph ----
+        const graphContainer = document.querySelector("#graph-container");
+        if (graphContainer) {
+            // removeAllElem("#graph-container");
+            if (pHistory.length >= 3) {
+                const canvas = document.createElement("canvas");
+                canvas.classList.add("pHistory-graph");
+                canvas.setAttribute("aria-label", "6-month sell rate history");
+                graphContainer.appendChild(canvas);
+                pHistory = pHistory.reduce((acc,obj)=>{
+                    acc.push({
+                        amt : obj.rate,
+                        date : obj.date,
+                        mode : 1
+                    });
+                    return acc;
+                },[]);
+                drawLineGraph(null, pHistory, "#graph-container canvas", "#2196F3", "#64B5F6", {
+                    height: 160,
+                    bOffset: 28,
+                    tOffset: 12,
+                    lOffset: 8,
+                    rOffset: 8,
+                    shadow: true,
+                    pointRadius: 3,
+                    yLegend: "Rate",
+                    yLegColor: "#888",
+                    yLegOffset: 0.5,
+                    yLegFont: "10px Arial",
+                    xLegend: "Date",
+                    xLegColor: "#888",
+                    xLegOffset: 6,
+                    xLegFont: "10px Arial",
+                    axisColor: "#ccc",
+                    bgColor: "#fafafa",
+                });
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.classList.add("no-data");
+                placeholder.innerHTML = '<i>No Data🪹</i>';
+                graphContainer.appendChild(placeholder);
+            }
+        }
         let reducedOrder = reduceOrder();
-        // console.log(reducedOrder)
         billMeta.netQty = reducedOrder.netQty;
         billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
         billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
         billMeta.netTax = roundOffTo2DecimalPlace(
             billMeta.netAmtTax - billMeta.netAmt,
         );
-        [...summaryDiv.querySelectorAll("#bill-summary .highlight")].forEach(
-            (p) =>
-            (p.textContent = !isNaN(reducedOrder[p.dataset.name])
-                ? roundOffTo2DecimalPlace(reducedOrder[p.dataset.name])
-                : p.textContent),
-        );
+        [...document.querySelectorAll("#bill-summary .highlight")]
+        .forEach(p=>{
+            p.textContent = billMeta[p.dataset.name];
+        });
     } catch (err) {
         console.error("Error in displaySection:", err);
-        showToastNotification(
-            "Error displaying summary: " + err.message,
-            ["animation-common", "move-left", "red-toast-box"],
-            document.body,
-        );
     }
 }
 
+function dismissSummary(){
+    removeAllElem(".page #page3-summary-div");
+}
+
 function deleteRow() {
+    if(billMeta.billType === "scrap") return;
     try {
         orderItems = deleteRowCommon(bodyRow, orderItems, "sellId");
-        displaySection();
     } catch (err) {
         console.error("Error in deleteRow:", err);
         showToastNotification(
@@ -1022,10 +1141,10 @@ function deleteRow() {
 
 function updatePayStatus(e) {
     try {
-        if (billMeta.billType !== "regular") {
+        if (billMeta.billType === "monthly" || billMeta.billType === "proforma") {
             billMeta.paymentStatus = false;
             return showToastNotification(
-                "Monthly bills are marked as unpaid",
+                (billMeta.billType === "proforma" ? "Proforma" : "Monthly") + " bills are marked as unpaid",
                 ["animation-common", "move-left", "red-toast-box"],
                 "page-4",
                 32,
@@ -1173,9 +1292,7 @@ document.addEventListener("keydown", (e) => {
         else if (e.ctrlKey && e.key === "r" && currentStep === 3)
             e.target.closest(".body.row").focus();
         else if (!e.ctrlKey && !e.shiftKey && e.key === "ArrowDown" && currentStep === 3 && typeof bodyRow !== "undefined") {
-            bodyRow = [...document.querySelectorAll(".body.row")].filter(
-                (row) => document.activeElement === row,
-            )[0];
+            bodyRowFinder(e);
             if (bodyRow) {
                 bodyRow = bodyRow.nextElementSibling;
                 bodyRow.focus();
@@ -1184,9 +1301,7 @@ document.addEventListener("keydown", (e) => {
                 bodyRow.focus();
             }
         } else if (!e.ctrlKey && !e.shiftKey && e.key === "ArrowUp" && currentStep === 3 && typeof bodyRow !== "undefined") {
-            bodyRow = [...document.querySelectorAll(".body.row")].filter(
-                (row) => document.activeElement === row,
-            )[0];
+            bodyRowFinder(e);
             if (bodyRow) {
                 bodyRow = bodyRow.previousElementSibling;
                 bodyRow?.focus();
@@ -1201,9 +1316,7 @@ document.addEventListener("keydown", (e) => {
                 .focus();
         } else if (e.shiftKey && e.key === "Delete" && currentStep === 3 && typeof bodyRow !== "undefined") {
             if (bodyRow.id === "table") bodyRow = document.activeElement;
-            bodyRow = bodyRow.classList.contains("row")
-                ? bodyRow
-                : document.activeElement;
+            bodyRowFinder(e);
             let rowNo = [...document.querySelectorAll(".body.row")].indexOf(bodyRow);
             if (rowNo === -1) return;
             deleteRow();
@@ -1242,14 +1355,7 @@ document.addEventListener("keydown", (e) => {
             currentStep === 3
         ) {
             let focusedElem = document.activeElement;
-            if (typeof bodyRow === "undefined") {
-                bodyRow = [...document.querySelectorAll(".body.row")].filter(
-                    (row) => document.activeElement === row,
-                )[0];
-                bodyRow = e.target.closest(".body.row");
-            } else if (bodyRow.id === "table") {
-                bodyRow = document.activeElement.closest(".body.row");
-            }
+            bodyRowFinder(e);
             let prevRow = bodyRow.previousElementSibling;
             let nextRow = bodyRow.nextElementSibling;
             if (e.key === "ArrowDown" && nextRow)
@@ -1264,7 +1370,34 @@ document.addEventListener("keydown", (e) => {
             });
             focusedElem.focus();
         }
+        else
+        if(e.ctrlKey && e.key=="f"){
+            let datasetObj = Object.keys({...e.target.dataset});
+            if(datasetObj.includes("usefuzzysearch")){
+                let currentState = e.target.dataset.usefuzzysearch == "true";
+                e.target.dataset.usefuzzysearch = !currentState;
+                if(currentState)
+                    showToastNotification("Fuzzy search disabled",["animation-common","move-left","red-toast-box"]);
+                else
+                    showToastNotification("Fuzzy search enabled",["animation-common", "move-left", "blue-toast-box"]);
+            }
+        }
+        else
+        if(currentStep===3 && e.ctrlKey && e.key==="s"){
+            displaySection();
+        }
     } catch (err) {
         console.error("Error in keydown handler:", err);
     }
 });
+
+function bodyRowFinder(e){
+    if (!bodyRow) {
+        bodyRow = [...document.querySelectorAll(".body.row")].filter(
+            (row) => document.activeElement === row,
+        )[0];
+        bodyRow = e.target.closest(".body.row");
+    } else if (bodyRow.id === "table") {
+        bodyRow = document.activeElement.closest(".body.row");
+    }
+}

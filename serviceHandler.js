@@ -30,7 +30,8 @@ async function initService(){
     catch(err){
         appLogger({
             title:"Error",
-            message:err.message
+            message:err.message,
+            func:"initService"
         })
     }
 }
@@ -72,7 +73,7 @@ ipcMain.on("add-new-service",(e,servObj)=>{
             }
             dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
             const {id=null,name=""} = dataValues;
-            appLogger("new Service added to database",JSON.stringify({id,name}));
+            appLogger({title:"new Service added to database", message:JSON.stringify({id,name}), func:"add-new-service"});
             console.log(serviceList.find(obj=>obj.id===id));
         }
         else{
@@ -102,7 +103,7 @@ ipcMain.on("update-service",async (e,servObj)=>{
             message: "Service information updated successfully."
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("service information updated successfully",JSON.stringify({id,name:servObj.name}));
+        appLogger({title:"service information updated successfully", message:JSON.stringify({id,name:servObj.name}), func:"update-service"});
         let serv = serviceList.find(obj=>obj.id===id);
         Object.keys(servObj)
         .forEach(key=>{

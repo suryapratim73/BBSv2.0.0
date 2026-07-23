@@ -53,7 +53,8 @@ exports.recordDownloadedVersion = function(data){// Record and manage app versio
                     filePath,
                     fileName,
                     destnFolder:path.resolve(backupFolderPath,"./"+fileName)
-                })
+                }),
+                func:"recordDownloadedVersion"
             })
             if(fs.existsSync(filePath)){
                 fs.copyFileSync(filePath,path.resolve(backupFolderPath,"./"+fileName));

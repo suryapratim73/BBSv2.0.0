@@ -11,6 +11,15 @@ const {
 
 let n,presets;
 
+/** Safely execute fn, returning fallback if it throws. */
+exports.attempt = function(fn, fallback) {
+    try { return fn(); } catch (err) {
+        if(typeof fallback === "function")
+            return fallback(err);
+        return fallback;
+    }
+};
+
 exports.toggleDevTool = function(document){
     document.addEventListener("keyup",e=>{
         if(e.code==="F1")
@@ -167,8 +176,13 @@ exports.getAmtToWord = function (amt){
     hundred = hundred>0?`${number2Word(hundred)} hundred`:"";
     ten = number2Word(ten);
     one = number2Word(one);
-    let word = lakh + " " + thousand + " " + hundred + " and " + ten + " " + one + " only.";
-    return word.trim().split(/^and /i).pop().toLowerCase().split(" ").filter(str=>str!=="").reduce((acc,str)=>acc+str+" ","").trim();
+    // Build higher parts, then tens/ones with "and" only if there's a higher part
+    var hi = [lakh, thousand, hundred].filter(function(s) { return s !== ""; });
+    var lo = [ten, one].filter(function(s) { return s !== ""; });
+    var word = hi.join(" ");
+    if (hi.length > 0 && lo.length > 0) word += " and ";
+    word += lo.join(" ") + " only.";
+    return word.trim().replace(/\s+/g, " ");
 }
 
 function applyFilter(tbody,selection="*"){
@@ -200,7 +214,11 @@ exports.filterSelector = function(e){
 }
 
 exports.roundOffTo2DecimalPlace = function(num){
-    return Math.round(num*100)/100
+    // Number.EPSILON compensates for IEEE 754 floating-point error.
+    // Without it: 1.005 * 100 = 100.49999999999999 → Math.round = 100 → 1.00 (wrong)
+    // Indian rounding: < 50 paise → 0, ≥ 50 paise → next integer
+    num = Number(num);
+    return Math.round((num + Number.EPSILON) * 100) / 100;
 }
 
 exports.printModal = function printModal(customId=""){
@@ -669,87 +687,249 @@ exports.retractHandler = function retractHandler(retractableDiv,mode="height",va
     
 }
 
-exports.drawLineGraph = function(total,objs,selector,lineColor,fillColor,{lOffset=4,rOffset=16,tOffset=16,bOffset=32,mode=1,yLegend="",yLegColor="Black",yLegOffset=0.75,yLegFont="12px Arial",xLegend="",xLegColor="Black",xLegOffset=10,xLegFont="12px Arial"}={},axisColor="black",bgColor="white"){
-    let canvas =  document.querySelector(selector);
+// Helper: convert any CSS color (named, hex, rgb) to rgba with custom alpha
+function _colorToRgba(color, alpha) {
+    // Use a scratch canvas to normalize the color — handles "red", "#ff0000", "rgb(…)", etc.
+    const cache = _colorToRgba._cache || (_colorToRgba._cache = {});
+    const key = color;
+    if (!cache[key]) {
+        const c = document.createElement("canvas").getContext("2d");
+        c.fillStyle = color;
+        cache[key] = c.fillStyle; // normalized to "rgb(r,g,b)" or "rgba(r,g,b,a)"
+    }
+    const base = cache[key];
+    if (base.startsWith("rgba")) {
+        return base.replace(/[\d.]+\)$/, alpha + ")");
+    }
+    return base.replace("rgb(", "rgba(").replace(")", ", " + alpha + ")");
+}
+
+// drawLineGraph — single-series (backward-compatible) or multi-series line chart
+//
+//   Single series (original signature, still works):
+//     drawLineGraph(total, objs, selector, lineColor, fillColor, opts, axisColor, bgColor)
+//       objs = [{date, amt}, …]
+//
+//   Multi-series (new):
+//     drawLineGraph(total, seriesArray, selector, …opts…)
+//       seriesArray = [{data: [{date, amt}, …], lineColor, fillColor, label?}, …]
+//       Detection: objs[0].data is an array → multi-series mode.
+//       When multi-series, the positional lineColor/fillColor are ignored (each series
+//       carries its own).  The returned object gains .allReduced and .seriesResults;
+//       .reducedObjs still points to the first series' reduced data for backward compat.
+//
+//   New options (all opt-in, defaults keep existing behaviour):
+//     shadow      — draw a soft fading gradient fill below each line (default: true)
+//     height      — canvas height in px (default: 200)
+//     pointRadius — dot radius (default: 3)
+//
+exports.drawLineGraph = function (total, objs, selector, lineColor, fillColor, {
+    lOffset = 4, rOffset = 16, tOffset = 16, bOffset = 32, mode = 1,
+    yLegend = "", yLegColor = "Black", yLegOffset = 0.75, yLegFont = "12px Arial",
+    xLegend = "", xLegColor = "Black", xLegOffset = 10, xLegFont = "12px Arial",
+    shadow = true,
+    height = 200,
+    pointRadius = 3,
+} = {}, axisColor = "black", bgColor = "white") {
+
+    // --------------- detect multi-series mode ---------------
+    const isMultiSeries = Array.isArray(objs) && objs.length > 0
+        && objs[0] && Array.isArray(objs[0].data);
+
+    /** @type {Array<{data: Array, lineColor: string, fillColor: string, label?: string}>} */
+    const seriesList = isMultiSeries
+        ? objs
+        : [{ data: objs, lineColor, fillColor }];
+
+    // --------------- canvas setup ---------------
+    const canvas = document.querySelector(selector);
+    if (!canvas) return { canvas: null, ctx: null, reducedObjs: {}, allReduced: [], seriesResults: [] };
+
     canvas.width = Math.round(0.95 * canvas.parentNode.clientWidth);
-    canvas.height = 200;
-    let ctx =  canvas.getContext("2d");
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // --------------- axes ---------------
     ctx.beginPath();
     ctx.lineWidth = 1;
+    ctx.strokeStyle = axisColor;
     ctx.lineCap = "round";
-    ctx.lineColor = axisColor;
-    ctx.moveTo(lOffset,tOffset);
-    ctx.lineTo(lOffset,canvas.height-2*tOffset);
-    ctx.lineTo(canvas.width-2*lOffset,canvas.height-2*tOffset);
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0,0,canvas.width,canvas.height)
-    ctx.fill()
+    ctx.moveTo(lOffset, tOffset);
+    ctx.lineTo(lOffset, canvas.height - bOffset);
+    ctx.lineTo(canvas.width - rOffset, canvas.height - bOffset);
     ctx.stroke();
+
+    // --------------- data reduction (date-grouped sum per series) ---------------
+    const reduceData = function (data) {
+        const acc = {};
+        data.forEach(function (obj) {
+            let d = obj.date;
+            if (typeof d === "string") {
+                if(/T/.test(d)){
+                    d = d.split("T")[0];
+                }
+                const parts = d.split("-").map(Number);
+                d = new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+            let label = mode === 1 ? d.toLocaleDateString("en-GB") : d;
+            if (mode === 2)
+                label = label.toLocaleDateString("en-GB", { dateStyle: "long" }).split(" ")[1];
+            else if (mode === 3)
+                label = label.toLocaleDateString("en-GB", { dateStyle: "long" }).split(" ")[2];
+            acc[label] = (acc[label] || 0) + obj.amt;
+        });
+        return acc; // { dateLabel → totalAmt }
+    };
+    const allReduced = seriesList.map(function (s) { return reduceData(s.data); });
+    // global maximum across ALL series so Y-axis is consistent
     let highestNum = 0;
-    let reducedObjs = objs.reduce((acc,obj)=>{
-        if(typeof obj.date==="string"){
-            let [yr,mnt,dt] = obj.date.split("-").map(num=>Number(num));
-            mnt--;
-            obj.date = new Date(yr,mnt,dt);
-        }
-        let date = mode===1 ? obj.date.toLocaleDateString("en-GB"):obj.date;
-        if(mode===2)
-            date = date.toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ")[1];
-        else
-        if(mode===3)
-            date = date.toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ")[2];
-        if(!acc[date])
-            acc[date] = {amt: obj.amt};
-        else
-            acc[date].amt += obj.amt;
-        return acc;
-    },{});
-    Object.keys(reducedObjs)
-    .forEach(date=>{
-        if(reducedObjs[date].amt>highestNum)
-            highestNum = reducedObjs[date].amt;
+    allReduced.forEach(function (red) {
+        Object.keys(red).forEach(function (k) {
+            if (red[k] > highestNum) highestNum = red[k];
+        });
     });
-    let redObjsLen = Object.keys(reducedObjs).length;
-    Object.keys(reducedObjs).forEach((date,i)=>{
-        let xPos = lOffset + (canvas.width-rOffset-lOffset) * (i/redObjsLen);
-        let yPos = tOffset + ((canvas.height-bOffset-tOffset) * (1 - reducedObjs[date].amt/highestNum));
-        if(yPos==0)
-            yPos = tOffset;
-        if(i===0)
+    if (highestNum === 0) highestNum = 1;
+
+    // unified X-axis: collect every date label that appears in ANY series, in order
+    const labelSet = new Set();
+    allReduced.forEach(function (red) { Object.keys(red).forEach(function (k) { labelSet.add(k); }); });
+    const labels = Array.from(labelSet);
+    const labelCount = labels.length;
+
+    // positioning helpers
+    const getX = function (i) {
+        return lOffset + (canvas.width - rOffset - lOffset) * (i / Math.max(labelCount - 1, 1));
+    };
+    const getY = function (amt) {
+        const y = tOffset + (canvas.height - bOffset - tOffset) * (1 - amt / highestNum);
+        return Math.max(tOffset, y); // clamp to top margin
+    };
+
+    // --------------- draw each series ---------------
+    const seriesResults = seriesList.map(function (series, si) {
+        const reduced = allReduced[si];
+        const sLineColor = series.lineColor;
+        const sFillColor = series.fillColor;
+
+        // build ordered points (only labels present in this series)
+        const points = [];
+        labels.forEach(function (label, i) {
+            if (reduced[label] !== undefined) {
+                const x = getX(i);
+                const y = getY(reduced[label]);
+                points.push({ x: x, y: y, amt: reduced[label], label: label });
+                reduced[label].xPos = x;
+                reduced[label].yPos = y;
+            }
+        });
+
+        if (points.length === 0) return { reduced: reduced, points: [] };
+
+        // ----- soft fading shadow below the line -----
+        if (shadow) {
+            // Anchor the gradient to the line's own peak so the shadow is always
+            // visible regardless of where the data sits vertically on the chart.
+            const peakY = points.reduce(function (minY, p) { return p.y < minY ? p.y : minY; }, Infinity);
+            const grad = ctx.createLinearGradient(0, peakY, 0, canvas.height - bOffset);
+            grad.addColorStop(0, _colorToRgba(sFillColor, 0.45));
+            grad.addColorStop(0.5, _colorToRgba(sFillColor, 0.10));
+            grad.addColorStop(1, _colorToRgba(sFillColor, 0.0));
+
             ctx.beginPath();
-        else{
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = lineColor;
-            ctx.lineTo(xPos,yPos);
-            ctx.stroke();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            // close shape down to the x-axis
+            ctx.lineTo(points[points.length - 1].x, canvas.height - bOffset);
+            ctx.lineTo(points[0].x, canvas.height - bOffset);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
         }
-        ctx.moveTo(xPos,yPos);
-        ctx.lineWidth = 0;
-        ctx.arc(xPos,yPos,2,0,2*Math.PI,true);
-        ctx.fillStyle = fillColor;
-        ctx.fill();
-        ctx.closePath();
-        reducedObjs[date].xPos = xPos;
-        reducedObjs[date].yPos = yPos;
+
+        // ----- the line -----
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = sLineColor;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+
+        // ----- the dots -----
+        points.forEach(function (p) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, pointRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = sFillColor;
+            ctx.fill();
+            // thin white ring for contrast against the line / other dots
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "#fff";
+            ctx.stroke();
+        });
+
+        return { reduced: reduced, points: points };
     });
-    if(yLegend!==""){
+
+    // --------------- axis legends ---------------
+    if (yLegend !== "") {
         ctx.save();
-        ctx.translate(0,canvas.height/2)
-        ctx.rotate(-Math.PI/2);
+        ctx.translate(0, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = yLegColor;
         ctx.font = yLegFont;
         ctx.textAlign = "center";
-        ctx.fillText(yLegend,0,yLegOffset*lOffset)
+        ctx.fillText(yLegend, 0, yLegOffset * lOffset);
         ctx.restore();
     }
-    if(xLegend!==""){
+    if (xLegend !== "") {
         ctx.fillStyle = xLegColor;
         ctx.font = xLegFont;
         ctx.textAlign = "center";
-        ctx.fillText(xLegend,canvas.width/2,canvas.height-bOffset+xLegOffset)
+        ctx.fillText(xLegend, canvas.width / 2, canvas.height - bOffset + xLegOffset);
     }
-    return {canvas,ctx,reducedObjs};
+
+    // --------------- auto series legend (top-right) ---------------
+    const labeledSeries = seriesList.filter(function (s) { return s.label; });
+    if (labeledSeries.length > 1) {
+        let legX = canvas.width - rOffset - 6;
+        let legY = tOffset + 14;
+        ctx.font = "11px Arial";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        labeledSeries.forEach(function (s) {
+            const tw = ctx.measureText(s.label).width;
+            // color dot
+            ctx.beginPath();
+            ctx.arc(legX - tw - 12, legY, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = s.fillColor;
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "#fff";
+            ctx.stroke();
+            // label
+            ctx.fillStyle = "#333";
+            ctx.fillText(s.label, legX, legY);
+            legY += 18;
+        });
+    }
+
+    return {
+        canvas: canvas,
+        ctx: ctx,
+        reducedObjs: allReduced[0],          // backward-compatible (first series)
+        allReduced: allReduced,               // NEW — one reduced map per series
+        seriesResults: seriesResults,         // NEW — {reduced, points} per series
+    };
 }
 
 exports.createModal = function(id,makeRetractable=false){
@@ -875,32 +1055,92 @@ exports.makeKey = function(key){
     return key;
 }
 
-exports.appendToDL = async function (eventName,datalist,appendToBody=true,paths,textFormat=[],_list){
-    let list = (eventName!="" && eventName) ? await ipcRenderer.invoke(eventName) : _list;
+exports.appendToDL = async function (eventName,datalist,appendToBody,paths,textFormat,_list){
+    if (appendToBody === void 0) appendToBody = true;
+    if (textFormat === void 0) textFormat = [];
+    var tableName = this.tableName;
+    var alreadyIndexed = tableName && ngramIndex[tableName];
+    // Use cached data if available (avoids IPC round-trip on re-init)
+    var list;
+    if (eventName && eventName !== "") {
+        if (tableName && dataCache[tableName]) {
+            list = dataCache[tableName];
+        } else {
+            list = await ipcRenderer.invoke(eventName);
+            if (tableName) dataCache[tableName] = list;
+        }
+    } else {
+        list = _list;
+    }
     if(paths)
-        list = paths.reduce((acc,path)=>{
+        list = paths.reduce(function(acc,path){
             acc = list[path];
             return acc;
         },[]);
-    list?.forEach(obj=>{
-        let option = document.createElement("option");
-        for(let key in obj){
+
+    // Keyword extraction for stock table (only on first index)
+    var keywords = [];
+    if(tableName === "stock" && !alreadyIndexed){
+        var arrLen = list.length;
+        if(arrLen>0){
+            keywords = Array.from(new Set(list.reduce(function(acc,obj){
+                acc.push(obj.name.split(" "));
+                return acc;
+            },[]).flat())).map(function(word){
+                var occurances = list.reduce(function(acc,obj){
+                    if(obj.name.split(" ").includes(word))
+                        acc++;
+                    return acc;
+                },0);
+                return {word:word,occurances:occurances};
+            }).sort(function(a,b){return b.occurances-a.occurances;});
+            var highestOccurance = keywords[0].occurances;
+            keywords = keywords.map(function(_a){
+                var word = _a.word, occurances = _a.occurances;
+                var weight = highestOccurance/occurances;
+                if(weight<15)
+                    return {word:word,occurances:occurances};
+            }).filter(Boolean).map(function(_b){return _b.word;});
+        }
+    }
+    list?.forEach(function(obj){
+        var option = document.createElement("option");
+        for(var key in obj){
             if(key==="name" || key==="superkey"){
                 option.value = obj["superkey"] || obj[key]; // Set value to superkey if exists, else set to name
+                var value = option.value;
+                // if(tableName==="stock"){
+                //     var words = value.split(" ");
+                //     value = words.reduce(function(acc,word){
+                //         if(keywords.includes(word))
+                //             return acc;
+                //         else
+                //             return acc + word + " ";
+                //     },"");
+                // }
+                // Skip n_gram when index was pre-built (injected via setNGramIndex
+                // from the main process). The keyword extraction above is also
+                // guarded by alreadyIndexed for the same reason.
+                if (!alreadyIndexed) n_gram(value,tableName,option);
                 if(textFormat.length>0)
-                    option.textContent = textFormat.reduce((acc,key)=>{
+                    option.textContent = textFormat.reduce(function(acc,key){
                         acc += "name" + ": " +obj.name + " ";// Hardcoded name in case superkey as key comes before name in textFormat array, can be changed as per requirement
                         return acc;
                     },"");
                 if(key==="superkey")
-                    break; // 
+                    break; //
             }
+            else
+            if(["address","phone","email","gst",].includes(key) && !alreadyIndexed)
+                n_gram(obj[key],tableName,option);
             option.dataset[key] = typeof obj[key]!=="object" ? obj[key] : JSON.stringify(obj[key]);
         }
-        datalist.appendChild(option)
+        datalist.appendChild(option);
     });
-    if(!document.querySelector(datalist.id) && appendToBody)
+    if(!document.querySelector("#" + datalist.id) && appendToBody)
         document.body.appendChild(datalist);
+    // Build/cache the option snapshot and lookup for fuzzy search
+    if (tableName) cacheDatalistState(datalist, tableName);
     return list;
 }
 
@@ -1089,7 +1329,32 @@ exports.noDataPlaceholder = function(host){
 exports.selectionHandler = async function(e,_currentStep){// Work needed here
     if(e.target.dataset.name==="name" && _currentStep===3)
         currentStep = _currentStep;
-    if(e.target.dataset.name==="billType"){// Step 2 
+    if(e.target.dataset.name==="billType"){// Step 2
+        // Proforma mode — generate proforma bill number
+        if(e.target.value === "proforma") {
+            document.querySelector('[data-name="billNo"]').value = "proforma_" + Date.now();
+            [...document.querySelectorAll("form input[name='bill-status']")].forEach(function(input) {
+                if(input.id === "bill-status-open") input.checked = true;
+                input.setAttribute("disabled", true);
+            });
+            return;
+        }
+        // Scrap mode uses regular bill number — skip toggle
+        if(e.target.value === "scrap") {
+            // Ensure regular bill-number is visible, monthly hidden
+            var rows = document.querySelectorAll("form .row1.bill-number");
+            if(rows.length >= 2) {
+                rows[0].classList.remove("hide");
+                [...rows[0].querySelectorAll("input")].forEach(function(inp) { inp.removeAttribute("disabled"); });
+                rows[1].classList.add("hide");
+                [...rows[1].querySelectorAll("input")].forEach(function(inp) { inp.setAttribute("disabled", true); });
+            }
+            // Enable bill status radios
+            [...document.querySelectorAll("form input[name='bill-status']")].forEach(function(input) {
+                input.removeAttribute("disabled");
+            });
+            return;
+        }
         [...document.querySelectorAll("form .row1.bill-number")]
         .forEach(row=>{
             if(row.classList.contains("hide")){// && row.contains(row.querySelector(".radio-btn-div")) && e.target.value==="monthly")
@@ -1147,8 +1412,9 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 continue;
             }
             let input = bodyRow.querySelector(`input[data-name="${key}"]`);
-            if(input && key!=="unit")
+            if(input && key!=="unit" && key!=="standardSellPrice")
                 input.value = match[key];
+            else
             if(key==="unit" && selectedItem.type!=="service")
                 input.value = "Kg";
             else
@@ -1158,10 +1424,9 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             if(key==="standardSellPrice"){
                 input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
                 if(selectedItem.specialPrice!==""){
-                    selectedItem.specialPrice = JSON.parse(selectedItem.specialPrice) instanceof Array ? selectedItem.specialPrice : "[]";
                     let list;
                     try{
-                        list = JSON.parse(selectedItem.specialPrice)
+                        list = JSON.parse(selectedItem?.specialPrice ?? "[]")
                                     .filter(obj=>obj.customerId===customer.id)
                                     .map(obj=>({...obj,name:obj.rate}));
                     }
@@ -1176,7 +1441,7 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                     }
                 }
             }
-            bodyRow.dataset[key] = match[key];
+            bodyRow.dataset[key] = typeof match[key] === "object" ? JSON.stringify(match[key]) : match[key];
         }
         if(match && Object.keys(match).length>2)
             bodyRow.querySelector(`[data-name="qty"]`)?.focus();
@@ -1188,8 +1453,6 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             selectedItem = match;
         if(_currentStep===3)
             currentStep = 2;
-        if(typeof displaySection==="function")
-            displaySection();
     }
     else
     if(e.target.dataset.name==="name" && currentStep===1){// Done.
@@ -1266,36 +1529,104 @@ exports.addRow = function(e){
     }
 }
 
-exports.calculateAmounts = function(e){
-    if(Object.keys(selectedItem).length===0) return;
-    if(typeof bodyRow==="undefined" || !bodyRow)
-        bodyRow = e.target.closest(".body.row");// If bodyRow is not defined or null, find the closest one
-    if(!bodyRow.classList.contains("body") && !bodyRow.classList.contains("row")) 
-        return;// If the closest bodyRow is not valid, return
-    let quantity = Number(bodyRow.querySelector('[data-name="qty"]').value);
-    let rate = Number(bodyRow.querySelector('[data-name="standardSellPrice"]').value);
-    let unit = bodyRow.querySelector(`[data-name="unit"]`).value;
-    let res = unitMap.find(uObj=>unit in uObj);
-    bodyRow.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate);
-    let cgst = Number(bodyRow.querySelector('[data-name="cgst"]').value) ?? 0;
-    let sgst = Number(bodyRow.querySelector('[data-name="sgst"]').value) ?? 0;
-    let igst = Number(bodyRow.querySelector('[data-name="igst"]').value) ?? 0;
-    if(igst>0){
-        sgst = 0;
-        cgst = 0;
-        bodyRow.querySelector('[data-name="cgst"]').value = "";
-        bodyRow.querySelector('[data-name="sgst"]').value = "";
-    }
-    selectedItem.sgst = sgst;
-    selectedItem.cgst = cgst;
-    selectedItem.igst = igst;
-    selectedItem.rate = rate;
-    selectedItem.sellUnit = bodyRow.querySelector('[data-name="unit"]').value;
-    selectedItem.qty = quantity;
-    bodyRow.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * (1 + (cgst + sgst + igst)/100));
-    if(typeof displaySection==="function")
-        displaySection();
+function computeAllAmounts(){
+    [...document.querySelectorAll(".body.row")].forEach(row=>{
+        let quantity = Number(row.querySelector('[data-name="qty"]').value);
+        let rate = Number(row.querySelector('[data-name="standardSellPrice"]').value);
+        let unit = row.querySelector(`[data-name="unit"]`).value;
+        let cgst = Number(row.querySelector('[data-name="cgst"]').value) ?? 0;
+        let sgst = Number(row.querySelector('[data-name="sgst"]').value) ?? 0;
+        let igst = Number(row.querySelector('[data-name="igst"]').value) ?? 0;
+        let sellId = row.dataset.sellId;
+        let itemObj = orderItems.find(obj=>obj.sellId===sellId);
+        if(itemObj){
+            itemObj.qty = quantity;
+            itemObj.rate = rate;
+            itemObj.cgst = cgst;
+            itemObj.sgst = sgst;
+            itemObj.igst = igst;
+            itemObj.unit = unit;
+            itemObj.sellUnit = unit;
+        }
+        let itemProperties = [
+            "buyPrice",
+            "cgst",
+            "hsn",
+            "id",
+            "igst",
+            "lastSellPrice",
+            "name",
+            "pHistory",
+            "pInfo",
+            "pScore",
+            "qty",
+            "quantity",
+            "rate",
+            "sellId",
+            "sellUnit",
+            "sgst",
+            "specialPrice",
+            "standardSellPrice",
+            "tax",
+            "type",
+            "unit"
+        ];
+        if(Object.keys(itemObj || {}).length!==itemProperties.length){
+            // If the itemObj missing any property then we fill in with default values and push the updated itemObj to orderItems array. This is to ensure that the orderItems array always has complete item objects with all necessary properties.
+            let defaultItemObj = itemProperties.reduce((acc,key)=>{
+                try{
+                    acc[key] = itemObj?.[key] ?? (key==="qty" ? 0 : key==="rate" ? 0 : key==="sellUnit" ? unit : "Kg");
+                    if(key==="sellId")
+                        acc[key] = sellId;
+                    if(key==="name")
+                        acc[key] = row.querySelector('[data-name="name"]').value;
+                    if(key==="standardSellPrice")
+                        acc[key] = rate || (itemObj?.standardSellPrice ?? 0);
+                    if(key==="cgst")
+                        acc[key] = cgst || (process.presets?.default_gst ?? 0);
+                    if(key==="sgst")
+                        acc[key] = sgst || (process.presets?.default_gst ?? 0)/2;
+                    if(key==="igst")
+                        acc[key] = igst || (process.presets?.default_gst ?? 0)/2;
+                    if(key==="unit")
+                        acc[key] = unit || "Kg";
+                    if(key==="pInfo"){
+                        acc[key] = itemObj?.pInfo || {};
+                    }
+                    if(key==="pHistory"){
+                        acc[key] = JSON.parse(itemObj?.pHistory || "[]");
+                    }
+                    if(key==="pScore")
+                        acc[key] = JSON.parse(itemObj?.pScore || "[]"); 
+                    if(key==="specialPrice")
+                        acc[key] = JSON.parse(itemObj?.specialPrice || "[]");
+                    if(key==="quantity")
+                        acc[key] = itemObj?.quantity ?? 0;
+                    if(key==="buyPrice")
+                        acc[key] = itemObj?.buyPrice ?? 0;
+                    if(key==="lastSellPrice")
+                        acc[key] = itemObj?.lastSellPrice ?? 0;
+                    if(key==="hsn")
+                        acc[key] = itemObj?.hsn ?? "";
+                    if(key==="tax")
+                        acc[key] = itemObj?.tax ?? process.presets?.default_gst ?? 0;
+                    if(key==="type")
+                        acc[key] = itemObj?.type ?? "goods";
+                    if(key==="id")
+                        acc[key] = itemObj?.id ?? "";
+                }
+                catch(err){
+                    console.log(err,key)
+                }
+                return acc;
+            },{});
+        }
+        row.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate);
+        row.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * (1 + (cgst + sgst + igst)/100));
+    });
 }
+
+exports.calculateAmounts = computeAllAmounts;
 
 exports.updateBillValue = function(e){
     if(e.target.dataset.name!=="payment") return;
@@ -1412,10 +1743,6 @@ exports.reduceOrder = function(){
             obj.qty = Number(document.querySelector(`.body.row[data-sell-id="${sellId}"]`).querySelector('[data-name="qty"]').value);
         let res = unitMap.find(uObj=>obj.sellUnit in uObj);
         if(!res){
-            // console.log({
-            //     msg:"Returned for itemObj",
-            //     obj
-            // });
             return acc;
         }
         let multiplier = 1;
@@ -1427,14 +1754,6 @@ exports.reduceOrder = function(){
         else
         if(obj.type==="service" && obj.unit!==Object.keys(res)[0])
             multiplier = typeof res==="object" ? Object.values(res)[0] : 1;
-        // console.log({
-        //     row:document.querySelector(`.body.row[data-sell-id="${sellId}"]`),
-        //     qty:obj.qty,
-        //     multiplier,
-        //     sellUnit:obj.sellUnit,
-        //     type:obj.type,
-        //     length_orderItems:self.length
-        // })
         if(obj.type!=="service" && ["Bag","Kg"].includes(obj.sellUnit))
             acc.netQty += obj.qty * multiplier;
         acc.netAmt += roundOffTo2DecimalPlace(obj.rate * obj.qty * (100-billMeta.discVal)/100) ?? 0;
@@ -1450,7 +1769,7 @@ exports.reduceOrder = function(){
 exports.clickOrFocusinHandler = function(e){
     if(e.target.dataset.cmd==="delete-row" && e.type==="focusin")
         return deleteRow(e);
-    if(e.target.dataset.cmd==="desc-btn" && e.type==="focusin")
+    if(e.target.dataset.cmd==="desc-btn" && (e.type==="focusin"  || e.type==="click"))
         return bodyRow.querySelector(".desc-div").classList.remove("hide");
     bodyRow = e.target.parentNode.parentNode;
     if(bodyRow.classList.contains("desc-div"))
@@ -1459,8 +1778,6 @@ exports.clickOrFocusinHandler = function(e){
         return;
     if(orderItems.some(obj=>obj.sellId===bodyRow.dataset.sellId))
         selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
-    if(typeof displaySection==="function")
-        displaySection();
     removeAllElem(".body-row-options");
     if(bodyRow.className==="body row"){
         bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
@@ -1820,3 +2137,453 @@ exports.gstChecksum = function(gst) {
     let expected = chars[checksum];
     return gst[14] === expected;
 }
+
+// ============================================================
+//  Feature Tour — guided walkthrough of [isUpdated] elements
+//  Runs automatically on every renderer page after DOM is ready.
+//  Skips silently if no elements have the "isUpdated" attribute.
+// ============================================================
+// ============================================================
+//  Update Welcome + Feature Tour — driven by update.md
+//  Single markdown file provides: welcome message, tour stops.
+//  No isUpdated attributes needed in HTML — tour selectors
+//  are in update.md and applied dynamically.
+// ============================================================
+var tourElements = [];
+var tourIndex = 0;
+var tourOverlay = null;
+var tourTooltip = null;
+var _updateTourStops = []; // { selector, msg } from update.md
+
+/** Fetch update content from update.md via IPC. Shows welcome modal
+ *  if new version detected, then optionally starts the feature tour. */
+async function checkForUpdate() {
+    var content;
+    try { content = await ipcRenderer.invoke("get-update-content"); }
+    catch (_) { return; }
+
+    if (!content || !content.version || !content.welcome) return;
+    _updateTourStops = content.tourStops || [];
+    showWelcomeModal(content.welcome, content.version);
+}
+
+/** Dynamically build and show the welcome modal. */
+function showWelcomeModal(welcomeText, version) {
+    // Overlay
+    var overlay = document.createElement("div");
+    overlay.id = "tour-overlay"; // reuse tour overlay styles
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.cursor = "default";
+    document.body.appendChild(overlay);
+
+    // Modal card
+    var modal = document.createElement("div");
+    modal.id = "welcome-modal";
+    modal.innerHTML =
+        '<div class="welcome-body">' +
+            '<h1 class="welcome-version">v' + (version || "") + '</h1>' +
+            '<div class="welcome-text">' + welcomeText.replace(/\n/g, "<br>") + '</div>' +
+            '<div class="welcome-actions">' +
+                '<button class="welcome-btn-start" tabindex="0">Start Tour</button>' +
+                '<button class="welcome-btn-skip" tabindex="0">Skip</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+
+    // Button handlers — "Start Tour" or "Skip"
+    modal.querySelector(".welcome-btn-start").addEventListener("click", function() {
+        overlay.remove(); modal.remove();
+        startTour();
+    });
+    modal.querySelector(".welcome-btn-skip").addEventListener("click", function() {
+        overlay.remove(); modal.remove();
+        try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+    });
+    // Clicking overlay outside modal = skip
+    overlay.addEventListener("click", function(e) {
+        if (e.target === overlay) {
+            overlay.remove(); modal.remove();
+            try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+        }
+    });
+}
+
+/** Attach tour attributes from update.md selectors and launch the tour. */
+function startTour() {
+    // Dynamically attach isUpdated + updateMsg to matched elements
+    var stops = [];
+    for (var i = 0; i < _updateTourStops.length; i++) {
+        var stop = _updateTourStops[i];
+        try {
+            var el = document.querySelector(stop.selector);
+            if (!el) continue; // selector not on this page — skip silently
+            el.setAttribute("isUpdated", "");
+            el.setAttribute("updateMsg", stop.msg);
+            stops.push(el);
+        } catch (_) { /* invalid selector — skip */ }
+    }
+    if (stops.length === 0) {
+        try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+        return;
+    }
+
+    tourElements = stops;
+    tourIndex = 0;
+
+    // Build tour overlay + tooltip (same as before)
+    tourOverlay = document.createElement("div");
+    tourOverlay.id = "tour-overlay";
+    tourOverlay.addEventListener("click", advanceTour);
+    document.body.appendChild(tourOverlay);
+
+    tourTooltip = document.createElement("div");
+    tourTooltip.id = "tour-tooltip";
+    tourTooltip.innerHTML =
+        '<div class="tour-arrow"></div>' +
+        '<div class="tour-body">' +
+            '<p class="tour-msg"></p>' +
+            '<div class="tour-footer">' +
+                '<span class="tour-counter"></span>' +
+                '<button class="tour-btn">Got it</button>' +
+            '</div>' +
+        '</div>';
+    tourTooltip.querySelector(".tour-btn").addEventListener("click", function(e) {
+        e.stopPropagation();
+        advanceTour();
+    });
+    document.body.appendChild(tourTooltip);
+
+    showTourElement(0);
+}
+
+function showTourElement(index) {
+    if (index >= tourElements.length) return endTour();
+    var el = tourElements[index];
+    var msg = el.getAttribute("updateMsg") || "New or updated feature";
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    setTimeout(function() {
+        el.classList.add("tour-highlight");
+        var rect = el.getBoundingClientRect();
+        var tt = tourTooltip;
+        tt.querySelector(".tour-msg").textContent = msg;
+        tt.querySelector(".tour-counter").textContent = (index + 1) + " of " + tourElements.length;
+
+        var ttHeight = 120;
+        var spaceBelow = window.innerHeight - rect.bottom;
+        var spaceAbove = rect.top;
+        var top, arrowClass;
+        if (spaceBelow > ttHeight + 20 || spaceBelow > spaceAbove) {
+            top = rect.bottom + 12;
+            arrowClass = "arrow-up";
+        } else {
+            top = rect.top - ttHeight - 12;
+            arrowClass = "arrow-down";
+        }
+        var left = rect.left + rect.width / 2 - 160;
+        left = Math.max(12, Math.min(left, window.innerWidth - 332));
+
+        tt.style.top = top + "px";
+        tt.style.left = left + "px";
+        tt.className = "visible " + arrowClass;
+
+        var arrowX = rect.left + rect.width / 2 - left;
+        tt.style.setProperty("--arrow-x", arrowX + "px");
+    }, 400);
+}
+
+function advanceTour() {
+    if (tourElements[tourIndex]) {
+        var el = tourElements[tourIndex];
+        el.classList.remove("tour-highlight");
+        el.removeAttribute("isUpdated");
+        el.removeAttribute("updateMsg");
+    }
+    tourIndex++;
+    if (tourIndex >= tourElements.length) {
+        endTour();
+    } else {
+        showTourElement(tourIndex);
+    }
+}
+
+function endTour() {
+    if (tourOverlay) { tourOverlay.remove(); tourOverlay = null; }
+    if (tourTooltip) { tourTooltip.remove(); tourTooltip = null; }
+    tourElements = [];
+    tourIndex = 0;
+    try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+}
+
+exports.startUpdateTour = function() { APP_ENV !== "DEV" && checkForUpdate(); };
+
+// Auto-start on page load. Disabled in DEV mode.
+(function autoStartTour() {
+    if (typeof document === "undefined") return;
+    if (APP_ENV === "DEV") return;
+    function ready() { setTimeout(checkForUpdate, 200); }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", ready);
+    } else {
+        ready();
+    }
+})();
+
+// ============================================================
+// Fuzzy search — module-level caches (persist across page re-inits,
+// cleared only on refresh-data IPC). Stores value strings instead
+// of DOM references so the index is shareable and survives re-init.
+// ============================================================
+let ngramIndex = {};       // { [tableName]: { [gram]: [valueString, ...] } }
+let _ngramSeen = {};       // { [tableName::gram]: Set<valueString> } — fast dedup for n_gram
+let dataCache = {};        // { [tableName]: rawObject[] }
+let optionSnapshot = {};   // { [tableName]: HTMLOptionElement[] } (cloned, for restore)
+let optionLookup = {};     // { [tableName]: Map<valueString, HTMLOptionElement> }
+let gramArr = [];
+
+// Listen for data-refresh from main process — clear all caches so
+// the next appendToDL / fuzzySearch rebuilds the index from fresh data.
+try {
+    const { ipcRenderer: ipcR } = require("electron");
+    ipcR.on("refresh-data", function() {
+        ngramIndex = {};
+        _ngramSeen = {};
+        dataCache = {};
+        optionSnapshot = {};
+        optionLookup = {};
+        gramArr = [];
+    });
+} catch (_) { /* ipcRenderer not available in this context */ }
+
+function n_gram(str, tableName, option, mode) {
+    if (mode === void 0) mode = "add";
+    if(!tableName) return [];
+    var grams = [];
+    var n = 3;
+    str = String(str).toLowerCase();// Convert to string and lowercase for case-insensitive search
+    if(str.length < n || str=="   " || (mode === "add" && !(option instanceof HTMLOptionElement))) return [];
+    ngramIndex[tableName] = ngramIndex[tableName] || {};
+    for (var i = 0; i <= str.length - n; i++) {
+        var gram = str.substring(i, i + n);
+        grams.push(gram);
+        if(mode === "add") {
+            // Store the option's value string, not the DOM element itself.
+            // This makes the index serializable and shareable across page re-inits.
+            var val = option.value;
+            ngramIndex[tableName][gram] = ngramIndex[tableName][gram] || [];
+            // Use a Set for O(1) dedup instead of Array.indexOf O(n) scan
+            var dedupKey = tableName + "::" + gram;
+            _ngramSeen[dedupKey] = _ngramSeen[dedupKey] || new Set();
+            if (!_ngramSeen[dedupKey].has(val)) {
+                _ngramSeen[dedupKey].add(val);
+                ngramIndex[tableName][gram].push(val);
+            }
+        }
+    }
+    if(mode!=="add")
+        return grams;
+    else
+        return;
+}
+
+function fuzzySearch(query, tableName) {
+    if(!query || query.length < 3) return [];
+    var queryGrams = n_gram(query,tableName, null, "search");
+    if(!queryGrams || queryGrams.length === 0 || !(queryGrams instanceof Array)) return [];
+    var result = {};
+    // console.log(queryGrams.length)
+    // debugger
+    for (var _i = 0; _i < queryGrams.length; _i++) {
+        var gram = queryGrams[_i];
+        if(!gramArr.includes(gram)) continue;
+        if (ngramIndex[tableName] && typeof ngramIndex[tableName][gram]!=="undefined") {
+            ngramIndex[tableName][gram].forEach(function(val) {
+                // Normalize: val can be a string (from serialized index) or
+                // HTMLOptionElement (after reInitFuzzyIndexWithOptions).
+                // Skip null/undefined entries from failed lookup conversions.
+                if (!val) return;
+                var value = (typeof val === "string") ? val : val.value;
+                if (!result[value]) {
+                    result[value] = { value: val, count: 1 };
+                } else {
+                    result[value].count++;
+                }
+            });
+        }
+    }
+    // Sort results by count in descending order, return value strings/elements
+    if(result){
+        var sortedResults = Object.values(result).sort(function(a, b) { return b.count - a.count; });
+        return sortedResults.map(function(item) { return item.value; });
+    }
+    else
+        return [];
+}
+
+const FUZZY_MIN_LENGTH = 3;
+// Non-breaking space (U+00A0) used as a separator between the search query and the real
+// option value. Prepending the query ensures the browser's built-in substring
+// filter always matches, while option.label keeps the dropdown display clean.
+let NBSP = " ", debounceTimer = null;
+
+function fuzzySearchHandler(e){
+    let input = e.target;
+    let val = input.value.trim();
+    let useFuzzySearch = input.dataset?.usefuzzysearch === "true" ?? false;
+    let tableName = input.dataset?.tablename ?? "";
+    if (!useFuzzySearch || !tableName || !preset.useFuzzySearch) return;
+
+    
+    // Always work with the persistent datalist — never change the input's
+    // list attribute, never remove the datalist from the DOM.
+    let dl = document.getElementById(input.getAttribute("list"));
+    if (!dl) return;
+    
+    function debounceTimerHelper(){
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(()=>{
+            restoreFullDatalist(dl, tableName);
+        },200);
+    }
+    // Kill any pending debounce on every keystroke — even if we're about
+    // to early-return (selection, short query), the old timer must not fire.
+    clearTimeout(debounceTimer);
+
+    // Detect a datalist selection: options have value = "query" + NBSP + "realValue"
+    var nbspIdx = val.indexOf(NBSP);
+    if (nbspIdx > 0 || val === "") {
+        if (val === "") {
+            // Input cleared — restore the full datalist for the next interaction.
+            debounceTimerHelper()
+            return;
+        }
+        // User selected an option — extract the real value and place only the
+        // matching option in the datalist. This avoids cloning every option
+        // (restoreFullDatalist is expensive for large lists) while still letting
+        // selectionHandler (which fires next via the 'change' event) find the
+        // matching option by its original value attribute.
+        val = val.substring(nbspIdx + 1).trim();
+        input.value = val;
+        dl.innerHTML = "";
+        var match = optionLookup[tableName] && optionLookup[tableName].get(val);
+        if (match) dl.appendChild(match.cloneNode(true));
+        debounceTimerHelper();
+        return;
+    }
+    // If the value exactly matches an option in the original (unfiltered)
+    // datalist, the user selected from the default browser dropdown — not
+    // from a fuzzy-filtered list. Restore the full datalist and return
+    // without running fuzzy search, so the subsequent 'change' event can
+    // find the matching option and trigger selectionHandler directly.
+    if (optionLookup[tableName] && optionLookup[tableName].has(val)) {
+        debounceTimerHelper();
+        return;
+    }
+
+    if (!val || val.length < FUZZY_MIN_LENGTH) {
+        // Don't clear — current filtered options are still useful for short
+        // queries. Debounce the expensive restore so rapid backspacing
+        // doesn't clone thousands of options on every keystroke.
+        debounceTimerHelper();
+        return;
+    }
+    // Immediately clear the datalist to prevent the browser from showing
+    // stale options from the previous search during the debounce window.
+    dl.innerHTML = "";
+    debounceTimer = setTimeout(function() {
+        // fuzzySearch returns value strings or HTMLOptionElements — look up
+        // the actual option elements from the persistent lookup map.
+        var matchedOpts = fuzzySearch(val, tableName);
+        matchedOpts = matchedOpts.slice(0,20);
+        dl.innerHTML = "";
+        if (!matchedOpts || matchedOpts.length === 0){
+            showToastNotification("New keyword detected, press Ctrl+F to disable/re-enable the Fuzzy Search.",["animation-common","move-left","red-toast-box"]);
+            return restoreFullDatalist(dl,tableName);
+        }
+        var fragment = document.createDocumentFragment();
+        matchedOpts.forEach(function(option) {
+            // Guard: option may be a string (from serialized index) or
+            // HTMLOptionElement (after reInitFuzzyIndexWithOptions)
+            if (!option) return;
+            var cloned;
+            if (typeof option === "string") {
+                // Look up the real option element from the lookup map
+                var realOpt = optionLookup[tableName] && optionLookup[tableName].get(option);
+                if (!realOpt) return;
+                cloned = realOpt.cloneNode(true);
+            } else {
+                cloned = option.cloneNode(true);
+            }
+            var realValue = cloned.value;
+            cloned.value = val + NBSP + realValue;
+            cloned.label = realValue;
+            fragment.appendChild(cloned);
+        });
+        dl.appendChild(fragment);
+    }, 50);
+}
+
+function restoreFullDatalist(dl, tableName) {
+    var snapshot = optionSnapshot[tableName];
+    if (!snapshot || snapshot.length === 0) return;
+    if (dl.children.length === snapshot.length || dl.children.length>=30) return; // already restored
+    // Use a DocumentFragment to batch all DOM insertions into a single reflow
+    let fragment = document.createDocumentFragment();
+    let first30Opts = snapshot.slice(0,30);
+    let remainingOpts = snapshot.slice(30,snapshot.length);
+    first30Opts.forEach(function(opt) { fragment.appendChild(opt.cloneNode(true)); });
+    dl.innerHTML = "";
+    dl.appendChild(fragment);
+    clearTimeout(debounceTimer);
+    let timer = 0;
+    debounceTimer = setTimeout(async ()=>{
+        let fragment = document.createDocumentFragment();
+        await Promise.all(remainingOpts.map(async function(opt) { 
+            timer++;
+            return new Promise((res)=>setTimeout(()=>{
+                fragment.appendChild(opt.cloneNode(true)); 
+                res(true);
+            },50+timer));
+        }));
+        dl.appendChild(fragment);
+    },1000);
+}
+
+// Build (or rebuild) the option lookup map and snapshot from a freshly
+// populated datalist. Call this after appendToDL fills the datalist.
+function cacheDatalistState(dl, tableName) {
+    if (!dl || !tableName) return;
+    var children = dl.children;
+    // Snapshot: cloned options for fast restore of the full list
+    optionSnapshot[tableName] = Array.from(children).map(function(opt) { return opt.cloneNode(true); });
+    // Lookup: Map<valueString, HTMLOptionElement> for fuzzySearchHandler
+    var map = new Map();
+    for (var i = 0; i < children.length; i++) {
+        map.set(children[i].value, children[i]);
+    }
+    optionLookup[tableName] = map;
+}
+
+exports.getNGramIndex = function(){
+    return ngramIndex;
+}
+// Allow pages to inject a pre-built n-gram index received from the main
+// process, skipping the expensive trigram-calculation loop in appendToDL.
+exports.setNGramIndex = function(idx) {
+    if (idx && typeof idx === "object") ngramIndex = idx;
+}
+
+exports.reInitFuzzyIndexWithOptions = function(tableName,dl){
+    let lookup = optionLookup[tableName];
+    let ngramMap_table = ngramIndex[tableName];
+    Object.keys(ngramMap_table).forEach(key=>{
+        gramArr.push(key);
+        ngramMap_table[key] = ngramMap_table[key].map((optStr)=>optionLookup[tableName].get(optStr));
+    });
+}
+
+exports.fuzzySearchHandler = fuzzySearchHandler;
+exports.cacheDatalistState = cacheDatalistState;

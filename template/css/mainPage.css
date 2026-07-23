@@ -15,13 +15,38 @@ body{
 #nav-div div{
     flex: 1;
 }
+#nav-div>div:first-child{
+    flex: 2;
+    box-shadow: inset 0px -1px 0px 1px var(--theme-shadow-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    border-radius: 0 0 15px 15px;
+}
 #nav-div>div:first-child h1{
     color: goldenrod;
-    background: white;
+    background: transparent;
     letter-spacing: 0.2rem;
     font-weight: 200;
     text-shadow: -1px 1px black;
     padding: 0.5rem;
+    position: relative;
+    z-index: 1;
+    border-radius: 0 0 15px 15px;
+}
+#nav-div>div:first-child h1::after{
+    content: "For All Business Needs";
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    bottom: -85%;
+    left: -40%;
+    z-index: -1;
+    font-size: 0.65rem;
+    font-style: italic;
+    font-weight: 600;
+    text-shadow: none;
 }
 #nav-div div:nth-child(2){
     flex: 6;
@@ -36,14 +61,27 @@ body{
 #nav-div div p.selected{
     color: var(--theme-primary);
     font-size: 1.3rem;
+    position: relative;
+    z-index: 1;
+}
+#nav-div div p.selected::after{
+    content: "";
+    position: absolute;
+    font-size: 1.5rem;
+    width: 80%;
+    height: 100%;
+    text-align: center;
+    top: 0;
+    left: 4px;
+    border-radius: 15px;
     background: var(--theme-secondary);
+    z-index: -1;
 }
 i{
     color: inherit;
 }
 h1{
     color: var(--theme-text-color);
-    background: var(--theme-secondary);
     font-size: 2.5rem;
     font-weight: 100;
     font-family: sans-serif;
@@ -87,7 +125,7 @@ h1{
 }
 #main-div>div:first-child>div>div:first-child h2{
     color: var(--theme-text-color);
-    background: var(--theme-secondary);
+    background:transparent;
     font-size: 2.5rem;
     font-weight: 100;
 }
@@ -595,6 +633,7 @@ select,option{
     overflow: auto;
     height: 95%;
     padding: 0.5rem;
+    background: var(--theme-secondary);
 }
 #settings-container form>div{
     margin: 0.5rem 0;

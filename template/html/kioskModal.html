@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk Mode</title>
+    <link rel="stylesheet" href="../css/kioskModal.css">
+</head>
+<body>
+    <div class="kiosk-modal">
+        <div class="km-header">
+            <h2>📱 Kiosk Mode Active</h2>
+            <p class="km-subtitle">Scan the QR code or enter the URL below</p>
+        </div>
+        <div class="km-qr-wrap">
+            <img id="km-qr" src="" alt="Kiosk QR Code">
+        </div>
+        <div class="km-url" id="km-url"></div>
+        <div class="km-pin-box">
+            <span class="km-pin-label">PIN</span>
+            <span class="km-pin-value" id="km-pin"></span>
+        </div>
+        <div class="km-footer">
+            <button id="km-stop-btn" class="km-btn-stop">Stop Server</button>
+            <button id="km-close-btn" class="km-btn-close">Close</button>
+        </div>
+    </div>
+    <script src="../js/kioskModal.js"></script>
+</body>
+</html>

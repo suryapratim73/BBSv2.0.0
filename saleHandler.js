@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { BrowserWindow } = require("electron/main");
 const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, billNoCounter, setBillNo, reduceBillNo, appLogger, People, getBaseDir, priceInspector, getLastBillNo, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
@@ -15,7 +15,6 @@ const { deserializeSchema } = require("./model/schemaLoader");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 let dynamicSchemaPath = path.resolve(appPath,"./model/dynamicSchemas.json");
-console.log({dynamicSchemaPath,exists:fs.existsSync(dynamicSchemaPath)});
 if(!(fs.existsSync(dynamicSchemaPath))){
     fs.writeFileSync(dynamicSchemaPath,JSON.stringify({}));
     global.needsSchemaBootstrap = true;
@@ -53,7 +52,13 @@ exports.saleWindow = ()=>{
             } else
                 closeFlag = false;
             getMainWindow().webContents.send("update-content");
-        })
+        });
+        // Safety net: force-close / crash → release reservation
+        saleWindow?.on("destroyed", () => {
+            if (saleWindow && saleWindow.id) {
+                getBillManager().release("sale-" + saleWindow.id);
+            }
+        });
     }
 }
 
@@ -78,7 +83,7 @@ exports.orderManager = (main,cb)=>{
     return ()=>{
         windowOptions.parent = main;
         let saleWindow = createModal(windowOptions,getTemplatePath("orderManager"),{label:"manage-order",cb});
-        saleWindow.webContents.openDevTools();
+        // saleWindow.webContents.openDevTools();
         saleWindow?.on("close",(e)=>{
             getMainWindow().webContents.send("update-content");
         });
@@ -86,12 +91,14 @@ exports.orderManager = (main,cb)=>{
     }
 }
 
-ipcMain.handle("get-sale-bill-number",()=>{
+ipcMain.handle("get-sale-bill-number",(e)=>{
     try {
-        let billNo = billNoCounter();
+        const windowId = e.sender.id;
+        const sessionId = "sale-" + windowId;
+        const billNo = getBillManager().allocate(sessionId);
     appLogger({
         title:"Log",
-        message:JSON.stringify({billNo}),
+        message:JSON.stringify({billNo, windowId, sessionId}),
         func:"IPC event:get-sale-bill-number"
     });
     return billNo;
@@ -101,11 +108,16 @@ ipcMain.handle("get-sale-bill-number",()=>{
     }
 });
 
-ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
+ipcMain.on("cancel-sale-bill",(e,currentStep,billNo)=>{
     try {
-        console.log({currentStep});
+        console.log({currentStep,billNo});
+    const windowId = e.sender.id;
+    const sessionId = "sale-" + windowId;
+    // Release the reserved bill number back to the pool.
+    // BillManager tracks per-session, so out-of-order cancellations
+    // are handled correctly — the right number always returns to the pool.
     if(currentStep>1 && process.presets.mode!="edit-bill")
-        reduceBillNo();
+        getBillManager().release(sessionId);
     closeFlag = true;
     BrowserWindow.getFocusedWindow().close();
     if("presets" in process && process?.presets?.target==="salePage")
@@ -128,67 +140,99 @@ function itemAnalyzer(orderItems){
     return itemList;
 }
 
-async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type,desc=""},billModel,custId,billDate,billNo,grpTag=false,grpId,grpName,grpDesc){
-    let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
-    let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-    let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
-    let billModelObj = {
-        name,
-        type,
-        hsn,
-        quantity:qty,
-        unit:sellUnit,
-        rate:rate*multiplier,
-        tax:tax*amt/100,
-        sgst,
-        cgst,
-        igst,
-        desc
-    };
-    if(grpTag){
-        billModelObj.isGrouped = true;
-        billModelObj.grpId = grpId;
-        billModelObj.grpName = grpName;
-        billModelObj.desc = grpDesc;
-    }
-    await billModel.create(billModelObj);
-    if(!id)
-        return ipcMain.emit("create-stock",null,{name,hsn});
-    let item = await stock.findOne({where:{id}});
-    item.reduceStock = qty*multiplier;
-    await item.save();
-    await stock.update({
-        pInfo:{
-            ...item.pInfo,
-            taxSlab:igst>0?igst:2*sgst
+async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,hsn,type,desc="",pHistory},billModel,custId,billDate,billNo,grpTag=false,grpId,grpName,grpDesc,billType){
+    try{
+        let tax = Number(igst)>0?Number(igst):Number(cgst)+Number(sgst);
+        let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+        sellUnit = sellUnit ? sellUnit : "Kg";
+        let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
+        pHistory = pHistory ? JSON.parse(pHistory) : [];
+        if(pHistory.length>0){
+            // Removing entries older than 6 months from pHistory
+            let sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            pHistory = pHistory.filter(entry => new Date(entry.date) >= sixMonthsAgo);
         }
-    },{
-        where:{id}
-    })
-    let match =  global.stocks.find(obj=>obj.id===id);
-    if(!match){
-        match = {};
-        match.quantity = 0;
-        match.specialPrice = [];
+        pHistory.push({
+            date:billDate,
+            billNo,
+            custId,
+            qty,
+            unit:sellUnit,
+            rate,
+            tax,
+        });
+        let billModelObj = {
+            name,
+            type,
+            hsn,
+            quantity:qty,
+            unit:sellUnit,
+            rate:rate*multiplier,
+            tax:tax*amt/100,
+            sgst,
+            cgst,
+            igst,
+            desc
+        };
+        if(grpTag){
+            billModelObj.isGrouped = true;
+            billModelObj.grpId = grpId;
+            billModelObj.grpName = grpName;
+            billModelObj.desc = grpDesc;
+        }
+        await billModel.create(billModelObj);
+        if(!id)
+            return ipcMain.emit("create-stock",null,{name,hsn});
+        // Don't reduce stock for proforma bills
+        if(billType !== "proforma"){
+            let item = await stock.findOne({where:{id}});
+            item.reduceStock = qty*multiplier;
+            await item.save();
+        }
+        let item = await stock.findOne({ where:{ id } });
+        await stock.update({
+            pInfo:{
+                ...item.pInfo,
+                taxSlab:igst>0?igst:2*sgst
+            },
+            pHistory
+        },{
+            where:{id}
+        })
+        let match =  global.stocks.find(obj=>obj.id===id);
+        if(!match){
+            match = {};
+            match.quantity = 0;
+            match.specialPrice = [];
+        }
+        match.quantity -= qty*multiplier;
+        let customerSpPrices = match.specialPrice?.filter(obj=>obj.customerId==custId)?.slice(0,5);
+        match.specialPrice = match.specialPrice?.filter(obj=>obj.customerId!=custId);
+        match.specialPrice = [
+            ...match.specialPrice,
+            ...customerSpPrices
+        ]
+        match.specialPrice?.push({
+            customerId:custId,
+            rate,
+            billDate,
+            billNo
+        })
+        return stock.update({
+            specialPrice:match.specialPrice
+        },{
+            where:{id}
+        });
     }
-    match.quantity -= qty*multiplier;
-    let customerSpPrices = match.specialPrice?.filter(obj=>obj.customerId==custId)?.slice(0,5);
-    match.specialPrice = match.specialPrice?.filter(obj=>obj.customerId!=custId);
-    match.specialPrice = [
-        ...match.specialPrice,
-        ...customerSpPrices
-    ]
-    match.specialPrice?.push({
-        customerId:custId,
-        rate,
-        billDate,
-        billNo
-    })
-    return stock.update({
-        specialPrice:match.specialPrice
-    },{
-        where:{id}
-    });
+    catch(err){
+        console.log(err)
+        appLogger({
+            title:"Stock updation error",
+            message:String(err),
+            func:"helperFunc1"
+        })
+    }
 }
 
 async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
@@ -206,37 +250,38 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         Reflect.deleteProperty(process.presets,"mode");
     }
     let { billExpiry = 14 } = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString())
-    let { 
-        billStatus, 
+    let {
+        billStatus,
         deliveryType,
         transportName="",
         transportId="",
         transportAddress="",
         transportContact="",
         transportGST="",
-        netDue, 
-        billNo, 
-        billDate, 
-        netTax,
+        netDue,
+        billNo,
+        billDate,
+        netTax = billMeta.netAmtTax - billMeta.netAmt,
         payment=[],
         netAmt,
         paymentStatus,
         billType,
         autoBill,
         orderRef,
-        netAmtTax
+        netAmtTax,
+        scrapTDSAmt = 0
     } = billMeta;
+    billMeta.netTax = netTax;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+    if(billType === "proforma" && (!billMeta.printObj.captions || !billMeta.printObj.captions.length))
+        billMeta.printObj = { ...billMeta.printObj, captions: ["Proforma Invoice"] };
     billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
-    if(Number(billNo)===getLastBillNo()){
-        setBillNo(Number(billNo));
-        saleConfig.billNo = Number(billNo);
+
+    // Consume the reserved bill number (no-op for edit-bill, kiosk, or already-consumed)
+    if (e && e.sender && e.sender.id) {
+        const sessionId = "sale-" + e.sender.id;
+        getBillManager().consume(sessionId);
     }
-    else{
-        reduceBillNo();
-        saleConfig.availableBillNo = saleConfig.availableBillNo.filter(_billNo=>_billNo!=Number(billNo));
-    }
-    fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(saleConfig));
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
@@ -256,7 +301,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 gst:transportGST
             }
         })
-        .then(()=>{appLogger("Transporter db updated!!")})
+        .then(()=>{appLogger({title:"Log", message:"Transporter db updated!!", func:"save_exit"})})
         .catch(err=>appLogger({
             title:"Error",
             message:String(err),
@@ -307,7 +352,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 }
             }
         })
-        .then(()=>appLogger("Customer db updated"))
+        .then(()=>appLogger({title:"Log", message:"Customer db updated", func:"save_exit"}))
         .catch(err=>appLogger({
             title:"Error",
             message:String(err),
@@ -355,7 +400,6 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                 shipPh:billMeta.shipPh,
                 shipGST:billMeta.shipGST
             });
-            console.log({shipInfos})
             match.moreInfo = {  
                 ...match.moreInfo,
                 email,
@@ -385,22 +429,6 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
     ];
-    // if(billNo!=="spot"){
-    //     let match_sale = await sale.findOne({
-    //         where:{
-    //             billNo,
-    //             [Op.and]:{
-    //                 billNo,
-    //             },
-    //             [Op.and]:{
-    //                 customerId:custId
-    //             }
-    //         }
-    //     })
-    //     if(match_sale)
-    //         return dialog.showErrorBox("Bill exist","The Bill number already exist for this bill date & customer. If you want to edit a bill then please use customer portal.");
-    // }
-
     // Price inspection
     try{
         await Promise.all(orderItems.map(async itemObj=>{
@@ -410,7 +438,6 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         }));
     }
     catch(err){
-        console.log(err)
         return dialog.showErrorBox("Price ceiling violation","Sorry you don't have enough permission to sell at above or below price ceiling decided for the item by your administrator. Please contact your administrator.")
     }
     let billModel = await getBillModel(custId,(billNo==="spot"?monthNames[new Date().getMonth()]:billNo),billDate,billItemSchema);    
@@ -428,10 +455,10 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         .map(obj=>{
             if(obj.type==="grp"){
                 let grpId = uuid.v4();
-                return obj.items.map(_obj=>helperFunc1(_obj,billModel,custId,billDate,billNo,true,grpId,obj.name,obj.desc));
+                return obj.items.map(_obj=>helperFunc1(_obj,billModel,custId,billDate,billNo,true,grpId,obj.name,obj.desc,billType));
             }
             else
-                return helperFunc1(obj,billModel,custId,billDate,billNo);
+                return helperFunc1(obj,billModel,custId,billDate,billNo,billType);
         }),//updating stock
         (billNo!=="spot" && customerLedger.create({
             billStatus,
@@ -449,7 +476,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             billNo,
             billType,
             billDate,
-            billAmt:netAmtTax,
+            billAmt:netAmtTax + (scrapTDSAmt || 0),
             netAmt,
             tax:netTax,
             payment:netPayment,
@@ -466,7 +493,8 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             shipGST:billMeta.shipGST,
             ewayBill:billMeta.ewayBill,
             placeOfSupply:billMeta.placeOfSupply,
-            stateNcode:billMeta.stateNcode
+            stateNcode:billMeta.stateNcode,
+            moreInfo: JSON.stringify({ scrapTDSAmt: scrapTDSAmt || 0 })
         })
     ])
     .then(async ()=>{
@@ -484,13 +512,19 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             message: "Bill added to your sale and stocks and/or ledger updated."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("sale",JSON.stringify({name,billNo,netPayment}));
+        let concatenatedObj = {
+            ...billMeta,
+            orderItems,
+            customer
+        };
+        appLogger({title:"sale", message:JSON.stringify(concatenatedObj), func:"save_exit"});
         if(flag!="regular"){
             await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
-            BrowserWindow.fromId(e.sender.id).webContents.send("billing-complete");
+            var orderWin = BrowserWindow.fromId(e.sender.id);
+            if (orderWin) orderWin.webContents.send("billing-complete");
         }
-        else// Creating notification for regular bills
-        if(flag==="regular" && paymentStatus===false){
+        // Schedule payment reminder for unpaid bills (works for kiosk + regular)
+        if(paymentStatus===false){
             let evObj = {
                 label:`Bill Number ${billNo} expired`,
                 type: "bill-payment",
@@ -505,7 +539,9 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             }
             ipcMain.emit("manage-schedule",null,evObj,"a",false);
         }
-        BrowserWindow.fromId(e.frameId).webContents.send("update-content");
+        // Notify main window to refresh (fallback for kiosk/null sender)
+        var notifyWin = BrowserWindow.fromId(e.frameId) || getMainWindow();
+        if (notifyWin) notifyWin.webContents.send("update-content");
     })
     .catch(console.log);
     if(billType!=="monthly")
@@ -648,7 +684,7 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
         appLogger({
             title:"Error",
             message:err.message,
-            line:"manage order ipc- last try-catch"
+            func:"manage order ipc- last try-catch"
         });
     }
     if(mode==="proforma"){

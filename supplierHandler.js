@@ -169,12 +169,12 @@ ipcMain.handle("add-out-payment",async (e,obj)=>{
             message: "Payment added and ledger updated."
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("paid to supplier",JSON.stringify({id,billNo,billAmt,payment:payAmt,type:"bill"}));
+        appLogger({title:"paid to supplier", message:JSON.stringify({id,billNo,billAmt,payment:payAmt,type:"bill"}), func:"add-out-payment"});
         return true;
     }
     catch(err){
         console.log(err);
-        appLogger("failed to add payment",JSON.stringify({err}));
+        appLogger({title:"failed to add payment", message:JSON.stringify({err}), func:"add-out-payment"});
         return false;
     }
 });
@@ -200,7 +200,7 @@ ipcMain.on("update-supplier",async (e,obj)=>{
             message: "Supplier information updated successfully."
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger("supplier information updated successfully",JSON.stringify({id,name:obj.name}));
+        appLogger({title:"supplier information updated successfully", message:JSON.stringify({id,name:obj.name}), func:"update-supplier"});
     })
     .catch(err=>{
         console.log({err});
@@ -223,7 +223,7 @@ ipcMain.on("new-supplier",async (e,obj)=>{
         }
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
         const {id=null,name=""} = dataValues;
-        appLogger("new Supplier added to database",JSON.stringify({id,name}));
+        appLogger({title:"new Supplier added to database", message:JSON.stringify({id,name}), func:"new-supplier"});
         console.log(global.suppliers.find(obj=>obj.id===id));
     })
     .catch(err=>{

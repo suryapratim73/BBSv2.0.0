@@ -1,0 +1,270 @@
+@import "../css/common.css";
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--theme-text-color, #333);
+    background: var(--theme-secondary, #fff);
+}
+
+/* ---- Toolbar ---- */
+#help-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--theme-primary, rebeccapurple);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+#help-search {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    background: rgba(255,255,255,0.9);
+}
+#help-toolbar button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+#help-toolbar button:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* ---- Content ---- */
+#help-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* ---- Typography ---- */
+#help-content h1 {
+    font-size: 1.8rem;
+    margin: 24px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--theme-primary, rebeccapurple);
+    color: var(--theme-primary, rebeccapurple);
+}
+#help-content h2 {
+    font-size: 1.4rem;
+    margin: 28px 0 10px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ddd;
+}
+#help-content h3 {
+    font-size: 1.15rem;
+    margin: 20px 0 8px;
+}
+#help-content h4 {
+    font-size: 1rem;
+    margin: 16px 0 6px;
+}
+#help-content p {
+    margin: 8px 0;
+}
+#help-content strong { font-weight: 600; }
+#help-content em { font-style: italic; }
+#help-content a { color: var(--theme-primary, rebeccapurple); }
+
+/* ---- Lists ---- */
+#help-content ul, #help-content ol {
+    margin: 8px 0 8px 24px;
+}
+#help-content li { margin: 2px 0; }
+#help-content li > ul, #help-content li > ol { margin-top: 0; }
+
+/* ---- Code ---- */
+#help-content code {
+    background: #f4f4f4;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 0.9em;
+}
+#help-content pre {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 14px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+#help-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* ---- Blockquote ---- */
+#help-content blockquote {
+    border-left: 4px solid var(--theme-primary, rebeccapurple);
+    padding: 6px 14px;
+    margin: 12px 0;
+    background: rgba(102, 51, 153, 0.06);
+    border-radius: 0 6px 6px 0;
+}
+
+/* ---- Tables ---- */
+#help-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 0.9rem;
+}
+#help-content th {
+    background: var(--theme-primary, rebeccapurple);
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+}
+#help-content td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #eee;
+}
+#help-content tr:nth-child(even) td {
+    background: #fafafa;
+}
+
+/* ---- Horizontal Rule ---- */
+#help-content hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 16px 0;
+}
+
+/* ---- Search Highlight ---- */
+#help-content mark {
+    background: #ffeb3b;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* ---- Loading / Error ---- */
+.loading, .error {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+.error { color: #c00; }
+
+/* ============================================================
+   Update Tour — overlay, spotlight & tooltip
+   ============================================================ */
+
+/* Full-page semi-transparent cover */
+#tour-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 999;
+    cursor: pointer;
+    animation: tourFadeIn 0.3s ease;
+}
+@keyframes tourFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Highlighted element — raised above overlay */
+.tour-highlight {
+    position: relative;
+    z-index: 1001 !important;
+    background: #fff !important;
+    border-radius: 6px;
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.9), 0 4px 24px rgba(0,0,0,0.4);
+    animation: tourPulse 2s ease-in-out infinite;
+    transition: box-shadow 0.3s ease;
+}
+@keyframes tourPulse {
+    0%, 100% { box-shadow: 0 0 0 6px rgba(255,255,255,0.9), 0 4px 24px rgba(0,0,0,0.4); }
+    50%      { box-shadow: 0 0 0 10px rgba(255,255,200,0.7), 0 6px 30px rgba(0,0,0,0.5); }
+}
+
+/* Tooltip */
+#tour-tooltip {
+    position: fixed;
+    z-index: 1002;
+    width: 320px;
+    display: none;
+    animation: tourSlideUp 0.3s ease;
+}
+#tour-tooltip.visible { display: block; }
+@keyframes tourSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Arrow */
+#tour-tooltip .tour-arrow {
+    width: 0;
+    height: 0;
+    margin-left: var(--arrow-x, 150px);
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    transition: margin-left 0.3s ease;
+}
+#tour-tooltip.arrow-up .tour-arrow {
+    border-bottom: 10px solid var(--theme-primary, rebeccapurple);
+}
+#tour-tooltip.arrow-down .tour-arrow {
+    border-top: 10px solid var(--theme-primary, rebeccapurple);
+}
+
+/* Tooltip body */
+#tour-tooltip .tour-body {
+    background: var(--theme-primary, rebeccapurple);
+    color: #fff;
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+#tour-tooltip .tour-msg {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 10px;
+}
+#tour-tooltip .tour-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+#tour-tooltip .tour-counter {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+#tour-tooltip .tour-btn {
+    padding: 5px 18px;
+    border: 2px solid rgba(255,255,255,0.8);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#tour-tooltip .tour-btn:hover {
+    background: rgba(255,255,255,0.3);
+}

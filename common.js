@@ -6,9 +6,21 @@ const fs = require("fs");
 const { printOnLinuxOrMac,printOnWindows } = require("./printHandler");
 const { getMainWindow } = require("./createModal");
 const { getsaleConfigPolicyPath, init } = require("./template/js/common");
-const { end } = require("pdfkit");
+const { end, file } = require("pdfkit");
 const { default: axios } = require("axios");
+const { logger } = require("sequelize/lib/utils/logger");
+const crypto = require("crypto");
+const keytar = require('keytar');
+const { execSync } = require("child_process");
 
+
+const SERVICE_NAME = 'BBSv2_ERP';
+const ACCOUNT_NAME = 'MasterEncryptionSecret';
+
+/** Safely execute fn, returning fallback if it throws. */
+exports.attempt = function(fn, fallback) {
+    try { return fn(); } catch (_) { return fallback; }
+};
 
 exports.closeAndDisplay = function(msg){
     let purchaseWindows = BrowserWindow.getAllWindows()
@@ -19,27 +31,210 @@ exports.closeAndDisplay = function(msg){
     dialog.showMessageBox(parentWindow,msg)
 }
 
-class BillNoGenerator{
-    constructor(initBillNo){
-        if(initBillNo)
-            this.billNo = initBillNo;
-        else
-            this.billNo = 0;
+// ============================================================
+//  BillManager — Reservation pool for bill numbers
+// ============================================================
+//  BillManager v2 — Object-based pool
+//  Each pool entry: { billNo, isConsumed, date, windowId }
+//  Self-documenting state — no separate releasedDates or lastIssued.
+// ============================================================
+class BillManager {
+    /** Normalize a raw pool entry — ensure all fields exist with safe defaults. */
+    static _safeEntry(raw) {
+        if (!raw || typeof raw !== "object") raw = {};
+        return {
+            billNo: Number(raw.billNo) || 0,
+            isConsumed: !!raw.isConsumed,
+            date: raw.date || null,
+            windowId: raw.windowId || null
+        };
     }
-    getNextBillNo(){
-        this.billNo++;
-        return this.billNo;
+
+    constructor(saleConfig) {
+        const cfg = saleConfig || {};
+        this.poolSize = cfg.poolSize || 10;
+        // Seed — where to start if the pool is empty (reset or first run)
+        this._seed = cfg.billNo || cfg.lastIssued || 0;
+        this.pool = [];
+        // v2 object format
+        if (Array.isArray(cfg._poolObjects) && cfg._poolObjects.length > 0) {
+            this.pool = cfg._poolObjects.map(function(o) {
+                return BillManager._safeEntry(o);
+            });
+        }
+        // First-run migration from old billNoPool (number array)
+        if (this.pool.length === 0 && Array.isArray(cfg.billNoPool) && cfg.billNoPool.length > 0) {
+            var oldDates = cfg._releasedDates || {};
+            this.pool = cfg.billNoPool.map(function(n) {
+                return BillManager._safeEntry({
+                    billNo: n, isConsumed: false, date: oldDates[n] || null
+                });
+            });
+        }
+        // Filter out any entry with billNo === 0 (failed normalization)
+        this.pool = this.pool.filter(function(e) { return e.billNo > 0; });
+        this._cleanup();
+        this._refill();
+        this._persist();
     }
-    reduceBillNo(){
-        this.billNo--;
+
+    /** @returns {object[]} pool entries that are free — not consumed, not reserved */
+    _available() {
+        return this.pool.filter(function(e) { return e && !e.isConsumed && !e.windowId; })
+            .sort(function(a, b) { return a.billNo - b.billNo; });
     }
-    setBillNo(billNo){
-        this.billNo = billNo;
-    }   
+
+    /** @returns {object[]} pool entries with isConsumed: true, sorted */
+    _consumed() {
+        return this.pool.filter(function(e) { return e && e.isConsumed; })
+            .sort(function(a, b) { return a.billNo - b.billNo; });
+    }
+
+    /** Highest billNo in the pool (consumed or not). Returns 0 if empty. */
+    _highest() {
+        var h = 0;
+        for (var i = 0; i < this.pool.length; i++) {
+            if (this.pool[i] && this.pool[i].billNo > h) h = this.pool[i].billNo;
+        }
+        return h;
+    }
+
+    /** Last consumed bill number. */
+    get currentMax() {
+        var c = this._consumed();
+        return c.length > 0 ? c[c.length - 1].billNo : 0;
+    }
+
+    getState() {
+        return { currentMax: this.currentMax, poolSize: this.poolSize, pool: this.pool.slice() };
+    }
+
+    reset(newBillNo) {
+        this._seed = Number(newBillNo);
+        this.pool = [];
+        this._refill();
+        this._persist();
+    }
+
+    // ---- Persist ----
+
+    _persist() {
+        try {
+            var cfgPath = getsaleConfigPolicyPath();
+            var saleConfig = JSON.parse(fs.readFileSync(cfgPath).toString());
+            saleConfig._poolObjects = this.pool.map(function(e) {
+                return { billNo: e.billNo, isConsumed: e.isConsumed, date: e.date };
+            });
+            saleConfig.poolSize = this.poolSize;
+            // Clean old keys
+            delete saleConfig.billNoPool;
+            delete saleConfig._releasedDates;
+            delete saleConfig.lastIssued;
+            fs.writeFileSync(cfgPath, JSON.stringify(saleConfig, null, 2));
+        } catch (_) {
+            // Config not yet writable during early startup — pool state is
+            // still correct in memory and will be persisted on next mutation.
+        }
+    }
+
+    // ---- Gap cleanup & stale flush ----
+
+    /** Move released-but-stale numbers (prior-day releases that are now
+     *  below the highest consumed) to availableBillNo for manual selection. */
+    _cleanup() {
+        var today = new Date().toISOString().split("T")[0];
+        var consumed = this._consumed();
+        var highestConsumed = consumed.length > 0 ? consumed[consumed.length - 1].billNo : 0;
+        var stale = [];
+
+        for (var i = 0; i < this.pool.length; i++) {
+            var e = this.pool[i];
+            if (!e || e.isConsumed || e.windowId) continue;
+            // Only entries with an explicit release date are candidates.
+            // date === today → same-day reuse. date < today → stale, flush.
+            if (e.date && e.billNo < highestConsumed && e.date !== today) {
+                stale.push(e.billNo);
+                e._remove = true;
+            }
+        }
+
+        this.pool = this.pool.filter(function(e) { return !e._remove; });
+
+        if (stale.length > 0) {
+            try {
+                var cfgPath = getsaleConfigPolicyPath();
+                var cfg = JSON.parse(fs.readFileSync(cfgPath).toString());
+                if (!cfg.availableBillNo) cfg.availableBillNo = [];
+                stale.forEach(function(n) { cfg.availableBillNo.push(n); });
+                cfg.availableBillNo.sort(function(a, b) { return a - b; });
+                fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+            } catch (_) {
+                // Can't write availableBillNo — stale numbers stay in
+                // memory only, will be flushed again on next allocate.
+            }
+        }
+    }
+
+    // ---- Refill ----
+
+    _refill() {
+        var highest = this._highest();
+        if (highest === 0) highest = this._seed;
+        // Refill to poolSize available (free) entries
+        while (this._available().length < this.poolSize) {
+            highest++;
+            this.pool.push({ billNo: highest, isConsumed: false, date: null, windowId: null });
+        }
+    }
+
+    // ---- Allocate / Consume / Release ----
+
+    allocate(sessionId) {
+        if (!sessionId) return 0;
+        // Page refresh guard — same window already has a number reserved
+        for (var i = 0; i < this.pool.length; i++) {
+            if (this.pool[i] && this.pool[i].windowId === sessionId)
+                return this.pool[i].billNo;
+        }
+
+        this._cleanup();
+        if (this._available().length < 5) this._refill();
+
+        var avail = this._available();
+        if (avail.length === 0) return 0;
+        var entry = avail[0];
+        entry.windowId = sessionId;
+        this._persist();
+        return entry.billNo;
+    }
+
+    consume(sessionId) {
+        if (!sessionId) return;
+        for (var i = 0; i < this.pool.length; i++) {
+            if (this.pool[i] && this.pool[i].windowId === sessionId) {
+                this.pool[i].isConsumed = true;
+                this.pool[i].windowId = null;
+                this._persist();
+                return;
+            }
+        }
+    }
+
+    release(sessionId) {
+        if (!sessionId) return;
+        for (var i = 0; i < this.pool.length; i++) {
+            if (this.pool[i] && this.pool[i].windowId === sessionId) {
+                this.pool[i].windowId = null;
+                this.pool[i].date = new Date().toISOString().split("T")[0];
+                this._persist();
+                return;
+            }
+        }
+    }
 }
 
 class FileHandler{
-    constructor(rPath,flag){
+    constructor(rPath){
         this.rPath = rPath;
         this.rootPath = "";
         if(process.env.APP_ENV==="DEV")
@@ -47,9 +242,12 @@ class FileHandler{
         else
             this.rootPath = app.getPath("appData")+"/BBS";
         try{
-            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath)) && flag)
+            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath)))
                 fs.mkdirSync(path.resolve(this.rootPath,this.rPath,"../"),{recursive:true});
-            this.fd = fs.openSync(path.resolve(this.rootPath,this.rPath),"a+");
+            this.stream = fs.createWriteStream(path.resolve(this.rootPath,this.rPath),{flags:"a"});
+            if(!fs.existsSync(path.resolve(this.rootPath,this.rPath,"../upload/")))
+                fs.mkdirSync(path.resolve(this.rootPath,this.rPath,"../upload/"),{recursive:true});
+            this.todaysLog = fs.createWriteStream(path.resolve(this.rootPath,this.rPath,"../upload/",`log-${new Date().toISOString().split("T")[0]}.txt`),{flags:"a+"});
         }
         catch(err){
             // Can't use appLogger here as it's not defined yet in module load order
@@ -58,7 +256,8 @@ class FileHandler{
     }
 }
 
-let billNoGenInstance,loggerFH = [];
+/** @type {BillManager} */
+let billManager, appLoggerStreams = {},logsQueue = [],lastLineHash = "";
 
 async function getLedgerModel(id,ledgerSchema,_sequelize){
     const { sequelize } = require("./model/dbConfig");
@@ -140,76 +339,180 @@ exports.getStartDate = getStartDate;
 
 exports.print = print
 
+// --- BillManager wrappers (backward-compatible) ---
+
+/** Initialize BillManager from persisted config. Called once at app startup. */
+exports.initBillManager = function(saleConfig) {
+    billManager = new BillManager(saleConfig);
+    return billManager;
+}
+
+/** Get the BillManager singleton (throws if not initialized). */
+exports.getBillManager = function() {
+    if (!billManager)
+        throw new Error("BillManager not initialized — call initBillManager first");
+    return billManager;
+}
+
+/**
+ * OLD API — kept for backward compat during migration.
+ * Allocate a bill number without session tracking.
+ * @deprecated Use billManager.allocate(sessionId) instead.
+ */
 exports.billNoCounter = function(count){
-    if(count)
-        billNoGenInstance = new BillNoGenerator(count);
-    else
-        return billNoGenInstance.getNextBillNo();
+    if (!billManager) {
+        // Fallback for early startup before initBillManager is called
+        if (count) billManager = new BillManager({ billNo: count });
+        else return 1;
+    }
+    if (count) {
+        // Resetting the counter (billing-format-ipc): re-init the manager
+        billManager = new BillManager({ billNo: count, poolSize: billManager.poolSize });
+    }
+    // Allocate with a generic session — callers should migrate to explicit IDs
+    return billManager.allocate("legacy-" + Date.now());
 }
 
 exports.setBillNo = function(billNo){
-    billNoGenInstance.setBillNo(billNo);
+    // No-op with BillManager — consume() handles sync on save.
 }
 
+/** @deprecated Use billManager.release(sessionId) instead. */
 exports.reduceBillNo = function(){
-    billNoGenInstance.reduceBillNo();
+    // No-op — BillManager handles release via explicit session IDs.
+    // Legacy callers that don't pass sessionId are handled by the
+    // updated cancel-sale-bill handler.
 }
 
+/** @deprecated Use billManager.currentMax instead. */
 exports.getLastBillNo = function(){
-    return billNoGenInstance.billNo;
+    return billManager ? billManager.currentMax : 0;
 }
 
-exports.loggerFH = function(fileName,fPath){
-    let flag;
-    if(!fPath){
-        fPath = `./logs/${fileName}`;
-        flag = true;
+exports.appLogger = appLogger;
+
+// Known property schema for appLogger input validation.
+// Catches typos (e.g. appendToConsole → allowConsole) and unknown fields at the call site.
+const LOG_SCHEMA = {
+    // Control flags — extracted before serialization, never appear in log output
+    controls: new Set(["allowConsole", "appendToLog", "notify"]),
+    // Known aliases for common typos — mapped to the correct control flag
+    aliases: {
+        "appendToConsole": "allowConsole",  // common typo
+    },
+    // Content fields — these are the standard log-entry properties
+    content: new Set(["title", "message", "func"]),
+    // Whether to warn (DEV) or silently drop (PROD) unknown properties
+};
+
+function appLogger(msgObj){
+    // Normalize string input to object (legacy calls)
+    if(typeof msgObj === "string")
+        msgObj = {message: msgObj};
+
+    // --- Schema validation: reject unknown keys, remap known typos ---
+    for(const key of Object.keys(msgObj)){
+        if(LOG_SCHEMA.controls.has(key)) continue;       // known control flag — keep
+        if(LOG_SCHEMA.content.has(key)) continue;         // known content field — keep
+        if(key in LOG_SCHEMA.aliases){
+            // Typo detected — remap and warn
+            const correct = LOG_SCHEMA.aliases[key];
+            if(process.env.APP_ENV === "DEV"){
+                console.warn(`[appLogger] Typo in log call: "${key}" → should be "${correct}". ` +
+                    `Auto-remapped. func="${msgObj.func || 'N/A'}", title="${msgObj.title || 'N/A'}"`);
+            }
+            msgObj[correct] = msgObj[key];
+            delete msgObj[key];
+            continue;
+        }
+        // Unknown property — delete it so it can't leak into serialized log output
+        if(process.env.APP_ENV === "DEV"){
+            console.warn(`[appLogger] Unknown property "${key}" rejected in log call. ` +
+                `func="${msgObj.func || 'N/A'}", title="${msgObj.title || 'N/A'}". ` +
+                `Key has been deleted.`);
+        }
+        delete msgObj[key];
     }
-    else{
-        fPath = `./${fileName}`;
-        flag = false;
+
+    // Apply control-flag defaults (after alias resolution so typos get correct defaults)
+    if(msgObj.allowConsole === undefined) msgObj.allowConsole = false;
+    if(msgObj.appendToLog === undefined) msgObj.appendToLog = true;
+    if(msgObj.notify === undefined) msgObj.notify = true;
+
+    // Extract control flags before they get cleaned up
+    const allowConsole = msgObj.allowConsole;
+    const appendToLog = msgObj.appendToLog;
+    const doNotify = msgObj.notify;
+
+    // Skip entirely if both output channels are disabled
+    if(!allowConsole && !appendToLog) return;
+
+    // Only initialize FileHandler when we intend to write to log
+    if(appendToLog){
+        appLoggerStreams = ( typeof appLoggerStreams !== "undefined" && appLoggerStreams instanceof FileHandler) ? appLoggerStreams : new FileHandler(`./logs/appLogs.txt`);
     }
-    let fh = new FileHandler(fPath,flag);
-    loggerFH.push({[fileName]:fh});
-    return fh;
-}
 
-exports.getLoggerFD = function(...arg){
-    if(loggerFH.length===0) return;
-    if(arg.length===0)
-        return loggerFH.map(obj=>Object.values(obj)[0]?.fd);
-    else
-        return loggerFH.find(obj=>Object.keys(obj)[0]===arg[0])?.[arg[0]]?.fd;
-}
+    let ts = (new Date()).toLocaleString("en-GB"); // Indian Standard Time format
+    msgObj = {
+        ts,
+        user:global.user ? global.user.name : "App",
+        role:global.user ? global.user.role : "App", // Defaults to App if No user is logged in
+        ...msgObj, // Spread the properties to allow for additional custom properties/overrides
+        // Ensure standard properties exist (filled by caller, but provide defaults)
+        title: msgObj.title || "",
+        message: msgObj.message || "",
+        func: msgObj.func || "",
+    };
 
-exports.appLogger = function(...lines){
-    let appLoggerFD = loggerFH.find(obj=>(Object.keys(obj)[0]==="appLogs.txt"))?.["appLogs.txt"].fd;
-    let lineToAppend = lines.reduce((str,line)=>(str+JSON.stringify(line)+"\t"),(new Date()).toLocaleString("en-GB")+"\t")+"\n";
-    if(process.env.APP_ENV==="DEV")
-        console.log(lines[0]);
-    if(appLoggerFD)
-        fs.appendFile(appLoggerFD,lineToAppend,err=>{
-            if(err) throw err;
-        });
+    // Removing control flags from msgObj
+    Reflect.deleteProperty(msgObj, "allowConsole");
+    Reflect.deleteProperty(msgObj, "appendToLog");
+    Reflect.deleteProperty(msgObj, "notify");
+
+    if(process.env.APP_ENV==="DEV" && allowConsole)
+        console.log(msgObj); // Log to console in DEV environment if allowConsole is true for targeted debugging
+
+    // --- File logging (only when appendToLog is enabled) ---
+    if(appendToLog && appLoggerStreams instanceof FileHandler && appLoggerStreams.stream.writable){
+        let canWrite = appLoggerStreams.stream.write(JSON.stringify(msgObj)+"\n");
+        if(!canWrite)
+            logsQueue.push(msgObj);
+    }
+    // Hash chain must only advance when the entry is actually written to the log file.
+    // If appendToLog is false, the entry is skipped in todaysLog — advancing lastLineHash
+    // would create a dangling reference to a missing entry and break the chain.
+    if(appendToLog){
+        msgObj.hash = lastLineHash; // Using hash chain to ensure integrity and traceability of logs
+        if(appLoggerStreams instanceof FileHandler && appLoggerStreams.todaysLog.writable)
+            appLoggerStreams.todaysLog.write(JSON.stringify(msgObj)+"\n");
+        lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
+    }
+    if(appendToLog && logsQueue.length>0 && appLoggerStreams.stream.writable){
+        while(logsQueue.length>0){
+            let logEntry = logsQueue.shift();
+            let canContinue = appLoggerStreams.stream.write(JSON.stringify(logEntry)+"\n");
+            if(!canContinue) break;
+        }
+    }
+
     let mainWin = getMainWindow();
-    let msg = lines[0];
-    if(typeof msg.notify==="undefined")
-        msg.notify = true;
-    // Error reporting notification 
-    if(/error/i.test(msg.title) && msg.notify){
+    if(!mainWin || !mainWin.webContents) return;
+    // Error reporting notification
+    let isErr = /error/i.test(msgObj.title);
+    if(isErr) console.log(msgObj);
+    if(isErr && doNotify){
         let evObj = {
             tag:"Error",
             type:"Error",
             label:"Error",
             color:"#FF0000",
             time:new Date(),
-            error:lineToAppend
+            error:msgObj
         };
         ipcMain.emit("manage-schedule","Error",evObj,"exp-a",false);
-        mainWin.webContents.send("check-notification")//notifyJobs,showToast
+        mainWin.webContents.send("check-notification");//notifyJobs,showToast
     }
 }
-
 class People{
     static iterator(args,that){
         for(let key in args)
@@ -294,7 +597,8 @@ async function initCustomerList(customer,appLogger,getFivePercentOfMemory){
     catch(err){
         appLogger({
             title:"Error",
-            message:err.message
+            message:err.message,
+            func:"initCustomerList"
         })
     }
 }
@@ -316,6 +620,9 @@ exports.priceInspector = function(itemObj){
     });
 }
 
+// Formats a Date as YYYY-MM-DD (ISO order with dashes).
+// Uses en-IN locale (DD/MM/YYYY), then reverses via reduce to YYYY-MM-DD.
+// Returns non-Date inputs unchanged.
 exports.openFormatForDate = openFormatForDate;
 function openFormatForDate(date=Date){
     if(!(date instanceof Date)) return date;
@@ -495,9 +802,9 @@ exports.queryStock = async function(stock,attributes,appLogger,getFivePercentOfM
     catch(err){
         appLogger({
             title:"Error",
-            message:err.message
+            message:err.message,
+            func:"queryStock"
         })
-        return global.stocks
     }
 }
 
@@ -787,7 +1094,7 @@ exports.notifyCustomer = async function(window, billObj,customer,appLogger,getFi
     //     return;
     // }
     let fileName = exports.getPDF_FileName(name,new Date(billDate),billNo);
-    let path2file = path.resolve(app.getPath("documents"),"./Bills/",fileName);
+    let path2file = path.resolve(exports.getBillsDir(),fileName);
     if(!fs.existsSync(path2file)) return;
     let base64File = fs.readFileSync(path2file).toString("base64");
     let updateRestURL = process.env.UPDATE_REST;// process.env.APP_ENV==="DEV" ? "localhost:3030" : process.env.UPDATE_REST;
@@ -818,12 +1125,28 @@ exports.notifyCustomer = async function(window, billObj,customer,appLogger,getFi
     });
 }
 
+/**
+ * Returns the Bills directory. Uses __Bills in DEV mode.
+ * Uses lazy init to avoid calling app.getPath() before app is ready.
+ */
+var _billsDir = null;
+exports.getBillsDir = function() {
+    if (_billsDir) return _billsDir;
+    if (process.env.APP_ENV === "DEV")
+        _billsDir = path.resolve(app.getPath("documents"), "__Bills");
+    else
+        _billsDir = path.resolve(app.getPath("documents"), "Bills");
+    if (!fs.existsSync(_billsDir))
+        fs.mkdirSync(_billsDir, { recursive: true });
+    return _billsDir;
+};
+
 exports.getPDF_FileName = function(name,billDate,billNo,temp=false){
     let ext = temp==true ? "_temp" : "";
     if(billDate instanceof Date)
         billDate = openFormatForDate(billDate);// Date is formatted as per our standard
     let pdfFileName = `${name}_${billDate}_${billNo}${ext}.pdf`;
-    let dirPath = path.resolve(app.getPath("documents"),"./Bills");
+    let dirPath = exports.getBillsDir();
     if(fs.existsSync(path.resolve(dirPath,pdfFileName)))// For backward compatibility with old file naming convention
         return pdfFileName;
     let fileNameFormat = process.presets.fileNameFormat;
@@ -878,6 +1201,9 @@ function saveDownloadState(stateObj) {
     const { appLogger } = require('./common.js');
     appLogger({
       title: "Download State Saved",
+      message: `Saved download state: ${state.status} — ${state.bytesDownloaded}/${state.totalBytes} bytes`,
+      func: "saveDownloadState",
+      appendToLog: false, allowConsole: true,
       bytesDownloaded: state.bytesDownloaded,
       totalBytes: state.totalBytes,
       status: state.status
@@ -910,7 +1236,9 @@ function loadDownloadState(appLogger) {
     if (daysSincePause > 7) {
       appLogger({
         title: "Cleanup",
-        message: "Removing stale download (>7 days old)"
+        message: "Removing stale download (>7 days old)",
+        func: "loadDownloadState",
+        appendToLog: false, allowConsole: true
       });
       clearDownloadState();
       if (fs.existsSync(state.filePath)) {
@@ -938,7 +1266,7 @@ function clearDownloadState() {
   try {
     if (fs.existsSync(statePath)) {
       fs.rmSync(statePath);
-      exports.appLogger({ message: "Download state cleared" });
+      exports.appLogger({ title: "Download State", message: "Download state cleared", func: "clearDownloadState", appendToLog: false, allowConsole: true });
     }
     return true;
   } catch (err) {
@@ -1035,6 +1363,7 @@ exports.verifyFileIntegrityByChunks = async function(filePath, hashInfo, appLogg
             appLogger({
                 title: "Corrupted Sections Detected",
                 message: `Detected ${correuptedSctions.length} corrupted sections, re-downloading those sections.`,
+                func: "verifyFileIntegrityByChunks",
                 sections: correuptedSctions
             });
             // Save the corrupted sections info for the updater script to re-download only those parts. This requires support on the server side to handle range requests for specific sections.
@@ -1044,7 +1373,8 @@ exports.verifyFileIntegrityByChunks = async function(filePath, hashInfo, appLogg
         readStream.on("error", err => {
             appLogger({
             title: "Error Reading File for Hash Verification",
-            message: String(err)
+            message: String(err),
+            func: "verifyFileIntegrityByChunks"
             });
             reject(err);
         });
@@ -1056,7 +1386,7 @@ exports.reDownloadCorruptedSections = function(corruptedSections, appLogger) {
   let corruptedSectionsPath = path.resolve(app.getPath("appData"),"./BBS/corruptedSections.json");
   if(!corruptedSections){
     if (!fs.existsSync(corruptedSectionsPath)) {
-    appLogger({ message: "No corrupted sections file found, nothing to re-download" });
+    appLogger({ title: "Re-download", message: "No corrupted sections file found, nothing to re-download", func: "reDownloadCorruptedSections" });
     return;
     }
     corruptedSections = JSON.parse(fs.readFileSync(corruptedSectionsPath).toString());
@@ -1069,7 +1399,7 @@ exports.reDownloadCorruptedSections = function(corruptedSections, appLogger) {
   let updateConf = JSON.parse(fs.readFileSync(updateConfPath).toString());
   return new Promise(async (resolve,reject)=>{
       for (let section of corruptedSections) {
-        appLogger({ message: `Re-downloading corrupted section ${section.index}`, section });
+        appLogger({ title: "Re-download", message: `Re-downloading corrupted section ${section.index}`, func: "reDownloadCorruptedSections", section });
         // Make a range request for this section and patch it into the file at the correct position. This is a complex operation that involves careful handling of file streams and ensuring data integrity.
         await axios.get(updateURL, {
           responseType: "stream",
@@ -1093,6 +1423,7 @@ exports.reDownloadCorruptedSections = function(corruptedSections, appLogger) {
           appLogger({
             title: "Error Re-downloading Corrupted Section",
             message: String(err),
+            func: "reDownloadCorruptedSections",
             section
           });
           // Instead of retrying on loop, we can delete the update file and start a fresh download if any section fails to re-download after a certain number of attempts. This is because multiple sections might be corrupted, and if we keep trying to patch them individually, it could lead to a never-ending loop of retries. By starting fresh, we can ensure that we get a clean copy of the update file.
@@ -1102,4 +1433,72 @@ exports.reDownloadCorruptedSections = function(corruptedSections, appLogger) {
       resolve(true);
   });
   // After re-downloading, it would verify the hash again to ensure integrity before allowing installation.
+}
+
+// Log Encryption/Decryption Helper Functions
+exports.generateSecureSalt = generateSecureSalt;
+function generateSecureSalt(passphrase, hardwareIds) {
+  // Use a high iteration count (e.g., 100,000) to make brute-forcing impossible
+  // The 'salt' here is your hardware data
+  const salt = crypto.createHash('sha256').update(hardwareIds).digest();
+  
+  return crypto.pbkdf2Sync(passphrase, salt, 100000, 16, 'sha256');
+}
+
+exports.getDeviceSerials = getDeviceSerials;
+function getDeviceSerials() {
+  return new Promise((resolve) => {
+    let platform = process.platform;
+    let diskSerial, motherboardSerial;
+    switch(platform){
+      case "win32":
+        try{
+          const cmd = execSync('wmic diskdrive get SerialNumber').toString();
+          diskSerial = cmd.split('\n')[1].trim();
+          const cmd2 = execSync('wmic baseboard get SerialNumber').toString();
+          motherboardSerial = cmd2.split('\n')[1].trim();
+        }
+        catch(err){
+          diskSerial = null;
+          motherboardSerial = null;
+          resolve({ diskSerial, motherboardSerial });
+        }
+      break;
+      case "linux":
+        try{
+          const cmd = execSync('lsblk -o SERIAL -dn $(df / | tail -1 | cut -d" " -f1)').toString();
+          diskSerial = cmd.split('\n')[0].trim();
+          const cmd2 = execSync('cat /sys/devices/virtual/dmi/id/board_serial').toString();
+          motherboardSerial = cmd2.split('\n')[0].trim();
+        }
+        catch(err){
+          diskSerial = null;
+          motherboardSerial = null;
+          resolve({ diskSerial, motherboardSerial });
+        }
+      break;
+      default:
+        diskSerial = null;
+        motherboardSerial = null;
+        resolve({ diskSerial, motherboardSerial });
+    }
+    resolve({ diskSerial,motherboardSerial });
+  });
+}
+
+// --- SAVE THE SECRET ---
+exports.saveSecret = saveSecret;
+async function saveSecret(secret) {
+  await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, secret);
+}
+// --- RETRIEVE THE SECRET ---
+exports.getSecret = getSecret;
+async function getSecret() {
+  return await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+}
+
+// --- DELETE (For cleanup or re-keying) ---
+exports.deleteSecret = deleteSecret;
+async function deleteSecret() {
+  await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
 }

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BBS Kiosk — Login</title>
+    <link rel="stylesheet" href="/kiosk.css">
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body class="kiosk-login" style="--theme-primary: rebeccapurple; --theme-secondary: #fff;">
+    <div class="kiosk-container">
+        <div class="kiosk-header">
+            <h1>BBS Kiosk</h1>
+            <p>Enter PIN to continue</p>
+        </div>
+        <div class="pin-display">
+            <div class="pin-dots" id="pin-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <p id="pin-error" class="pin-error hide">Invalid PIN. Try again.</p>
+        </div>
+        <div class="pin-pad" id="pin-pad">
+            <button data-num="1">1</button>
+            <button data-num="2">2</button>
+            <button data-num="3">3</button>
+            <button data-num="4">4</button>
+            <button data-num="5">5</button>
+            <button data-num="6">6</button>
+            <button data-num="7">7</button>
+            <button data-num="8">8</button>
+            <button data-num="9">9</button>
+            <button data-num="clear" class="btn-clear">✕</button>
+            <button data-num="0">0</button>
+            <button data-num="go" class="btn-go">→</button>
+        </div>
+    </div>
+    <script src="/kiosk.js"></script>
+</body>
+</html>

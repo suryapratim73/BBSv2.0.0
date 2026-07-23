@@ -101,7 +101,7 @@ ipcMain.on("generate-request-slip",async (e,reqSlipObj)=>{
     };
     let focussedWindow = getTargetWindow("Requirement-Slip-Generator");
     dialog.showMessageBox(focussedWindow,msg);
-    appLogger("sale",JSON.stringify(reqSlipObj));
+    appLogger({title:"sale", message:JSON.stringify(reqSlipObj), func:"generate-request-slip"});
     focussedWindow.close();
   })
   .catch(console.log)

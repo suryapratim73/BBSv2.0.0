@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk Setup Wizard</title>
+    <link rel="stylesheet" href="../css/kioskSetupWizard.css">
+</head>
+<body>
+    <!-- Wizard Container — centered card with progress bar + step content + navigation -->
+    <div class="wizard-container">
+        <!-- Progress Bar — 5 circular step indicators -->
+        <div class="wizard-progress" id="wizard-progress">
+            <span class="step-dot active" data-step="0"></span>
+            <span class="step-dot" data-step="1"></span>
+            <span class="step-dot" data-step="2"></span>
+            <span class="step-dot" data-step="3"></span>
+            <span class="step-dot" data-step="4"></span>
+        </div>
+
+        <!-- Step 1: WiFi Setup Instructions -->
+        <div class="wizard-step active" id="step-0">
+            <h2>📶 WiFi Setup</h2>
+            <p class="step-desc">Your kiosk will be accessible on your local network. Make sure your computer and customer devices are connected to the <strong>same WiFi network</strong>.</p>
+
+            <!-- IP Address Display -->
+            <div class="info-box">
+                <p><strong>Your Local IP Address:</strong></p>
+                <p class="ip-display" id="wizard-local-ip">Detecting...</p>
+                <p class="ip-hint">Customers will use this address to connect to the kiosk.</p>
+            </div>
+
+            <!-- Quick Setup Checklist -->
+            <div class="setup-checklist">
+                <p class="checklist-title">✔ Setup Checklist</p>
+                <ul>
+                    <li>Connect this computer to your WiFi network</li>
+                    <li>Make sure customer devices are on the same network</li>
+                    <li>Disable AP/Client Isolation in your router settings (if enabled)</li>
+                    <li>Allow the kiosk port through your firewall if prompted</li>
+                </ul>
+            </div>
+
+            <!-- Download WiFi Setup Guide Button -->
+            <div class="download-section">
+                <button id="btn-download-guide" class="wiz-btn-download" onclick="downloadWifiGuide()">
+                    📥 Download WiFi Setup Guide (PDF)
+                </button>
+                <p class="download-hint" id="download-status">A detailed guide with troubleshooting tips and step-by-step instructions.</p>
+            </div>
+        </div>
+
+        <!-- Step 2: Customer Selector -->
+        <div class="wizard-step" id="step-1">
+            <h2>👤 Customer Selection</h2>
+            <p class="step-desc">Should the kiosk require customer identification during checkout?</p>
+            <div class="option-list">
+                <div class="option-card" data-key="includeCustomerSelector" data-value="true" onclick="selectOption('includeCustomerSelector', true, this)">
+                    <h3>Yes — Select Customer</h3>
+                    <p>Customers must be identified before completing a sale. Best for businesses with regular clients and credit accounts.</p>
+                </div>
+                <div class="option-card" data-key="includeCustomerSelector" data-value="false" onclick="selectOption('includeCustomerSelector', false, this)">
+                    <h3>No — Walk-in Sales</h3>
+                    <p>Allow anonymous walk-in purchases without customer selection. Best for retail counters and quick-service setups.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Product Layout -->
+        <div class="wizard-step" id="step-2">
+            <h2>📦 Product Layout</h2>
+            <p class="step-desc">How should products be organized on the kiosk screen?</p>
+            <div class="option-list">
+                <div class="option-card" data-key="productLayout" data-value="uncategorized" onclick="selectOption('productLayout', 'uncategorized', this)">
+                    <h3>Uncategorized List</h3>
+                    <p>All products in a single list with a search field. Simple and straightforward.</p>
+                </div>
+                <div class="option-card" data-key="productLayout" data-value="auto" onclick="selectOption('productLayout', 'auto', this)">
+                    <h3>Auto-Categorized</h3>
+                    <p>Products are automatically grouped by keywords detected in their names. You can refine these categories later using the Catalogue Creator.</p>
+                </div>
+                <div class="option-card" data-key="productLayout" data-value="manual" onclick="selectOption('productLayout', 'manual', this)">
+                    <h3>Manual Categories</h3>
+                    <p>Use categories you have already defined in the Catalogue Creator. Items without a category will appear in an "Uncategorized" section.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: DB Connection Mode -->
+        <div class="wizard-step" id="step-3">
+            <h2>🗄️ Database Mode</h2>
+            <p class="step-desc">How should kiosk sales interact with your inventory and accounts?</p>
+            <div class="option-list">
+                <div class="option-card" data-key="dbMode" data-value="order-only" onclick="selectOption('dbMode', 'order-only', this)">
+                    <h3>Order Only</h3>
+                    <p>Kiosk sales are saved as pending orders. No stock is deducted and no automatic bills are generated. Best when you want to review orders before processing.</p>
+                </div>
+                <div class="option-card" data-key="dbMode" data-value="auto-bill" onclick="selectOption('dbMode', 'auto-bill', this)">
+                    <h3>Auto Bill</h3>
+                    <p>Full automatic processing: stock quantities are updated, customer ledgers are maintained, and bills are generated immediately. Best for fully automated setups.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Receipt Generation -->
+        <div class="wizard-step" id="step-4">
+            <h2>🧾 Receipt Generation</h2>
+            <p class="step-desc">Should the kiosk generate and print a receipt for each sale?</p>
+            <div class="option-list">
+                <div class="option-card" data-key="generateReceipt" data-value="true" onclick="selectOption('generateReceipt', true, this)">
+                    <h3>Yes — Print Receipt</h3>
+                    <p>Generate and print a receipt/coupon for every kiosk sale automatically.</p>
+                </div>
+                <div class="option-card" data-key="generateReceipt" data-value="false" onclick="selectOption('generateReceipt', false, this)">
+                    <h3>No — Skip Receipt</h3>
+                    <p>Skip receipt generation. Sales are recorded in the system without printing.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="wizard-nav">
+            <button id="btn-back" class="wiz-btn-back" onclick="prevStep()" disabled>← Back</button>
+            <button id="btn-next" class="wiz-btn-next" onclick="nextStep()">Next →</button>
+        </div>
+    </div>
+
+    <script src="../js/kioskSetupWizard.js"></script>
+</body>
+</html>
