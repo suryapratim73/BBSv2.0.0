@@ -3010,8 +3010,15 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
           if (stats.size >= downloadTotalBytes) {
             appLogger({ title:"Download", message: "File fully downloaded", func:"downloadUpdate" });
             // Check hash if info available
-            if(!hashInfo)
-              hashInfo = JSON.parse(fs.readFileSync(path.resolve(app.getPath("appData"),"./BBS/updtConf.json"))).hashInfo || null;
+            if(!hashInfo){
+              try {
+                let confPath = path.resolve(app.getPath("appData"), "./BBS/updtConf.json");
+                if(fs.existsSync(confPath))
+                  hashInfo = JSON.parse(fs.readFileSync(confPath)).hashInfo || null;
+              } catch(e) {
+                appLogger({ title:"Warning", message: "Failed to read hashInfo from updtConf.json", error: String(e), func:"downloadUpdate" });
+              }
+            }
             if(hashInfo){
               mainWin.setProgressBar(2); // Indeterminate progress
               mainWin.webContents.send("notification",{
@@ -3156,7 +3163,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
         abortControllerCancel.signal.addEventListener("abort",abortHandler.bind({name:"cancel"}));
       });
     })
-    // .then(updateCommon.bind({ fileName, version: appVersion, hashInfo, isSaved: false }))
+    .then(updateCommon.bind({ fileName, version: appVersion, hashInfo, isSaved: false }))
     .catch(async err => {
       if(timeoutCheckInterval)
         clearInterval(timeoutCheckInterval);
@@ -3180,7 +3187,7 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
       else 
       if (err.message === "Cancelled by user") {
         appLogger({ title:"Download", message: "Download cancelled, cleanup complete", func:"downloadUpdate", appendToLog: false, allowConsole: true });
-        // mainWin.setProgressBar(-1);
+        mainWin.setProgressBar(-1);
       }
       else
       if(err.code === "CORRUPTED_DOWNLOAD" || err.code === "INCOMPLETE_DOWNLOAD"){
@@ -3352,7 +3359,7 @@ async function checkForUpdates(flag="auto") {
         // If app is not already updated.
         try{
           let updtConf = fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json") ? JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString()) : undefined;
-          if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded!==appVersion && fs.existsSync(updtConf?.path2file)){
+          if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded!==appVersion){
             return downloadUpdate(appVersion,null,hashInfo);
           }
           else
@@ -3360,6 +3367,10 @@ async function checkForUpdates(flag="auto") {
             // Update already downloaded and ready for install
             appLogger({ title:"Update", message: "Update is already downloaded.", func:"checkForUpdates", appendToLog: false, allowConsole: true })
             updateCommon.call({version:appVersion,fileName:updtConf.fileName,isSaved:true});
+          }
+          else {
+            // First-time download or updtConf missing — start fresh download
+            downloadUpdate(appVersion, null, hashInfo);
           }
         }
         catch(err){

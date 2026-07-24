@@ -10,7 +10,8 @@
         "Bug fixes and performance improvements",
         "New Catalog Creator window for stock classification and Kiosk display",
         "A new Welcome screen and feature-tour after update",
-        "New Update Presenter window for showing changelog and update instructions - available from next update"
+        "New Update Presenter window for showing changelog and update instructions - available from next update",
+        "[2.22.1] Fix: Now update downloads and installs in few clicks."
     ],
     "fullchange":[
         "Weather Theme System: Dynamic themes (summer, monsoon, winter, cloudy, haze, thunderstorm, festive, night) with animated effects on logo, scheduler, and notification panel. Dark mode and night-time variants included.",
@@ -39,6 +40,7 @@
         "Weather Theme: Hourly setInterval re-fetches weather and re-applies theme to all open windows if changed. Interval cleared on weather disable and app quit.",
         "Menu changes: Replaced 'New order' with 'Start Kiosk Mode' in Sale menu. Kept 'View Orders' for proforma order viewing.",
         "New Catalog Creator window for stock classification and Kiosk display. Allows creating categories, subcategories, and product lists for Kiosk Mode. Accessible from mainPage main menu.",
-        "New Update Presenter window for showing changelog and update instructions - available from next update. Displays changelog.json content in a scrollable modal with search and copy-to-clipboard functionality."
+        "New Update Presenter window for showing changelog and update instructions - available from next update. Displays changelog.json content in a scrollable modal with search and copy-to-clipboard functionality.",
+        "[2.22.1] Fix: Now update downloads and installs in few clicks."
     ]
 }
