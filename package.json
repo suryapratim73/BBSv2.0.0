@@ -66,7 +66,6 @@
     "productName": "Bigbyte Business Service",
     "executableName": "BBS",
     "copyright": "Copyright © 2026 Codemint",
-    "nodeVersion": "22.3.0",
     "linux": {
       "target": [
         {
@@ -126,7 +125,6 @@
       "!updtConf.json",
       "!changelog.json",
       "!*.md",
-      "update.md",
       "!model/*.json",
       "!__tests__/**",
       "!__mocks__/**",
