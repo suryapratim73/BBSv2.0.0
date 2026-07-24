@@ -7,7 +7,7 @@ We've been working hard to bring you some exciting new features, and I'm excited
 
 - **Weather Themes** — The app now responds to real weather in your city
 - **Scrap Sale** — Simplified billing for metal scrap with auto tax calculation
-- **Kiosk Mode** — Let customers browse and order from their phone
+<!-- - **Kiosk Mode** — Let customers browse and order from their phone -->
 - **Proforma Invoices** — Create quotes and estimates without affecting stock
 - **Smarter Notifications** — Grouped alerts that link directly to records
 - **Fuzzy Search** — Experience faster search that forgives small typos.

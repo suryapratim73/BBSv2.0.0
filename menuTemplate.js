@@ -80,11 +80,12 @@ module.exports = mainWindow=>{
                     accelerator: "F5",
                     click: ()=>appStateComplianceEnforcement(customerPortal(mainWindow))
                 },
-                {type:"separator"},
-                {
-                    label: "Start Kiosk Mode",
-                    click: ()=>ipcMain.emit("open-kiosk")
-                },
+                // Kiosk disabled for v2.22 — sale flow + orderManager need rework
+                // {type:"separator"},
+                // {
+                //     label: "Start Kiosk Mode",
+                //     click: ()=>ipcMain.emit("open-kiosk")
+                // },
                 {
                     label: "View Orders",
                     click:()=>appStateComplianceEnforcement(orderManager(mainWindow)),
