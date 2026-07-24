@@ -124,7 +124,6 @@
       "!.vscode",
       "!updtConf.json",
       "!changelog.json",
-      "!*.md",
       "!model/*.json",
       "!__tests__/**",
       "!__mocks__/**",
@@ -133,9 +132,7 @@
       "!test-results/**",
       "!playwright-report/**",
       "!jest.config.js",
-      "!playwright.config.js",
-      "HELP.md",
-      "update.md"
+      "!playwright.config.js"
     ],
     "asar": false
   },
