@@ -58,6 +58,7 @@ body{
     border-radius: 3px;
     font-weight: 100;
     border-color: unset;
+    margin-right: 0.5rem;
 }
 #main-section{
     flex: 5;

@@ -108,7 +108,7 @@ const axios = require("axios");
 const { spawn } = require("child_process");
 const { printOnLinuxOrMac,printOnWindows, printDialog } = require("./printHandler");
 const { billPDF, ledgerPDF } = require("./scripts/makePDF.default");
-const { orderManager } = require("./saleHandler");
+const { orderManager, saleWindow } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
@@ -1171,13 +1171,18 @@ ipcMain.handle("get-orders",async ()=>{
   let orders;
   try{
     orders = JSON.parse(fs.readFileSync(orderPath)?.toString());
+    if(!Array.isArray(orders)) orders = [];
   }
-  catch(err){
-    console.log(err);
+  catch(_){
     orders = [];
   }
   return orders;
 });
+
+function readOrders(orderPath){
+  let raw = JSON.parse(fs.readFileSync(orderPath).toString());
+  return Array.isArray(raw) ? raw : [];
+}
 
 ipcMain.on("new-sale-purchase", (e, mode) => {
   if (["all", "admin", "bill"].includes(currentUser.role) && mode === 1)
@@ -1921,7 +1926,7 @@ ipcMain.on("dbl-click-resp",(e,obj,mode)=>{
   // Order-dbl-resp
   if(mode===1)
     orderManager(window,function(){
-      this.webContents.send("view-order",obj,2);
+      this.webContents.send("view-order",obj.orderId);
     })(); 
   else
   if(mode===2)
@@ -2043,14 +2048,14 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
     else
     if(mode==="orderObj"){
       let baseDir = getBaseDir(),orderPath = getOrderPath(),orders;
-      orders = JSON.parse(fs.readFileSync(orderPath).toString());
+      orders = readOrders(orderPath);
       contextMenuObj = [
         {
           label: "View/Update Order",
-          click: () => { // Not ready
+          click: () => { 
             errIdentifier = "View Order";
             orderManager(window,function(){
-              this.webContents.send("view-order",obj,2);
+              this.webContents.send("view-order",obj.orderId);
             })();         
           },
           // accelerator
@@ -2060,147 +2065,22 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
           click: () => {
             errIdentifier = "Add Payment";
             let modal = createModal(undefined,getTemplatePath("generalHTML"),{cb:function(){
-              let html = [
-                {
-                  elem:"form",
-                  children:[
-                    {
-                      elem:"div",
-                      innerHTML:`
-                        <div class="fr-1 flex flex-dir-col flex-center">
-                          <p>Customer</p>
-                          <p class="row1">${obj.name}</p>
-                        </div>
-                        <div class="fr-1 flex flex-dir-col flex-center">
-                          <p>Due amount</p>
-                          <p class="row1">${obj.netDue}</p>
-                        </div>
-                        <div class="fr-1 flex flex-dir-col flex-center">
-                          <p>Order Date</p>
-                          <p class="row1">${obj.billDate}</p>
-                        </div>
-                      `,
-                      classList:["flex"],
-                      styles:{ 
-                        margin: "0 0 0.5rem 0",
-                        gap: "0.5rem"
-                      } 
-                    },
-                    {
-                      elem:"h2",
-                      textContent:"Enter payment details"
-                    },
-                    {
-                      elem:"div",
-                      innerHTML:`
-                          <div id="payment-div" onkeypress="validateInput2(event)">
-                          <div id="payment-mode">
-                              <label for="payment-mode">Select payment mode:</label>
-                              <select onchange="showPaymentMode(event)" name="mode">
-                                  <option value="due" selected>Due</option>
-                                  <option value="cash">Cash</option>
-                                  <option value="check">Check</option>
-                                  <option value="online">NEFT</option>
-                              </select>
-                          </div>
-                          <div id="cash-payment" class="hide payment-detail">
-                              <div>
-                                  <p>Enter amount</p>
-                                  <input data-type="Number" value="0" data-subtype="price" name="payment" />
-                              </div>
-                          </div>
-                          <div id="check-payment" class="hide payment-detail">
-                              <div>
-                                  <p>Bank Name</p>
-                                  <input type="text" name="bankName"/>
-                              </div>
-                              <div>
-                                  <p>Bank Branch</p>
-                                  <input type="text" name="bankBranch"/>
-                              </div>
-                              <div>
-                                  <p>Account No.</p>
-                                  <input type="text" data-subtype="price" name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
-                              </div>
-                              <div>
-                                  <p>Check No.</p>
-                                  <input type="text" data-subtype="price" name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
-                              </div>
-                              <div>
-                                  <p>Amount paid</p>
-                                  <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                              </div>
-                              <div>
-                                  <p>Mark as paid</p>
-                                  <select type="text" name="paymentStatus">
-                                      <option value="false">No</option>
-                                      <option value="true">Yes</option>
-                                  </select>
-                              </div>
-                          </div>
-                          <div id="online-payment" class="hide payment-detail">
-                              <div>
-                                  <p>Bank Name</p>
-                                  <input type="text" name="bankName" />
-                              </div>
-                              <div>
-                                  <p>Transaction Ref.</p>
-                                  <input type="text" name="bankTrnRef" />
-                              </div>
-                              <div>
-                                  <p>Amount paid</p>
-                                  <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
-                              </div>
-                              <div>
-                                  <p>Mark as paid</p>
-                                  <select type="text" name="paymentStatus">
-                                      <option value="false">No</option>
-                                      <option value="true">Yes</option>
-                                  </select>
-                              </div>
-                          </div>
-                      </div>
-                      `
-                    },
-                    {
-                      elem:"div",
-                      children:[
-                        { 
-                          elem:"button",
-                          attrs:[
-                            { key:"type",value:"submit" }
-                          ],
-                          textContent:"Add payment"
-                        },
-                        {
-                          elem:"button",
-                          attrs:[
-                            { key:"type",value:"button" },
-                            { key:"onclick",value:"window.close()" }
-                          ],
-                          textContent:"Cancel"
-                        }
-                      ]
-                    }
-                  ],
-                  attrs:[
-                    { key:"onsubmit", value:"submitHandler(event)" }
-                  ],
-                  classList:["fr-1"]
-                }
-              ];
-              this.webContents.send("init-page","Add Payment",html)
+              this.webContents.send("init-page","Add Payment",{
+                template: "add-payment-template",
+                data: { name: obj.name, netDue: obj.netDue, billDate: obj.billDate }
+              });
             }});
-            modal.webContents.toggleDevTools();
+            // modal.webContents.toggleDevTools();
             ipcMain.once("Add Payment-response",(e,data)=>{
               modal.close();
               errIdentifier += ">Add payment ipc";
-              let billMeta = JSON.parse(fs.readFileSync(obj.orderId).toString());
-              let orderJSON = JSON.parse(fs.readFileSync(orderPath).toString());
-              obj = orderJSON.fileList.find(_obj=>_obj.orderId===obj.orderId);
+              let orderJSON = readOrders(orderPath);
+              obj = orderJSON.find(_obj=>_obj.orderId===obj.orderId);
+              let billMeta = obj.billMeta;
               data.payment = Number(data.payment);
+              billMeta.payment = billMeta.payment || [];
               billMeta.payment.push(data);
-              billMeta.netPayment += data.payment;
+              billMeta.netPayment = (billMeta.netPayment || 0) + data.payment;
               if(("paymentStatus" in data && data?.paymentStatus) || data.mode==="cash"){
                 billMeta.netDue = Math.round(billMeta.netAmtTax)-billMeta.netPayment>0 ? Math.round(billMeta.netAmtTax)-billMeta.netPayment : 0;
                 obj.netDue = billMeta.netDue;
@@ -2219,7 +2099,6 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
                   billMeta.paymentStatus = data.paymentStatus;
                 }
               }
-              fs.writeFileSync(obj.orderId,JSON.stringify(billMeta));
               fs.writeFileSync(orderPath,JSON.stringify(orderJSON));
               window.webContents.send("update-content");
             });
@@ -2229,75 +2108,101 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
           label: "Remove order",
           click: () => {
             errIdentifier = "Remove order";
-            let { orderId } = obj;
-            if(fs.existsSync(path.resolve(baseDir,orderId)))
-              fs.unlinkSync(path.resolve(baseDir,orderId));
-            if("fileList" in orders)
-              orders.fileList = orders.fileList.filter((obj)=>obj.orderId!==orderId);
-            fs.writeFileSync(orderPath,JSON.stringify(orders));
-            window.webContents.send("update-content");
-            dialog.showMessageBox({
-              title:"Order removed",
-              message:"Order removed",
-              icon:appIcon
-            });
+            try {
+              let { orderId } = obj;
+              let orderJSON = readOrders(orderPath);
+              orderJSON = orderJSON.filter(o => o.orderId !== orderId);
+              fs.writeFileSync(orderPath, JSON.stringify(orderJSON));
+              window.webContents.send("update-content");
+              dialog.showMessageBox({
+                title: "Order removed",
+                message: "Order removed successfully.",
+                icon: appIcon
+              });
+            } catch(err) {
+              appLogger({ title:"Error", message:String(err), func:"Remove order" });
+            }
           },
         },
         {
           label: "Update order status",
           click: () => {
             errIdentifier = "Update order status";
-            let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
-            if("orderStages" in saleConfig)
-              orderStages = saleConfig.orderStages;
-            let indexOfStage = orderStages.findIndex(stageName=>stageName===obj.status);
-            if(indexOfStage!==undefined && indexOfStage<orderStages.length-1){
-              obj = orders.fileList.find(orderObj=>orderObj.orderId===obj.orderId);
-              obj.status = orderStages[indexOfStage+1];
-              fs.writeFileSync(orderPath,JSON.stringify(orders));
-              window.webContents.send("update-content");
+            try {
+              let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+              let orderStages = saleConfig.orderStages || [];
+              if(orderStages.length > 0){
+                let orderJSON = readOrders(orderPath);
+                let entry = orderJSON.find(o => o.orderId === obj.orderId);
+                let indexOfStage = orderStages.findIndex(stageName => stageName === entry.status);
+                if(indexOfStage !== undefined && indexOfStage < orderStages.length - 1){
+                  entry.status = orderStages[indexOfStage + 1];
+                  fs.writeFileSync(orderPath, JSON.stringify(orderJSON));
+                  window.webContents.send("update-content");
+                }
+              }
+            } catch(err) {
+              appLogger({ title:"Error", message:String(err), func:"Update order status" });
             }
           },
         },
         {
-          label:"Generate bill from order",
-          click: ()=>{
+          label: "Generate bill from order",
+          click: () => {
             errIdentifier = "Generate bill from order";
-            orderManager(window,function(){
-              this.webContents.send("generate-bill",obj,5);
-            })();
-          }
-        },
-        {
-          label:"Print proforma bill",
-          click: async ()=>{
-            errIdentifier = "Print proforma bill";
-            let { orderId } = obj;
-            let billMeta = JSON.parse(fs.readFileSync(orderId).toString());
-            let { name="",address,gst,email,phones,orderItems } = billMeta;
-            billMeta.printObj = {
-              captions:["Proforma Invoice"]
-            };
-            billMeta.billNo = "proforma_"+orderId.slice(0,orderId.length/3);
-            let path2pdf = await billPDF({billMeta,customer:{name,address,email,phones,gst},orderItems});
-            let modal = printDialog(function(){
-              this.webContents.send("hide-label");
+            // Open the order directly in the sale page for billing
+            saleWindow()("salePage", "edit-order", {
+              customer: obj.customer,
+              billMeta: obj.billMeta,
+              orderItems: obj.orderItems,
+              currentStep: 1,
             });
-            ipcMain.once("print-obj",(e,printObj)=>{
-              billMeta.printObj = {
-                  ...printObj,
-                  captions:["Proforma Invoice"]
-              };
-              modal.close();
-              printPDF(path2pdf,billMeta.printObj);
-            });
-          }
+          },
         }
       ];
     }
-    // 
+    else
+    if(mode==="orderManagerObj"){
+      let orderPath = getOrderPath();
+      contextMenuObj = [
+        {
+          label: "View Details",
+          click: () => {
+            errIdentifier = "View Order Details";
+            getTargetWindow(targetWin).webContents.send("view-order", obj.orderId);
+          },
+        },
+        {
+          label: "Edit Order",
+          click: () => {
+            errIdentifier = "Edit Order";
+            saleWindow()("salePage", "edit-order", {
+              customer: obj.customer,
+              billMeta: obj.billMeta,
+              orderItems: obj.orderItems,
+              currentStep: 1,
+            });
+          },
+        },
+        {
+          label: "Delete Order",
+          click: () => {
+            errIdentifier = "Delete Order";
+            try {
+              let orderJSON = readOrders(orderPath);
+              orderJSON = orderJSON.filter(o => o.orderId !== obj.orderId);
+              fs.writeFileSync(orderPath, JSON.stringify(orderJSON));
+              window.webContents.send("refresh-orders");
+            } catch(err) {
+              appLogger({ title:"Error", message:String(err), func:"Delete Order (orderManager)" });
+            }
+          },
+        },
+      ];
+    }
+    //
     // else
-    // if(mode===""){// 
+    // if(mode===""){//
 
     // }
   }
@@ -4385,18 +4290,12 @@ ipcMain.on("edit-bill",async (e,customerId,itemList,entryNo)=>{
       id:customerId
     }
   }))?.dataValues;
-  Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
-  let presetObj = {
+  // Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
+  saleWindow()("salePage","edit-bill",{
     customer:customerObj,
     billMeta:saleObj,
-    itemList,
-    target:"salePage",
+    orderItems:itemList,
     currentStep:3,
-    mode:"edit-bill"
-  };
-  Object.keys(presetObj)
-  .forEach(key=>{
-    process.presets[key] = presetObj[key];
   });
 });
 
@@ -4892,7 +4791,7 @@ ipcMain.on("kiosk-create-sale", async (e, saleData) => {
       }, "order-billed");
 
       // Consume the reserved bill number now that the sale is saved
-      getBillManager().consume(kioskSessionId);
+      getBillManager().consume(kioskSessionId,billNo);
 
       appLogger({
         title: "Kiosk Sale",
@@ -4907,7 +4806,7 @@ ipcMain.on("kiosk-create-sale", async (e, saleData) => {
         address: customerObj.address || "",
         gst: customerObj.gst || "",
         email: customerObj.email || "",
-        phones: Array.isArray(customerObj.phones) ? JSON.stringify(customerObj.phones) : "",
+        phones: customerObj.phones,
         orderItems: orderItems,
         netAmtTax: netAmtTax,
         netDue: netAmtTax - netPayment,
@@ -4921,7 +4820,7 @@ ipcMain.on("kiosk-create-sale", async (e, saleData) => {
       });
 
       // Consume the reserved bill number
-      getBillManager().consume(kioskSessionId);
+      getBillManager().release(kioskSessionId);
 
       appLogger({
         title: "Kiosk Sale",

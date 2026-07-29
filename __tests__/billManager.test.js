@@ -52,9 +52,9 @@ describe("BillManager v2 — object pool logic", () => {
       return entry.billNo;
     }
 
-    consume(sessionId) {
+    consume(sessionId, billNo) {
       for (var i = 0; i < this.pool.length; i++) {
-        if (this.pool[i].windowId === sessionId) {
+        if (this.pool[i].windowId === sessionId && this.pool[i].billNo === billNo) {
           this.pool[i].isConsumed = true;
           this.pool[i].windowId = null;
           return;
@@ -122,9 +122,9 @@ describe("BillManager v2 — object pool logic", () => {
 
   test("currentMax reflects highest consumed", () => {
     const mgr = new TestBillManager({ seed: 100, poolSize: 10 });
-    mgr.allocate("w1"); mgr.consume("w1"); // 101
-    mgr.allocate("w2"); mgr.consume("w2"); // 102
-    mgr.allocate("w3"); mgr.consume("w3"); // 103
+    mgr.allocate("w1"); mgr.consume("w1", 101); // 101
+    mgr.allocate("w2"); mgr.consume("w2", 102); // 102
+    mgr.allocate("w3"); mgr.consume("w3", 103); // 103
     expect(mgr.currentMax).toBe(103);
   });
 
@@ -143,7 +143,7 @@ describe("BillManager v2 — object pool logic", () => {
   test("prior-day release flushed, not reused", () => {
     const mgr = new TestBillManager({ seed: 100, poolSize: 10 });
     mgr.allocate("w1"); // 101
-    mgr.allocate("w2"); mgr.consume("w2"); // 102 consumed
+    mgr.allocate("w2"); mgr.consume("w2", 102); // 102 consumed
     mgr.release("w1"); // 101 released
     // Simulate yesterday's date on the released entry
     mgr.pool.find(function(e) { return e.billNo === 101; }).date = "2020-01-01";
@@ -160,7 +160,7 @@ describe("BillManager v2 — object pool logic", () => {
     const a = mgr.allocate("sale-A"); // 101
     const b = mgr.allocate("sale-B"); // 102
 
-    mgr.consume("sale-A"); // A completes
+    mgr.consume("sale-A", 101); // A completes
     mgr.release("sale-B"); // B cancels
 
     const c = mgr.allocate("sale-C");
@@ -177,9 +177,9 @@ describe("BillManager v2 — object pool logic", () => {
 
   test("refills when available drops below 5, generating new numbers", () => {
     const mgr = new TestBillManager({ seed: 100, poolSize: 3 });
-    mgr.allocate("w1"); mgr.consume("w1"); // 101 consumed
-    mgr.allocate("w2"); mgr.consume("w2"); // 102 consumed
-    mgr.allocate("w3"); mgr.consume("w3"); // 103 consumed
+    mgr.allocate("w1"); mgr.consume("w1", 101); // 101 consumed
+    mgr.allocate("w2"); mgr.consume("w2", 102); // 102 consumed
+    mgr.allocate("w3"); mgr.consume("w3", 103); // 103 consumed
     // All 3 consumed, 0 available → needs refill
     mgr.allocate("w4"); // triggers refill, gets the first new number
     expect(mgr._available().length).toBeGreaterThanOrEqual(2); // 2 left after allocate

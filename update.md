@@ -1,26 +1,20 @@
-# version: 2.22.0
+# version: 2.22.2
 
 ## welcome
-### Welcome to BBS v2.22.0
+### Welcome to BBS v2.22.2
 
-We've been working hard to bring you some exciting new features, and I'm excited for you to try them. I hope you'll love this update. A quick note: Fuzzy Search is new and may occasionally need a restart — press Ctrl+F to toggle it on/off if it's giving you trouble. You can also turn it off entirely from Settings > App > General App Settings. A new BillManager handles multi-window sales, so please set your last used bill number under Settings > Company & Billing > Invoice Numbering before you start billing. Here's a quick look at what's changed:
+This update brings two major additions, both tucked under the **Sale** menu — Kiosk Mode and a reworked Order Manager. Here's what's new:
 
-- **Weather Themes** — The app now responds to real weather in your city
-- **Scrap Sale** — Simplified billing for metal scrap with auto tax calculation
-<!-- - **Kiosk Mode** — Let customers browse and order from their phone -->
-- **Proforma Invoices** — Create quotes and estimates without affecting stock
-- **Smarter Notifications** — Grouped alerts that link directly to records
-- **Fuzzy Search** — Experience faster search that forgives small typos.
+- **Kiosk Mode** — Let customers browse products and place orders from their phone over your local network. Configure sale mode, product layout, and receipt options from General App Settings.
+- **Order Manager** — Manage partial bills with ease. View, edit, or delete unbilled orders, track payment history, and convert orders to full bills when ready. Press **Shift+F5** or click **Sale → View Orders**.
+- **Save as Order** — Create a partial bill from the standard sale page without printing. Pick it up later from the Order Manager.
+- **Fixes** — Bill amount accounting corrected for user-declared tax values, bill number wastage bug patched, and SQLITE_BUSY database lock errors resolved.
 
-Let's take a quick tour of the new features. Click **Start Tour** to see what's new, or **Skip** to jump straight in.
+Let's take a quick tour. Click **Start Tour** to see what's new, or **Skip** to jump straight in.
 
 ## tour
-#reset-weather-btn :: Weather-based dynamic theming is now live! The app changes its look based on your city's weather — summer, monsoon, winter, thunderstorm, and more. Dark mode and night-time variants included. Click to toggle off.
+[data-ui="nav-sale"] :: The Sale menu now houses both Kiosk Mode and Order Manager. Click "Start Kiosk Mode" to let customers shop from their phone, or "View Orders" (Shift+F5) to manage partial bills.
 
-[data-ui="nav-sale"] :: Sale now supports Proforma invoices (quotes/estimates) and Scrap Sale mode with auto-calculated 18% GST + 2% TDS. Select bill type on Page 2.
+#kiosk-status-btn :: Kiosk Mode is now live! Click here to start the server — customers on your LAN can scan a QR code, browse products, and place orders. Configure sale mode (order-only or auto-bill), product layout, and customer selector visibility in General App Settings.
 
-#kiosk-status-btn :: Kiosk Mode lets customers browse products and place orders from their phone on your LAN. Click to start the server, scan the QR code, and customers can shop. Configurable PIN for security.
-
-[data-ui="notification-knob"] :: Notifications are now grouped by type — Errors, Warnings, and Info. Click any alert to jump directly to the relevant record.
-
-[data-ui="scheduler"] :: The scheduler now responds to weather themes with animated backgrounds that change with the season. Hover to pause the carousel, click to open the schedule manager.
+#order-table-div :: The Unbilled Orders table on your dashboard gives you a quick overview. Click any order to open the Order Manager — view items, check payment history, edit, delete, or generate a full bill when ready.

@@ -29,7 +29,7 @@ applySpinner(async function(){
     });
     await appendToDL("get-sales",saleDL,false,null,["name","billNo","billDate"]);
     await appendToDL("get-purchases",purchaseDL,false,null,["name","billNo","billDate"]);
-    await appendToDL("get-orders",ordersDL,false,["fileList"]);
+    await appendToDL("get-orders",ordersDL,false);
     [
         { id:"sales-select",dl:saleDL },
         { id:"purchase-select",dl:purchaseDL },

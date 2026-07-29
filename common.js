@@ -208,10 +208,10 @@ class BillManager {
         return entry.billNo;
     }
 
-    consume(sessionId) {
+    consume(sessionId,billNo) {
         if (!sessionId) return;
         for (var i = 0; i < this.pool.length; i++) {
-            if (this.pool[i] && this.pool[i].windowId === sessionId) {
+            if (this.pool[i] && this.pool[i].windowId === sessionId && this.pool[i].billNo===billNo) {
                 this.pool[i].isConsumed = true;
                 this.pool[i].windowId = null;
                 this._persist();

@@ -560,6 +560,12 @@ async function billUtils(e){
         ipcRenderer.send("print",name,billDate,billNo);
     else if(cmd==="add-item"){
         let itemList = await ipcRenderer.invoke("get-bill-items-portal",id,billNo,billDate);
+        itemList = itemList.map(obj=>{
+            return {
+                ...obj,
+                qty:obj.quantity
+            }
+        })
         ipcRenderer.send("edit-bill",id,itemList,entryNo);
     }
     else

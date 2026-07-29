@@ -1153,8 +1153,7 @@ exports.showDeleteBTN = function(e){
     if(target.nodeName==="DIV" && target.classList.contains("col"))
         bodyRow = target.closest(".body.row");
     if(bodyRow){
-        removeAllElem(".body-row-options");
-        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true))
+        setBodyRowOpts(bodyRow,timer)
         bodyRow.addEventListener("mouseleave",mouseoutHandler.bind(bodyRow));        
     }
 }
@@ -1527,6 +1526,7 @@ exports.addRow = function(e){
         bodyRow.querySelector(`[data-name="sgst"]`).removeAttribute("disabled");
         bodyRow.querySelector(`[data-name="igst"]`).textContent = "";
     }
+    setBodyRowOpts(bodyRow,timer);
 }
 
 function computeAllAmounts(){
@@ -1780,12 +1780,17 @@ exports.clickOrFocusinHandler = function(e){
         selectedItem = orderItems.find(obj=>obj.sellId===bodyRow.dataset.sellId); 
     removeAllElem(".body-row-options");
     if(bodyRow.className==="body row"){
-        bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
-        if(document.querySelector(".body-row-options"))
-            document.querySelector(".body-row-options").dataset.sellId = bodyRow.dataset.sellId;    
-        clearTimeout(timer);
-        timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
+        setBodyRowOpts(bodyRow,timer);
     }
+}
+
+function setBodyRowOpts(bodyRow,timer){
+    removeAllElem(".body-row-options");
+    bodyRow.appendChild(document.getElementById("body-row-options-template").content.cloneNode(true));
+    if(document.querySelector(".body-row-options"))
+        document.querySelector(".body-row-options").dataset.sellId = bodyRow.dataset.sellId;    
+    clearTimeout(timer);
+    timer = setTimeout(()=>document.querySelector(".body-row-options")?.remove(),5000);
 }
 
 exports.appendToHost = function(selector,host=HTMLElement,contentType="form"){
@@ -1797,18 +1802,70 @@ exports.appendToHost = function(selector,host=HTMLElement,contentType="form"){
     return child;
 }
 
-exports.bodyRow = function({obj,index,cols,key}){
+exports.bodyRow = function({obj, index, cols, key}){
     let div = document.createElement("div");
     div.dataset.obj = JSON.stringify(obj);
     div.dataset.identifier = key;
     div.className = "body row";
-    cols.forEach(col=>{
+    cols.forEach(col => {
         let p = document.createElement("p");
         p.className = "col eq-space";
-        p.textContent = (/date/i.test(col)===true && obj[col] instanceof Date ? obj?.[col]?.toLocaleDateString('en-GB'): (typeof obj?.[col]==="number" ? Math.round(obj?.[col]) : (col==="paymentStatus" ? (obj[col]===true ? "Paid" : "Unpaid") : obj?.[col]))) ?? index+1;
+        p.textContent = formatCellValue(col, obj[col], index);
         div.appendChild(p);
     });
     return div;
+}
+
+function formatCellValue(col, val, index){
+    // slNo / serial number
+    if(col === "slNo" && (val == null || val === ""))
+        return index + 1;
+
+    // Date columns — format Date objects or date-like strings
+    if(/date/i.test(col)){
+        if(val instanceof Date)
+            return openFormatForDate(val);
+        if(typeof val === "string" && val){
+            // ISO ("2026-07-29"), slash ("07/29/2026"), dash ("29-07-2026")
+            if(/^\d{4}-\d{2}-\d{2}|^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(val.trim())){
+                let d = new Date(val);
+                if(!isNaN(d.getTime())) return openFormatForDate(d);
+            }
+            return val; // non-date string, pass through
+        }
+        return val ?? "";
+    }
+
+    // Numeric values — round to whole numbers (amounts, quantities)
+    if(typeof val === "number")
+        return Math.round(val);
+
+    // Payment status — boolean → human-readable
+    if(col === "paymentStatus")
+        return val === true ? "Paid" : "Unpaid";
+
+    // Order status — fallback to "queued"
+    if(col === "status")
+        return val || "queued";
+
+    // Generic fallback
+    return val != null ? String(val) : (index + 1);
+}
+
+exports.openFormatForDate = openFormatForDate;
+function openFormatForDate(date=Date){
+    if(!(date instanceof Date))
+        date = new Date(date);
+    return date.toLocaleDateString("en-IN",{
+                month:"2-digit",
+                day:"2-digit",
+                year:"numeric"
+            })
+            .split("/")
+            .reduce((acc,str,i)=>{
+                acc = i===0 ? str : str+"-"+acc;
+                return acc;
+            },"");
 }
 
 exports.bodyRowInpFillup = itemObj=>{
@@ -2434,6 +2491,7 @@ function fuzzySearchHandler(e){
     let val = input.value.trim();
     let useFuzzySearch = input.dataset?.usefuzzysearch === "true" ?? false;
     let tableName = input.dataset?.tablename ?? "";
+    let sig = input.dataset?.sig;
     if (!useFuzzySearch || !tableName || !preset.useFuzzySearch) return;
 
     
@@ -2457,7 +2515,10 @@ function fuzzySearchHandler(e){
     if (nbspIdx > 0 || val === "") {
         if (val === "") {
             // Input cleared — restore the full datalist for the next interaction.
-            debounceTimerHelper()
+            debounceTimerHelper();
+            if(sig && sig==="order-manager"){
+                [...document.querySelectorAll(".body.row")].forEach(row=>row.classList.remove("hide"));
+            }
             return;
         }
         // User selected an option — extract the real value and place only the
@@ -2497,6 +2558,10 @@ function fuzzySearchHandler(e){
         // fuzzySearch returns value strings or HTMLOptionElements — look up
         // the actual option elements from the persistent lookup map.
         var matchedOpts = fuzzySearch(val, tableName);
+        if(sig && sig=="order-manager") // removed unwanted options and reused same func for orderManger
+            matchedOpts = matchedOpts.filter(obj=>{
+                return typeof name_orderId_map[obj.value]!=="undefined"
+            });
         matchedOpts = matchedOpts.slice(0,20);
         dl.innerHTML = "";
         if (!matchedOpts || matchedOpts.length === 0){
@@ -2587,3 +2652,19 @@ exports.reInitFuzzyIndexWithOptions = function(tableName,dl){
 
 exports.fuzzySearchHandler = fuzzySearchHandler;
 exports.cacheDatalistState = cacheDatalistState;
+
+var name_orderId_map = {};
+
+exports.reInitFuzzyIndexWithOrderID = function(orderIds=[],dl){
+    exports.reInitFuzzyIndexWithOptions("customer",dl)
+    orderIds.forEach(({name,orderId})=>{
+        if(Array.isArray(name_orderId_map[name]))
+            name_orderId_map[name].push(orderId);
+        else
+            name_orderId_map[name] = [orderId]
+    });
+}
+
+exports.getOrderIds = function(name){
+    return name_orderId_map[name];
+}

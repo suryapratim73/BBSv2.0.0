@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { BrowserWindow } = require("electron/main");
 const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales, openFormatForDate } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
@@ -31,10 +31,14 @@ let closeFlag = false,
     };
 
 exports.saleWindow = ()=>{
-    return ()=>{
+    return (target="salePage",mode="new-sale",preset={})=>{
         windowOptions.parent = undefined;
-        process.presets.target = "salePage";
-        process.presets.mode = "new-sale";
+        process.presets.target = target;
+        process.presets.mode = mode;
+        Object.keys(preset)
+        .forEach(key=>{
+            process.presets[key] = preset[key];
+        });
         saleWindow = createModal(windowOptions,getTemplatePath("salePage"));
         // saleWindow.webContents.openDevTools()
         saleWindow.on("unresponsive",(e)=>{
@@ -69,16 +73,6 @@ exports.showSales = mainWindow=>{
     }
 }
 
-exports.orderRegister = ()=>{
-    return ()=>{
-        windowOptions.parent = undefined;
-        let saleWindow = createModal(windowOptions,getTemplatePath("orderRegister"),{label:"new-order"});
-        saleWindow?.on("close",(e)=>{
-            getMainWindow().webContents.send("update-content");
-        })
-    }
-}
-
 exports.orderManager = (main,cb)=>{
     return ()=>{
         windowOptions.parent = main;
@@ -90,6 +84,15 @@ exports.orderManager = (main,cb)=>{
         return saleWindow;
     }
 }
+
+ipcMain.on("open-sale-in-order-mode",async (e,{billMeta,orderItems,customer})=>{
+    exports.saleWindow()("salePage","edit-order",{
+        customer,
+        billMeta,
+        orderItems,
+        currentStep:1,
+    });
+});
 
 ipcMain.handle("get-sale-bill-number",(e)=>{
     try {
@@ -235,6 +238,26 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
     }
 }
 
+function recalculateAmounts(orderedItems){
+    let {netAmt,netAmtTax,netTax} = orderedItems.reduce((acc,obj)=>{
+        function processItems(obj){
+            acc.netAmt += obj.rate * obj.qty;
+            let taxSlab =  Number(obj.igst) > 0
+                            ? Number(obj.igst)
+                            : Number(obj.cgst || 0) + Number(obj.sgst || 0);
+            acc.netAmtTax += roundOffTo2DecimalPlace((1+taxSlab/100)*obj.rate*obj.qty);
+            acc.netTax += roundOffTo2DecimalPlace(taxSlab*obj.rate*obj.qty/100);
+        }
+        if(obj.type==="grp")
+            obj.items.forEach(obj=>processItems(obj));
+        else
+            processItems(obj);
+        return acc;
+    },{netAmt:0,netAmtTax:0,netTax:0});
+
+    return {netAmt,netAmtTax,netTax};
+}
+
 async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     const { cityListWithCodes } = require("./common");
     closeFlag = true;
@@ -244,8 +267,19 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
-    if(process.presets.target==="salePage" && process.presets.mode==="edit-bill"){
-        getTargetWindow("customer-portal").webContents.send("reload-tables")
+    if(billMeta.target==="salePage"){
+        if(billMeta.mode==="edit-bill")
+            getTargetWindow("customer-portal").webContents.send("reload-tables")
+        if(billMeta.mode==="edit-order"){
+            manageOrder(null,billMeta,"order-billed");
+            try { getTargetWindow("manage-order")?.webContents?.send("billing-complete"); } catch (_) {}
+        }
+        if(["edit-order","edit-bill"].includes(billMeta.mode)){
+            delete process.presets.orderItems;
+            delete process.presets.customer;
+            delete process.presets.billMeta;
+            console.log(process.presets)
+        }
         Reflect.deleteProperty(process.presets,"target");
         Reflect.deleteProperty(process.presets,"mode");
     }
@@ -272,6 +306,10 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         scrapTDSAmt = 0
     } = billMeta;
     billMeta.netTax = netTax;
+    ({netAmt, netAmtTax, netTax} = recalculateAmounts(orderItems));
+    billMeta.netAmt = netAmt;
+    billMeta.netAmtTax = netAmtTax;
+    billMeta.netTax = netTax;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     if(billType === "proforma" && (!billMeta.printObj.captions || !billMeta.printObj.captions.length))
         billMeta.printObj = { ...billMeta.printObj, captions: ["Proforma Invoice"] };
@@ -280,7 +318,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     // Consume the reserved bill number (no-op for edit-bill, kiosk, or already-consumed)
     if (e && e.sender && e.sender.id) {
         const sessionId = "sale-" + e.sender.id;
-        getBillManager().consume(sessionId);
+        getBillManager().consume(sessionId,billNo);
     }
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
@@ -328,7 +366,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             }};
         Reflect.deleteProperty(custObj,"email");
         global.customerList.push(new People(custObj));
-        customer.findOrCreate({
+        await customer.findOrCreate({
             where:{
                 id:custId
             },
@@ -409,23 +447,6 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         match.updateMoreInfo = match.moreInfo;
         await match.save();
     }
-    if(billNo==="spot"){// Updating billDate for billNo==spot
-        let [ dd,mn,yy ] = (new Date()).toLocaleDateString("en-IN").split("/");
-        mn = mn<11?mn++:0;
-        if(mn===0)
-            yy++;
-        billDate = (new Date((new Date(yy,mn,1)).getTime() - 24*60*60*1000))
-                    .toLocaleDateString("en-IN",{
-                        month:"2-digit",
-                        day:"2-digit",
-                        year:"numeric"
-                    })
-                    .split("/")
-                    .reduce((acc,str,i)=>{
-                        acc = i===0 ? str : str+"-"+acc;
-                        return acc;
-                    },"");
-    }
     const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
     ];
@@ -448,7 +469,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             ["entryNo","DESC"]
         ]
     })))?.dataValues.balance ?? 0;
-    orderItems = itemAnalyzer(orderItems);
+    orderItems = itemAnalyzer(orderItems); // Merging same items with same rate. A cosmetic change.
     Promise.all([
         ...orderItems
         .filter(obj=>obj.type!=="service")
@@ -518,11 +539,11 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             customer
         };
         appLogger({title:"sale", message:JSON.stringify(concatenatedObj), func:"save_exit"});
-        if(flag!="regular"){
-            await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
-            var orderWin = BrowserWindow.fromId(e.sender.id);
-            if (orderWin) orderWin.webContents.send("billing-complete");
-        }
+        // if(flag!="regular"){
+        //     await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
+        //     var orderWin = BrowserWindow.fromId(e.sender.id);
+        //     if (orderWin) orderWin.webContents.send("billing-complete");
+        // }
         // Schedule payment reminder for unpaid bills (works for kiosk + regular)
         if(paymentStatus===false){
             let evObj = {
@@ -640,25 +661,26 @@ ipcMain.handle("get-ledger-balance",async (e,custId)=>{
     }
 });
 
-ipcMain.on("new-order",async (e,{billMeta,mode})=>{
+ipcMain.on("new-order",async (e,{billMeta,customer,orderItems})=>{
     const { printPDF } = require("./main");
-    let { name="",address,gst,email,phones,netAmtTax,netDue,paymentStatus,orderItems } = billMeta;
-    let orderId = uuid.v5(name+Date.now(),"6ba7b814-9dad-11d1-80b4-00c04fd430c8");
-    // fs-base order management
-    let baseDir = getBaseDir();
-    let ordersFilePath = path.resolve(baseDir,"orders.json");
-    let data = JSON.parse(fs.readFileSync(ordersFilePath).toString());
-    billMeta.billDate = new Date()
-                        .toLocaleDateString("en-IN",{
-                            month:"2-digit",
-                            day:"2-digit",
-                            year:"numeric"
-                        })
-                        .split("/")
-                        .reduce((acc,str,i)=>{
-                            acc = i===0 ? str : str+"-"+acc;
-                            return acc;
-                        },"");
+    // Use customer name as fallback when billMeta.name is empty (e.g., from sale page)
+    let name = (customer && customer.name) || "";
+    let address = (customer && customer.address) || "";
+    let gst = (customer && customer.gst) || "";
+    let email = (customer && customer.email) || "";
+    let phones = (customer && customer.phones) || [];
+    let { netAmtTax, netDue, paymentStatus } = billMeta;
+    let orderId = uuid.v4();
+    let mode = billMeta.billType;
+    let ordersFilePath = path.resolve(getBaseDir(),"orders.json");
+    let data = [];
+    try {
+        if(fs.existsSync(ordersFilePath))
+            data = JSON.parse(fs.readFileSync(ordersFilePath).toString());
+        if(!Array.isArray(data)) data = [];
+    } catch (_) {}
+    if (!billMeta.billDate)
+        billMeta.billDate = openFormatForDate(new Date());
     if(paymentStatus===false && billMeta.netPayment===0){
         billMeta.netDue = Math.round(netAmtTax);
         netDue = billMeta.netDue;
@@ -670,21 +692,26 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
         name,
         netAmtTax,
         netDue,
-        billDate:billMeta.billDate
+        billDate:billMeta.billDate,
+        billMeta,
+        customer,
+        orderItems
     };
-    if("fileList" in data)
-        data.fileList.push(orderObj);
-    else
-        data.fileList = [orderObj];
+    if(Array.isArray(data)){
+        // Dedup: remove any existing entry with the same orderId
+        data = data.filter(function(o){ return o.orderId !== orderId; });
+        data.push(orderObj);
+    } else {
+        data = [orderObj];
+    }
     try{
-        fs.writeFileSync(path.resolve(baseDir,orderId),JSON.stringify(billMeta));
         fs.writeFileSync(ordersFilePath,JSON.stringify(data));
     }
     catch(err){
         appLogger({
             title:"Error",
             message:err.message,
-            func:"manage order ipc- last try-catch"
+            func:"new-order — write orders.json"
         });
     }
     if(mode==="proforma"){
@@ -715,23 +742,25 @@ ipcMain.on("new-order",async (e,{billMeta,mode})=>{
             modal.on("close",()=>ipcMain.removeListener("print-obj",_print));
             ipcMain.once("print-obj",_print);
         }
-        else
-            BrowserWindow.getFocusedWindow().close();
+        else {
+            const win = BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
+            if (win) win.close();
+        }
     }
-    if(mode!="proforma")
-        BrowserWindow.getFocusedWindow().close();
+    if(mode!=="proforma"){
+        const win = BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
+        if (win) win.close();
+    }
 });
 
 async function manageOrder(e,billMeta,flag){
-    let baseDir = getBaseDir(),orderPath = getOrderPath();
+    let orderPath = getOrderPath();
     try{
-        if(flag==="order-billed"){
+        if(flag==="order-billed" || flag==="order-deleted"){
             let id = billMeta.orderId;
             let orderJSON = JSON.parse(fs.readFileSync(orderPath).toString());
-            orderJSON.fileList.splice(orderJSON.fileList.findIndex(obj=>obj.orderId===id),1)
+            orderJSON = Array.isArray(orderJSON) ? orderJSON.filter(function(o){ return o.orderId !== id; }) : [];
             fs.writeFileSync(orderPath,JSON.stringify(orderJSON));
-            if(fs.existsSync(path.resolve(baseDir,id)))
-                  fs.unlinkSync(path.resolve(baseDir,id));
         }
     }
     catch(err){
@@ -753,7 +782,19 @@ ipcMain.on("set-listener-order-manager",(e)=>{
 });
 
 ipcMain.handle("get-order",(e,orderId)=>{
-    return JSON.parse(fs.readFileSync(orderId).toString());
+    try {
+        let orderPath = getOrderPath();
+        let orders = JSON.parse(fs.readFileSync(orderPath).toString());
+        let entry = (Array.isArray(orders) ? orders : []).find(function(o){ return o.orderId === orderId; });
+        return entry;
+    } catch(err) {
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"get-order"
+        });
+        return null;
+    }
 });
 
 function traverseDate(date,annualHolidays,weeklyHolidays){

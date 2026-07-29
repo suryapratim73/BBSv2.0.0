@@ -23,11 +23,22 @@ const sequelize = new Sequelize({
     dialect:"sqlite",
     storage:path.resolve(appPath,"./db/bbs.db"),
     logging:null,
-    transactionType:"DEFERRED"
+    transactionType:"IMMEDIATE",
+    retry: {
+        max: 5,
+        match: [
+            /SQLITE_BUSY/,
+            /database is locked/
+        ]
+    }
 });
 
 sequelize.authenticate()
-.then(()=>{
+.then(async ()=>{
+    // Enable WAL mode for better concurrent read/write performance
+    // and set busy_timeout so SQLite retries instead of immediately failing with SQLITE_BUSY
+    await sequelize.query("PRAGMA journal_mode=WAL");
+    await sequelize.query("PRAGMA busy_timeout=5000");
     appLogger({title:"SQLite DB Connection", message:"Connected to sqlite db", func:"dbConfig"});
 })
 .catch((err)=>{

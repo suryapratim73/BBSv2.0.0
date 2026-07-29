@@ -71,8 +71,6 @@ initPage();
 function updateKioskButton(status) {
     var btn = document.getElementById("kiosk-status-btn");
     if (!btn) return;
-    // Hide button when kiosk is disabled (v2.22 — frontend incomplete)
-    if (status && status.disabled) { btn.classList.add("hide"); return; }
     btn.classList.remove("hide");
     if (status && status.running) {
         btn.textContent = "Kiosk: On :" + (status.port || "");
@@ -194,12 +192,12 @@ async function overviewPageInit(){
         noDataPlaceholder(stockTbody);
     let orders = await ipcRenderer.invoke("get-orders");
     let orderTbody = document.querySelector("#order-table-div .tbody");
-    if(!("fileList" in orders) || orders.fileList.length===0) 
+    if(!Array.isArray(orders) || orders.length===0)
         noDataPlaceholder(orderTbody);
     else{
         document.getElementById("order-table-div").classList.remove("hide");
         cols = [...document.querySelectorAll("#order-table-div .row.head .col>p")].map(p=>p.dataset.col);
-        orders.fileList.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
+        orders.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
     }
     initScheduleDiv();
 }
@@ -770,11 +768,19 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="general"){
                 let settings = await ipcRenderer.invoke("get-general-app-settings");
-                ({ useFuzzySearch,pin="",port="" } = settings);
+                ({ useFuzzySearch, pin="", port="", includeCustomerSelector, productLayout, dbMode, generateReceipt } = settings);
                 if(useFuzzySearch)
                     form.useFuzzySearch.setAttribute("checked",useFuzzySearch);
                 form.pin.value = pin;
                 form.port.value = port;
+                if (includeCustomerSelector !== undefined)
+                    form.includeCustomerSelector.value = String(includeCustomerSelector);
+                if (productLayout)
+                    form.productLayout.value = productLayout;
+                if (dbMode)
+                    form.dbMode.value = dbMode;
+                if (generateReceipt)
+                    form.generateReceipt.setAttribute("checked", generateReceipt);
             }
         }
     }
@@ -947,10 +953,19 @@ async function saveSettings(e){
     else
     if(cmd==="general"){
         let useFuzzySearch = form.useFuzzySearch.checked;
-        ({ pin=1234, port=3030 } = data);
+        ({ pin=1234, port=3030, includeCustomerSelector="true", productLayout="uncategorized", dbMode="order-only" } = data);
         pin = Number(pin);
-        port = Number(port)
-        ipcRenderer.send("general-app-settings",{useFuzzySearch},{pin,port});
+        port = Number(port);
+        let generateReceipt = form.generateReceipt.checked;
+        let kioskSetting = {
+            pin,
+            port,
+            includeCustomerSelector: includeCustomerSelector === "true",
+            productLayout,
+            dbMode,
+            generateReceipt
+        };
+        ipcRenderer.send("general-app-settings",{useFuzzySearch},kioskSetting);
         showToastNotification("General App Settings saved.",["animation-common","move-left","blue-toast-box"],"main");
     }
     showForm(null,"back",show);

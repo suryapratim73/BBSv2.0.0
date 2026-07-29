@@ -65,7 +65,8 @@ let nameDatalist = document.createElement("datalist"),
     availableBillNoDL = document.createElement("datalist"),
     igstFlag,
     preset,
-    nocFlag = true;
+    nocFlag = true,
+    timer;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -109,11 +110,10 @@ async function init() {
         unitDatalist.appendChild(option);
     });
     preset = await ipcRenderer.invoke("get-presets");
-    if (preset.mode === "edit-bill") {
+    if (preset.mode === "edit-bill" || preset.mode==="edit-order") {
         customer = preset.customer;
         if ("billMeta" in preset) {
             billMeta = { ...preset.billMeta };
-            console.log("Loaded billMeta from preset:", billMeta);
             if (typeof billMeta.delivery === "object")
                 [
                     "deliveryType",
@@ -125,14 +125,21 @@ async function init() {
                     billMeta[key] = billMeta.delivery?.[key];
                 });
         }
-        if ("itemList" in preset)
-            orderItems = preset.itemList.map((itemObj) => {
+        if ("orderItems" in preset)
+            orderItems = preset.orderItems.map((itemObj) => {
                 return {
                     ...itemObj,
-                    qty: itemObj.quantity,
+                    qty: itemObj.qty,
                     sellUnit: itemObj.unit,
                 };
             });
+        billMeta.target = preset.target;
+        billMeta.mode = preset.mode;
+        if(preset.mode==="edit-order"){
+            delete billMeta.billNo;
+            delete billMeta.billDate;
+        }
+        document.title = document.title + " - " + capitalize(preset.mode) + " mode";
     }
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
@@ -177,6 +184,8 @@ function setFooter() {
     else {
         if (billMeta.billType === "regular" || billMeta.billType === "scrap" || billMeta.billType === "proforma")
             footer.querySelector(`[data-type="print"]`).classList.remove("hide");
+        if (billMeta.billType !== "proforma")
+            footer.querySelector(`[data-type="save-order"]`).classList.remove("hide");
         footer.querySelector(`[data-type="save"]`).classList.remove("hide");
     }
     if (currentStep !== 1)
@@ -802,6 +811,7 @@ function proceedOrFinishHandler(e) {
                 }
                 probableGrps = probableGrps.filter((obj) => obj.items.length !== 1);
                 } // end non-scrap flow
+                recheckOrderItems();
             } // Step 3
             if (currentStep === 1) {
                 // Datalist state is managed by fuzzySearchHandler in common.js —
@@ -1056,7 +1066,7 @@ function displaySection(show=true) {
         .forEach(h2=>{
             let key = h2.dataset.name;
             if(key==="specialPrice"){
-                let res = JSON.parse(itemObj[key]).filter(obj=>obj.customerId===customer.id).sort((a,b)=>new Date(a) - new Date(b)).pop();
+                let res = attempt(()=>JSON.parse(itemObj[key]).filter(obj=>obj.customerId===customer.id).sort((a,b)=>new Date(a) - new Date(b)).pop(),{});
                 h2.textContent = roundOffTo2DecimalPlace(res?.rate ?? 0);
             }
             else
@@ -1203,6 +1213,41 @@ ipcRenderer.on("print-obj", (e, printObj) => {
     }
 });
 
+function recheckOrderItems(){
+    orderItems = orderItems.map(obj=>{
+        let bodyRow = document.querySelector(`.body.row[data-sell-id="${obj.sellId}"]`);
+        return {
+            ...obj,
+            qty:parseFloat(bodyRow.querySelector("input[data-name='qty']").value) || 0,
+            rate:parseFloat(bodyRow.querySelector("input[data-name='standardSellPrice']").value) || 0,
+            sgst:parseFloat(bodyRow.querySelector("input[data-name='sgst']").value) || 0,
+            cgst:parseFloat(bodyRow.querySelector("input[data-name='cgst']").value) || 0,
+            igst:parseFloat(bodyRow.querySelector("input[data-name='igst']").value) || 0,
+        };
+    });
+}
+
+function saveAsOrder() {
+    try {
+        billMeta.orderItems = orderItems;
+        ipcRenderer.send("new-order", { billMeta, customer, orderItems });
+        // Let new-order handler close the window — send cancel to release bill number
+        ipcRenderer.send("cancel-sale-bill", currentStep);
+        showToastNotification(
+            "Order saved successfully.",
+            ["animation-common", "move-left", "blue-toast-box"],
+            document.body,
+        );
+    } catch (err) {
+        console.error("Error in saveAsOrder:", err);
+        showToastNotification(
+            "Error saving order: " + err.message,
+            ["animation-common", "move-left", "red-toast-box"],
+            document.body,
+        );
+    }
+}
+
 function saveExit() {
     try {
         if (preset.target === "salePage" && preset.mode === "edit-bill") {
@@ -1215,7 +1260,7 @@ function saveExit() {
                 customer,
             );
         }
-        if (preset.target === "salePage" && preset.mode === "new-sale")
+        if (preset.target === "salePage" && (preset.mode === "new-sale" || preset.mode === "edit-order"))
             ipcRenderer.send("save-exit-sale-bill", {
                 billMeta,
                 customer,

@@ -1,6 +1,40 @@
 @import "../css/common.css";
+
 body{
     position: relative;
+}
+
+/* ── Searchbar ── */
+#searchbar{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0.5rem;
+    margin: 0.25rem 0;
+    grid-row: 3;
+}
+#searchbar #form{
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+}
+#searchbar #form div{
+    width: 100%;
+}
+#searchbar #form > div:first-child{
+    position: relative;
+    width: 100%;
+}
+#searchbar input{
+    color: var(--theme-text-color);
+    font-size: 1rem;
+    padding: 0.75rem 0.5rem;
+    border-radius: 5px;
+    border: unset;
+    width: 100%;
+    box-shadow: inset 1px 1px 0px 0px black, inset -1px -1px 0px 0px grey;
+    font-style: italic;
+    background: var(--theme-input-bg, #fefefe);
 }
 /* body .toast-div{
     top: 0;
@@ -29,7 +63,7 @@ body{
     font-size: 1rem;
 }
 #page-1>div:last-child{
-    grid-row: 3/-1;
+    grid-row: 4/-1;
 }
 #page-2,#page-4,#page-5{
     display: grid;

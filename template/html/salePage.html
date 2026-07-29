@@ -140,10 +140,6 @@
                             <input type="radio" required data-name="billNo" disabled  name="billNo" id="bill-number-reserve" value="reserve" tabindex="0"/>
                         </div>
                         <div>
-                            <label for="bill-number-spot">Spot: </label>
-                            <input type="radio" data-name="billNo" name="billNo" disabled id="bill-number-spot" value="spot" tabindex="0"/>
-                        </div>
-                        <div>
                             <input type="checkbox" name="autoBill" data-name="autoBill" disabled id="auto-bill" tabindex="0">
                             <label for="auto-bill">Auto Bill</label>
                         </div>
@@ -385,6 +381,7 @@
             <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cancel-grp')" class="main-ui-btn hide hover top right" data-msg="Cancel item grouping" tabindex="0">Cancel Grouping</button>
             <button type="button" data-type="grp-pg-btn" onclick="showPage4(event,'cnf-grp')" class="main-ui-btn hide hover top right" data-msg="Confirm item grouping" tabindex="0">Done</button>
             <button type="button" data-type="print" class="main-ui-btn hide hover top right" onclick="showPrintDialog()" data-msg="Print bill (Ctrl+P)" tabindex="0">Print</button>
+            <button type="button" data-type="save-order" class="main-ui-btn hide hover top right" onclick="saveAsOrder(event)" data-msg="Save as order for later (Ctrl+Shift+S)" tabindex="0">Save as Order</button>
             <button type="button" data-type="save" class="main-ui-btn hide hover top right" onclick="saveExit(event)" data-msg="Save and exit (Ctrl+Enter / Ctrl+S)" tabindex="0">Save & Exit</button>
         </div>
     </template>

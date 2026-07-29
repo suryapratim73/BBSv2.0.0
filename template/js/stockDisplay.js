@@ -21,7 +21,7 @@ async function initPage(){
         bodyRow.querySelector("p").textContent = ++i;
         for(let key in itemObj){
             if(["name","quantity","buyPrice"].includes(key))
-                bodyRow.querySelector(`[data-colName="${key}"]`).textContent = itemObj[key];
+                bodyRow.querySelector(`[data-colName="${key}"]`).textContent = (key === "buyPrice" || key === "quantity") ? roundOffTo2DecimalPlace(itemObj[key]) : itemObj[key];
             if(key==="pInfo")
                 bodyRow.querySelector(`[data-colName="type"]`).textContent = "type" in itemObj.pInfo ? itemObj.pInfo.type : itemObj.type;
             bodyRow.dataset[key] = typeof itemObj[key]==="object"?JSON.stringify(itemObj[key]):itemObj[key];            

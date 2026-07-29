@@ -8,5 +8,96 @@
     <script src="../js/generalHTML.js" defer></script>
     <title>General HTML</title>
 </head>
-<body></body>
+<body>
+    <template id="add-payment-template">
+        <form class="fr-1" onsubmit="submitHandler(event)">
+            <div class="flex" style="margin: 0 0 0.5rem 0; gap: 0.5rem;">
+                <div class="fr-1 flex flex-dir-col flex-center">
+                    <p>Customer</p>
+                    <p class="row1" data-bind="name"></p>
+                </div>
+                <div class="fr-1 flex flex-dir-col flex-center">
+                    <p>Due amount</p>
+                    <p class="row1" data-bind="netDue"></p>
+                </div>
+                <div class="fr-1 flex flex-dir-col flex-center">
+                    <p>Order Date</p>
+                    <p class="row1" data-bind="billDate"></p>
+                </div>
+            </div>
+            <h2>Enter payment details</h2>
+            <div id="payment-div" onkeypress="validateInput2(event)">
+                <div id="payment-mode">
+                    <label for="payment-mode">Select payment mode:</label>
+                    <select onchange="showPaymentMode(event)" name="mode">
+                        <option value="due" selected>Due</option>
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="online">NEFT</option>
+                    </select>
+                </div>
+                <div id="cash-payment" class="hide payment-detail">
+                    <div>
+                        <p>Enter amount</p>
+                        <input data-type="Number" value="0" data-subtype="price" name="payment" />
+                    </div>
+                </div>
+                <div id="check-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" name="bankName"/>
+                    </div>
+                    <div>
+                        <p>Bank Branch</p>
+                        <input type="text" name="bankBranch"/>
+                    </div>
+                    <div>
+                        <p>Account No.</p>
+                        <input type="text" data-subtype="price" name="bankACNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Check No.</p>
+                        <input type="text" data-subtype="price" name="chkNo" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Mark as paid</p>
+                        <select type="text" name="paymentStatus">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="online-payment" class="hide payment-detail">
+                    <div>
+                        <p>Bank Name</p>
+                        <input type="text" name="bankName" />
+                    </div>
+                    <div>
+                        <p>Transaction Ref.</p>
+                        <input type="text" name="bankTrnRef" />
+                    </div>
+                    <div>
+                        <p>Amount paid</p>
+                        <input type="text" value="0" name="payment" data-subtype="price" data-type="Number" onkeypress="validateInput(event)"/>
+                    </div>
+                    <div>
+                        <p>Mark as paid</p>
+                        <select type="text" name="paymentStatus">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit">Add payment</button>
+                <button type="button" onclick="window.close()">Cancel</button>
+            </div>
+        </form>
+    </template>
+</body>
 </html>

@@ -19,12 +19,36 @@ function generateHTML(parentElem,elemObj){
         Object.keys(elemObj.styles)
         .forEach(propKey=>elem.style[propKey]=elemObj.styles[propKey]);
 }
-ipcRenderer.on("init-page",(e,_eventName,html)=>{
+ipcRenderer.on("init-page",(e,_eventName,payload)=>{
     eventName = _eventName;
     Object.entries(require("../js/common"))
     .forEach(([name,exported])=>window[name]=exported);
+
+    // Clone template BEFORE clearing body (removeAllElem deletes <template> tags too)
+    let tmplContent = null, tmplData = null;
+    if(payload && payload.template){
+        let tmpl = document.getElementById(payload.template);
+        if(tmpl){
+            tmplContent = tmpl.content.cloneNode(true);
+            tmplData = payload.data;
+        }
+    }
+
     window["removeAllElem"]("body *");
-    html.forEach(elemObj=>generateHTML(document.body,elemObj));
+
+    if(tmplContent){
+        document.body.appendChild(tmplContent);
+        if(tmplData){
+            Object.entries(tmplData).forEach(([key,val])=>{
+                document.querySelectorAll(`[data-bind="${key}"]`).forEach(el=>{
+                    el.textContent = val != null ? String(val) : "";
+                });
+            });
+        }
+    } else {
+        // Legacy: array of element objects
+        payload.forEach(elemObj=>generateHTML(document.body,elemObj));
+    }
 });
 
 function submitHandler(e){

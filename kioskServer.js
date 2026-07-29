@@ -420,4 +420,4 @@ function getStatus() {
 }
 
 // Disabled for v2.22 — kiosk sale flow + orderManager need rework
-module.exports = { start, stop, getStatus, ENABLED: false };
+module.exports = { start, stop, getStatus, ENABLED: true };

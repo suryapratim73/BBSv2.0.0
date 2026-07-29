@@ -3,7 +3,7 @@ const { BrowserWindow, ipcMain, dialog, app } = require("electron");
 const { addPurchase,showPurchase } = require("./handlePurchase");
 const { displayStock,handleReturn } = require("./handleStock");
 const { getSuplierPortal,checkOutPayments } = require("./supplierHandler");
-const { saleWindow, showSales, orderRegister, orderManager } = require("./saleHandler");
+const { saleWindow, showSales, orderManager } = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
@@ -80,20 +80,15 @@ module.exports = mainWindow=>{
                     accelerator: "F5",
                     click: ()=>appStateComplianceEnforcement(customerPortal(mainWindow))
                 },
-                // Kiosk disabled for v2.22 — sale flow + orderManager need rework
-                // {type:"separator"},
-                // {
-                //     label: "Start Kiosk Mode",
-                //     click: ()=>ipcMain.emit("open-kiosk")
-                // },
+                {type:"separator"},
+                {
+                    label: "Start Kiosk Mode",
+                    click: ()=>ipcMain.emit("open-kiosk")
+                },
                 {
                     label: "View Orders",
                     click:()=>appStateComplianceEnforcement(orderManager(mainWindow)),
                     accelerator:"Shift+F5"
-                },
-                {
-                    label: "Add item to \"Open\" Bills",
-                    click:()=>{}
                 }
             ]
         },
