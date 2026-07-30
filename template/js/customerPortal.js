@@ -557,7 +557,7 @@ async function billUtils(e){
     if(cmd==="open")
         ipcRenderer.send("open-ext",name,billDate,billNo);
     else if(cmd==="print")
-        ipcRenderer.send("print",name,billDate,billNo);
+        ipcRenderer.send("print",name,billDate,billNo,entryNo);
     else if(cmd==="add-item"){
         let itemList = await ipcRenderer.invoke("get-bill-items-portal",id,billNo,billDate);
         itemList = itemList.map(obj=>{

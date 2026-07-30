@@ -110,6 +110,8 @@ async function init() {
         unitDatalist.appendChild(option);
     });
     preset = await ipcRenderer.invoke("get-presets");
+    billMeta.mode = "new-sale";
+    billMeta.target = "salePage";
     if (preset.mode === "edit-bill" || preset.mode==="edit-order") {
         customer = preset.customer;
         if ("billMeta" in preset) {
@@ -133,7 +135,6 @@ async function init() {
                     sellUnit: itemObj.unit,
                 };
             });
-        billMeta.target = preset.target;
         billMeta.mode = preset.mode;
         if(preset.mode==="edit-order"){
             delete billMeta.billNo;

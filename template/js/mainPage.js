@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper, startUpdateTour,appendToDL,getNGramIndex } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper, startUpdateTour,appendToDL,getNGramIndex,showUpdatePrompt } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -993,6 +993,10 @@ ipcRenderer.on("logged-in-user",(e,user)=>{
 
 ipcRenderer.on("error",(e,msg)=>{
     return alert(msg);
+});
+
+ipcRenderer.on("show-update-prompt", function(event, data) {
+    showUpdatePrompt(data);
 });
 
 // Context Menu

@@ -1,20 +1,15 @@
-# version: 2.22.2
+# version: 2.22.3
 
 ## welcome
-### Welcome to BBS v2.22.2
+### Welcome to BBS v2.22.3
 
-This update brings two major additions, both tucked under the **Sale** menu — Kiosk Mode and a reworked Order Manager. Here's what's new:
+This is a stability release with important bug fixes. Kiosk Mode and the reworked Order Manager (introduced in v2.22.2) are now more reliable.
 
-- **Kiosk Mode** — Let customers browse products and place orders from their phone over your local network. Configure sale mode, product layout, and receipt options from General App Settings.
-- **Order Manager** — Manage partial bills with ease. View, edit, or delete unbilled orders, track payment history, and convert orders to full bills when ready. Press **Shift+F5** or click **Sale → View Orders**.
-- **Save as Order** — Create a partial bill from the standard sale page without printing. Pick it up later from the Order Manager.
-- **Fixes** — Bill amount accounting corrected for user-declared tax values, bill number wastage bug patched, and SQLITE_BUSY database lock errors resolved.
+- **Duplicate bill number fixed** — Cancelling a bill could leak its reserved number, causing the next sale to reuse it. The save flow now verifies the allocated number matches before consuming it.
+- **Update download fixed** — The download button in the update prompt was non-functional due to IPC and script loading issues. Replaced with a reliable native dialog.
+- **Log integrity hardened** — The appLogger hash chain now only advances when a log entry is actually written to disk, with backpressure handling to preserve strict ordering.
 
-Let's take a quick tour. Click **Start Tour** to see what's new, or **Skip** to jump straight in.
+If you missed the v2.22.2 features: **Kiosk Mode** lets customers browse and order from their phone on your LAN, and the new **Order Manager** (Shift+F5) lets you manage partial bills with search, edit, and delete support. Both live under the **Sale** menu.
 
 ## tour
-[data-ui="nav-sale"] :: The Sale menu now houses both Kiosk Mode and Order Manager. Click "Start Kiosk Mode" to let customers shop from their phone, or "View Orders" (Shift+F5) to manage partial bills.
-
-#kiosk-status-btn :: Kiosk Mode is now live! Click here to start the server — customers on your LAN can scan a QR code, browse products, and place orders. Configure sale mode (order-only or auto-bill), product layout, and customer selector visibility in General App Settings.
-
-#order-table-div :: The Unbilled Orders table on your dashboard gives you a quick overview. Click any order to open the Order Manager — view items, check payment history, edit, delete, or generate a full bill when ready.
+(no tour for this release)

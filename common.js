@@ -257,7 +257,7 @@ class FileHandler{
 }
 
 /** @type {BillManager} */
-let billManager, appLoggerStreams = {},logsQueue = [],lastLineHash = "";
+let billManager, appLoggerStreams = {},logsQueue = [],lastLineHash = "",todaysLogPending = [];
 
 async function getLedgerModel(id,ledgerSchema,_sequelize){
     const { sequelize } = require("./model/dbConfig");
@@ -449,7 +449,20 @@ function appLogger(msgObj){
 
     // Only initialize FileHandler when we intend to write to log
     if(appendToLog){
-        appLoggerStreams = ( typeof appLoggerStreams !== "undefined" && appLoggerStreams instanceof FileHandler) ? appLoggerStreams : new FileHandler(`./logs/appLogs.txt`);
+        const isNew = !(appLoggerStreams instanceof FileHandler);
+        appLoggerStreams = isNew ? new FileHandler(`./logs/appLogs.txt`) : appLoggerStreams;
+        if (isNew) {
+            // Strict hash chain: drain flushes queued entries sequentially
+            appLoggerStreams.todaysLog.on("drain", () => {
+                while (todaysLogPending.length) {
+                    const entry = todaysLogPending[0];
+                    const ok = appLoggerStreams.todaysLog.write(JSON.stringify(entry) + "\n");
+                    if (!ok) break;
+                    todaysLogPending.shift();
+                    lastLineHash = crypto.createHash("sha256").update(JSON.stringify(entry)).digest("hex");
+                }
+            });
+        }
     }
 
     let ts = (new Date()).toLocaleString("en-GB"); // Indian Standard Time format
@@ -483,9 +496,19 @@ function appLogger(msgObj){
     // would create a dangling reference to a missing entry and break the chain.
     if(appendToLog){
         msgObj.hash = lastLineHash; // Using hash chain to ensure integrity and traceability of logs
-        if(appLoggerStreams instanceof FileHandler && appLoggerStreams.todaysLog.writable)
-            appLoggerStreams.todaysLog.write(JSON.stringify(msgObj)+"\n");
-        lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
+        if(appLoggerStreams instanceof FileHandler && appLoggerStreams.todaysLog.writable){
+            if (todaysLogPending.length > 0) {
+                // Backpressure gate is down — queue behind pending entries to preserve order
+                todaysLogPending.push(msgObj);
+            } else {
+                let written = appLoggerStreams.todaysLog.write(JSON.stringify(msgObj)+"\n");
+                if (written) {
+                    lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
+                } else {
+                    todaysLogPending.push(msgObj); // first backpressure hit, gate closes
+                }
+            }
+        }
     }
     if(appendToLog && logsQueue.length>0 && appLoggerStreams.stream.writable){
         while(logsQueue.length>0){

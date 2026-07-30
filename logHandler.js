@@ -117,7 +117,7 @@ ipcMain.on("get-logs", async (event)=>{
     for (const file of encFiles) {
         // Skip files from June 17 or earlier — predate the hash chain feature
         const fileDate = extractFileDate(file);
-
+        if(fileDate<new Date(2026,6,30)) continue;
         const filePath = path.join(encDir, file);
         console.log(`Decrypting log file: ${filePath}`);
         const decryptedLog = await decryptLogFile(filePath, kek);

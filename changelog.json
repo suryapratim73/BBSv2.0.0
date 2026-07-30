@@ -1,24 +1,13 @@
 {
-    "version":"2.22.2",
+    "version":"2.22.3",
     "highlights":[
-        "[2.22.2] New: Kiosk mode enabled — start from Sale menu or sidebar",
-        "[2.22.2] New: Save as Order button in sale page (replaces old Order Register)",
-        "[2.22.2] New: Kiosk settings in General App Settings (customer selector, product layout, sale mode, receipt)",
-        "[2.22.2] Fix: Bill amount accounting error — tax values now read from user input",
-        "[2.22.2] Fix: Bill Number wastage bug — consume now matches by both session and bill number",
-        "[2.22.2] Fix: SQLITE_BUSY error — added WAL mode, busy timeout, and fixed missing await",
-        "[2.22.2] Re-worked Order Manager - Now manage partial bill using Order Manager"
+        "[2.22.3] Fix: Duplicate bill number — save_exit verifies allocated billNo matches before consuming",
+        "[2.22.3] Fix: Update download button — replaced broken modal window with native dialog",
+        "[2.22.3] Fix: appLogger hash chain — hash only advances on confirmed write, strict drain ordering"
     ],
     "fullchange":[
-        "[2.22.2] New: Kiosk mode enabled — HTTP server with customer search, product browsing, walk-in sales. Start from Sale menu or sidebar toggle.",
-        "[2.22.2] New: Save as Order button on sale page — create partial bills directly from the standard sale interface. Old Order Register replaced.",
-        "[2.22.2] New: Kiosk configuration in General App Settings — set customer selector visibility, product layout, sale mode (order-only/auto-bill), and receipt generation.",
-        "[2.22.2] Fix: Bill amount accounting error — recalculateAmounts now uses user-declared sgst/cgst/igst values, handles grouped items, and rounds all totals consistently.",
-        "[2.22.2] Fix: Bill Number wastage — BillManager.consume() now matches by both sessionId and billNo, preventing wrong entries from being consumed when numbers are manually selected from available list.",
-        "[2.22.2] Fix: SQLITE_BUSY database locked error — added WAL journal mode, busy_timeout=5000ms, IMMEDIATE transaction type, retry on lock errors, and fixed missing await on customer findOrCreate.",
-        "[2.22.2] Fix: new-order handler crash guard — window close only attempted when a valid BrowserWindow exists.",
-        "[2.22.2] Fix: orders.json missing file handling — new-order gracefully initializes empty file if not present.",
-        "[2.22.2] Removed: Spot bill numbering feature and old Order Register window.",
-        "[2.22.2] Re-worked Order Manager - Now manage partial bill using Order Manager"
+        "[2.22.3] Fix: Duplicate bill number — save_exit now calls allocate() to verify the reserved number matches the actual billNo before consuming. Mismatch triggers release() instead of silently leaking the reservation. Edit-bill and edit-order modes excluded from this check.",
+        "[2.22.3] Fix: Update download button — replaced separate BrowserWindow modal (had frame, script loading, and IPC timing issues) with native dialog.showMessageBox. In-page modal code kept for future use.",
+        "[2.22.3] Fix: appLogger hash chain integrity — lastLineHash only advances when todaysLog.write() succeeds. On backpressure, subsequent entries are queued and drained sequentially via 'drain' event, preserving strict hash chain ordering."
     ]
 }

@@ -3233,34 +3233,32 @@ async function checkForUpdates(flag="auto") {
           else
             return;
         }
-        // Show update prompt modal instead of bare dialog
-        let userChoice = await new Promise((resolve) => {
-          let modal = createModal(
-            { width: 520, height: 580, resizable: false, parent: mainWin },
-            getTemplatePath("updatePrompt"),
-            { label: "Update-Prompt" }
-          );
-          modal.webContents.on("did-finish-load", async () => {
-            // Generate QR code pointing to the changelog page on our website
-            const qrCode = require("qrcode");
-            let changelogUrl = updateURL + "changelog?version=" + encodeURIComponent(appVersion);
-            let qrDataUrl = await qrCode.toDataURL(changelogUrl, { width: 180, margin: 1 });
-            modal.webContents.send("init-update-prompt", {
-              version: appVersion,
-              highlights: changelog.highlights || [],
-              fullchange: changelog.fullchange || [],
-              message,
-              changelogUrl,
-              qrDataUrl,
-              videoUrl
-            });
+        // Build detail text from changelog
+        let detailLines = [message];
+        var highlights = changelog.highlights || [];
+        var fullchange = changelog.fullchange || [];
+        if (highlights.length) {
+          detailLines.push("", "--- Highlights ---");
+          highlights.forEach(function(h) {
+            detailLines.push("  •  " + (typeof h === "string" ? h : (h.title || h.description || JSON.stringify(h))));
           });
-          ipcMain.once("update-prompt-response", (e, action) => {
-            modal.close();
-            resolve(action);
+        }
+        if (fullchange.length) {
+          detailLines.push("", "--- Full Changes ---");
+          fullchange.forEach(function(c) {
+            detailLines.push("  •  " + (typeof c === "string" ? c : (c.title || c.description || JSON.stringify(c))));
           });
+        }
+        let userChoice = await dialog.showMessageBox(mainWin, {
+          type: "info",
+          title: "Update Available",
+          message: "BBS v" + appVersion + " is available for download",
+          detail: detailLines.join("\n"),
+          buttons: ["Download Now", "Later"],
+          defaultId: 0,
+          cancelId: 1
         });
-        if (userChoice === "cancel") return ;
+        if (userChoice.response === 1) return ; // Later
         // If app is not already updated.
         try{
           let updtConf = fs.existsSync(app.getPath("appData")+"/BBS/updtConf.json") ? JSON.parse(fs.readFileSync(app.getPath("appData")+"/BBS/updtConf.json").toString()) : undefined;

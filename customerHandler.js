@@ -155,12 +155,10 @@ ipcMain.on("open-ext",async (e,name,billDate,billNo)=>{
         dialog.showErrorBox("Unable to open the PDF file","The file you're trying to open don't exist.")
 });
 
-ipcMain.on("print",async(e,name,billDate,billNo)=>{
+ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
     let saleObj = (await sale.findOne({
         where:{
-            name,
-            billNo,
-            billDate:new Date(billDate)
+            entryNo
         }
     })).dataValues;
     let { customerId,delivery,tax,billAmt } = saleObj;
@@ -172,7 +170,7 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
             let grpObj = _orderItems.find(obj=>obj.id===itemObj.grpId)
             if(grpObj?.items?.length>0){
                 grpObj.items.push(itemObj);
-                grpObj.qty += itemObj.qty;
+                grpObj.qty += itemObj.quantity;
             }
             else
                 _orderItems.push({
@@ -184,7 +182,7 @@ ipcMain.on("print",async(e,name,billDate,billNo)=>{
                     id:itemObj.grpId,
                     items:[itemObj],
                     name:itemObj.grpName,
-                    qty:itemObj.qty,
+                    qty:itemObj.quantity,
                     rate:itemObj.rate,
                     sellUnit:itemObj.unit,
                     type:"grp"

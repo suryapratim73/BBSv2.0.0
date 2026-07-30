@@ -316,9 +316,12 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
 
     // Consume the reserved bill number (no-op for edit-bill, kiosk, or already-consumed)
-    if (e && e.sender && e.sender.id) {
+    if (e && e.sender && e.sender.id && !["edit-order","edit-bill"].includes(billMeta.mode)) {
         const sessionId = "sale-" + e.sender.id;
-        getBillManager().consume(sessionId,billNo);
+        if(getBillManager().allocate(sessionId)===billNo)
+            getBillManager().consume(sessionId,billNo);
+        else
+            getBillManager().release(sessionId);
     }
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);

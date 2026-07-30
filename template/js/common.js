@@ -2212,6 +2212,104 @@ var tourOverlay = null;
 var tourTooltip = null;
 var _updateTourStops = []; // { selector, msg } from update.md
 
+/** In-page update prompt modal — shown before downloading an update.
+ *  Cleaner than a separate BrowserWindow (no frame, no script loading issues). */
+function showUpdatePrompt(data) {
+    // Remove any existing prompt
+    var existing = document.getElementById("update-prompt-overlay");
+    if (existing) existing.remove();
+
+    // Overlay
+    var overlay = document.createElement("div");
+    overlay.id = "update-prompt-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100000;display:flex;align-items:center;justify-content:center;animation:tourFadeIn 0.3s ease;";
+
+    // Modal card
+    var modal = document.createElement("div");
+    modal.style.cssText = "background:var(--theme-secondary,white);color:var(--theme-text-color,black);border-radius:12px;max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;";
+
+    // Header
+    var header = document.createElement("div");
+    header.style.cssText = "padding:1.2rem 1.5rem 0.5rem;";
+    header.innerHTML = '<div style="display:flex;align-items:baseline;gap:0.5rem;"><h1 style="margin:0;font-size:1.3rem;">Update Available</h1><span style="background:var(--theme-primary);color:var(--theme-secondary);padding:0.15rem 0.5rem;border-radius:20px;font-size:0.75rem;font-weight:600;">v' + (data.version || '') + '</span></div><p style="margin:0.5rem 0 0;opacity:0.8;">' + (data.message || '') + '</p>';
+
+    // Body — highlights + full changes
+    var body = document.createElement("div");
+    body.style.cssText = "padding:0.5rem 1.5rem;overflow-y:auto;flex:1;";
+
+    var highlights = data.highlights || [];
+    if (highlights.length) {
+        var hlTitle = document.createElement("p");
+        hlTitle.style.cssText = "font-weight:600;margin:0.75rem 0 0.25rem;";
+        hlTitle.textContent = "What's New";
+        body.appendChild(hlTitle);
+        highlights.forEach(function(item) {
+            var text = typeof item === "string" ? item : (item.title || item.description || JSON.stringify(item));
+            var p = document.createElement("p");
+            p.style.cssText = "margin:0.25rem 0 0.25rem 0.75rem;font-size:0.9rem;";
+            p.textContent = "• " + text;
+            body.appendChild(p);
+        });
+    }
+
+    var fullchange = data.fullchange || [];
+    if (fullchange.length) {
+        var details = document.createElement("details");
+        details.style.cssText = "margin:0.75rem 0;font-size:0.85rem;";
+        var summary = document.createElement("summary");
+        summary.style.cursor = "pointer";
+        summary.textContent = "Full Changes";
+        details.appendChild(summary);
+        fullchange.forEach(function(item) {
+            var text = typeof item === "string" ? item : (item.title || item.description || JSON.stringify(item));
+            var p = document.createElement("p");
+            p.style.cssText = "margin:0.15rem 0 0.15rem 0.75rem;";
+            p.textContent = "• " + text;
+            details.appendChild(p);
+        });
+        body.appendChild(details);
+    }
+
+    // Footer — buttons
+    var footer = document.createElement("div");
+    footer.style.cssText = "padding:1rem 1.5rem;display:flex;gap:0.75rem;justify-content:flex-end;border-top:1px solid rgba(128,128,128,0.2);";
+
+    var downloadBtn = document.createElement("button");
+    downloadBtn.textContent = "Download Now";
+    downloadBtn.style.cssText = "padding:0.5rem 1.2rem;border-radius:6px;border:none;font-size:0.9rem;font-weight:600;cursor:pointer;background:var(--theme-primary);color:var(--theme-secondary);";
+    downloadBtn.addEventListener("click", function() {
+        overlay.remove();
+        ipcRenderer.send("update-prompt-response", "download");
+    });
+
+    var laterBtn = document.createElement("button");
+    laterBtn.textContent = "Later";
+    laterBtn.style.cssText = "padding:0.5rem 1.2rem;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;cursor:pointer;background:transparent;color:var(--theme-text-color);";
+    laterBtn.addEventListener("click", function() {
+        overlay.remove();
+        ipcRenderer.send("update-prompt-response", "cancel");
+    });
+
+    footer.appendChild(laterBtn);
+    footer.appendChild(downloadBtn);
+
+    // Click overlay background to dismiss
+    overlay.addEventListener("click", function(e) {
+        if (e.target === overlay) {
+            overlay.remove();
+            ipcRenderer.send("update-prompt-response", "cancel");
+        }
+    });
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
+exports.showUpdatePrompt = showUpdatePrompt;
+
 /** Fetch update content from update.md via IPC. Shows welcome modal
  *  if new version detected, then optionally starts the feature tour. */
 async function checkForUpdate() {
@@ -2235,7 +2333,8 @@ function showWelcomeModal(welcomeText, version) {
     overlay.style.cursor = "default";
     document.body.appendChild(overlay);
 
-    // Modal card
+    // Modal card — skip tour button if no tour stops available
+    var hasTour = _updateTourStops && _updateTourStops.length > 0;
     var modal = document.createElement("div");
     modal.id = "welcome-modal";
     modal.innerHTML =
@@ -2243,17 +2342,19 @@ function showWelcomeModal(welcomeText, version) {
             '<h1 class="welcome-version">v' + (version || "") + '</h1>' +
             '<div class="welcome-text">' + welcomeText.replace(/\n/g, "<br>") + '</div>' +
             '<div class="welcome-actions">' +
-                '<button class="welcome-btn-start" tabindex="0">Start Tour</button>' +
-                '<button class="welcome-btn-skip" tabindex="0">Skip</button>' +
+                (hasTour ? '<button class="welcome-btn-start" tabindex="0">Start Tour</button>' : '') +
+                '<button class="welcome-btn-skip" tabindex="0">' + (hasTour ? 'Skip' : 'Got it') + '</button>' +
             '</div>' +
         '</div>';
     document.body.appendChild(modal);
 
-    // Button handlers — "Start Tour" or "Skip"
-    modal.querySelector(".welcome-btn-start").addEventListener("click", function() {
-        overlay.remove(); modal.remove();
-        startTour();
-    });
+    // Button handlers
+    if (hasTour) {
+        modal.querySelector(".welcome-btn-start").addEventListener("click", function() {
+            overlay.remove(); modal.remove();
+            startTour();
+        });
+    }
     modal.querySelector(".welcome-btn-skip").addEventListener("click", function() {
         overlay.remove(); modal.remove();
         try { ipcRenderer.send("set-update-seen"); } catch (_) {}
