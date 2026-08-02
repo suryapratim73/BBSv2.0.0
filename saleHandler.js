@@ -318,8 +318,9 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     // Consume the reserved bill number (no-op for edit-bill, kiosk, or already-consumed)
     if (e && e.sender && e.sender.id && !["edit-order","edit-bill"].includes(billMeta.mode)) {
         const sessionId = "sale-" + e.sender.id;
-        if(getBillManager().allocate(sessionId)===billNo)
+        if(getBillManager().allocate(sessionId)===Number(billNo)){
             getBillManager().consume(sessionId,billNo);
+        }
         else
             getBillManager().release(sessionId);
     }

@@ -639,6 +639,10 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         if(printObj && Object.keys(printObj).length>1)
             print({printObj,path2pdf});
         Reflect.deleteProperty(process.presets,"target");
+        Reflect.deleteProperty(process.presets,"mode");
+        Reflect.deleteProperty(process.presets,"billMeta");
+        Reflect.deleteProperty(process.presets,"customer");
+        Reflect.deleteProperty(process.presets,"orderItems");
     })
     .catch(err => {
         console.error("Error in add-item-to-bill:", err);
@@ -698,7 +702,7 @@ ipcMain.handle("get-customer-details",async (e,id)=>{
 ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
     // Check if the bill is eligible for deletion
     billNo = Number(billNo);
-    if(process.presets?.billMeta?.billNo===billNo)
+    if(Number(process.presets?.billMeta?.billNo)===billNo)
         return dialog.showErrorBox("Bill cancel failed","The Bill is already on Edit mode, save changes before proceeding to cancel.")
     let billItemModel = await getBillModel(id,billNo,billDate,billItemSchema);
     let billItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);

@@ -10,7 +10,7 @@
  *   GET /api/weather-theme   → { theme: "monsoon" } or { theme: "none" }
  *   GET /api/announcement     → banner config object or null
  */
-
+require("dotenv").config();
 const path = require("path");
 const fs = require("fs");
 const axios = require("axios");
@@ -349,10 +349,10 @@ function applyBanner(win, banner) {
 
 function createThemeCookie(themeObj) {
     const { session } = require("electron");
-    const sesCookies = session.defaultSession.cookies;
+    const sesCookies = session.fromPartition("persist:bbs_theme").cookies;
     sesCookies.set({
         url: "http://localhost",
-        name: "userThemeObj",
+        name: "userThemeObj"+process.env.APP_ENV,
         value: JSON.stringify(themeObj),
         expirationDate: Math.floor(Date.now() / 1000) + 31536000 // 1 year
     }).catch(() => {});
@@ -360,8 +360,8 @@ function createThemeCookie(themeObj) {
 
 function getThemeCookie() {
     const { session } = require("electron");
-    const sesCookies = session.defaultSession.cookies;
-    return sesCookies.get({ url: "http://localhost", name: "userThemeObj" })
+    const sesCookies = session.fromPartition("persist:bbs_theme").cookies;
+    return sesCookies.get({ url: "http://localhost", name: "userThemeObj"+process.env.APP_ENV })
         .then(cookies => {
             if (cookies.length > 0) {
                 try {
@@ -377,8 +377,8 @@ function getThemeCookie() {
 
 function clearThemeCookie() {
     const { session } = require("electron");
-    const sesCookies = session.defaultSession.cookies;
-    sesCookies.remove("http://localhost", "userThemeObj").catch(() => {});
+    const sesCookies = session.fromPartition("persist:bbs_theme").cookies;
+    sesCookies.remove("http://localhost", "userThemeObj"+process.env.APP_ENV).catch(() => {});
 }
 
 // ---- Store user theme for restoration after weather clear ----

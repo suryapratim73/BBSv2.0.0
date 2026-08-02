@@ -1,13 +1,14 @@
 {
-    "version":"2.22.3",
+    "version":"2.22.4",
     "highlights":[
-        "[2.22.3] Fix: Duplicate bill number — save_exit verifies allocated billNo matches before consuming",
-        "[2.22.3] Fix: Update download button — replaced broken modal window with native dialog",
-        "[2.22.3] Fix: appLogger hash chain — hash only advances on confirmed write, strict drain ordering"
+        "[2.22.4] Fix: Same Bill Number allocation issue",
+        "[2.22.4] Fix: Transparent background issue",
+        "[2.22.4] Fix: appLogger hash chain — hash advances optimistically, drain handler clears pending queue without re-writing (eliminates silent duplicate entries)"
     ],
     "fullchange":[
-        "[2.22.3] Fix: Duplicate bill number — save_exit now calls allocate() to verify the reserved number matches the actual billNo before consuming. Mismatch triggers release() instead of silently leaking the reservation. Edit-bill and edit-order modes excluded from this check.",
-        "[2.22.3] Fix: Update download button — replaced separate BrowserWindow modal (had frame, script loading, and IPC timing issues) with native dialog.showMessageBox. In-page modal code kept for future use.",
-        "[2.22.3] Fix: appLogger hash chain integrity — lastLineHash only advances when todaysLog.write() succeeds. On backpressure, subsequent entries are queued and drained sequentially via 'drain' event, preserving strict hash chain ordering."
+        "[2.22.4] Fix: Duplicate bill number — save_exit now calls allocate() to verify the reserved number matches the actual billNo before consuming. Mismatch triggers release() instead of silently leaking the reservation. Edit-bill and edit-order modes excluded from this check.",
+        "[2.22.4] Fix: Update download button — replaced separate BrowserWindow modal (had frame, script loading, and IPC timing issues) with native dialog.showMessageBox. In-page modal code kept for future use.",
+        "[2.22.4] Fix: appLogger hash chain — hash advances after every write() regardless of backpressure (data is in Node's internal buffer, not lost). Drain handler only clears the pending-confirmation queue — no re-writing (eliminates silent duplicate entries from v2.22.3).",
+        "[2.22.4] Change: Theme & Auth cookie for Dev and Prod are now different"
     ]
 }

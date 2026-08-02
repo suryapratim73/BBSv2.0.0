@@ -1223,7 +1223,7 @@ exports.applyTheme = async function(e,theme){
         file:""
     };
     theme = theme || themeObj;
-    let { shouldUseDarkColors=false,useDarkTheme=false,darkPrimary,darkSecondary,darkShadow,darkText,applyBackgroundImage,file,primary,secondary,shadow,text,applyGradient } = theme;
+    let { shouldUseDarkColors=false,useDarkTheme=false,darkPrimary,darkSecondary="#94A3B8",darkShadow,darkText,applyBackgroundImage,file,primary,secondary="#FFFFFF",shadow,text,applyGradient } = theme;
     if(shouldUseDarkColors && useDarkTheme){
         this.documentElement.style.setProperty("--theme-primary",darkPrimary);
         this.documentElement.style.setProperty("--theme-secondary",darkSecondary);

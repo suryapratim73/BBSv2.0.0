@@ -329,7 +329,7 @@ async function createWindow() {
     dbInitialized = true;
     let ses = session.fromPartition("persist:bbs_auth");
     let authCookies = await ses.cookies.get({
-      name: "bbs_auth",
+      name: "bbs_auth"+process.env.APP_ENV,
       url: "http://localhost",
     });
     if (authCookies.length > 0) {
@@ -1376,16 +1376,16 @@ ipcMain.handle("remove-secret", () => {
 async function createSession(time) {
   appLogger({title:"Session", message:"Creating session cookie.", func:"createSession"});
   let cookie = {
-    name: "bbs_auth",
+    name: "bbs_auth"+process.env.APP_ENV,
     value: JSON.stringify(currentUser),
     url: "http://localhost",
     expirationDate: (Date.now()/1000 + time),
   };
   let mainWin = getMainWindow();
   let ses = mainWin.webContents.session;
-  await ses.cookies.remove("http://localhost", "bbs_auth");
+  await ses.cookies.remove("http://localhost", "bbs_auth"+process.env.APP_ENV);
   let authCookies = await ses.cookies.get({
-    name: "bbs_auth",
+    name: "bbs_auth"+process.env.APP_ENV,
     url: "http://localhost",
   });
   appLogger({
@@ -1402,7 +1402,7 @@ async function createSession(time) {
   if (authCookies.length === 0) {
     await ses.cookies.set(cookie);
     await ses.cookies.flushStore();
-    return ses.cookies.get({ name: "bbs_auth", url: "http://localhost" });
+    return ses.cookies.get({ name: "bbs_auth"+process.env.APP_ENV, url: "http://localhost" });
   } else throw new Error("Failed to create cookie");
 }
 
@@ -1438,7 +1438,7 @@ ipcMain.handle("remove-auth-session", async () => {
       }
     );
     currentUser.session = false;
-    await ses.cookies.remove("http://localhost", "bbs_auth");
+    await ses.cookies.remove("http://localhost", "bbs_auth"+process.env.APP_ENV);
   } catch (err) {
     appLogger({title:"Error",message:String(err),func:"Remove-auth-session-ipc"});
     return err;
@@ -1450,11 +1450,11 @@ ipcMain.on("logout", async () => {
     let mainWin = getMainWindow();
     let ses = mainWin.webContents.session;
     let authCookies = await ses.cookies.get({
-      name: "bbs_auth",
+      name: "bbs_auth"+process.env.APP_ENV,
       url: "http://localhost",
     });
     if (authCookies.length > 0)
-      await ses.cookies.remove("http://localhost", "bbs_auth");
+      await ses.cookies.remove("http://localhost", "bbs_auth"+process.env.APP_ENV);
     else appLogger({title:"Logout", message:"Cookie don't exist", func:"logout"});
     currentUser.logout();
     currentUser = null;
@@ -1517,7 +1517,7 @@ ipcMain.on("unlock", () => {
 
 ipcMain.handle("check-session-info", async () => {
   let ses = getMainWindow().webContents.session;
-  return ses.cookies.get({ name: "bbs_auth", url: "http://localhost" });
+  return ses.cookies.get({ name: "bbs_auth"+process.env.APP_ENV, url: "http://localhost" });
 });
 
 // Lock Screen ipcs
@@ -2287,6 +2287,7 @@ ipcMain.handle("get-general-app-settings",()=>{
 });
 
 ipcMain.on("save-theme", (e, themeObj) => {
+  // themeObj.
   let win = BrowserWindow.fromId(e.frameId);
   let path2File = path.resolve(__dirname, "lib/default.theme");
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());

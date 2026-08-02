@@ -1196,7 +1196,7 @@ ipcRenderer.on("print-obj", (e, printObj) => {
             printObj.customer = customer;
             return ipcRenderer.send(
                 "add-item-to-bill",
-                preset.itemList,
+                preset.orderItems,
                 orderItems,
                 billMeta,
                 customer,
@@ -1255,7 +1255,7 @@ function saveExit() {
             ipcRenderer.send("cancel-sale-bill", currentStep);
             return ipcRenderer.send(
                 "add-item-to-bill",
-                preset.itemList,
+                preset.orderItems,
                 orderItems,
                 billMeta,
                 customer,

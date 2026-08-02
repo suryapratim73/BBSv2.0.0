@@ -117,7 +117,7 @@ ipcMain.on("get-logs", async (event)=>{
     for (const file of encFiles) {
         // Skip files from June 17 or earlier — predate the hash chain feature
         const fileDate = extractFileDate(file);
-        if(fileDate<new Date(2026,6,30)) continue;
+        if(fileDate<new Date(2026,7,1)) continue;
         const filePath = path.join(encDir, file);
         console.log(`Decrypting log file: ${filePath}`);
         const decryptedLog = await decryptLogFile(filePath, kek);
@@ -127,6 +127,16 @@ ipcMain.on("get-logs", async (event)=>{
             // Calculate hash of each line and append to the line for integrity check.
             // Filter out truly empty lines (trailing newline artifact) so they don't
             // pollute the hash chain validation with ghost {} entries.
+            let todaysLogFile = fs.readdirSync(encDir).find(file => file.endsWith(".txt"));
+            if(todaysLogFile){
+                const todaysLogPath = path.join(encDir, todaysLogFile);
+                const todaysLogContent = fs.readFileSync(todaysLogPath, 'utf-8');
+                const todaysLogLines = todaysLogContent.split('\n').filter(line => line.trim() !== '');
+                lines = [
+                    ...lines,
+                    ...todaysLogLines
+                ];
+            }
             lines = lines
                 .filter(line => line.trim() !== "")
                 .map(line => {
@@ -141,6 +151,7 @@ ipcMain.on("get-logs", async (event)=>{
                         return { rawLine: line, _hash: hash }; // Return raw line with hash if JSON parsing fails
                     }
                 });
+            
             reverseLines = lines.reverse(); // Reverse the order of lines to show the latest logs first
         }
         let tampered = false;
@@ -193,21 +204,6 @@ ipcMain.on("get-logs", async (event)=>{
         }
         else
             decryptedLogs.push(...reverseLines.reverse()); // Append decrypted lines to the main array
-    }
-    let todaysLogFile = fs.readdirSync(encDir).find(file => file.endsWith(".txt"));
-    if(todaysLogFile){
-        const todaysLogPath = path.join(encDir, todaysLogFile);
-        const todaysLogContent = fs.readFileSync(todaysLogPath, 'utf-8');
-        const todaysLogLines = todaysLogContent.split('\n').filter(line => line.trim() !== '');
-        decryptedLogs.push(...todaysLogLines.map(line => {
-            try{
-                return JSON.parse(line.trim());
-            }
-            catch(err){
-                console.error(`Error parsing today's log line: ${line}. Error: ${err.message}`);
-                return { rawLine: line }; // Return raw line if JSON parsing fails
-            }
-        }));
     }
     event.sender.send("log-entries", decryptedLogs,false); // Send tampered flag as false
 });

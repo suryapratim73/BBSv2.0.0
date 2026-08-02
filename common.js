@@ -211,7 +211,7 @@ class BillManager {
     consume(sessionId,billNo) {
         if (!sessionId) return;
         for (var i = 0; i < this.pool.length; i++) {
-            if (this.pool[i] && this.pool[i].windowId === sessionId && this.pool[i].billNo===billNo) {
+            if (this.pool[i] && this.pool[i].windowId === sessionId && this.pool[i].billNo===Number(billNo)) {
                 this.pool[i].isConsumed = true;
                 this.pool[i].windowId = null;
                 this._persist();
@@ -452,15 +452,11 @@ function appLogger(msgObj){
         const isNew = !(appLoggerStreams instanceof FileHandler);
         appLoggerStreams = isNew ? new FileHandler(`./logs/appLogs.txt`) : appLoggerStreams;
         if (isNew) {
-            // Strict hash chain: drain flushes queued entries sequentially
+            // Drain confirms all buffered entries were flushed to disk.
+            // Hash is already advanced when entries are queued — the drain
+            // handler just marks them confirmed by clearing the queue.
             appLoggerStreams.todaysLog.on("drain", () => {
-                while (todaysLogPending.length) {
-                    const entry = todaysLogPending[0];
-                    const ok = appLoggerStreams.todaysLog.write(JSON.stringify(entry) + "\n");
-                    if (!ok) break;
-                    todaysLogPending.shift();
-                    lastLineHash = crypto.createHash("sha256").update(JSON.stringify(entry)).digest("hex");
-                }
+                todaysLogPending.length = 0;
             });
         }
     }
@@ -491,23 +487,20 @@ function appLogger(msgObj){
         if(!canWrite)
             logsQueue.push(msgObj);
     }
-    // Hash chain must only advance when the entry is actually written to the log file.
-    // If appendToLog is false, the entry is skipped in todaysLog — advancing lastLineHash
-    // would create a dangling reference to a missing entry and break the chain.
     if(appendToLog){
         msgObj.hash = lastLineHash; // Using hash chain to ensure integrity and traceability of logs
         if(appLoggerStreams instanceof FileHandler && appLoggerStreams.todaysLog.writable){
-            if (todaysLogPending.length > 0) {
-                // Backpressure gate is down — queue behind pending entries to preserve order
+            let written = appLoggerStreams.todaysLog.write(JSON.stringify(msgObj) + "\n");
+            if (!written) {
+                // write() returned false — data IS buffered internally and will flush.
+                // Track this entry so drain can confirm it reached disk.
                 todaysLogPending.push(msgObj);
-            } else {
-                let written = appLoggerStreams.todaysLog.write(JSON.stringify(msgObj)+"\n");
-                if (written) {
-                    lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
-                } else {
-                    todaysLogPending.push(msgObj); // first backpressure hit, gate closes
-                }
             }
+            // Hash always advances. When write() returns false, data is still in the
+            // internal buffer (not lost) — advancing optimistically keeps the chain
+            // intact. If the app crashes before drain, the last entries may be missing
+            // from disk, but the chain is still valid for what WAS written.
+            lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
         }
     }
     if(appendToLog && logsQueue.length>0 && appLoggerStreams.stream.writable){
