@@ -128,44 +128,34 @@ ipcMain.on("get-logs", async (event)=>{
     const rootData = process.presets.gst + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
     const kek = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
     const decryptedLogs = [];
+    let anyTampered = false;
     for (const file of encFiles) {
-        let shouldContinue;
         const fileDate = extractFileDate(file);
         const fileName = file.split(".")[0];
         const filePath = path.join(encDir, file);
         // console.log(`Decrypting log file: ${filePath}`);
-        shouldContinue = await attempt(async ()=>{
+        let shouldContinue = await attempt(async ()=>{
             const decryptedLog = await decryptLogFile(filePath, kek);
             let lines = decryptedLog.split('\n');
             // Calculate hash of each line and append to the line for integrity check.
             // Filter out truly empty lines (trailing newline artifact) so they don't
             // pollute the hash chain validation with ghost {} entries.
             let {tampered,lineNo} = tamperChecker(lines, file);
-            // console.log({tampered,lineNo});
             if(tampered){
-                // console.log(`Decrypted ${lines.length} lines from ${file}. Tampered: ${tampered}`);
-                let shouldContinue = await tamperActionHelper(fileName, fileDate, lines);
-                if(!shouldContinue) return false; // Stop processing further files if tampering is detected
-                decryptedLogs.push(...lines.reverse());
+                // Real tampering keeps the logs in the viewer — only the flag is set
+                // so the frontend can toast the hash-chain breakage.
+                const isRealTampering = await tamperActionHelper(fileName, fileDate, lines, lineNo);
+                if(isRealTampering) anyTampered = true;
             }
-            else
-                decryptedLogs.push(...lines.reverse()); // Append decrypted lines to the main array
+            decryptedLogs.push(...lines.reverse());
             return true;
         },{});
-        if(shouldContinue)
-            continue;
-        else
-            break;
+        if(!shouldContinue) break;
     }
-    async function tamperActionHelper(fileName, fileDate, reverseLines){
-        tampered = await analyzeTamperedLogFile(fileName, fileDate, reverseLines);
+    async function tamperActionHelper(fileName, fileDate, reverseLines, lineNos){
+        const isRealTampering = await analyzeTamperedLogFile(fileName, fileDate, reverseLines, lineNos);
         appLogger({title:"Log", message:`Log integrity check failed for file: ${fileName} — possible tampering.`, func:"get-logs"});
-        if(tampered){
-            decryptedLogs.length = 0; // Clear the decrypted logs since tampering is detected
-            safeSend(event, "log-entries", decryptedLogs, true); // Send tampered flag as true
-            return false; // Stop processing further files
-        }
-        return true;
+        return isRealTampering;
     }
     // Select today's LOCAL-date file specifically; skip it if a .enc counterpart
     // already exists (source unlink failed) — prevents double-count in the viewer.
@@ -183,13 +173,12 @@ ipcMain.on("get-logs", async (event)=>{
         const todaysLogLines = todaysLogContent.split('\n').filter(line => line.trim() !== '');
         const {tampered,lineNo} = tamperChecker(todaysLogLines, todaysLogFile);
         if(tampered){
-            let shouldContinue = await tamperActionHelper(todaysLogFile.replace(/\.txt$/, ""), extractFileDate(todaysLogFile), todaysLogLines);// lines are reversed inside tamperChecker
-            if(!shouldContinue)
-                decryptedLogs.length = 0;
-            decryptedLogs.push(...todaysLogLines.reverse());
-        } else {
-            decryptedLogs.push(...todaysLogLines.reverse()); // Append today's log lines to the main array
+            // Real tampering keeps the logs — only the flag is set so the frontend
+            // can toast the hash-chain breakage.
+            const isRealTampering = await tamperActionHelper(todaysLogFile.replace(/\.txt$/, ""), extractFileDate(todaysLogFile), todaysLogLines, lineNo);
+            if(isRealTampering) anyTampered = true;
         }
+        decryptedLogs.push(...todaysLogLines.reverse()); // Append today's log lines to the main array
     }
     let _decryptedLogs = decryptedLogs.filter(e=>(e!="" && typeof e!="undefined")).map(e=>{
         try{
@@ -202,11 +191,13 @@ ipcMain.on("get-logs", async (event)=>{
         }
     }).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
     console.log({len:_decryptedLogs.length});
-    safeSend(event, "log-entries", _decryptedLogs, false); // Send tampered flag as false
+    safeSend(event, "log-entries", _decryptedLogs, anyTampered); // anyTampered=true → frontend toasts hash-chain breakage
 });
 
 function tamperChecker(lines, file, reversedLines) {
-    let tampered = false,lineNo;
+    let tampered = false;
+    const lineNos = []; // ALL failing indices (newest-first) — a single overwritten lineNo
+                        // would let a user-entry tamper hide behind a system-line failure
     lines = lines
         .filter(line => (line?.trim() !== "" && typeof line!="undefined"))
         .map(line => {
@@ -243,7 +234,7 @@ function tamperChecker(lines, file, reversedLines) {
                 if (self[i - 1].hash === "" || self[i - 1].hash === undefined) return; // Consecutive genesis (rapid restart)
                 // Forward link broken — cleared hash to hide tampering
                 tampered = true;
-                lineNo = i;
+                lineNos.push(i);
                 console.error(
                     `[${file}] Log integrity check FAILED at line ${i} (genesis not corroborated): ` +
                     `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
@@ -258,6 +249,7 @@ function tamperChecker(lines, file, reversedLines) {
         const nextLine = self[i + 1];
         if (line.hash !== nextLine._hash) {
             tampered = true;
+            lineNos.push(i);
             console.error(
                 `[${file}] Log integrity check FAILED at line ${i} (hash mismatch): ` +
                 `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
@@ -265,24 +257,56 @@ function tamperChecker(lines, file, reversedLines) {
             );
         }
     });
-    return {tampered,lineNo};
+    return {tampered, lineNo: lineNos};
 }
 exports._tamperChecker = tamperChecker;
 
-async function analyzeTamperedLogFile(fileName, fileDate, reverseLines) {
+/** Post-Oct-1 policy: real tampering iff ANY flagged line is a user entry.
+ *  For a hash-mismatch failure the broken link implicates EITHER the flagged line
+ *  (its stored hash was altered) OR its older neighbor (its content changed and
+ *  broke the link) — both are checked. Genesis failures implicate only the
+ *  flagged line. `lines` must be newest-first raw strings with empty lines
+ *  filtered out, in the same order as tamperChecker's internal array.
+ *  Exported for tests. */
+function isUserTampering(lines, lineNos) {
+    const tryParse = (line) => {
+        if (typeof line !== "string") return null;
+        try { return JSON.parse(line.trim()); }
+        catch(err) { return null; }
+    };
+    if (!Array.isArray(lineNos)) return false;
+    return lineNos.some((i) => {
+        const flagged = tryParse(lines[i]);
+        // Unparseable lines can't be attributed to a user — repair drops them
+        const candidates = (flagged && flagged.hash) ? [i, i + 1] : [i];
+        return candidates.some((idx) => {
+            const entry = tryParse(lines[idx]);
+            return !!(entry && entry.user && entry.user !== "App");
+        });
+    });
+}
+exports._isUserTampering = isUserTampering;
+
+async function analyzeTamperedLogFile(fileName, fileDate, reverseLines, lineNos) {
     const mandatoryRepairDate = new Date(2026,9,1); // October 1, 2026
-    reverseLines = reverseLines.reverse(); // Restore chronological order for analysis
+    reverseLines = reverseLines.reverse(); // tamperChecker's lineNos index a newest-first array
     if(!(fileDate instanceof Date) || fileDate<mandatoryRepairDate){
-        // Offering free repair of tampered log files before October 1, 2026. After this date, tampered logs will be repaired if the tampered line is a system message.
+        // Offering free repair of tampered log files before October 1, 2026. After this date, tampered logs are repaired only if the tampered line is a system message.
         console.log("[logHandler>analyzeTamperedLogFile]: Offering free repair")
         repair_save_log_file(fileName, reverseLines);
         return false;
     }
-    else{
-        // Check tamerping only if the tampered line is a system message (user === "app")
-        console.log("[analyzeTamperedLogFile] Analysing line for real tampering.")
+    // Post-Oct-1: free repair only when EVERY tampered line is a SYSTEM entry
+    // (user missing or "App"). A real username on any tampered line means genuine
+    // tampering — keep the logs and let the frontend toast the hash-chain breakage.
+    const nonEmptyLines = reverseLines.filter(line => line.trim() !== "");
+    if (isUserTampering(nonEmptyLines, lineNos)) {
+        console.log(`[analyzeTamperedLogFile] A USER entry is among the tampered lines (indices ${JSON.stringify(lineNos)}) — REAL tampering.`);
         return true;
     }
+    console.log("[analyzeTamperedLogFile] All tampered lines are system messages — offering free repair.");
+    repair_save_log_file(fileName, reverseLines);
+    return false;
 }
 
 /** Rebuild a hash chain from raw lines. Drops unparseable lines (repair's purpose).

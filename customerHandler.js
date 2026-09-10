@@ -270,7 +270,7 @@ ipcMain.handle("add-payment",async (e,name,payObj,id)=>{
                 netPayment -= billAmt;
             }
         })
-        appLogger({title:"received payment", message:JSON.stringify({customerId:id,name,payment,payObj}), func:"add-payment"});
+        appLogger({title:"received payment", message:JSON.stringify({customerId:id,name,payment,payObj}), func:"add-payment",user:"user"});
         let msg = {
             type: "info",
             title: "Payment Added",
@@ -626,7 +626,8 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
         appLogger({
             title:"Bill edited successfully",
             message:JSON.stringify(concatenatedObj),
-            func:"add-item-to-bill"
+            func:"add-item-to-bill",
+            user:"user"
         });
         // This should replace the pdfFile
         if(typeof printObj==="undefined")
@@ -683,7 +684,7 @@ ipcMain.handle("update-customer-profile",async (e,custData)=>{
             message: "Customer profile updated successfully."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
-        appLogger({title:"customer-profile-update", message:JSON.stringify(selectedCustomer), func:"update-customer-profile"});
+        appLogger({title:"customer-profile-update", message:JSON.stringify(selectedCustomer), func:"update-customer-profile",user:"user"});
         return "Updated!!"
 
     }
@@ -759,7 +760,8 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
                 billDate,
                 billAmt
             }),
-            func:"cancel-bill"
+            func:"cancel-bill",
+            user:"user"
         });
         if(i){
             schedules.splice(i,1);
@@ -810,7 +812,8 @@ ipcMain.on("add-opening-balance",async (e,id,balance)=>{
             customerId:id,
             opening_balance:balance
         }),
-        func:"add-opening-balance"
+        func:"add-opening-balance",
+        user:"user"
     });
     getTargetWindow("customer-portal").webContents.send("close-modal");
 });

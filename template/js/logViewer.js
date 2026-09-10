@@ -61,6 +61,10 @@ function hydrateTable(entries, isTampered) {
             ⚠ Log integrity check failed — tampering detected. Logs may be compromised.
         </p>`;
         tbody.appendChild(warningRow);
+        showToastNotification(
+            "Hash chain breakage detected — logs may have been tampered.",
+            ["animation-common", "move-left", "red-toast-box"]
+        );
     }
     console.log(entries);
     logEntries = entries.filter(e => e && (e.ts || e.title || e.message)); // drop empty rows

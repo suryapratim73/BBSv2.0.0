@@ -21,13 +21,14 @@ jest.mock("../common", () => ({
 }));
 
 const crypto = require("crypto");
-const { _tamperChecker, _rebuildChain } = require("../logHandler");
+const { _tamperChecker, _rebuildChain, _isUserTampering } = require("../logHandler");
 
 const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
 
 /** Build a valid chain of `count` entries. `genesisAt` marks extra genesis lines
- *  (hash:""), e.g. a chain restart in the middle of a day. */
-function makeChain(count, genesisAt = []) {
+ *  (hash:""), e.g. a chain restart in the middle of a day. `userAt` overrides the
+ *  user per index — default "App" matches real system entries. */
+function makeChain(count, genesisAt = [], userAt = {}) {
   const raw = [];
   const entries = [];
   let lastHash = "";
@@ -36,7 +37,7 @@ function makeChain(count, genesisAt = []) {
       ts: `2026-09-10T${String(i).padStart(2, "0")}:00:00.000Z`,
       title: "Test",
       message: `Entry ${i}`,
-      user: "app",
+      user: userAt[i] ?? "App",
       hash: (i === 0 || genesisAt.includes(i)) ? "" : lastHash,
     };
     const line = JSON.stringify(entry);
@@ -61,7 +62,9 @@ function mutateLine(raw, i, replacer) {
 describe("_tamperChecker", () => {
   test("valid chain passes", () => {
     const { raw } = makeChain(20);
-    expect(_tamperChecker(raw, "test.txt").tampered).toBe(false);
+    const { tampered, lineNo } = _tamperChecker(raw, "test.txt");
+    expect(tampered).toBe(false);
+    expect(lineNo).toEqual([]);
   });
 
   test("mutating a middle line is detected", () => {
@@ -71,7 +74,36 @@ describe("_tamperChecker", () => {
       o.message = "TAMPERED";
       return JSON.stringify(o); // newer neighbor still hashes the old bytes
     });
-    expect(_tamperChecker(broken, "test.txt").tampered).toBe(true);
+    const { tampered, lineNo } = _tamperChecker(broken, "test.txt");
+    expect(tampered).toBe(true);
+    // content tamper of l[4] fails the check at l[5] → newest-first index 4
+    expect(lineNo).toEqual([4]);
+  });
+
+  test("reports ALL tampered line indices — no overwrite", () => {
+    const { raw } = makeChain(10);
+    const broken = raw.slice();
+    // content tamper at l[2] → check at l[3] fails → newest-first index 6
+    broken[2] = JSON.stringify({ ...JSON.parse(broken[2]), message: "TAMPER-A" });
+    // content tamper at l[6] → check at l[7] fails → newest-first index 2
+    broken[6] = JSON.stringify({ ...JSON.parse(broken[6]), message: "TAMPER-B" });
+
+    const { tampered, lineNo } = _tamperChecker(broken, "test.txt");
+    expect(tampered).toBe(true);
+    expect(lineNo).toEqual([2, 6]); // iteration is newest-first, ascending i
+  });
+
+  test("cleared hash on a middle line reports both broken-link indices", () => {
+    const { raw } = makeChain(10);
+    const broken = mutateLine(raw, 4, (line) => {
+      const o = JSON.parse(line);
+      o.hash = ""; // attacker clears the hash to fake a chain restart
+      return JSON.stringify(o);
+    });
+    const { tampered, lineNo } = _tamperChecker(broken, "test.txt");
+    expect(tampered).toBe(true);
+    // mismatch at l[5] (index 4) AND uncorroborated genesis at l[4] (index 5)
+    expect(lineNo).toEqual([4, 5]);
   });
 
   test("unparseable middle line is flagged by the strict checker", () => {
@@ -211,5 +243,73 @@ describe("_rebuildChain", () => {
   test("empty / whitespace-only input returns []", () => {
     expect(_rebuildChain([])).toEqual([]);
     expect(_rebuildChain(["", "   ", "\n"])).toEqual([]);
+  });
+});
+
+// ===================== _isUserTampering =====================
+// Post-Oct-1 policy: free repair only when EVERY tampered line is a system entry
+// (user "App"/missing/unparseable). Any user entry among the flagged lines is real
+// tampering. `lines` is newest-first raw strings, empties filtered.
+
+describe("_isUserTampering", () => {
+  const rev = (raw) => raw.slice().reverse(); // chronological → newest-first
+
+  test("system-entry breakages are not real tampering", () => {
+    const { raw } = makeChain(6); // all "App"
+    const broken = mutateLine(raw, 3, (line) => {
+      const o = JSON.parse(line);
+      o.message = "TAMPERED";
+      return JSON.stringify(o);
+    });
+    // content tamper of l[3] fails the check at l[4] → newest-first index 1
+    expect(_isUserTampering(rev(broken), [1])).toBe(false);
+  });
+
+  test("content tamper of a user entry is caught via its newer neighbor", () => {
+    const users = { 0: "App", 1: "App", 2: "App", 3: "admin", 4: "App", 5: "App" };
+    const { raw } = makeChain(6, [], users);
+    const broken = mutateLine(raw, 3, (line) => {
+      const o = JSON.parse(line);
+      o.message = "FRAUD";
+      return JSON.stringify(o);
+    });
+    // failure lands at l[4] (index 1); candidates [1, 2] → l[3] is a user entry
+    expect(_isUserTampering(rev(broken), [1])).toBe(true);
+  });
+
+  test("hash-field tamper of a user entry is caught directly", () => {
+    const users = { 0: "App", 1: "App", 2: "App", 3: "admin", 4: "App", 5: "App" };
+    const { raw } = makeChain(6, [], users);
+    const broken = mutateLine(raw, 3, (line) => {
+      const o = JSON.parse(line);
+      o.hash = "deadbeef";
+      return JSON.stringify(o);
+    });
+    // failures at l[4] (index 1) and l[3] (index 2)
+    expect(_isUserTampering(rev(broken), [1, 2])).toBe(true);
+  });
+
+  test("a user entry ANYWHERE in the flagged list wins — not just the first", () => {
+    const users = { 0: "App", 1: "App", 2: "App", 3: "admin", 4: "App", 5: "App" };
+    const { raw } = makeChain(6, [], users);
+    const broken = raw.slice();
+    broken[1] = JSON.stringify({ ...JSON.parse(broken[1]), message: "TAMPER-SYS" });
+    broken[3] = JSON.stringify({ ...JSON.parse(broken[3]), message: "FRAUD" });
+    // system failure first (index 3), user failure later (index 1)
+    expect(_isUserTampering(rev(broken), [3, 1])).toBe(true);
+  });
+
+  test("unparseable flagged line is not real tampering", () => {
+    const { raw } = makeChain(6);
+    const broken = raw.slice();
+    broken[3] = "{GARBLED";
+    expect(_isUserTampering(rev(broken), [1])).toBe(false);
+  });
+
+  test("empty / missing lineNos is not real tampering", () => {
+    const { raw } = makeChain(6);
+    expect(_isUserTampering(rev(raw), [])).toBe(false);
+    expect(_isUserTampering(rev(raw), undefined)).toBe(false);
+    expect(_isUserTampering(rev(raw), 3)).toBe(false);
   });
 });

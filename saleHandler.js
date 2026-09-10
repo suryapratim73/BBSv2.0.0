@@ -542,7 +542,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             orderItems,
             customer
         };
-        appLogger({title:"sale", message:JSON.stringify(concatenatedObj), func:"save_exit"});
+        appLogger({title:"sale", message:JSON.stringify(concatenatedObj), func:"save_exit", user:"user"});
         // if(flag!="regular"){
         //     await manageOrder(null,{billMeta,customer:customerObj,orderItems,orderId},flag);
         //     var orderWin = BrowserWindow.fromId(e.sender.id);
