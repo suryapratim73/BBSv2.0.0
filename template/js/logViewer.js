@@ -27,7 +27,10 @@ const statusText = document.getElementById("status-text");
 // ==================== Initialization ====================
 async function init() {
     ipcRenderer.send("get-logs");
-    ipcRenderer.on("log-entries", (e, logs, isTampered) => { hydrateTable(logs, isTampered); });
+    ipcRenderer.on("log-entries", (e, logs, isTampered) => { 
+        console.log(logs)
+        hydrateTable(logs, isTampered); 
+    });
     updateChipCounts();
     updateLogCount();
     updateConnectionStatus(true);
@@ -59,7 +62,7 @@ function hydrateTable(entries, isTampered) {
         </p>`;
         tbody.appendChild(warningRow);
     }
-
+    console.log(entries);
     logEntries = entries.filter(e => e && (e.ts || e.title || e.message)); // drop empty rows
     applyFilters();
 }
@@ -110,7 +113,7 @@ function searchHandler(e) {
 
 function applyFilters() {
     clearTable();
-
+    
     filteredEntries = logEntries.filter(entry => {
         const level = detectLevel(entry);
         if (selectedLevel !== "all" && level !== selectedLevel) return false;

@@ -173,3 +173,121 @@ describe("appLogger todaysLog — backpressure & hash chain", () => {
     expect(lastLineHash).toBe(expected);
   });
 });
+
+// Day-rollover tests — replica of common.js FileHandler.openTodaysLog / ensureTodaysLog.
+// Local-midnight rollover: yesterday's stream ends, today's log-<date>.txt opens,
+// and lastLineHash resets so the new day starts with a genesis line (hash:"").
+describe("appLogger day rollover — local midnight, genesis reset", () => {
+  let state, clock, openedStreams, handler;
+
+  function makeStream() {
+    return {
+      ended: false,
+      drainHandler: null,
+      write: function (data) { return true; },
+      end: function () { this.ended = true; },
+      on: function (event, cb) { if (event === "drain") this.drainHandler = cb; },
+      emitDrain: function () { if (this.drainHandler) this.drainHandler(); },
+    };
+  }
+
+  function FileHandler() {
+    this.openTodaysLog();
+  }
+  FileHandler.prototype.openTodaysLog = function () {
+    this.todaysLogDate = getLocalDateStr();
+    this.todaysLog = makeStream();
+    openedStreams.push({ date: this.todaysLogDate, stream: this.todaysLog });
+    this.todaysLog.on("drain", function () { state.pending.length = 0; });
+  };
+  FileHandler.prototype.ensureTodaysLog = function () {
+    try {
+      const today = getLocalDateStr();
+      if (today !== this.todaysLogDate) {
+        try { this.todaysLog.end(); } catch (_) {}
+        this.openTodaysLog();
+        state.lastLineHash = ""; // NEW DAY — chain restarts with a genesis line
+      }
+    } catch (err) {
+      console.error("FileHandler rollover error:", err.message);
+    }
+    return this.todaysLog;
+  };
+
+  function getLocalDateStr() {
+    const d = clock;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Replica of the production write path's optimistic hash advance
+  function logEntry(msgObj) {
+    msgObj.hash = state.lastLineHash;
+    handler.todaysLog.write(JSON.stringify(msgObj) + "\n");
+    state.lastLineHash = crypto.createHash("sha256").update(JSON.stringify(msgObj)).digest("hex");
+  }
+
+  beforeEach(() => {
+    state = { pending: [], lastLineHash: "" };
+    clock = new Date(2026, 8, 10, 23, 59, 0); // Sep 10, 23:59 local time
+    openedStreams = [];
+    handler = new FileHandler();
+  });
+
+  test("constructor opens today's file keyed to the LOCAL date", () => {
+    expect(handler.todaysLogDate).toBe("2026-09-10");
+    expect(openedStreams.length).toBe(1);
+    expect(openedStreams[0].date).toBe("2026-09-10");
+  });
+
+  test("same day: ensureTodaysLog keeps the same stream open", () => {
+    clock = new Date(2026, 8, 10, 23, 59, 59); // still Sep 10
+    const before = handler.todaysLog;
+    const after = handler.ensureTodaysLog();
+
+    expect(after).toBe(before);
+    expect(before.ended).toBe(false);
+    expect(openedStreams.length).toBe(1);
+  });
+
+  test("day change: old stream ends, new day's stream opens with drain attached", () => {
+    clock = new Date(2026, 8, 11, 0, 0, 1); // midnight + 1s → Sep 11
+    const oldStream = handler.todaysLog;
+    const newStream = handler.ensureTodaysLog();
+
+    expect(oldStream.ended).toBe(true);
+    expect(newStream).not.toBe(oldStream);
+    expect(handler.todaysLogDate).toBe("2026-09-11");
+    expect(openedStreams.length).toBe(2);
+    expect(openedStreams[1].date).toBe("2026-09-11");
+    expect(newStream.drainHandler).toBeTruthy(); // every new day's stream gets a drain handler
+  });
+
+  test("day change: lastLineHash resets — next entry is genesis (hash:\"\")", () => {
+    logEntry({ ts: "t1", title: "A", message: "before midnight" });
+    expect(state.lastLineHash).not.toBe("");
+
+    clock = new Date(2026, 8, 11, 0, 0, 1);
+    handler.ensureTodaysLog();
+    expect(state.lastLineHash).toBe("");
+
+    const firstOfNewDay = { ts: "t2", title: "B", message: "after midnight" };
+    logEntry(firstOfNewDay);
+    expect(firstOfNewDay.hash).toBe(""); // genesis — no hash link into the previous day
+  });
+
+  test("drain on the new day's stream clears the pending queue", () => {
+    state.pending = ["leftover"];
+    clock = new Date(2026, 8, 11, 0, 0, 1);
+    const newStream = handler.ensureTodaysLog();
+
+    newStream.emitDrain();
+    expect(state.pending.length).toBe(0);
+  });
+
+  test("no rollover at 23:59:59.999 — boundary is exactly local midnight", () => {
+    clock = new Date(2026, 8, 10, 23, 59, 59, 999);
+    handler.ensureTodaysLog();
+    expect(handler.todaysLogDate).toBe("2026-09-10");
+    expect(openedStreams.length).toBe(1);
+  });
+});

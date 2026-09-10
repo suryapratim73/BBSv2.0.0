@@ -9,7 +9,10 @@ const axios = require("axios");
 const {
     getSecret,
     getDeviceSerials,
-    appLogger
+    appLogger,
+    attempt,
+    getLocalDateStr,
+    reopenTodaysLog
 } = require("./common");
 
 async function decryptLogFile(encryptedFilePath, kek) {
@@ -74,7 +77,7 @@ async function decryptLogFile(encryptedFilePath, kek) {
         catch(err){
             console.error(`Error decrypting DEK for log file ${encryptedFilePath}: ${err.message}`);
             appLogger({title:"Error", message:`Error decrypting DEK for log file ${encryptedFilePath}: ${err.message}`, func:"decryptLogFile"});
-            return null;
+            return "";
         }
 
         // 8. Decrypt Log Body using DEK + Log IV
@@ -89,20 +92,28 @@ async function decryptLogFile(encryptedFilePath, kek) {
     }
     catch(err){
         console.error(`Error decrypting log file ${encryptedFilePath}: ${err.message}`);
-        appLogger({title:"Error", message:`Error decrypting log file ${encryptedFilePath}: ${err.message}`, func:"decryptLogFile"});
-        return null;
+        // appLogger({title:"Error", message:`Error decrypting log file ${encryptedFilePath}: ${err.message}`, func:"decryptLogFile"});
+        return "";
     }
 }
 
 // Extract date from .enc filename like "log-2026-06-18.enc" or "appLogs_2026-06-18.enc" → Date object
 function extractFileDate(filename) {
-    // Support both naming conventions: "log-YYYY-MM-DD.enc" (current) and "appLogs_YYYY-MM-DD.enc" (legacy)
-    const match = filename.match(/[-_](\d{4}-\d{2}-\d{2})\.enc$/);
+    // Support both naming conventions: "log-YYYY-MM-DD.enc" (current) and "appLogs_YYYY-MM-DD.enc" (legacy);
+    // .txt (today's unencrypted log) is accepted too so repair can date-check it.
+    const match = filename.match(/[-_](\d{4}-\d{2}-\d{2})\.(enc|txt)$/);
     if (!match) return null;
     return new Date(match[1]);
 }
 
 const HASH_CHAIN_CUTOFF = new Date("2026-12-1"); // Skip files dated on or before June 17 — predate hash chain
+
+/** event.sender.send throws "Object has been destroyed" if the viewer closes
+ *  mid-request — never let that kill the handler. */
+function safeSend(event, channel, ...args) {
+    try { event.sender.send(channel, ...args); }
+    catch (err) { console.error(`[safeSend] ${channel} failed: ${err.message}`); }
+}
 
 ipcMain.on("get-logs", async (event)=>{
     const baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
@@ -110,103 +121,224 @@ ipcMain.on("get-logs", async (event)=>{
     const encFiles = fs.existsSync(encDir) ? fs.readdirSync(encDir).filter(file=>file.endsWith(".enc")) : [];
     const secret = await getSecret();
     const { motherboardSerial,diskSerial } = await getDeviceSerials();
-    if(!motherboardSerial || !diskSerial || !process.presets.gst) return;
+    if(!motherboardSerial || !diskSerial || !process.presets.gst){
+        safeSend(event, "log-entries", [], false); // Renderer must not hang with no response
+        return;
+    }
     const rootData = process.presets.gst + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
     const kek = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
     const decryptedLogs = [];
     for (const file of encFiles) {
-        // Skip files from June 17 or earlier — predate the hash chain feature
+        let shouldContinue;
         const fileDate = extractFileDate(file);
-        if(fileDate<new Date(2026,7,1)) continue;
+        const fileName = file.split(".")[0];
         const filePath = path.join(encDir, file);
-        console.log(`Decrypting log file: ${filePath}`);
-        const decryptedLog = await decryptLogFile(filePath, kek);
-        let reverseLines = [];
-        if (decryptedLog) {
+        // console.log(`Decrypting log file: ${filePath}`);
+        shouldContinue = await attempt(async ()=>{
+            const decryptedLog = await decryptLogFile(filePath, kek);
             let lines = decryptedLog.split('\n');
             // Calculate hash of each line and append to the line for integrity check.
             // Filter out truly empty lines (trailing newline artifact) so they don't
             // pollute the hash chain validation with ghost {} entries.
-            let todaysLogFile = fs.readdirSync(encDir).find(file => file.endsWith(".txt"));
-            if(todaysLogFile){
-                const todaysLogPath = path.join(encDir, todaysLogFile);
-                const todaysLogContent = fs.readFileSync(todaysLogPath, 'utf-8');
-                const todaysLogLines = todaysLogContent.split('\n').filter(line => line.trim() !== '');
-                lines = [
-                    ...lines,
-                    ...todaysLogLines
-                ];
+            let {tampered,lineNo} = tamperChecker(lines, file);
+            // console.log({tampered,lineNo});
+            if(tampered){
+                // console.log(`Decrypted ${lines.length} lines from ${file}. Tampered: ${tampered}`);
+                let shouldContinue = await tamperActionHelper(fileName, fileDate, lines);
+                if(!shouldContinue) return false; // Stop processing further files if tampering is detected
+                decryptedLogs.push(...lines.reverse());
             }
-            lines = lines
-                .filter(line => line.trim() !== "")
-                .map(line => {
-                    const hash = crypto.createHash('sha256').update(line).digest('hex');
-                    try {
-                        const logEntry = JSON.parse(line.trim());
-                        logEntry._hash = hash; // Append hash to log entry
-                        return logEntry;
-                    }
-                    catch(err){
-                        console.error(`Error parsing log line in ${file}: ${line}. Error: ${err.message}`);
-                        return { rawLine: line, _hash: hash }; // Return raw line with hash if JSON parsing fails
-                    }
-                });
-            
-            reverseLines = lines.reverse(); // Reverse the order of lines to show the latest logs first
+            else
+                decryptedLogs.push(...lines.reverse()); // Append decrypted lines to the main array
+            return true;
+        },{});
+        if(shouldContinue)
+            continue;
+        else
+            break;
+    }
+    async function tamperActionHelper(fileName, fileDate, reverseLines){
+        tampered = await analyzeTamperedLogFile(fileName, fileDate, reverseLines);
+        appLogger({title:"Log", message:`Log integrity check failed for file: ${fileName} — possible tampering.`, func:"get-logs"});
+        if(tampered){
+            decryptedLogs.length = 0; // Clear the decrypted logs since tampering is detected
+            safeSend(event, "log-entries", decryptedLogs, true); // Send tampered flag as true
+            return false; // Stop processing further files
         }
-        let tampered = false;
-        reverseLines.forEach((line,i,self) => {
-            // Hash chain: line.hash stores the SHA-256 of the chronologically PREVIOUS line.
-            // Reversed array = newest first. So self[i+1] is the chronologically older neighbor.
-            //
-            // Normal check (backward):   line.hash === self[i+1]._hash
-            // Genesis check (forward):   self[i-1].hash === line._hash
-            //   — the newer neighbor must point back to this line, proving it's a
-            //     legitimate chain restart, not a hash someone cleared to hide tampering.
+        return true;
+    }
+    // Select today's LOCAL-date file specifically; skip it if a .enc counterpart
+    // already exists (source unlink failed) — prevents double-count in the viewer.
+    const todaysDate = getLocalDateStr();
+    let todaysLogFile = null;
+    if (fs.existsSync(encDir)) {
+        todaysLogFile = fs.readdirSync(encDir).find(file =>
+            file === `log-${todaysDate}.txt` &&
+            !fs.existsSync(path.join(encDir, file.replace(/\.txt$/, ".enc")))
+        );
+    }
+    if(todaysLogFile){
+        const todaysLogPath = path.join(encDir, todaysLogFile);
+        const todaysLogContent = fs.readFileSync(todaysLogPath, 'utf-8');
+        const todaysLogLines = todaysLogContent.split('\n').filter(line => line.trim() !== '');
+        const {tampered,lineNo} = tamperChecker(todaysLogLines, todaysLogFile);
+        if(tampered){
+            let shouldContinue = await tamperActionHelper(todaysLogFile.replace(/\.txt$/, ""), extractFileDate(todaysLogFile), todaysLogLines);// lines are reversed inside tamperChecker
+            if(!shouldContinue)
+                decryptedLogs.length = 0;
+            decryptedLogs.push(...todaysLogLines.reverse());
+        } else {
+            decryptedLogs.push(...todaysLogLines.reverse()); // Append today's log lines to the main array
+        }
+    }
+    let _decryptedLogs = decryptedLogs.filter(e=>(e!="" && typeof e!="undefined")).map(e=>{
+        try{
+            return JSON.parse(e);
+        }
+        catch(err){
+            console.log("line",e)
+            console.log("Error",err)
+            return {};
+        }
+    }).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+    console.log({len:_decryptedLogs.length});
+    safeSend(event, "log-entries", _decryptedLogs, false); // Send tampered flag as false
+});
 
-            if (i === self.length - 1) return; // Oldest line — nothing older to validate against
-
-            if (line.hash === "" || line.hash === undefined) {
-                // Potential genesis — validate forward instead
-                if (i > 0) {
-                    // Newer neighbor exists — it must point to this line's computed _hash
-                    if (self[i - 1].hash === line._hash) return;          // Legitimate genesis
-                    if (self[i - 1].hash === "" || self[i - 1].hash === undefined) return; // Consecutive genesis (rapid restart)
-                    // Forward link broken — cleared hash to hide tampering
-                    tampered = true;
-                    console.error(
-                        `[${file}] Log integrity check FAILED at line ${i} (genesis not corroborated): ` +
-                        `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
-                        `Newer line hash: ${self[i - 1].hash}, expected (this line's _hash): ${line._hash}`
-                    );
-                }
-                // i === 0 (newest line): can't validate forward — acceptable blind spot
-                return;
+function tamperChecker(lines, file, reversedLines) {
+    let tampered = false,lineNo;
+    lines = lines
+        .filter(line => (line?.trim() !== "" && typeof line!="undefined"))
+        .map(line => {
+            const hash = crypto.createHash('sha256').update(line).digest('hex');
+            try {
+                const logEntry = JSON.parse(line.trim());
+                logEntry._hash = hash; // Append hash to log entry
+                return logEntry;
             }
-
-            // Normal backward validation
-            const nextLine = self[i + 1];
-            if (line.hash !== nextLine._hash) {
-                tampered = true;
-                console.error(
-                    `[${file}] Log integrity check FAILED at line ${i} (hash mismatch): ` +
-                    `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
-                    `Stored hash: ${line.hash}, Computed hash of older line: ${nextLine._hash}`
-                );
+            catch(err){
+                console.error(`Error parsing log line in ${file}: ${line}. Error: ${err.message}`);
+                return { rawLine: line, _hash: hash }; // Return raw line with hash if JSON parsing fails
             }
         });
-        if(tampered){
-            console.error(`Log integrity check FAILED for file: ${file} — tampering detected.`);
-            appLogger({title:"Log", message:`Log integrity check failed for file: ${file} — possible tampering.`, func:"get-logs"});
-            decryptedLogs.length = 0; // Clear the decrypted logs since tampering is detected
-            event.sender.send("log-entries", decryptedLogs,true); // Send tampered flag as true
+    
+    lines.reverse(); // Reverse the order of lines to show the latest logs first
+    
+    lines.forEach((line,i,self) => {
+        // Hash chain: line.hash stores the SHA-256 of the chronologically PREVIOUS line.
+        // Reversed array = newest first. So self[i+1] is the chronologically older neighbor.
+        //
+        // Normal check (backward):   line.hash === self[i+1]._hash
+        // Genesis check (forward):   self[i-1].hash === line._hash
+        //   — the newer neighbor must point back to this line, proving it's a
+        //     legitimate chain restart, not a hash someone cleared to hide tampering.
+
+        if (i === self.length - 1) return; // Oldest line — nothing older to validate against
+
+        if (line.hash === "" || line.hash === undefined) {
+            // Potential genesis — validate forward instead
+            if (i > 0) {
+                // Newer neighbor exists — it must point to this line's computed _hash
+                if (self[i - 1].hash === line._hash) return;          // Legitimate genesis
+                if (self[i - 1].hash === "" || self[i - 1].hash === undefined) return; // Consecutive genesis (rapid restart)
+                // Forward link broken — cleared hash to hide tampering
+                tampered = true;
+                lineNo = i;
+                console.error(
+                    `[${file}] Log integrity check FAILED at line ${i} (genesis not corroborated): ` +
+                    `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
+                    `Newer line hash: ${self[i - 1].hash}, expected (this line's _hash): ${line._hash}`
+                );
+            }
+            // i === 0 (newest line): can't validate forward — acceptable blind spot
             return;
         }
-        else
-            decryptedLogs.push(...reverseLines.reverse()); // Append decrypted lines to the main array
+
+        // Normal backward validation
+        const nextLine = self[i + 1];
+        if (line.hash !== nextLine._hash) {
+            tampered = true;
+            console.error(
+                `[${file}] Log integrity check FAILED at line ${i} (hash mismatch): ` +
+                `line.ts="${line.ts || 'N/A'}", line.func="${line.func || 'N/A'}". ` +
+                `Stored hash: ${line.hash}, Computed hash of older line: ${nextLine._hash}`
+            );
+        }
+    });
+    return {tampered,lineNo};
+}
+exports._tamperChecker = tamperChecker;
+
+async function analyzeTamperedLogFile(fileName, fileDate, reverseLines) {
+    const mandatoryRepairDate = new Date(2026,9,1); // October 1, 2026
+    reverseLines = reverseLines.reverse(); // Restore chronological order for analysis
+    if(!(fileDate instanceof Date) || fileDate<mandatoryRepairDate){
+        // Offering free repair of tampered log files before October 1, 2026. After this date, tampered logs will be repaired if the tampered line is a system message.
+        console.log("[logHandler>analyzeTamperedLogFile]: Offering free repair")
+        repair_save_log_file(fileName, reverseLines);
+        return false;
     }
-    event.sender.send("log-entries", decryptedLogs,false); // Send tampered flag as false
-});
+    else{
+        // Check tamerping only if the tampered line is a system message (user === "app")
+        console.log("[analyzeTamperedLogFile] Analysing line for real tampering.")
+        return true;
+    }
+}
+
+/** Rebuild a hash chain from raw lines. Drops unparseable lines (repair's purpose).
+ *  Returns re-serialized lines in chronological order. Exported for tests. */
+function rebuildChain(lines) {
+    const clean = [];
+    for (const raw of lines) {
+        if (typeof raw !== "string") continue;
+        const trimmed = raw.trim();
+        if (trimmed === "") continue;
+        let obj;
+        try { obj = JSON.parse(trimmed); }
+        catch(err){
+            console.error(`[repair_save_log_file] dropping unparseable line: ${err.message}`);
+            continue;
+        }
+        delete obj._hash;
+        clean.push(obj);
+    }
+    const rebuilt = [];
+    for (let i = 0; i < clean.length; i++) {
+        // i === 0 keeps its stored hash (link into the previous day — never validated)
+        // Others hash the previous entry's FINAL bytes — the stale raw line may
+        // still carry a corrupted hash that is being fixed right here.
+        if (i > 0)
+            clean[i].hash = crypto.createHash('sha256').update(rebuilt[i - 1]).digest('hex');
+        rebuilt.push(JSON.stringify(clean[i]));
+    }
+    return rebuilt;
+}
+exports._rebuildChain = rebuildChain;
+
+function repair_save_log_file(fileName, lines) {
+    console.log(`[logHandler>repair_save_log_file]: Repairing tampered log file: ${fileName}`);
+    const baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
+    const encDir = path.resolve(baseLogDir, "upload");
+    lines.reverse(); // Caller passes newest-first — restore chronological order
+    const serialized = rebuildChain(lines);
+    if (serialized.length === 0)
+        return console.log("[logHandler>repair_save_log_file] : Repair aborted — no parseable lines");
+    // Verify against exactly the bytes that will be written
+    let { tampered } = tamperChecker(serialized, fileName);
+    if(tampered)
+        return console.log("[logHandler>repair_save_log_file] : Repair failed")
+    console.log("[logHandler>repair_save_log_file] : Repair successful")
+    const path2RepairDir = path.resolve(encDir, `${fileName}.txt`);
+    console.log("[logHandler>repair_save_log_file] : path2RepairDir :",path2RepairDir)
+    fs.writeFileSync(path2RepairDir, serialized.join("\n") + "\n");
+    const encPath = path.resolve(encDir, `${fileName}.enc`);
+    if (fs.existsSync(encPath)) {
+        try { fs.unlinkSync(encPath); }
+        catch(err){ console.error(`[repair_save_log_file] failed to remove ${encPath}: ${err.message}`); }
+    }
+    reopenTodaysLog(); // Repair may have rewritten today's live file — reopen its append stream
+    ipcMain.emit("encrypt-and-upload-logs", null, true); // Trigger encryption of repaired log file
+}
 
 ipcMain.handle("download-missing-enc", async () => {
     if(new Date()<HASH_CHAIN_CUTOFF)

@@ -19,7 +19,10 @@ const ACCOUNT_NAME = 'MasterEncryptionSecret';
 
 /** Safely execute fn, returning fallback if it throws. */
 exports.attempt = function(fn, fallback) {
-    try { return fn(); } catch (_) { return fallback; }
+    try {
+        const result = fn();
+        return result instanceof Promise ? result.catch(() => fallback) : result;
+    } catch (_) { return fallback; }
 };
 
 exports.closeAndDisplay = function(msg){
@@ -247,12 +250,37 @@ class FileHandler{
             this.stream = fs.createWriteStream(path.resolve(this.rootPath,this.rPath),{flags:"a"});
             if(!fs.existsSync(path.resolve(this.rootPath,this.rPath,"../upload/")))
                 fs.mkdirSync(path.resolve(this.rootPath,this.rPath,"../upload/"),{recursive:true});
-            this.todaysLog = fs.createWriteStream(path.resolve(this.rootPath,this.rPath,"../upload/",`log-${new Date().toISOString().split("T")[0]}.txt`),{flags:"a+"});
+            this.openTodaysLog();
         }
         catch(err){
             // Can't use appLogger here as it's not defined yet in module load order
             console.error("FileHandler Error:", err.message);
         }
+    }
+    /** Open (or replace) the append stream for today's local-date log file. */
+    openTodaysLog(){
+        this.todaysLogDate = getLocalDateStr();
+        this.todaysLog = fs.createWriteStream(path.resolve(this.rootPath,this.rPath,"../upload/",`log-${this.todaysLogDate}.txt`),{flags:"a+"});
+        this.todaysLog.on("drain", () => {
+            todaysLogPending.length = 0;
+        });
+    }
+    /** Lazy midnight rollover: when the local date changes, close yesterday's stream
+     *  (file becomes complete and safe to encrypt) and open today's file.
+     *  lastLineHash resets so the new day starts with a genesis line (hash:""). */
+    ensureTodaysLog(){
+        try{
+            const today = getLocalDateStr();
+            if(today !== this.todaysLogDate){
+                try { this.todaysLog.end(); } catch(_){}
+                this.openTodaysLog();
+                lastLineHash = ""; // NEW DAY — chain restarts with a genesis line
+            }
+        }
+        catch(err){
+            console.error("FileHandler rollover error:", err.message);
+        }
+        return this.todaysLog;
     }
 }
 
@@ -312,6 +340,13 @@ function getStartDate(period){
     startDate.setMonth(startDate.getMonth() - period);
     return startDate;
 }
+
+/** Local-timezone YYYY-MM-DD — the log-day boundary (midnight local, NOT UTC). */
+function getLocalDateStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+exports.getLocalDateStr = getLocalDateStr;
 
 function getFinYearStrtEndDt(year){
     if(!("presets" in process) || !("financialYearStartDate" in process.presets)) return;
@@ -449,16 +484,9 @@ function appLogger(msgObj){
 
     // Only initialize FileHandler when we intend to write to log
     if(appendToLog){
-        const isNew = !(appLoggerStreams instanceof FileHandler);
-        appLoggerStreams = isNew ? new FileHandler(`./logs/appLogs.txt`) : appLoggerStreams;
-        if (isNew) {
-            // Drain confirms all buffered entries were flushed to disk.
-            // Hash is already advanced when entries are queued — the drain
-            // handler just marks them confirmed by clearing the queue.
-            appLoggerStreams.todaysLog.on("drain", () => {
-                todaysLogPending.length = 0;
-            });
-        }
+        if(!(appLoggerStreams instanceof FileHandler))
+            appLoggerStreams = new FileHandler(`./logs/appLogs.txt`);
+        appLoggerStreams.ensureTodaysLog(); // Midnight rollover: yesterday's file closes; new day starts genesis
     }
 
     let ts = (new Date()).toLocaleString("en-GB"); // Indian Standard Time format
@@ -529,6 +557,19 @@ function appLogger(msgObj){
         mainWin.webContents.send("check-notification");//notifyJobs,showToast
     }
 }
+
+/** Reopen the live todaysLog stream — used by log repair after it rewrites today's .txt. */
+exports.reopenTodaysLog = function(){
+    if(!(appLoggerStreams instanceof FileHandler)) return;
+    try { appLoggerStreams.todaysLog.end(); } catch(_){}
+    appLoggerStreams.openTodaysLog();
+};
+
+/** Local date string of the live todaysLog stream ("" if not created yet). */
+exports.getTodaysLogDate = function(){
+    return (appLoggerStreams instanceof FileHandler) ? appLoggerStreams.todaysLogDate : "";
+};
+
 class People{
     static iterator(args,that){
         for(let key in args)
@@ -1469,10 +1510,10 @@ function getDeviceSerials() {
     switch(platform){
       case "win32":
         try{
-          const cmd = execSync('wmic diskdrive get SerialNumber').toString();
-          diskSerial = cmd.split('\n')[1].trim();
-          const cmd2 = execSync('wmic baseboard get SerialNumber').toString();
-          motherboardSerial = cmd2.split('\n')[1].trim();
+          const cmd = execSync('powershell -Command "Get-CimInstance Win32_DiskDrive | Select-Object -ExpandProperty SerialNumber"').toString();
+          diskSerial = cmd.trim();
+          const cmd2 = execSync('powershell -Command "Get-CimInstance Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber"').toString();
+          motherboardSerial = cmd2.trim();
         }
         catch(err){
           diskSerial = null;

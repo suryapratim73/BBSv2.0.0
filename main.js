@@ -71,7 +71,9 @@ const {
   saveSecret,
   getSecret,
   deleteSecret,
-  getBillsDir
+  getBillsDir,
+  getLocalDateStr,
+  getTodaysLogDate
 } = require("./common");
 // const { getBillsDir } = require("./paths");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
@@ -832,15 +834,27 @@ app.on("ready", async () => {
   encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
 });
 
-async function encryptAndUploadS3(){
+async function encryptAndUploadS3(keepLocal=false){
   try{
-    const yesterday = new Date(Date.now() - 24*60*60*1000);
     const crypto = require("crypto");
     let baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
     let path2Logs = path.resolve(baseLogDir,"upload/");
     if(!fs.existsSync(path2Logs)) return; // Will try later
-    const todaysDate = new Date().toISOString().split("T")[0];
-    let logFiles = fs.readdirSync(path2Logs).filter(file=>!file.match(todaysDate) && file.endsWith(".txt"));
+    const todaysDate = getLocalDateStr(); // Local midnight boundary — matches FileHandler naming
+    let logFiles = fs.readdirSync(path2Logs).filter(file=>{
+        if(!file.endsWith(".txt")) return false;
+        if(file.match(todaysDate)) return false; // Today's file — live stream writes to it
+        const liveDate = getTodaysLogDate();
+        if(liveDate && file === `log-${liveDate}.txt`) return false; // Still-open stream (rollover edge)
+        if(!keepLocal){
+            // Never encrypt a file modified moments ago (crash-recovery leftovers).
+            // Repair passes keepLocal=true — its freshly written file MUST be encrypted now.
+            try {
+                if(Date.now() - fs.statSync(path.resolve(path2Logs,file)).mtimeMs < 5*60*1000) return false;
+            } catch(_) { return false; }
+        }
+        return true;
+    });
     console.log({logFiles});
     const secret = await getSecret(); // Retrieve the secret from secure storage
     const { motherboardSerial,diskSerial } = await getDeviceSerials();
@@ -861,10 +875,14 @@ async function encryptAndUploadS3(){
         const encryptedFilePath = path.resolve(baseLogDir,"upload/"+fileName);// new enc file for each log file
         if(fs.existsSync(encryptedFilePath)) {
           logFilesLength--;
-          fs.unlinkSync(path.resolve(path2Logs,file)); // Delete original log file
+          if(fs.existsSync(path.resolve(path2Logs,file))){
+            try { fs.unlinkSync(path.resolve(path2Logs,file)); } // Delete original log file
+            catch(err){ console.error("[encryptAndUploadS3] failed to remove duplicate source .txt:", err.message); }
+          }
           if(logFilesLength===0) resolve(true);
           continue;// Already encrypted and uploaded - avoid re-encrypting
         }
+        // console.log("[encryptAndUploadS3]: Ecrypting file",encryptedFilePath);
         const writeStream = fs.createWriteStream(encryptedFilePath);
         const logIv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv("aes-256-gcm", dek, logIv);
@@ -888,8 +906,15 @@ async function encryptAndUploadS3(){
         cipher.on('end', () => {
           writeStream.write(cipher.getAuthTag());
           writeStream.end();
+          // console.log("[encryptAndUploadS3]: file encrypton complete",encryptedFilePath);
           logFilesLength--;
-          fs.unlinkSync(filePath); // Delete original log file    
+          try {
+            fs.existsSync(filePath) && fs.unlinkSync(filePath); // Delete original log file
+          } catch(err){
+            // .enc already written — never crash the app over a locked .txt
+            console.error("[encryptAndUploadS3] failed to remove source .txt:", err.message);
+            appLogger({ title:"Error", message:`Failed to remove ${file} after encryption: ${err.message}`, func:"encryptAndUploadS3", notify:false });
+          }
           if(logFilesLength===0) resolve(true);
         });
       }
@@ -900,7 +925,7 @@ async function encryptAndUploadS3(){
     // Expected launch date: 2026-12-1. After this date, stop uploading logs to S3.
     // App will continue to encrypt logs locally, but will not upload to S3 after this date.
     // This is to avoid unnecessary S3 storage costs after the expected launch date.
-    if(new Date()<new Date("2026-12-1")) return; // Stop uploading after this date
+    if(new Date()<new Date("2026-12-1") || keepLocal) return; // Stop uploading after this date
     let encryptedFiles = fs.readdirSync(path.resolve(baseLogDir,"upload/")).filter(file=>file.endsWith(".enc"));
     for(let file of encryptedFiles){
       let filePath = path.resolve(baseLogDir,"upload/"+file);
@@ -921,10 +946,17 @@ async function encryptAndUploadS3(){
     appLogger({
       title: "Error",
       message: String(err),
-      func: "encryptAndUploadS3"
+      func: "encryptAndUploadS3",
+      notify:false
     });
   }
 }
+
+ipcMain.on("encrypt-and-upload-logs", async (event, keepLocal) => {
+  console.log("[encrypt-and-upload-logs] re-encrypting txt files")
+  await encryptAndUploadS3(keepLocal);
+  // event.reply("encrypt-and-upload-logs-complete");
+});
 
 async function uploadToS3(filePath,fileName,logType="device_log"){
   try{
@@ -3306,12 +3338,12 @@ async function checkForUpdates(flag="auto") {
         });
     }
     if (isOnline === false){
-      appLogger({
-        title:"Error",
-        message:String(err),
-        func:"Check for update error",
-        notify:false
-      });
+      // appLogger({
+      //   title:"Error",
+      //   message:String(err),
+      //   func:"Check for update error",
+      //   notify:false
+      // });
       return dialog.showMessageBox(mainWin, {
         title: "No Connection",
         message: "Failed to connect to update server.",
