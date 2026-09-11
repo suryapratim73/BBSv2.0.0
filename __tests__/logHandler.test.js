@@ -17,7 +17,7 @@ jest.mock("../common", () => ({
     } catch (_) { return fallback; }
   },
   getLocalDateStr: () => "2026-09-10",
-  reopenTodaysLog: () => {},
+  resyncLastLineHash: () => {},
 }));
 
 const crypto = require("crypto");

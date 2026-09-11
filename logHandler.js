@@ -12,7 +12,7 @@ const {
     appLogger,
     attempt,
     getLocalDateStr,
-    reopenTodaysLog
+    resyncLastLineHash
 } = require("./common");
 
 async function decryptLogFile(encryptedFilePath, kek) {
@@ -355,12 +355,17 @@ function repair_save_log_file(fileName, lines) {
     const path2RepairDir = path.resolve(encDir, `${fileName}.txt`);
     console.log("[logHandler>repair_save_log_file] : path2RepairDir :",path2RepairDir)
     fs.writeFileSync(path2RepairDir, serialized.join("\n") + "\n");
+    if (fileName === `log-${getLocalDateStr()}` && serialized.length > 0) {
+        // Repairing TODAY's live file — the in-memory chain pointer must follow
+        // the rewritten tail, or the next appLogger write stamps a stale hash
+        // and the repair→re-break loop starts over.
+        resyncLastLineHash(serialized[serialized.length - 1]);
+    }
     const encPath = path.resolve(encDir, `${fileName}.enc`);
     if (fs.existsSync(encPath)) {
         try { fs.unlinkSync(encPath); }
         catch(err){ console.error(`[repair_save_log_file] failed to remove ${encPath}: ${err.message}`); }
     }
-    reopenTodaysLog(); // Repair may have rewritten today's live file — reopen its append stream
     ipcMain.emit("encrypt-and-upload-logs", null, true); // Trigger encryption of repaired log file
 }
 

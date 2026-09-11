@@ -285,7 +285,41 @@ class FileHandler{
 }
 
 /** @type {BillManager} */
-let billManager, appLoggerStreams = {},logsQueue = [],lastLineHash = "",todaysLogPending = [];
+let billManager, appLoggerStreams = {},logsQueue = [],
+lastLineHash = getLastLineHash(),
+todaysLogPending = [];
+
+/** Local-timezone YYYY-MM-DD — the log-day boundary (midnight local, NOT UTC). */
+function getLocalDateStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+exports.getLocalDateStr = getLocalDateStr;
+
+function getLastLineHash(){
+    let todaysDate = getLocalDateStr();
+    const baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
+    const encDir = path.resolve(baseLogDir, "upload");
+    const path2TodaysLogFile = path.resolve(encDir,`log-${todaysDate}.txt`);
+    if(!fs.existsSync(path2TodaysLogFile))
+        return "";
+    else{
+        // Take the last NON-EMPTY raw line — hash whatever is actually there
+        // (even an unparseable torn-write tail; the verifier's forward-genesis
+        // corroboration accepts a chain pointing at it).
+        let content = fs.readFileSync(path2TodaysLogFile,"utf-8").split("\n").filter(line => line.trim() !== "");
+        let lastLine = content.pop() || "";
+        let lastLineHash = lastLine!="" ? crypto.createHash("sha256").update(lastLine).digest("hex") : "";
+        return lastLineHash;
+    }
+}
+
+/** Resync the in-memory chain pointer to a known last line. Called only when
+ *  TODAY's live file was repaired — the pointer feeds today's stream, so the
+ *  rewritten tail must become the next write's chain target. */
+exports.resyncLastLineHash = function(lastLine){
+    lastLineHash = lastLine ? crypto.createHash("sha256").update(lastLine).digest("hex") : "";
+};
 
 async function getLedgerModel(id,ledgerSchema,_sequelize){
     const { sequelize } = require("./model/dbConfig");
@@ -340,13 +374,6 @@ function getStartDate(period){
     startDate.setMonth(startDate.getMonth() - period);
     return startDate;
 }
-
-/** Local-timezone YYYY-MM-DD — the log-day boundary (midnight local, NOT UTC). */
-function getLocalDateStr(){
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-exports.getLocalDateStr = getLocalDateStr;
 
 function getFinYearStrtEndDt(year){
     if(!("presets" in process) || !("financialYearStartDate" in process.presets)) return;
@@ -557,13 +584,6 @@ function appLogger(msgObj){
         mainWin.webContents.send("check-notification");//notifyJobs,showToast
     }
 }
-
-/** Reopen the live todaysLog stream — used by log repair after it rewrites today's .txt. */
-exports.reopenTodaysLog = function(){
-    if(!(appLoggerStreams instanceof FileHandler)) return;
-    try { appLoggerStreams.todaysLog.end(); } catch(_){}
-    appLoggerStreams.openTodaysLog();
-};
 
 /** Local date string of the live todaysLog stream ("" if not created yet). */
 exports.getTodaysLogDate = function(){
