@@ -459,8 +459,9 @@ ipcMain.handle("customer-id-to-name",async (e,id)=>{
     return  global.customerList.find(obj=>obj.id===id);
 });
 
-ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj)=>{
+ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customerObj,printObj,currentStep)=>{
     let { billNo,billDate } = process.presets.billMeta;
+    ipcMain.emit("cancel-sale-bill", {sender:{id:e.sender.id}}, currentStep);
     let {billNo:new_billNo,billDate:newBillDate,customerId:id,entryNo} = billMeta;
     let concatenatedObj = {
         ...billMeta,
@@ -582,7 +583,9 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
                 stateNcode:billMeta.stateNcode,
                 billDate:newBillDate,
                 billNo:new_billNo,
-                billItemTable:`${id}_${new_billNo}_${newBillDate}`
+                billItemTable:`${id}_${new_billNo}_${newBillDate}`,
+                orderRef:billMeta.orderRef,
+                delivery:billMeta.deliveryType!=="hand"?["transportName","transportAddress","transportContact","deliveryType","transportGST"].reduce((acc,key)=>({...acc,[key]:billMeta[key]}),{}):"hand",
             };
             return billObj.save();
         })(),
@@ -630,7 +633,7 @@ ipcMain.on("add-item-to-bill",async (e,olditemList,newitemList,billMeta,customer
             user:"user"
         });
         // This should replace the pdfFile
-        if(typeof printObj==="undefined")
+        if(typeof printObj==="undefined" || !printObj)
             printObj = { captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}] };
         printObj.captions = captionReducer(printObj.captions);
         billMeta.printObj = printObj;

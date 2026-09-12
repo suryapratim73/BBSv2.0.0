@@ -1192,7 +1192,6 @@ ipcRenderer.on("print-obj", (e, printObj) => {
     try {
         billMeta.printObj = printObj;
         if (preset.target === "salePage" && preset.mode === "edit-bill") {
-            ipcRenderer.send("cancel-sale-bill", currentStep);
             printObj.customer = customer;
             return ipcRenderer.send(
                 "add-item-to-bill",
@@ -1201,6 +1200,7 @@ ipcRenderer.on("print-obj", (e, printObj) => {
                 billMeta,
                 customer,
                 printObj,
+                currentStep
             );
         }
         ipcRenderer.send("salepage-print-doc", { billMeta, customer, orderItems });
@@ -1252,13 +1252,14 @@ function saveAsOrder() {
 function saveExit() {
     try {
         if (preset.target === "salePage" && preset.mode === "edit-bill") {
-            ipcRenderer.send("cancel-sale-bill", currentStep);
             return ipcRenderer.send(
                 "add-item-to-bill",
                 preset.orderItems,
                 orderItems,
                 billMeta,
                 customer,
+                null,
+                currentStep
             );
         }
         if (preset.target === "salePage" && (preset.mode === "new-sale" || preset.mode === "edit-order"))

@@ -1573,7 +1573,7 @@ function computeAllAmounts(){
         ];
         if(Object.keys(itemObj || {}).length!==itemProperties.length){
             // If the itemObj missing any property then we fill in with default values and push the updated itemObj to orderItems array. This is to ensure that the orderItems array always has complete item objects with all necessary properties.
-            let defaultItemObj = itemProperties.reduce((acc,key)=>{
+            itemProperties.reduce((acc,key)=>{
                 try{
                     acc[key] = itemObj?.[key] ?? (key==="qty" ? 0 : key==="rate" ? 0 : key==="sellUnit" ? unit : "Kg");
                     if(key==="sellId")
@@ -1623,6 +1623,18 @@ function computeAllAmounts(){
         }
         row.querySelector(".amt").textContent = roundOffTo2DecimalPlace(quantity * rate);
         row.querySelector(".amt-with-tax").textContent = roundOffTo2DecimalPlace(quantity * rate * (1 + (cgst + sgst + igst)/100));
+    });
+    let reducedOrder = exports.reduceOrder();
+    billMeta.netQty = reducedOrder.netQty;
+    billMeta.netAmt = roundOffTo2DecimalPlace(reducedOrder.netAmt);
+    billMeta.netAmtTax = roundOffTo2DecimalPlace(reducedOrder.netAmtTax);
+    billMeta.netTax = roundOffTo2DecimalPlace(
+        billMeta.netAmtTax - billMeta.netAmt,
+    );
+    // Update Display Section
+    [...document.querySelectorAll("#display-section .highlight")]
+    .forEach(p=>{
+        p.textContent = billMeta[p.dataset.name];
     });
 }
 

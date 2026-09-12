@@ -4324,7 +4324,10 @@ ipcMain.on("edit-bill",async (e,customerId,itemList,entryNo)=>{
   // Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
   saleWindow()("salePage","edit-bill",{
     customer:customerObj,
-    billMeta:saleObj,
+    billMeta:{
+      ...saleObj,
+      netTax:saleObj.tax
+    },
     orderItems:itemList,
     currentStep:3,
   });

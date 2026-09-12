@@ -243,6 +243,11 @@ input,select{
     text-overflow: ellipsis;
     overflow: hidden;
 }
+#display-section>div{
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 1rem;
+}
 #tbody{
     border: unset;
     overflow: scroll;

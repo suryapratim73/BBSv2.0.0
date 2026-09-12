@@ -3,7 +3,7 @@ const { createModal, getMainWindow, getTargetWindow } = require("./createModal")
 const { BrowserWindow } = require("electron/main");
 const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
-const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales, openFormatForDate } = require("./common");
+const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales, openFormatForDate, attempt } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
 const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
 const fs = require("fs");
@@ -111,20 +111,22 @@ ipcMain.handle("get-sale-bill-number",(e)=>{
     }
 });
 
-ipcMain.on("cancel-sale-bill",(e,currentStep,billNo)=>{
+ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
     try {
-        console.log({currentStep,billNo});
-    const windowId = e.sender.id;
-    const sessionId = "sale-" + windowId;
-    // Release the reserved bill number back to the pool.
-    // BillManager tracks per-session, so out-of-order cancellations
-    // are handled correctly — the right number always returns to the pool.
-    if(currentStep>1 && process.presets.mode!="edit-bill")
-        getBillManager().release(sessionId);
-    closeFlag = true;
-    BrowserWindow.getFocusedWindow().close();
-    if("presets" in process && process?.presets?.target==="salePage")
-        Reflect.deleteProperty(process.presets,"target");
+        const windowId = e.sender.id;
+        const sessionId = "sale-" + windowId;
+        // Release the reserved bill number back to the pool.
+        // BillManager tracks per-session, so out-of-order cancellations
+        // are handled correctly — the right number always returns to the pool.
+        if(currentStep>1 && process.presets.mode!="edit-bill")
+            getBillManager().release(sessionId);
+        closeFlag = true;
+        BrowserWindow.getFocusedWindow().close();
+        ["billMeta","orderItems","customer","target","mode"]
+        .forEach(key=>{
+            if(typeof process.presets[key]!="undefined")
+                delete process.presets[key];
+        });
     } catch(err) {
         console.error("Error in cancel-sale-bill:", err);
     }
@@ -149,7 +151,9 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
         let { unitMap } = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
         sellUnit = sellUnit ? sellUnit : "Kg";
         let multiplier = Object.values(unitMap.find(obj=>sellUnit in obj))[0];
-        pHistory = pHistory ? JSON.parse(pHistory) : [];
+        pHistory = attempt(()=>{
+            return JSON.parse(pHistory);
+        },[]);
         if(pHistory.length>0){
             // Removing entries older than 6 months from pHistory
             let sixMonthsAgo = new Date();
@@ -278,7 +282,6 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             delete process.presets.orderItems;
             delete process.presets.customer;
             delete process.presets.billMeta;
-            console.log(process.presets)
         }
         Reflect.deleteProperty(process.presets,"target");
         Reflect.deleteProperty(process.presets,"mode");

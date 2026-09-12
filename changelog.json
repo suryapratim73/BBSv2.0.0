@@ -1,9 +1,12 @@
 {
-    "version":"2.22.4",
+    "version":"2.23.0",
     "highlights":[
-        "[2.22.4] Fix: Same Bill Number allocation issue",
-        "[2.22.4] Fix: Transparent background issue",
-        "[2.22.4] Fix: appLogger hash chain — hash advances optimistically, drain handler clears pending queue without re-writing (eliminates silent duplicate entries)"
+        "[2.23.0] Add: Auto-repair broken hash chain in log files if breakage caused by app bug",
+        "[2.23.0] Fix: Multiple genesis line hash bug",
+        "[2.23.0] Fix: Undefined attribute error in Default Bill Templat 2 causing NaN tax fields and abnormal line breaks in invoices after Edit",
+        "[2.23.0] Fix: Uncancelable bill issue after SalePage on Edit mode is closed/cancelled.",
+        "[2.23.0] Add: More meta fields are editble - report ifsome fields are still not editable.",
+        "[2.23.0] Add: Re-added separate Bill Summary Section in Sale Page."
     ],
     "fullchange":[
         "[2.22.4] Fix: Duplicate bill number — save_exit now calls allocate() to verify the reserved number matches the actual billNo before consuming. Mismatch triggers release() instead of silently leaking the reservation. Edit-bill and edit-order modes excluded from this check.",

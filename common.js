@@ -457,7 +457,7 @@ exports.appLogger = appLogger;
 // Catches typos (e.g. appendToConsole → allowConsole) and unknown fields at the call site.
 const LOG_SCHEMA = {
     // Control flags — extracted before serialization, never appear in log output
-    controls: new Set(["allowConsole", "appendToLog", "notify"]),
+    controls: new Set(["allowConsole", "appendToLog", "notify","user"]),
     // Known aliases for common typos — mapped to the correct control flag
     aliases: {
         "appendToConsole": "allowConsole",  // common typo
