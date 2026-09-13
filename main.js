@@ -121,9 +121,6 @@ const { openCatalogueCreator } = require("./catalogueHandler");
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
 
 const { deserializeSchema } = require("./model/schemaLoader");
-const { enable } = require("@electron/remote/main");
-const { save } = require("pdfkit");
-const { main } = require("./lib/execCustomTemplate");
 
 // Load dynamicSchemas from JSON (server-delivered)
 let dynamicSchemas, billItemSchema, customerLedgerSchema, supplierLedgerSchema;

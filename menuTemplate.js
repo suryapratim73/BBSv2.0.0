@@ -10,7 +10,7 @@ const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
 const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
 const { versionManager } = require("./versionManager");
-const { billDesignerWindow } = require("./common");
+const { billDesignerWindow } = require("./billLayoutDesigner");
 const { logViewer } = require("./logHandler");
 const { openCatalogueCreator } = require("./catalogueHandler");
 
@@ -173,12 +173,12 @@ module.exports = mainWindow=>{
                 //     label: "Generate Requirement Slip",
                 //     click: ()=>appStateComplianceEnforcement(genRequirementSlip(mainWindow))
                 // },
-                // {
-                //     label: "Bill Layout Designer",
-                //     click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow)),
-                //     accelerator:"CommandOrControl+B"
+                {
+                    label: "Bill Layout Designer",
+                    click: ()=>appStateComplianceEnforcement(billDesignerWindow(mainWindow)),
+                    accelerator:"CommandOrControl+B"
                     
-                // },
+                },
                 {
                     label: "Scheduler",
                     click: ()=>{

@@ -1,0 +1,157 @@
+{
+  "version": 2,
+  "size": "a4",
+  "margin": { "top": 30, "right": 30, "bottom": 30, "left": 30 },
+  "applyBorder": false,
+  "border": 1,
+  "fFamily": "Times-Roman",
+  "newDoc": true,
+  "filePath": "",
+  "_notes": [
+    "Bundled data-template conversion of the legacy hardcoded Default1 design (buildPage.default.js createHeader/createBody/createFooter).",
+    "Approximations vs the legacy drawing: fixed-coordinate box lines and the 2-column bill-to/consignee layout become stacked full-width blocks; (%) tax sub-lines and item desc sub-lines in the table are dropped; the interstate/intrastate tax-split mini-boxes become plain net-CGST/net-SGST/net-IGST lines; the receiver-signature box border is plain text; the legacy emblem call was broken (misordered args) so no emblem block is included — add one from the designer if wanted.",
+    "Margins approximate the legacy 10-600 coordinate space.",
+    "Renderer collapses blocks whose value is empty, so optional fields (transporter, ship-to, scrap TDS) leave no gap."
+  ],
+  "blocks": [
+    {
+      "id": "d1-copy",
+      "type": "variable",
+      "variable": "bill-copy",
+      "font": { "family": "Times-Roman", "size": 14, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "align": "right",
+      "margin": { "top": 0, "right": 0, "bottom": 10, "left": 0 }
+    },
+    {
+      "id": "d1-biller-name",
+      "type": "variable",
+      "variable": "biller-name",
+      "font": { "family": "Times-Roman", "size": 18, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "align": "center",
+      "margin": { "top": 0, "right": 0, "bottom": 4, "left": 0 }
+    },
+    { "id": "d1-biller-addr", "type": "variable", "variable": "biller-address", "prefix": "Address: ", "align": "center" },
+    { "id": "d1-biller-ph", "type": "variable", "variable": "biller-phone", "prefix": "Contact number: ", "align": "center" },
+    { "id": "d1-biller-gst", "type": "variable", "variable": "biller-gst", "prefix": "GST number: ", "align": "center", "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 } },
+    {
+      "id": "d1-biller-bank",
+      "type": "variable",
+      "variable": "biller-bank",
+      "align": "center",
+      "font": { "family": "Times-Roman", "size": 10, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 12, "left": 0 }
+    },
+    {
+      "id": "d1-inv-no",
+      "type": "variable",
+      "variable": "bill-no-formatted",
+      "prefix": "Invoice No: ",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 6, "left": 0 }
+    },
+    { "id": "d1-date", "type": "variable", "variable": "date-slash", "prefix": "Date: ", "margin": { "top": 0, "right": 0, "bottom": 6, "left": 0 } },
+    {
+      "id": "d1-billto-label",
+      "type": "text",
+      "content": "Bill to:",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 8, "right": 0, "bottom": 4, "left": 0 }
+    },
+    { "id": "d1-cust-name", "type": "variable", "variable": "customer-name" },
+    { "id": "d1-cust-addr", "type": "variable", "variable": "customer-address" },
+    { "id": "d1-cust-ph", "type": "variable", "variable": "customer-phone", "prefix": "Ph: " },
+    { "id": "d1-cust-gst", "type": "variable", "variable": "customer-gst", "prefix": "GST: " },
+    { "id": "d1-ship-label", "type": "text", "content": "Ship to:", "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" }, "margin": { "top": 8, "right": 0, "bottom": 4, "left": 0 } },
+    { "id": "d1-ship-to", "type": "variable", "variable": "shipTo" },
+    { "id": "d1-ship-addr", "type": "variable", "variable": "shipAddr" },
+    { "id": "d1-ship-ph", "type": "variable", "variable": "shipPh", "prefix": "Ph: " },
+    { "id": "d1-ship-gst", "type": "variable", "variable": "shipGST", "prefix": "GST: " },
+    { "id": "d1-orderref", "type": "variable", "variable": "orderRef", "prefix": "Order Ref: ", "margin": { "top": 8, "right": 0, "bottom": 0, "left": 0 } },
+    { "id": "d1-transporter", "type": "variable", "variable": "transportName", "prefix": "Transporter: " },
+
+    {
+      "id": "d1-table",
+      "type": "table",
+      "thHeight": 24,
+      "fSize": 12,
+      "rSpacing": 4,
+      "cellPadding": 4,
+      "drawGrid": true,
+      "margin": { "top": 12, "right": 0, "bottom": 12, "left": 0 },
+      "cols": [
+        { "label": "Sl No", "variable": "slno", "width": 5 },
+        { "label": "Product Description", "variable": "name", "width": 25 },
+        { "label": "HSN", "variable": "hsn", "width": 8 },
+        { "label": "Quantity", "variable": "qty", "width": 6 },
+        { "label": "Unit", "variable": "unit", "width": 6 },
+        { "label": "Unit Price", "variable": "unit-price", "width": 8 },
+        { "label": "Amount", "variable": "amount", "width": 10 },
+        { "label": "CGST", "variable": "CGST", "width": 8 },
+        { "label": "SGST", "variable": "SGST", "width": 8 },
+        { "label": "IGST", "variable": "IGST", "width": 8 },
+        { "label": "Total", "variable": "total", "width": 8 }
+      ]
+    },
+
+    {
+      "id": "d1-words",
+      "type": "variable",
+      "variable": "gtotal-words",
+      "prefix": "Total in words: ",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    { "id": "d1-netqty", "type": "variable", "variable": "netQty", "prefix": "Total quantity: ", "suffix": " Kg" },
+    {
+      "id": "d1-totals",
+      "type": "totals",
+      "margin": { "top": 8, "right": 0, "bottom": 8, "left": 0 },
+      "rows": [
+        { "label": "Total before Tax", "variable": "total-before-tax", "align": "right" },
+        { "label": "Total discount", "variable": "total-discount", "align": "right" },
+        { "label": "Total Tax", "variable": "netTax", "align": "right" },
+        { "label": "Scrap TDS", "variable": "scrap-tds", "align": "right" },
+        { "label": "Rounded off", "variable": "ro", "align": "right" },
+        { "label": "Grand Total", "variable": "grand-total", "align": "right" }
+      ]
+    },
+
+    {
+      "id": "d1-sign-label",
+      "type": "text",
+      "content": "Authorised Signatory",
+      "align": "right",
+      "margin": { "top": 20, "right": 0, "bottom": 4, "left": 0 }
+    },
+    {
+      "id": "d1-sign-for",
+      "type": "variable",
+      "variable": "biller-name",
+      "prefix": "For ",
+      "suffix": " (Proprietor)",
+      "align": "right",
+      "margin": { "top": 0, "right": 0, "bottom": 20, "left": 0 }
+    },
+    {
+      "id": "d1-seal",
+      "type": "image",
+      "source": "seal",
+      "imgWidth": 12,
+      "imgHeight": 12,
+      "imgOpacity": 100,
+      "applyAspectRatio": true,
+      "aspectRatio": "1:1",
+      "align": "right",
+      "margin": { "top": 0, "right": 0, "bottom": 12, "left": 0 }
+    },
+    {
+      "id": "d1-receiver",
+      "type": "text",
+      "content": "Receiver's signature",
+      "margin": { "top": 16, "right": 0, "bottom": 8, "left": 0 }
+    },
+    { "id": "d1-tax-cgst", "type": "variable", "variable": "net-CGST", "prefix": "CGST: " },
+    { "id": "d1-tax-sgst", "type": "variable", "variable": "net-SGST", "prefix": "SGST: " },
+    { "id": "d1-tax-igst", "type": "variable", "variable": "net-IGST", "prefix": "IGST: " }
+  ]
+}

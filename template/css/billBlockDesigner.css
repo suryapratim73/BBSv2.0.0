@@ -1,0 +1,445 @@
+/* Bill Block Designer (v2) — theme-aware via the same CSS vars applyTheme sets */
+:root {
+    --bd-bg: var(--theme-secondary, #ffffff);
+    --bd-fg: var(--theme-text-color, #000000);
+    --bd-accent: var(--theme-primary, #663399);
+    --bd-shadow: var(--theme-shadow-color, #808080);
+    --bd-muted: rgba(128, 128, 128, 0.55);
+    --bd-pane-w: 280px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--bd-fg);
+    background: var(--bd-bg);
+}
+
+/* ---------- panes ---------- */
+.pane {
+    width: var(--bd-pane-w);
+    min-width: var(--bd-pane-w);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    overflow-y: auto;
+    background: var(--bd-bg);
+    border-right: 1px solid var(--bd-muted);
+}
+
+#props {
+    border-right: none;
+    border-left: 1px solid var(--bd-muted);
+}
+
+.pane h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bd-accent);
+    margin-top: 6px;
+}
+
+.hint {
+    font-size: 11px;
+    color: var(--bd-muted);
+    line-height: 1.4;
+}
+
+/* ---------- palette ---------- */
+.palette-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.palette-btn,
+#props button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 10px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.palette-btn:hover,
+#props button:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
+#variable-picker,
+#custom-variable,
+.props-panel input,
+.props-panel select,
+.props-panel textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font-size: 13px;
+}
+
+.custom-var-row {
+    display: flex;
+    gap: 6px;
+}
+
+.custom-var-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.custom-var-row .palette-btn {
+    width: 40px;
+    flex: none;
+}
+
+/* ---------- workspace ---------- */
+#workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background:
+        repeating-linear-gradient(45deg, transparent 0 14px, rgba(128, 128, 128, 0.06) 14px 16px);
+}
+
+#workspace-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px;
+    border-bottom: 1px solid var(--bd-muted);
+    background: var(--bd-bg);
+}
+
+#workspace-bar button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    cursor: pointer;
+}
+
+#workspace-bar button:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
+#zoom-label {
+    font-size: 12px;
+    min-width: 42px;
+    text-align: center;
+    color: var(--bd-muted);
+}
+
+#workspace-scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+}
+
+/* Scaled page preview: the page renders at pt-as-px and is visually scaled */
+#page-frame {
+    margin: 0 auto;
+    overflow: hidden;
+    box-shadow: 0 4px 18px var(--bd-shadow);
+    background: #ffffff;
+}
+
+#page {
+    transform-origin: 0 0;
+    background: #ffffff;
+    color: #000000; /* paper stays paper regardless of app theme */
+}
+
+#empty-hint {
+    margin: 30px auto;
+    text-align: center;
+    color: var(--bd-muted);
+    font-size: 14px;
+}
+
+#empty-hint.hide {
+    display: none;
+}
+
+/* ---------- preview blocks ---------- */
+#page .block {
+    cursor: pointer;
+    position: relative;
+}
+
+#page .block:hover {
+    outline: 2px dashed var(--bd-accent);
+    outline-offset: -2px;
+}
+
+#page .block.selected {
+    outline: 2px solid var(--bd-accent);
+    outline-offset: -2px;
+}
+
+#page .block[data-placeholder="true"] {
+    background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(0, 0, 0, 0.03) 0 8px,
+        transparent 8px 16px
+    );
+}
+
+#page .block.image-block {
+    text-align: center;
+}
+
+#page .block.image-block::after {
+    content: "\f03e"; /* fa-image */
+    font-family: "Font Awesome 6 Free";
+    font-size: 40px;
+    color: rgba(0, 0, 0, 0.18);
+    display: block;
+    margin-top: 4px;
+}
+
+#page .block.table-block table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: inherit;
+}
+
+#page .block.table-block th,
+#page .block.table-block td {
+    border: 1px solid #000;
+    padding: 4px;
+    text-align: left;
+}
+
+#page .totals-row {
+    min-height: 1.2em;
+}
+
+/* ---------- props panel ---------- */
+#props-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.props-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bd-muted);
+    border-bottom: 1px solid var(--bd-muted);
+    padding-bottom: 3px;
+}
+
+.props-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.props-row label {
+    font-size: 12px;
+    color: var(--bd-fg);
+}
+
+.props-row .unit {
+    font-size: 11px;
+    color: var(--bd-muted);
+    margin-left: 4px;
+}
+
+.props-row.row-inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.props-row.row-inline label {
+    font-size: 13px;
+}
+
+.props-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.props-row input[type="range"] {
+    width: 100%;
+}
+
+.props-row .range-value {
+    font-size: 11px;
+    color: var(--bd-muted);
+    align-self: flex-end;
+}
+
+.props-row .color-row {
+    display: flex;
+    gap: 6px;
+}
+
+.props-row .color-row input[type="color"] {
+    flex: 1;
+    padding: 2px;
+    height: 32px;
+}
+
+.props-row .color-clear {
+    width: 32px;
+    flex: none;
+}
+
+.props-custom-var {
+    display: flex;
+    gap: 6px;
+}
+
+.props-custom-var input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* list editors (table columns / totals rows) */
+.props-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.props-list-item {
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(128, 128, 128, 0.05);
+}
+
+.props-list-item .list-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--bd-muted);
+}
+
+.props-list-item .list-item-head button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+}
+
+.props-list-add {
+    align-self: flex-start;
+}
+
+/* ---------- actions ---------- */
+#block-actions,
+#file-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+    border-top: 1px solid var(--bd-muted);
+    padding-top: 12px;
+}
+
+#block-actions.hide {
+    display: none;
+}
+
+#block-actions button.danger,
+#props button.danger {
+    color: #b91c1c;
+}
+
+#props button.danger:hover {
+    border-color: #b91c1c;
+    color: #b91c1c;
+}
+
+/* ---------- toasts (reuse app classes) ---------- */
+#toast-container {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+}
+
+#toast-container .toast-div {
+    background: #1f2937;
+    color: #f9fafb;
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 340px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    font-size: 13px;
+}
+
+#toast-container .toast-div button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 1100px) {
+    :root {
+        --bd-pane-w: 230px;
+    }
+}
+
+@media (max-width: 900px) {
+    body {
+        flex-wrap: wrap;
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .pane {
+        width: 100%;
+        min-width: 0;
+        border: none;
+        border-bottom: 1px solid var(--bd-muted);
+    }
+
+    #workspace {
+        order: -1;
+        min-height: 60vh;
+    }
+}

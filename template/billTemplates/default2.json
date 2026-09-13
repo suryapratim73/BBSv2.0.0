@@ -1,0 +1,210 @@
+{
+  "version": 2,
+  "size": "a4",
+  "margin": { "top": 40, "right": 20, "bottom": 30, "left": 20 },
+  "applyBorder": true,
+  "border": 1,
+  "fFamily": "Times-Roman",
+  "newDoc": true,
+  "filePath": "",
+  "_notes": [
+    "Bundled data-template conversion of the legacy hardcoded Default2 design (buildPage.default.js createHeader2/createBody2/createFooter2) — the shipped default for fresh saleConfig (applyTemplate:false, file:\"default2\").",
+    "Approximations vs the legacy drawing: GSTIN and the caption share a line in the legacy design, here they are stacked blocks; the 2-column invoice-meta and customer/shipped-to boxed tables become stacked blocks (block-level borders approximate the boxes); the GST column of the items table (igst or cgst+sgst) is approximated by a total column; the GST-rate summary mini-table and the factor-based column partition lines are dropped; the declaration wording below is generic — paste the exact legacy declaration text if needed.",
+    "Renderer collapses blocks whose value is empty, so optional fields (e-mail, transport, e-way, scrap TDS, CR/DR) leave no gap."
+  ],
+  "blocks": [
+    {
+      "id": "d2-emblem",
+      "type": "image",
+      "source": "emblem",
+      "imgWidth": 16,
+      "imgHeight": 16,
+      "imgOpacity": 30,
+      "applyAspectRatio": true,
+      "aspectRatio": "1:1",
+      "align": "center",
+      "margin": { "top": 0, "right": 0, "bottom": 10, "left": 0 }
+    },
+    {
+      "id": "d2-gstin",
+      "type": "variable",
+      "variable": "biller-gst",
+      "prefix": "GSTIN: ",
+      "margin": { "top": 0, "right": 0, "bottom": 2, "left": 0 }
+    },
+    {
+      "id": "d2-copy",
+      "type": "variable",
+      "variable": "bill-copy",
+      "align": "right",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-title",
+      "type": "text",
+      "content": "GST INVOICE",
+      "align": "center",
+      "font": { "family": "Times-Roman", "size": 20, "bold": true, "italic": false, "underline": true, "color": "#000000" },
+      "margin": { "top": 4, "right": 0, "bottom": 4, "left": 0 }
+    },
+    {
+      "id": "d2-shreehari",
+      "type": "text",
+      "content": "|| SHREE HARI ||",
+      "align": "center",
+      "font": { "family": "Times-Roman", "size": 14, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 6, "left": 0 }
+    },
+    {
+      "id": "d2-biller-name",
+      "type": "variable",
+      "variable": "biller-name",
+      "prefix": "M/s. ",
+      "align": "center",
+      "font": { "family": "Times-Roman", "size": 14, "bold": true, "italic": false, "underline": false, "color": "#000000" }
+    },
+    { "id": "d2-biller-addr", "type": "variable", "variable": "biller-address", "align": "center" },
+    { "id": "d2-biller-ph", "type": "variable", "variable": "biller-phone", "prefix": "Contact : ", "align": "center" },
+    { "id": "d2-biller-email", "type": "variable", "variable": "biller-email", "prefix": "E-mail : ", "align": "center", "margin": { "top": 0, "right": 0, "bottom": 10, "left": 0 } },
+
+    { "id": "d2-inv-no", "type": "variable", "variable": "bill-no-formatted", "prefix": "Invoice No.: ", "applyBorder": true, "padding": 4, "margin": { "top": 4, "right": 0, "bottom": 2, "left": 0 } },
+    { "id": "d2-date", "type": "variable", "variable": "date", "prefix": "Invoice Date: ", "applyBorder": true, "padding": 4, "margin": { "top": 0, "right": 0, "bottom": 2, "left": 0 } },
+    { "id": "d2-pos", "type": "variable", "variable": "placeOfSupply", "prefix": "Place of supply: ", "applyBorder": true, "padding": 4, "margin": { "top": 0, "right": 0, "bottom": 2, "left": 0 } },
+    { "id": "d2-transport", "type": "variable", "variable": "transportName", "prefix": "Transport: ", "applyBorder": true, "padding": 4, "margin": { "top": 0, "right": 0, "bottom": 2, "left": 0 } },
+    { "id": "d2-grno", "type": "variable", "variable": "orderRef", "prefix": "G.R.No.: ", "applyBorder": true, "padding": 4, "margin": { "top": 0, "right": 0, "bottom": 2, "left": 0 } },
+    { "id": "d2-eway", "type": "variable", "variable": "ewayBill", "prefix": "Eway bill no: ", "applyBorder": true, "padding": 4, "margin": { "top": 0, "right": 0, "bottom": 10, "left": 0 } },
+
+    {
+      "id": "d2-billedto-label",
+      "type": "text",
+      "content": "Billed to:",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 4, "right": 0, "bottom": 2, "left": 0 }
+    },
+    { "id": "d2-cust-name", "type": "variable", "variable": "customer-name" },
+    { "id": "d2-cust-addr", "type": "variable", "variable": "customer-address" },
+    { "id": "d2-cust-state", "type": "variable", "variable": "stateNcode", "prefix": "Code & State: " },
+    { "id": "d2-cust-gst", "type": "variable", "variable": "customer-gst", "prefix": "GSTIN: " },
+    {
+      "id": "d2-shippedto-label",
+      "type": "text",
+      "content": "Shipped to:",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 8, "right": 0, "bottom": 2, "left": 0 }
+    },
+    { "id": "d2-ship-to", "type": "variable", "variable": "shipTo" },
+    { "id": "d2-ship-addr", "type": "variable", "variable": "shipAddr" },
+    { "id": "d2-ship-state", "type": "variable", "variable": "stateNcode", "prefix": "Code & State: " },
+    { "id": "d2-ship-gst", "type": "variable", "variable": "shipGST", "prefix": "GSTIN: " },
+
+    {
+      "id": "d2-table",
+      "type": "table",
+      "thHeight": 24,
+      "fSize": 12,
+      "rSpacing": 4,
+      "cellPadding": 4,
+      "drawGrid": true,
+      "margin": { "top": 12, "right": 0, "bottom": 12, "left": 0 },
+      "cols": [
+        { "label": "S.N.", "variable": "slno", "width": 6 },
+        { "label": "Product Description", "variable": "name", "width": 30 },
+        { "label": "HSN/SA C", "variable": "hsn", "width": 10 },
+        { "label": "QUANTITY", "variable": "qty", "width": 8 },
+        { "label": "UNIT", "variable": "unit", "width": 8 },
+        { "label": "PRICE/UNIT", "variable": "rate", "width": 10 },
+        { "label": "AMOUNT", "variable": "total", "width": 28 }
+      ]
+    },
+
+    {
+      "id": "d2-words",
+      "type": "variable",
+      "variable": "gtotal-words",
+      "prefix": "Rs. ",
+      "font": { "family": "Times-Roman", "size": 12, "bold": true, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 4, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-jurisdiction",
+      "type": "variable",
+      "variable": "place-of-jurisdiction",
+      "align": "center",
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-bank",
+      "type": "variable",
+      "variable": "biller-bank",
+      "font": { "family": "Times-Roman", "size": 10, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-declaration",
+      "type": "text",
+      "content": "Declaration: We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
+      "font": { "family": "Times-Roman", "size": 10, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 4, "left": 0 }
+    },
+    {
+      "id": "d2-pan",
+      "type": "variable",
+      "variable": "pan",
+      "prefix": "Company's PAN: ",
+      "font": { "family": "Times-Roman", "size": 10, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 4, "left": 0 }
+    },
+    {
+      "id": "d2-eoe",
+      "type": "text",
+      "content": "E. & O.E",
+      "align": "center",
+      "font": { "family": "Times-Roman", "size": 10, "bold": false, "italic": false, "underline": false, "color": "#000000" },
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-sign-for",
+      "type": "variable",
+      "variable": "biller-name",
+      "prefix": "For M/s ",
+      "align": "right",
+      "margin": { "top": 8, "right": 0, "bottom": 2, "left": 0 }
+    },
+    {
+      "id": "d2-seal",
+      "type": "image",
+      "source": "seal",
+      "imgWidth": 12,
+      "imgHeight": 12,
+      "imgOpacity": 100,
+      "applyAspectRatio": true,
+      "aspectRatio": "1:1",
+      "align": "right",
+      "margin": { "top": 0, "right": 0, "bottom": 8, "left": 0 }
+    },
+    {
+      "id": "d2-sign-label",
+      "type": "text",
+      "content": "Authorised Signatory",
+      "align": "right",
+      "margin": { "top": 0, "right": 0, "bottom": 12, "left": 0 }
+    },
+
+    {
+      "id": "d2-totals",
+      "type": "totals",
+      "margin": { "top": 4, "right": 0, "bottom": 0, "left": 0 },
+      "rows": [
+        { "label": "SUB TOTAL", "variable": "sub-total", "align": "right" },
+        { "label": "LESS DISCOUNT", "variable": "discVal", "align": "right" },
+        { "label": "TOTAL", "variable": "netAmt", "align": "right" },
+        { "label": "ADD GST", "variable": "netTax", "align": "right" },
+        { "label": "SCRAP TDS", "variable": "scrap-tds", "align": "right" },
+        { "label": "CR/DR", "variable": "payment", "align": "right" },
+        { "label": "ROUND OFF", "variable": "ro", "align": "right" },
+        { "label": "GRAND TOTAL", "variable": "grand-total", "align": "right" }
+      ]
+    }
+  ]
+}
