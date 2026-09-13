@@ -503,10 +503,11 @@ describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
         // header + footer content repeat on every page
         expect(doc.texts.filter((t) => t.str === "TAX INVOICE")).toHaveLength(doc.pageCount);
         expect(doc.texts.filter((t) => t.str === "Thank You!")).toHaveLength(doc.pageCount);
-        // every row exactly once, in order (slno column sits at x = 8+8+2;
+        // every row exactly once, in order (slno column sits at x = 8 (page)
+        // + 8 (section margin) + 8 (padding) + 2 (cellPadding) = 26;
         // qty/rate/amount cells are numeric too, so filter by column)
         const slnoRows = doc.texts.filter(
-            (t) => /^\d+$/.test(t.str) && Math.abs(t.x - 18) < 0.01
+            (t) => /^\d+$/.test(t.str) && Math.abs(t.x - 26) < 0.01
         );
         const slnos = slnoRows.map((t) => Number(t.str));
         expect(slnos).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
@@ -517,14 +518,68 @@ describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
             .filter((t) => t.str === "Thank You!")
             .forEach((t) => expect(t.y).toBeGreaterThan(586));
         // the body's border frame is drawn on every page, including break pages.
+        // The box honors the section's 8pt horizontal margins: x = 8 (page) +
+        // 8 (margin.left) = 16, w = 595.28 − 16 (page) − 16 (margins) = 563.28.
         // The fixed box builds the shape path twice per page — once for the
         // border stroke, once for the clip — and FakeDoc records both rect()
         // calls (real pdfkit rect() is a pure path builder, so no doubling).
         const bodyFrames = doc.rects.filter(
             (r) =>
-                Math.abs(r.w - (595.28 - 16)) < 0.01 && Math.abs(r.h - 314) < 0.01
+                Math.abs(r.x - 16) < 0.01 &&
+                Math.abs(r.w - (595.28 - 32)) < 0.01 &&
+                Math.abs(r.h - 314) < 0.01
         );
         expect(bodyFrames).toHaveLength(doc.pageCount * 2);
+    });
+
+    test("section box honors margin.left/right (frame and children inset)", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const card = page.addBlock("section");
+        card.margin = { top: 0, right: 15, bottom: 0, left: 5 };
+        card.padding = 0;
+        card.addBlock("text").content = "NOTE";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const frame = doc.rects.find((r) => Math.abs(r.w - 555.28) < 0.01);
+        expect(frame).toBeTruthy();
+        expect(frame.x).toBeCloseTo(15); // 10 (page) + 5 (margin.left)
+        expect(frame.w).toBeCloseTo(595.28 - 20 - 5 - 15);
+        const note = doc.texts.find((t) => t.str === "NOTE");
+        expect(note.x).toBeCloseTo(15);
+    });
+
+    test("text block frame honors margin.left/right", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const text = page.addBlock("text");
+        text.content = "FRAMED";
+        text.margin = { top: 0, right: 15, bottom: 0, left: 5 };
+        text.applyBorder = true;
+        text.border = 1;
+        text.padding = 0;
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const frame = doc.rects.find((r) => Math.abs(r.w - 555.28) < 0.01);
+        expect(frame).toBeTruthy();
+        expect(frame.x).toBeCloseTo(15);
+        const t = doc.texts.find((x) => x.str === "FRAMED");
+        expect(t.x).toBeCloseTo(15);
+    });
+
+    test("table honors margin.left/right (grid box + column positions)", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const table = page.addBlock("table");
+        table.margin = { top: 0, right: 15, bottom: 0, left: 5 };
+        table.cellPadding = 2;
+        table.cols = [
+            { label: "Sl", variable: "slno", width: 50 },
+            { label: "Name", variable: "name", width: 50 },
+        ];
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const grid = doc.rects.find((r) => Math.abs(r.w - 555.28) < 0.01);
+        expect(grid).toBeTruthy();
+        expect(grid.x).toBeCloseTo(15);
+        const slno = doc.texts.find((t) => t.str === "1");
+        expect(slno.x).toBeCloseTo(17); // 15 (box) + 2 (cellPadding)
+        const name = doc.texts.find((t) => t.str === "Item 1");
+        expect(name.x).toBeCloseTo(15 + 555.28 / 2 + 2);
     });
 });
 

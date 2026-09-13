@@ -146,7 +146,14 @@ function renderBlockEl(block, cw) {
         selectBlock(block.id);
     });
     if (Array.isArray(block.blocks)) {
-        const innerWidth = cw - 2 * (block.padding ?? 0);
+        // mirror BillSection.renderDOM: children flow inside padding + border,
+        // and the section box itself is shrunk by its horizontal margins
+        const innerWidth =
+            cw -
+            (block.margin?.left ?? 0) -
+            (block.margin?.right ?? 0) -
+            2 * (block.padding ?? 0) -
+            2 * (block.applyBorder ? (block.border ?? 0) : 0);
         block.blocks.forEach((child) => {
             const childEl = el.querySelector(`:scope > [data-block-id="${child.id}"]`);
             if (childEl)

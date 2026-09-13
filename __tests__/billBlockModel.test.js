@@ -17,6 +17,7 @@ const {
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
     LEGACY_MSG,
+    applyDOMStyles,
 } = require("../lib/billBlockModel");
 const default1 = require("../template/billTemplates/default1.json");
 const default2 = require("../template/billTemplates/default2.json");
@@ -406,6 +407,14 @@ describe("structural sections & default template", () => {
             expect(s.padding).toBe(8);
             expect(s.margin.top).toBe(8);
         });
+    });
+
+    test("applyDOMStyles shrinks the box width by horizontal margins", () => {
+        const block = new TextBlock();
+        block.margin = { top: 0, right: 15, bottom: 0, left: 5 };
+        const el = { style: {} };
+        applyDOMStyles(el, block, 579.28);
+        expect(el.style.width).toBe("559.28px");
     });
 });
 
