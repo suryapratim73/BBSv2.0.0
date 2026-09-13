@@ -173,7 +173,7 @@ straight to the code.
 | `1078` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
 | `1140` | `init` — wiring incl. double-click drill-down (`1177`) and the keyboard map (`1218-1330`): zoom `Ctrl+Shift+=`/`-`, `Ctrl+N` adds a section, `Ctrl+Numpad+`/`-` nudges section height, `↑`/`↓` nudge margin.top (clamped 0–200), Delete/Backspace removes (locked toast for structural), Esc deselects; input/textarea/contentEditable and mid-drag keystrokes are guarded |
 | — | `suppressClickOnce` — swallows the browser's mouseup→click pair after a drag so the drag's release doesn't re-select/re-render; cleared next tick |
-| — | Grid toggle in `init()` (`#grid-toggle`, default on): `syncGridUI` flips `#page.show-grid` + button state; palette hint + toolbar button in `template/html/billLayout.html`; all visuals (grid, grips, corner dots, guides, gap pill, bubble) styled in `template/css/billLayout.css` (imports `common.css` for the app theme) |
+| — | Grid toggle in `init()` (`#grid-toggle`, default on): `syncGridUI` flips `#page.show-grid` + button state; palette hint + toolbar button in `template/html/billLayout.html`; all visuals (grid, grips, corner dots, guides, gap pill, bubble) styled in `template/css/billLayout.css` — **no `common.css` import** (its app-wide `.block { display: flex }` / `.block > div { flex: 1 }` collide with the preview's generic class names; theming comes from applyTheme's inline `--theme-*` vars on the document root) |
 
 ### Tests
 
