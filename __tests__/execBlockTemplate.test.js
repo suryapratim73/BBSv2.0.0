@@ -581,6 +581,25 @@ describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
         const name = doc.texts.find((t) => t.str === "Item 1");
         expect(name.x).toBeCloseTo(15 + 555.28 / 2 + 2);
     });
+
+    test("table sumup column absorbs the remaining width", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const table = page.addBlock("table");
+        table.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        table.cellPadding = 0;
+        table.cols = [
+            { label: "Sl", variable: "slno", width: 30 },
+            { label: "Name", variable: "name", width: 30 },
+            { label: "Amt", variable: "total", width: 0, sumup: true },
+        ];
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        // 30 + 30 fixed, the sumup column takes the remaining 40%:
+        // x = 10 (page) + 2 × (575.28 × 0.3) = 355.168
+        const amt = doc.texts.find((t) => t.str === "Amt");
+        expect(amt.x).toBeCloseTo(10 + 2 * (575.28 * 0.3));
+        const slno = doc.texts.find((t) => t.str === "1");
+        expect(slno.x).toBeCloseTo(10);
+    });
 });
 
 describe("execBlockTemplate — bundled templates", () => {

@@ -102,6 +102,19 @@ describe("BillBlock classes", () => {
         expect(copy.drawGrid).toBe(false);
     });
 
+    test("TableBlock sumup column survives round-trip", () => {
+        const block = new TableBlock({
+            cols: [
+                { label: "Name", variable: "name", width: 60 },
+                { label: "Amount", variable: "total", width: 0, sumup: true },
+            ],
+        });
+        const copy = roundTrip(block);
+        expect(copy.cols[0].sumup).toBe(false);
+        expect(copy.cols[1].sumup).toBe(true);
+        expect(copy.cols[1].width).toBe(0);
+    });
+
     test("TotalsBlock round-trip", () => {
         const block = new TotalsBlock({
             rows: [
