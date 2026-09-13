@@ -1,10 +1,12 @@
 # Bill Layout Designer v2 — Sections + Structural Template + Drag-Resize Review
 
 Review companion for the Header / Body / Footer / Custom Section work, the
-**pre-built structural template**, and **drag-to-resize + alignment grids** on
-top of the block-based designer (commit `9cf7613`). Everything below is keyed
-to file + line so you can jump straight to the code.
-**Test status: 238/238 passing (13 suites).**
+**pre-built structural template**, **drag-to-resize + alignment grids**, and
+the **designer merge** (2026-09-14: the old designer's shell rebuilt on the v2
+model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
+are retired). Everything below is keyed to file + line so you can jump
+straight to the code.
+**Test status: 248/248 passing (13 suites).**
 
 ---
 
@@ -22,6 +24,13 @@ to file + line so you can jump straight to the code.
 - Non-zero default spacing: **0.5rem (8pt)** margins between sections and page
   margin, non-zero section padding. User can change all of them.
 - **Drag-to-resize** and **alignment grids** (parity with the old designer).
+- **The merge**: the old designer's shell — 3 panels (palette left, canvas,
+  properties right), icons on all buttons, modern look — rebuilt on the v2
+  model, with the old designer's features ported: double-click drill-down,
+  corner-dot section resize, gap + centre guides, the old keyboard bindings
+  (cleaned of the Ctrl+Numpad double-fire quirk), and the **full v2 VARIABLES
+  registry** (~60 keys, grouped) instead of the legacy ~25 frozen fields.
+  `billBlockDesigner.*` is deleted; `billLayoutDesigner.js` loads `billLayout`.
 - A report md file (this file) to ease code review.
 
 ## 2. How to use it in the designer
@@ -30,10 +39,12 @@ to file + line so you can jump straight to the code.
    seller/customer fields + bill no/date, Body (40%) with the items table, Footer
    (30%) with totals, "Thank You!" and signatory — `createInvoiceTemplate()`.
 2. The left palette has a **Sections** group above Blocks
-   (`template/html/billBlockDesigner.html:14-29`).
+   (`template/html/billLayout.html:14-29`).
 3. **Select a section first**, then add blocks — they go *inside* it and inherit the
-   section's font family/size/color (`template/js/billBlockDesigner.js:203-210`).
+   section's font family/size/color (`template/js/billLayout.js:660-677`).
    If nothing is selected, blocks are added to the selected block's section, else the page.
+   **Double-click** any element to drill into it; the **Quick Variable** palette lists
+   the full v2 registry grouped, plus a free-text box that resolves any billMeta key.
 4. Select a section and use its properties panel:
    - **Shape**: rectangle / rounded / circle / ellipse (`lib/billBlockModel.js:1032`)
    - **Fixed Height**: `>0` = fixed box that **clips** children to the shape
@@ -44,18 +55,30 @@ to file + line so you can jump straight to the code.
    inside* them, change height/padding/margin — but the sections themselves cannot
    be reordered, deleted or duplicated (model enforces it; the UI hides the
    move/delete buttons and toasts on locked keyboard actions).
-6. **Drag-to-resize**: hover a section — a grip bar appears on its bottom edge.
-   Drag it to resize the section's fixed height (an auto-height section converts
-   to fixed at its rendered height). Drag a table column divider in the header
-   row to resize that column (the neighbour gives up width; the pair's sum is
-   what the PDF engine normalizes against, so preview == print). A live bubble
-   shows the current size; **Esc cancels** mid-drag.
+6. **Drag-to-resize**: hover a section — a grip bar appears on its bottom edge,
+   and the selected section shows four **red corner dots** on its edge midpoints
+   (the old designer's adj-points): bottom = fixed height, top = the gap above
+   (margin.top, bottom edge pinned), left/right = the horizontal margins. Drag a
+   table column divider in the header row to resize that column (the neighbour
+   gives up width; the pair's sum is what the PDF engine normalizes against, so
+   preview == print; a column flagged **"Use remaining space"** — the legacy
+   *sumup* — absorbs whatever the fixed columns leave, and freezes into a real
+   width on first drag). A live bubble shows the current size; **Esc cancels**
+   mid-drag.
 7. **Alignment grids**: the page shows a 0.5rem grid (8pt minor / 40pt major),
    toggled from the workspace bar (grid button, default on). While dragging, the
-   pointer snaps to grid lines and to guide lines at the page edges, content box,
-   page centre and neighbouring section edges — snapped guides render as dashed
-   accent lines with a `586 pt — section bottom`-style label.
-8. Header and Footer repeat on **every printed page**, like the old designer's
+   pointer snaps to grid lines and to guide lines on both axes — page edges,
+   content box, page centre (a full crosshair when centred) and neighbouring
+   section edges — snapped guides render as dashed accent lines with a
+   `586 pt — section bottom`-style label, and a dark **gap pill** shows the
+   distance to the nearest neighbour edge within 10pt.
+8. **Keyboard** (old designer bindings, minus the double-fire): `↑`/`↓` nudge the
+   selected block's top gap (flow layout's stand-in for free y), `Ctrl+N` adds a
+   section, `Ctrl+Numpad+`/`Ctrl+Numpad−` resize the selected section's height
+   ±1pt, `Ctrl+Shift+=`/`Ctrl+Shift+-` zoom (40%–120%), `Delete`/`Backspace`
+   removes, `Esc` deselects. Structural sections answer locked actions with a
+   toast instead.
+9. Header and Footer repeat on **every printed page**, like the old designer's
    per-page header/footer.
 
 ## 3. Architecture map
@@ -85,8 +108,9 @@ to file + line so you can jump straight to the code.
 
 | Line | What |
 |---|---|
-| `1` | `snapY(y, targets, opts)` — alignment lines win within **5pt**, else the grid snaps within **3pt**; returns `{ value, guide, label, type }` (guide `null` = nothing snapped) |
-| `1` | `resizeColPair(a0, b0, deltaPct, min=2)` — shifts width between two adjacent table columns keeping their combined share (what the PDF normalizes against); degenerate pairs return unchanged |
+| `16` | `snapY(y, targets, opts)` — alignment lines win within **5pt**, else the grid snaps within **3pt**; returns `{ value, guide, label, type }` (guide `null` = nothing snapped). Axis-agnostic — the designer feeds x-axis targets through it too |
+| `59` | `resizeColPair(a0, b0, deltaPct, min=2)` — shifts width between two adjacent table columns keeping their combined share (what the PDF normalizes against); degenerate pairs return unchanged |
+| `75` | `effectiveColWidths(cols)` — the rendered widths the engine shows: a `sumup` column absorbs whatever the fixed columns leave (minimum 1%); the designer's column drag starts from these, not the stored widths |
 
 ### Engine — `lib/execBlockTemplate.js` (single generator, many layouts)
 
@@ -122,25 +146,34 @@ to file + line so you can jump straight to the code.
   steal a body table's row state.
 - Header/Footer (`isRepeat`) render with `bottomY: Infinity` — they never page-break.
 
-### Designer — `template/js/billBlockDesigner.js` + html/css
+### Designer — `template/js/billLayout.js` + html/css (the merged designer)
 
 | Line | What |
 |---|---|
-| `53` | `let page = createInvoiceTemplate()` — the designer starts with the pre-built invoice (reset at `647` too) |
-| `96` | `renderAll` draws top-level **footers last** in the DOM preview, mirroring their PDF bottom anchoring |
-| `163` | `findBlock(id)` — recursive search through sections |
-| `179` | `getParentOf(id)` → `{ container, index }` used by move/delete |
-| `203` | `inheritFromSection(block, section)` — copies font family/size/color on add |
-| `211` | `cascadeSectionFont(section)` — font prop change pushes down to all descendants |
-| `222` | `cascadeIfSectionFont(target, key)` — hooked into every prop handler |
-| `238` | `updateContextHint` — structural sections get: *"X is a fixed section — edit or remove its fields, but the section itself stays in place."* |
-| `269` | `renderProps` — move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
-| `608` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
-| `742` | Keyboard: ArrowUp/Down on a structural section → toast *"Header/Body/Footer stay in place — reorder their fields instead."*; Delete/Backspace → *"…cannot be deleted — remove their fields instead."* |
-| — | **Drag-resize** (`GRID_STEP 8` state ~line 57; machinery after `scheduleRender`): `attachResizeHandles` adds a bottom-edge grip to every `.section-block` and a divider to every table header cell (except the last); `startSectionResize` snapshots pt geometry via `getBoundingClientRect()/zoom` (the page is `transform: scale(zoom)`), converts auto-height sections to fixed at their rendered height, and drives live updates through `onDragMove` → `SNAP.snapY` / `SNAP.resizeColPair`; `drawGuides` + `showBubble` render the guide line/label and live size; `onDragEnd` re-renders from the model (Esc cancels via `onDragKey`) |
-| — | `snapTargets` — page edges, content box, centre + neighbouring section tops/bottoms, snapshotted at dragstart so targets don't chase the pointer |
+| `60` | `let page = createInvoiceTemplate()` — the designer starts with the pre-built invoice (reset at `1117` too) |
+| `108` | `renderAll` draws top-level **footers last** in the DOM preview, mirroring their PDF bottom anchoring; attaches resize grips + corner dots |
+| `138` | `renderBlockEl` — recursive preview; children replace their `renderDOM` placeholder (works because every block now sets `data-block-id`); sections shrink children by `cw − mL − mR − 2×pad − 2×border` |
+| `244` | `attachCornerDots` — 4 red edge-midpoint dots on the selected section (bottom routes to `startSectionResize`, the others to `startDotResize`) |
+| `271` | `snapTargets` — x + y alignment lines (page edges, content box, centre, neighbour section edges), snapshotted at dragstart so targets don't chase the pointer |
+| `325` | `startDotResize` — top dot pins the bottom edge (auto-height converts to fixed at rendered height); left/right drag the horizontal margins |
+| `357` | `startColResize` — snapshots **effective** widths (`SNAP.effectiveColWidths`) + the stored state so Esc restores sumup flags exactly |
+| `402` | `onDragMove` — section (height, y-snap), dot (margins + top-dot height compensation, x-snap for left/right), col (materializes a sumup pair into real widths on first move, then `resizeColPair`) |
+| `486` | `onDragKey` — Esc restores the dragstart state for all three kinds |
+| `535` | `drawGuides(snapped, axis)` — horizontal or vertical dashed guide; `page centre` snaps draw the full crosshair |
+| `577` | `drawGapPill(pos, dir, targets, e)` — nearest neighbour edge within 10pt in the drag direction → "N pt" pill at mid-gap |
+| `605` | `selectBlock` — selection drives the props panel + context hint |
+| `620` | `findBlock(id)` — recursive search through sections |
+| `636` | `getParentOf(id)` → `{ container, index }` used by move/delete |
+| `660` | `inheritFromSection(block, section)` — copies font family/size/color on add |
+| `668` | `cascadeSectionFont(section)` — font prop change pushes down to all descendants |
+| `684` | `updateContextHint` — structural sections get: *"X is a fixed section — edit or remove its fields, but the section itself stays in place."* |
+| `711` | `renderProps` — move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
+| `915` | `renderListEditor` — list items support **checkbox fields** (the table column "Use remaining space" flag); checking a sumup column clears the flag on every other column (one absorb-the-rest column at a time) |
+| `1049` | `fillVariablePicker` — the full VARIABLES registry grouped, plus the datalist for free-text keys |
+| `1078` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
+| `1140` | `init` — wiring incl. double-click drill-down (`1177`) and the keyboard map (`1218-1330`): zoom `Ctrl+Shift+=`/`-`, `Ctrl+N` adds a section, `Ctrl+Numpad+`/`-` nudges section height, `↑`/`↓` nudge margin.top (clamped 0–200), Delete/Backspace removes (locked toast for structural), Esc deselects; input/textarea/contentEditable and mid-drag keystrokes are guarded |
 | — | `suppressClickOnce` — swallows the browser's mouseup→click pair after a drag so the drag's release doesn't re-select/re-render; cleared next tick |
-| — | Grid toggle in `init()` (`#grid-toggle`, default on): `syncGridUI` flips `#page.show-grid` + button state; palette hint + toolbar button in `template/html/billBlockDesigner.html`; all new visuals (grid, grips, guides, bubble) styled in `template/css/billBlockDesigner.css` |
+| — | Grid toggle in `init()` (`#grid-toggle`, default on): `syncGridUI` flips `#page.show-grid` + button state; palette hint + toolbar button in `template/html/billLayout.html`; all visuals (grid, grips, corner dots, guides, gap pill, bubble) styled in `template/css/billLayout.css` (imports `common.css` for the app theme) |
 
 ### Tests
 
@@ -155,7 +188,9 @@ to file + line so you can jump straight to the code.
   one per path build: border stroke + clip; real pdfkit `rect()` only builds paths).
 - `__tests__/designerSnap.test.js` — "designerSnap": snapY alignment-first snapping
   (nearest target, exact threshold, grid fallback, grid-off, alignment-beats-grid,
-  untouched-when-far) and resizeColPair (sum preserved, min clamps, degenerate pairs).
+  untouched-when-far), resizeColPair (sum preserved, min clamps, degenerate pairs)
+  and effectiveColWidths (sumup absorbs the remainder, passthrough, 1% minimum,
+  empty lists).
 - Earlier suites: `billBlockModel.test.js:218-321` (section classes) and
   `execBlockTemplate.test.js:366-495` (section engine behavior).
 
@@ -189,6 +224,32 @@ to file + line so you can jump straight to the code.
    only translates pointer pixels to pt (`/zoom` on the transformed page) and updates
    the DOM. Resizing a column never changes the pair's combined share, so the preview's
    percentage widths equal the PDF's normalized shares.
+10. **The merged designer is old shell + v2 model** — `template/js/billLayout.js` (the
+    original designer's file) was rebuilt as the 3-panel designer editing `BillPage`;
+    the interim `billBlockDesigner.*` files are deleted and `billLayoutDesigner.js`
+    loads `billLayout`. Saving still sends `page.toJSON()` over the original IPC, and
+    legacy v1 templates still print through `lib/execCustomTemplate.js` untouched
+    (opening one in the designer shows the friendly `LEGACY_MSG` toast).
+11. **Horizontal margins are honored end-to-end** (2026-09-14 fix): the engine and the
+    DOM preview both lay boxes out as `contentWidth − margin.left − margin.right` for
+    sections, text-like blocks, images and tables (frames, partitions, clips and
+    backgrounds included); sections further inset their children by `2×border`. Tests
+    pin the numbers (slno x = 26, body frame 563.28pt @ x = 16).
+12. **Sumup is a column flag, not a width** — the legacy table's last "absorb the
+    remaining space" column is stored as `sumup: true` on the col (its `width` stays
+    whatever the user set); the engine and the preview compute the effective width
+    locally, so the model JSON round-trips untouched. The list editor enforces one
+    sumup column at a time, and a column drag freezes a sumup column into a real
+    width on first move (Esc restores the flag).
+13. **Keyboard remap follows the flow layout** — `↑`/`↓` nudge the selected block's
+    `margin.top` (the flow stand-in for the old free-y drag; reorder stays on the
+    Move Up/Down buttons), and the old Ctrl+Numpad zoom+resize double-fire is gone:
+    numpad ± adjusts the selected section's height, `Ctrl+Shift+=`/`-` zooms.
+14. **Corner dots sit just inside the box edges** — fixed-height sections clip their
+    overflow, so the old designer's edge-straddling dots would be half-invisible;
+    the dots are placed at the edge midpoints *inside* the box (bottom = height, top
+    = margin.top with the bottom edge pinned, left/right = horizontal margins,
+    clamped 0–200pt).
 
 ## 5. Manual verification checklist
 
@@ -209,18 +270,35 @@ to file + line so you can jump straight to the code.
       Fixed Height; Esc mid-drag → height unchanged.
 - [ ] Drag a table column divider → neighbour shrinks/grows, widths in the list
       editor update, printed table matches the preview widths.
+- [ ] Table columns → tick "Use remaining space" on the Amount column → preview and
+      print stretch it to the right edge; tick it on another column → the first one
+      unticks. Drag its divider → it freezes into a real width and drags normally;
+      Esc restores the flag.
+- [ ] Select a section → four red dots on its edges: bottom = height, top = gap
+      above (bottom edge pinned), left/right = the box indents/extends; gap pill
+      appears within 10pt of a neighbour edge; centre snap shows the crosshair.
+- [ ] Double-click a field inside the Header → it becomes selected (drill-down).
+- [ ] Keys: ↑/↓ nudge the top gap of the selected block; Ctrl+N adds a section;
+      Ctrl+Numpad+/- resizes the section height; Ctrl+Shift+=/- zoom; Esc deselects;
+      Delete on a Header/Footer/Body toasts instead of deleting.
+- [ ] Quick Variable picker lists all ~60 grouped fields; typing an unknown
+      billMeta key adds a custom variable block.
 - [ ] Toggle the grid button → grid disappears and dragging stops snapping.
-- [ ] Open an old (v1/legacy) template → still opens and prints through the legacy path.
+- [ ] Open an old (v1/legacy) template → friendly "legacy" toast; it still prints
+      through the legacy path.
 
 ## 6. Known limitations / future work
 
-- **Drag-resize covers sections (height) and table columns (width).** Image blocks
-  still resize via the props panel; a corner-handle image resize is a possible
-  follow-up. Block *movement* stays keyboard/list-based — the flow layout has no
-  absolute positions, so old-style free drag-move has no v2 equivalent (reordering
-  within a section via Move Up/Down covers it).
+- **Drag-resize covers section height (grip + bottom dot), section margins (top/
+  left/right dots) and table column width (divider).** Image blocks still resize via
+  the props panel. Block *movement* stays Move Up/Down-based — the flow layout has
+  no absolute positions, so old-style free drag-move has no v2 equivalent
+  (reordering within a section via Move Up/Down covers it; ↑/↓ nudges spacing).
 - Column drags have no horizontal snap (e.g. 25/50/75% marks) yet — the grid snap
-  is vertical-only.
+  is vertical-only; x-axis snapping applies to the corner dots.
+- The dot drags snap/limit against the dragstart snapshot — neighbouring sections
+  don't reflow live during a drag (reflow happens on release), so guide targets
+  can't chase the pointer.
 - Circle sections use the inscribed circle — a wide box shows a centered circle, not a
   filled wide ellipse; use ellipse for that.
 - The DOM preview approximates the PDF (CSS vs pdfkit); the PDF is authoritative.

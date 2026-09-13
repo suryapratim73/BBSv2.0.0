@@ -6,7 +6,7 @@ exports.billDesignerWindow = (mainWindow) => {
     const path = require("path");
     return () => {
     const { getTemplatePath } = require("./viewManager");
-    mainWindow.loadFile(getTemplatePath("billBlockDesigner"));
+    mainWindow.loadFile(getTemplatePath("billLayout"));
     let menu = Menu.getApplicationMenu();
     menu.append(
         new MenuItem({

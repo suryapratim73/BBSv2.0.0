@@ -1,4 +1,4 @@
-const { snapY, resizeColPair } = require("../lib/designerSnap");
+const { snapY, resizeColPair, effectiveColWidths } = require("../lib/designerSnap");
 
 describe("designerSnap.snapY", () => {
     const targets = [
@@ -76,5 +76,38 @@ describe("designerSnap.resizeColPair", () => {
 
     test("refuses degenerate pairs (no room to redistribute)", () => {
         expect(resizeColPair(2, 2, 10)).toEqual([2, 2]);
+    });
+});
+
+describe("designerSnap.effectiveColWidths", () => {
+    test("a sumup column absorbs the space the fixed columns leave", () => {
+        expect(
+            effectiveColWidths([
+                { width: 30 },
+                { width: 30 },
+                { width: 0, sumup: true },
+            ])
+        ).toEqual([30, 30, 40]);
+    });
+
+    test("without a sumup column the widths pass through unchanged", () => {
+        expect(effectiveColWidths([{ width: 40 }, { width: 60 }])).toEqual([
+            40, 60,
+        ]);
+    });
+
+    test("overfull fixed columns still leave the sumup column a 1% minimum", () => {
+        expect(
+            effectiveColWidths([
+                { width: 60 },
+                { width: 60 },
+                { width: 0, sumup: true },
+            ])
+        ).toEqual([60, 60, 1]);
+    });
+
+    test("handles missing/empty column lists", () => {
+        expect(effectiveColWidths([])).toEqual([]);
+        expect(effectiveColWidths(undefined)).toEqual([]);
     });
 });
