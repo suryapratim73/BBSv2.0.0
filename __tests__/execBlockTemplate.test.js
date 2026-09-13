@@ -17,6 +17,7 @@ const {
     ImageBlock,
     TableBlock,
     TotalsBlock,
+    createInvoiceTemplate,
 } = require("../lib/billBlockModel");
 
 /** Minimal pdfkit stand-in: tracks cursor, fonts, texts, images, rects, pages. */
@@ -485,12 +486,45 @@ describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
     test("empty sections still draw their box (border) and advance the cursor", async () => {
         const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
         const header = page.addBlock("header");
+        // isolate the padding math from the 0.5rem default section margins
+        header.margin = { top: 0, right: 0, bottom: 0, left: 0 };
         header.padding = 5;
         page.addBlock("text").content = "AFTER";
         const doc = await runMain(page.toJSON(), makeBill(1));
         expect(doc.texts.map((t) => t.str)).toEqual(["AFTER"]);
         // header box consumed padding.top + padding.bottom before AFTER
         expect(doc.texts[0].y).toBeCloseTo(10 + 5 + 5);
+    });
+
+    test("default invoice template: 30/40/30 zones, table pages inside the body zone", async () => {
+        const page = createInvoiceTemplate();
+        const doc = await runMain(page.toJSON(), makeBill(20));
+        expect(doc.pageCount).toBeGreaterThan(1);
+        // header + footer content repeat on every page
+        expect(doc.texts.filter((t) => t.str === "TAX INVOICE")).toHaveLength(doc.pageCount);
+        expect(doc.texts.filter((t) => t.str === "Thank You!")).toHaveLength(doc.pageCount);
+        // every row exactly once, in order (slno column sits at x = 8+8+2;
+        // qty/rate/amount cells are numeric too, so filter by column)
+        const slnoRows = doc.texts.filter(
+            (t) => /^\d+$/.test(t.str) && Math.abs(t.x - 18) < 0.01
+        );
+        const slnos = slnoRows.map((t) => Number(t.str));
+        expect(slnos).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+        // rows never spill past the body zone (footer zone starts at ~586pt)
+        slnoRows.forEach((t) => expect(t.y).toBeLessThan(586));
+        // footer content is anchored below the body zone
+        doc.texts
+            .filter((t) => t.str === "Thank You!")
+            .forEach((t) => expect(t.y).toBeGreaterThan(586));
+        // the body's border frame is drawn on every page, including break pages.
+        // The fixed box builds the shape path twice per page — once for the
+        // border stroke, once for the clip — and FakeDoc records both rect()
+        // calls (real pdfkit rect() is a pure path builder, so no doubling).
+        const bodyFrames = doc.rects.filter(
+            (r) =>
+                Math.abs(r.w - (595.28 - 16)) < 0.01 && Math.abs(r.h - 314) < 0.01
+        );
+        expect(bodyFrames).toHaveLength(doc.pageCount * 2);
     });
 });
 

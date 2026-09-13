@@ -11,6 +11,8 @@ const {
     BodyBlock,
     FooterBlock,
     SectionBlock,
+    createInvoiceTemplate,
+    STRUCTURAL_TYPES,
     VARIABLES,
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
@@ -317,6 +319,93 @@ describe("BillSection classes (Header/Body/Footer/Custom)", () => {
         expect(keys).toContain("applyBorder");
         const shape = BillSection.propsSchema.find((e) => e.key === "shape");
         expect(shape.options).toEqual(["rectangle", "rounded", "circle", "ellipse"]);
+    });
+});
+
+describe("structural sections & default template", () => {
+    test("sections default to 0.5rem (8pt) margins/padding and a visible border", () => {
+        const section = new SectionBlock();
+        expect(section.padding).toBe(8);
+        expect(section.margin).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
+        expect(section.applyBorder).toBe(true);
+    });
+
+    test("BillPage margin defaults to 0.5rem; explicit margins still win", () => {
+        expect(new BillPage().margin).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
+        expect(new BillPage({ margin: { top: 3 } }).margin.top).toBe(3);
+        expect(new BillPage({ margin: { top: 3 } }).margin.bottom).toBe(8);
+    });
+
+    test("header/body/footer are unique, canonically ordered, pinned and permanent", () => {
+        const page = new BillPage();
+        // added in a scrambled order — canonical slots win
+        page.addBlock("footer");
+        page.addBlock("body");
+        const header = page.addBlock("header");
+        expect(page.blocks.map((b) => b.type)).toEqual(["header", "body", "footer"]);
+        expect(() => page.addBlock("header")).toThrow(/already exists/);
+        // pinned: a structural section never moves
+        page.moveBlock(header.id, 1);
+        expect(page.blocks[0].type).toBe("header");
+        // nothing may swap across a structural section
+        const extra = page.addBlock("text");
+        page.moveBlock(extra.id, -1); // target = footer -> refused
+        expect(page.blocks[page.blocks.length - 1].id).toBe(extra.id);
+        // permanent: removeBlock is a no-op for structural sections
+        page.removeBlock(page.blocks[1].id);
+        expect(page.blocks.map((b) => b.type)).toEqual(["header", "body", "footer", "text"]);
+        expect(STRUCTURAL_TYPES).toEqual(["header", "body", "footer"]);
+    });
+
+    test("createInvoiceTemplate pre-builds the mandatory sections and fields", () => {
+        const page = createInvoiceTemplate();
+        expect(page.blocks.map((b) => b.type)).toEqual(["header", "body", "footer"]);
+        const [header, body, footer] = page.blocks;
+
+        // seller + buyer mandatory fields are baked into the header
+        const vars = (s) => s.blocks.filter((b) => b.type === "variable").map((b) => b.variable);
+        [
+            "biller-name",
+            "biller-address",
+            "biller-gst",
+            "bill-no-formatted",
+            "date-slash",
+            "customer-name",
+            "customer-address",
+            "customer-gst",
+        ].forEach((key) => expect(vars(header)).toContain(key));
+
+        // body carries the standard items table
+        expect(body.blocks[0].type).toBe("table");
+        expect(body.blocks[0].cols.map((c) => c.variable)).toEqual([
+            "slno",
+            "name",
+            "qty",
+            "rate",
+            "total",
+        ]);
+
+        // footer carries totals + thanks + signatory
+        expect(footer.blocks[0].type).toBe("totals");
+        expect(footer.blocks[0].rows.map((r) => r.variable)).toEqual([
+            "netAmtTax",
+            "grand-total",
+            "netDue",
+        ]);
+        expect(footer.blocks.some((b) => b.type === "text" && b.content === "Thank You!")).toBe(true);
+
+        // Header 30% / Body 40% / Footer 30% of the usable page height
+        const usable = 841.89 - 16;
+        expect(header.height).toBeCloseTo(0.3 * usable - 16, 0);
+        expect(body.height).toBeCloseTo(0.4 * usable - 16, 0);
+        expect(footer.height).toBeCloseTo(0.3 * usable - 16, 0);
+
+        // non-zero spacing everywhere
+        expect(page.margin.top).toBe(8);
+        [header, body, footer].forEach((s) => {
+            expect(s.padding).toBe(8);
+            expect(s.margin.top).toBe(8);
+        });
     });
 });
 

@@ -15,6 +15,8 @@ const { applyTheme, toggleDevTool, showToastNotification } = require("../js/comm
 const {
     BillPage,
     BillBlock,
+    createInvoiceTemplate,
+    STRUCTURAL_TYPES,
     VARIABLES,
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
@@ -47,7 +49,8 @@ const propsTitle = $("#props-title");
 const blockActions = $("#block-actions");
 const toastContainer = $("#toast-container");
 
-let page = new BillPage();
+// New templates start pre-built: Header/Body/Footer with the mandatory fields.
+let page = createInvoiceTemplate();
 let selectedId = null;
 let zoom = 0.7;
 
@@ -101,7 +104,11 @@ function renderAll() {
         ? `${page.border}px solid #000`
         : "none";
     pageEl.innerHTML = "";
-    page.blocks.forEach((block) => {
+    // Top-level footers are bottom-anchored in the PDF — draw them last in
+    // the preview too, whatever their array position.
+    const topBlocks = page.blocks.filter((b) => b.type !== "footer");
+    const bottomBlocks = page.blocks.filter((b) => b.type === "footer");
+    [...topBlocks, ...bottomBlocks].forEach((block) => {
         pageEl.appendChild(renderBlockEl(block, cw));
     });
     emptyHint.classList.toggle("hide", page.blocks.length > 0);
@@ -228,7 +235,11 @@ function updateContextHint() {
     const hint = $("#context-hint");
     if (!hint) return;
     const sel = selectedId ? findBlock(selectedId) : null;
-    if (sel && isSection(sel)) {
+    if (sel && STRUCTURAL_TYPES.includes(sel.type)) {
+        hint.textContent =
+            (BLOCK_TITLES[sel.type] ?? sel.type) +
+            " is a fixed section — edit or remove its fields, but the section itself stays in place.";
+    } else if (sel && isSection(sel)) {
         hint.textContent =
             "Adding blocks now places them inside: " +
             (sel.name || BLOCK_TITLES[sel.type] || sel.type);
@@ -255,7 +266,8 @@ function renderProps() {
     propsTitle.textContent = block
         ? block.name || BLOCK_TITLES[block.type] || "Block"
         : "Page Settings";
-    blockActions.classList.toggle("hide", !block);
+    const locked = block && STRUCTURAL_TYPES.includes(block.type);
+    blockActions.classList.toggle("hide", !block || locked);
 
     // group entries by their schema group
     const groups = {};
@@ -586,11 +598,22 @@ function fillVariablePicker() {
 }
 
 /**
- * Add a block. If a section is selected the block goes inside it; if a block
- * inside a section is selected the block joins that same section. Otherwise
- * it goes on the page. Children inherit their section's font.
+ * Add a block. Structural sections (header/body/footer) always join the page
+ * at their pinned slot — one each, in order. Everything else: if a section is
+ * selected the block goes inside it; if a block inside a section is selected
+ * the block joins that same section. Otherwise it goes on the page. Children
+ * inherit their section's font.
  */
 function addBlock(type) {
+    if (STRUCTURAL_TYPES.includes(type)) {
+        try {
+            const block = page.addBlock(type);
+            selectBlock(block.id);
+        } catch (err) {
+            toast(err.message || "This section already exists.");
+        }
+        return;
+    }
     const sel = selectedId ? findBlock(selectedId) : null;
     let parent = page;
     if (sel) {
@@ -621,7 +644,7 @@ function addVariableBlock(key) {
 // File IPC (same contracts as the legacy designer)
 // ---------------------------------------------------------------------------
 function resetDoc() {
-    page = new BillPage();
+    page = createInvoiceTemplate();
     selectedId = null;
     renderAll();
     renderProps();
@@ -715,16 +738,30 @@ function init() {
         if (["input", "select", "textarea"].includes(tag)) return;
         if (e.target.isContentEditable) return;
         if (!selectedId) return;
+        const sel = findBlock(selectedId);
+        const locked = sel && STRUCTURAL_TYPES.includes(sel.type);
         if (e.key === "ArrowUp") {
             e.preventDefault();
+            if (locked)
+                return toast(
+                    "Header/Body/Footer stay in place — reorder their fields instead."
+                );
             getParentOf(selectedId)?.container?.moveBlock(selectedId, -1);
             renderAll();
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
+            if (locked)
+                return toast(
+                    "Header/Body/Footer stay in place — reorder their fields instead."
+                );
             getParentOf(selectedId)?.container?.moveBlock(selectedId, 1);
             renderAll();
         } else if (e.key === "Delete" || e.key === "Backspace") {
             e.preventDefault();
+            if (locked)
+                return toast(
+                    "Header/Body/Footer cannot be deleted — remove their fields instead."
+                );
             getParentOf(selectedId)?.container?.removeBlock(selectedId);
             selectedId = null;
             renderAll();
