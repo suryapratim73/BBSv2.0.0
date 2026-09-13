@@ -344,6 +344,25 @@ describe("structural sections & default template", () => {
         expect(section.applyBorder).toBe(true);
     });
 
+    test("section columns default to 1 and clamp into 1..6", () => {
+        expect(new SectionBlock().columns).toBe(1);
+        expect(new SectionBlock({ columns: 2 }).columns).toBe(2);
+        expect(new SectionBlock({ columns: "3" }).columns).toBe(3);
+        expect(new SectionBlock({ columns: 0 }).columns).toBe(1);
+        expect(new SectionBlock({ columns: -2 }).columns).toBe(1);
+        expect(new SectionBlock({ columns: 99 }).columns).toBe(6);
+        expect(new SectionBlock({ columns: "nope" }).columns).toBe(1);
+        expect(new SectionBlock({ columns: undefined }).columns).toBe(1);
+    });
+
+    test("section columns survive the JSON round-trip", () => {
+        const page = new BillPage();
+        const section = page.addBlock("section");
+        section.columns = 4;
+        const copy = BillPage.fromJSON(JSON.parse(JSON.stringify(page.toJSON())));
+        expect(copy.blocks[0].columns).toBe(4);
+    });
+
     test("BillPage margin defaults to 0.5rem; explicit margins still win", () => {
         expect(new BillPage().margin).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
         expect(new BillPage({ margin: { top: 3 } }).margin.top).toBe(3);

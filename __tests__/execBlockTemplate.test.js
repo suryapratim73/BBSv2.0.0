@@ -496,6 +496,77 @@ describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
         expect(doc.texts[0].y).toBeCloseTo(10 + 5 + 5);
     });
 
+    test("section columns: children flow in rows of N, row height = tallest cell", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const section = page.addBlock("section");
+        section.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        section.padding = 5;
+        section.applyBorder = false;
+        section.columns = 2;
+        section.addBlock("text").content = "LEFT"; // 12pt -> 14.4pt tall
+        const tall = section.addBlock("text");
+        tall.content = "RIGHT";
+        tall.font.size = 20; // -> 24pt tall; the row takes this height
+        section.addBlock("text").content = "BELOW";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+
+        const texts = doc.texts.map((t) => t.str);
+        expect(texts).toEqual(["LEFT", "RIGHT", "BELOW"]);
+        // cell width = (595.28 - 20 - 2*5) / 2 = 282.64; cells at x = 15 / 297.64
+        expect(doc.texts[0].x).toBeCloseTo(15);
+        expect(doc.texts[0].y).toBeCloseTo(15);
+        expect(doc.texts[1].x).toBeCloseTo(15 + 282.64);
+        expect(doc.texts[1].y).toBeCloseTo(15); // same row top
+        // next row starts below the TALLEST cell (24pt)
+        expect(doc.texts[2].x).toBeCloseTo(15);
+        expect(doc.texts[2].y).toBeCloseTo(15 + 24);
+    });
+
+    test("section columns: an empty cell collapses without breaking the row", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const section = page.addBlock("section");
+        section.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        section.padding = 5;
+        section.applyBorder = false;
+        section.columns = 2;
+        section.addBlock("text").content = "A";
+        const missing = section.addBlock("variable");
+        missing.variable = "noSuchKey"; // empty -> its cell collapses
+        section.addBlock("text").content = "B";
+        section.addBlock("text").content = "C";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+
+        expect(doc.texts.map((t) => t.str)).toEqual(["A", "B", "C"]);
+        // row 0 = [A, empty] -> 14.4pt; B starts the next row in cell 0
+        expect(doc.texts[1].x).toBeCloseTo(15);
+        expect(doc.texts[1].y).toBeCloseTo(15 + 14.4);
+        // C shares B's row, in cell 1
+        expect(doc.texts[2].x).toBeCloseTo(15 + 282.64);
+        expect(doc.texts[2].y).toBeCloseTo(15 + 14.4);
+    });
+
+    test("section columns: auto-height background box measures row-wise", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const section = page.addBlock("section");
+        section.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        section.padding = 5;
+        section.applyBorder = false;
+        section.columns = 2;
+        section.background = "#ffeecc";
+        section.addBlock("text").content = "A"; // row 0
+        section.addBlock("text").content = "B"; // row 0
+        section.addBlock("text").content = "C"; // row 1 (alone)
+        const doc = await runMain(page.toJSON(), makeBill(1));
+
+        // two rows of 14.4pt + 2*5 padding = 38.8pt box height
+        const fill = doc.rects.find(
+            (r) => Math.abs(r.w - 575.28) < 0.01 && Math.abs(r.h - 38.8) < 0.01
+        );
+        expect(fill).toBeTruthy();
+        // and the content actually consumed the same rows
+        expect(doc.texts[2].y).toBeCloseTo(15 + 14.4);
+    });
+
     test("default invoice template: 30/40/30 zones, table pages inside the body zone", async () => {
         const page = createInvoiceTemplate();
         const doc = await runMain(page.toJSON(), makeBill(20));

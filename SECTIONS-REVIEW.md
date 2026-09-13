@@ -6,7 +6,7 @@ the **designer merge** (2026-09-14: the old designer's shell rebuilt on the v2
 model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
 are retired). Everything below is keyed to file + line so you can jump
 straight to the code.
-**Test status: 248/248 passing (13 suites).**
+**Test status: 253/253 passing (13 suites).**
 
 ---
 
@@ -80,6 +80,14 @@ straight to the code.
    toast instead.
 9. Header and Footer repeat on **every printed page**, like the old designer's
    per-page header/footer.
+10. **Columns (row-wise flow)**: a section property (default 1) — set **Columns
+    (2+)** in a section's properties panel and its fields flow in rows of N
+    equal-width cells (e.g. Bill No + Date side by side). Rows are laid out
+    identically in the preview (CSS grid) and the PDF engine (per-row cursor
+    math: each cell renders from the row top, the row advances by its tallest
+    cell), so print == preview; empty fields collapse to leave their cell
+    blank. Cells are chunked relative to the page-break resume point, so a row
+    interrupted by a break re-forms around the broken field on the next page.
 
 ## 3. Architecture map
 
@@ -88,16 +96,17 @@ straight to the code.
 | Line | What |
 |---|---|
 | `497` | `PAGE_PROPS_SCHEMA` — page margin prop defaults to **8pt** per side |
-| `1023` | `BillSection extends BillBlock` — base for all section types |
-| `1028` | `propsSchema`: name, shape, cornerRadius, height, partitions |
-| `1050` | `applyTypeProps`: **padding defaults 8**, **margin defaults 8pt/side**, **applyBorder defaults true** (0.5rem everywhere; a fresh section is visible), partitions normalized, children built via `BillBlock.fromJSON` |
-| `1078` | `measure()` returns `null` — the engine measures sections, not the block |
-| `1082` | `isEmpty()` returns `false` — a section renders even with no children |
-| `1089` | `renderDOM` — designer preview: chip, children, partition lines, **fixed height via `el.style.height`** (`1132`, border-box), circle/ellipse `border-radius: 50%` |
-| `1145` | `HeaderBlock` / `BodyBlock` (`1151`, seeds a `TableBlock` when constructed empty — `1160`) / `FooterBlock` / `SectionBlock` |
-| `1178` | `applyBlockContainerMixin` — `addBlock/getBlock/moveBlock/removeBlock`; children added without an explicit font inherit `fFamily ?? font.family ?? "Times-Roman"` |
-| `1206` | `BillBlock.TYPES` registry includes the four section types |
-| `1250` | `STRUCTURAL_TYPES = ["header", "body", "footer"]` |
+| `1038` | `clampColumns(value)` — section columns clamped to 1..6 (garbage/0/negative → 1) |
+| `1043` | `BillSection extends BillBlock` — base for all section types |
+| `1048` | `propsSchema`: name, shape, cornerRadius, height, **columns**, partitions |
+| `1071` | `applyTypeProps`: **padding defaults 8**, **margin defaults 8pt/side**, **applyBorder defaults true** (0.5rem everywhere; a fresh section is visible), **columns clamped**, partitions normalized, children built via `BillBlock.fromJSON` |
+| `1108` | `measure()` returns `null` — the engine measures sections, not the block |
+| `1112` | `isEmpty()` returns `false` — a section renders even with no children |
+| `1119` | `renderDOM` — designer preview: chip, children, partition lines, **columns > 1 switches the section to `display: grid`** (`repeat(N, 1fr)`, `align-items: start`; each child gets `innerWidth / cols`), **fixed height via `el.style.height`** (`1175`, border-box), circle/ellipse `border-radius: 50%` |
+| `1188` | `HeaderBlock` / `BodyBlock` (`1194`, seeds a `TableBlock` when constructed empty) / `FooterBlock` (`1208`) / `SectionBlock` (`1214`) |
+| `1221` | `applyBlockContainerMixin` — `addBlock/getBlock/moveBlock/removeBlock`; children added without an explicit font inherit `fFamily ?? font.family ?? "Times-Roman"` |
+| `1253` | `BillBlock.TYPES` registry includes the four section types |
+| `1300` | `STRUCTURAL_TYPES = ["header", "body", "footer"]` |
 | `1258` | `BillPage` constructor — page `margin` defaults **8pt/side**, explicit values win per-side |
 | `1311` | `addBlock` structural branch: a structural type **throws if it already exists** (`A Header section already exists.`), and is inserted at its **canonical slot** — header → 0, body → after header (or 0), footer → end |
 | `1337` | `moveBlock`: refused when either the moved or target block is structural — the three zones are pinned |
@@ -118,19 +127,19 @@ straight to the code.
 |---|---|
 | `41` | `main()` — walks captions; one `renderPage` per caption |
 | `76` | `renderPage` — page border, default font, **footerReserve** (exact pre-measured footer height — 30% zone anchors bottom-up), `drawFooters` closure, main walk with `from: blockStart` / `contPath: childStart` split |
-| `111-148` | Top-level footer sections are **bottom-anchored on every page**; the main walk skips them (`196-218`), `drawFooters` stacks them bottom-up; `onPageEnd` is awaited before **every** page break |
-| `196` | `renderChildren` — the shared y-cursor walk (page + sections). `from` = where to start iterating; `contPath` marks the resume target; `pendingRowStart` is consumed **once** by the first table or continuation-target section |
-| `331` | `renderSection` — margin → box → children → partitions → border. Key mechanics: |
+| `111-148` | Top-level footer sections are **bottom-anchored on every page**; the main walk skips them (`231`), `drawFooters` stacks them bottom-up; `onPageEnd` is awaited before **every** page break |
+| `202` | `renderChildren` — the shared y-cursor walk (page + sections). `from` = where to start iterating; `contPath` marks the resume target; `pendingRowStart` is consumed **once** by the first table or continuation-target section. **Columns**: `clampColumns(layout.columns)` > 1 turns the walk into rows of N equal cells — cells chunked *relative to `from`* (a break mid-row re-forms the row around the broken child on the next page), each cell renders from the row top, the row advances by its tallest cell (1 column degenerates to plain flow exactly) |
+| `375` | `renderSection` — margin → box → children → partitions → border. Passes `columns: block.columns` into the child walk (`448`). Key mechanics: |
 | | • **Shape path** (`shapePath`) builds per use and serves clip, background fill and border stroke (pdfkit shape methods are pure path builders) |
-| | • **Fixed height** → frame drawn **first** (`429`), then `save/clip/children/restore` so the clip can't halve the border stroke; on page break inside a clip the `restore()` is **skipped** (`434-438`) — an unmatched `q` at page end is safe, an unmatched `Q` on a new page corrupts it |
-| | • **Fixed non-repeat sections bound their children**: `bottomY = boxTop + boxHeight − pad` (`389-392`) — the clip line *is* the page-break line, so the body's table breaks exactly at the body border on every page |
-| | • **On break, fixed sections still draw frame + partitions for the zone rendered on this page** (`445-452`) — a bordered body keeps its border on break pages |
+| | • **Fixed height** → frame drawn **first** (`494`), then `save/clip/children/restore` so the clip can't halve the border stroke; on page break inside a clip the `restore()` is **skipped** — an unmatched `q` at page end is safe, an unmatched `Q` on a new page corrupts it |
+| | • **Fixed non-repeat sections bound their children**: `bottomY = boxTop + boxHeight − pad` (`454`) — the clip line *is* the page-break line, so the body's table breaks exactly at the body border on every page |
+| | • **On break, fixed sections still draw frame + partitions for the zone rendered on this page** — a bordered body keeps its border on break pages |
 | | • **Auto height** → children flow, box = measured/actual height |
-| | • **Background** painted *under* children via exact pre-measure (`362-368`) |
-| `454` | `sectionBoxHeight` — fixed height, else `measureChildren + 2×padding` (numeric padding; deterministic → safe to reserve footer space) |
-| `464` | `drawPartitions` — col/row divider lines from legacy `partitionObj` |
-| `488` | `measureChildren` — mirrors the render cursor math exactly (table = thHeight + rows × (lineHeight + 2×rSpacing)), recursing into nested sections |
-| `617` | `renderTable` — page-break sites both `await onPageEnd()` **before** `addPage()`, then re-enter `renderPage` with `breakPage(row)` |
+| | • **Background** painted *under* children via exact pre-measure (`428`) |
+| `542` | `sectionBoxHeight` — fixed height, else `measureChildren + 2×padding` (numeric padding; deterministic → safe to reserve footer space) |
+| `564` | `drawPartitions` — col/row divider lines from legacy `partitionObj` |
+| `588` | `measureChildren` — mirrors the render cursor math exactly (table = thHeight + rows × (lineHeight + 2×rSpacing)), recursing into nested sections; **columned sections measure row-wise** (cell = `contentWidth / cols`, row height = tallest cell) so a background box pre-measures the same rows the render pass draws |
+| `758` | `renderTable` — page-break sites both `await onPageEnd()` **before** `addPage()`, then re-enter `renderPage` with `breakPage(row)` |
 
 **Continuation model** (the tricky part — read this before changing it):
 
@@ -138,7 +147,7 @@ straight to the code.
   section, resume at its child 0 (a section), resume at *its* child 2. `absPath` is the
   same path including the section's own top-level index as element 0.
 - Page-level break opts: `{ blockStart: 0, childStart: [...absPath, childIdx], rowStart }`.
-  **`blockStart` is always 0** (`644`) so header-zone blocks repeat on continuation
+  **`blockStart` is always 0** (`762`) so header-zone blocks repeat on continuation
   pages; `childStart` alone marks the resume point. Section-level `from` = `contPath[0] ?? 0`
   so already-drawn children are skipped.
 - `rowStart` rides along as `pendingRowStart` and is consumed by exactly one consumer —
@@ -167,7 +176,7 @@ straight to the code.
 | `660` | `inheritFromSection(block, section)` — copies font family/size/color on add |
 | `668` | `cascadeSectionFont(section)` — font prop change pushes down to all descendants |
 | `684` | `updateContextHint` — structural sections get: *"X is a fixed section — edit or remove its fields, but the section itself stays in place."* |
-| `711` | `renderProps` — move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
+| `711` | `renderProps` — **schema-driven** (every `propsSchema` entry renders automatically, so a section's new **Columns** input needs zero designer JS); move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
 | `915` | `renderListEditor` — list items support **checkbox fields** (the table column "Use remaining space" flag); checking a sumup column clears the flag on every other column (one absorb-the-rest column at a time) |
 | `1049` | `fillVariablePicker` — the full VARIABLES registry grouped, plus the datalist for free-text keys |
 | `1078` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
@@ -191,6 +200,13 @@ straight to the code.
   untouched-when-far), resizeColPair (sum preserved, min clamps, degenerate pairs)
   and effectiveColWidths (sumup absorbs the remainder, passthrough, 1% minimum,
   empty lists).
+- `__tests__/execBlockTemplate.test.js` — "section columns" suite (3 tests, 2026-09-14):
+  rows of N cells with x/y math (cell = `(contentWidth − 2×pad) / cols`, row height =
+  tallest cell, next row starts below it); an empty variable mid-row collapses its
+  cell *without* breaking the row advancement (the `continue`-skips-row-bookkeeping
+  bug case); auto-height background box pre-measures the same rows (`measureChildren`
+  is row-aware). Model side: `billBlockModel.test.js` pins the columns default (1),
+  clamping (0/negative/garbage → 1, >6 → 6) and JSON round-trip.
 - Earlier suites: `billBlockModel.test.js:218-321` (section classes) and
   `execBlockTemplate.test.js:366-495` (section engine behavior).
 
@@ -250,6 +266,14 @@ straight to the code.
     the dots are placed at the edge midpoints *inside* the box (bottom = height, top
     = margin.top with the bottom edge pinned, left/right = horizontal margins,
     clamped 0–200pt).
+15. **Columns are the flow answer to row-wise fields** (2026-09-14) — a section-level
+    `columns` prop (default 1, clamped 1–6), NOT absolute placement. Rows of N
+    equal cells render identically in the preview (CSS grid on the section; each
+    child gets `innerWidth / cols`) and the engine (per-row cursor math in
+    `renderChildren` + row-aware `measureChildren`). Cells are chunked *relative to
+    the page-break resume point* so a broken row re-forms on the next page; the
+    single-column path is byte-for-byte the previous flow (the row math degenerates
+    to `colIdx === 0` always). Free x/y placement remains deferred (§6).
 
 ## 5. Manual verification checklist
 
@@ -284,6 +308,14 @@ straight to the code.
 - [ ] Quick Variable picker lists all ~60 grouped fields; typing an unknown
       billMeta key adds a custom variable block.
 - [ ] Toggle the grid button → grid disappears and dragging stops snapping.
+- [ ] Select a section → set Columns = 2 → its fields flow two-per-row, side by
+      side, each half the inner width; short fields don't stretch to the row
+      height; set Columns = 3 → three-per-row. Print → the PDF shows the same
+      rows. Set Columns back to 1 → fields stack vertically again.
+- [ ] Columns = 2 with an odd field count → the last row has one field, left
+      aligned in cell 0, no phantom cell on the right.
+- [ ] Columns = 2 → an empty variable field mid-row → its cell is blank and the
+      other field in the row keeps its position; rows below stay in place.
 - [ ] Open an old (v1/legacy) template → friendly "legacy" toast; it still prints
       through the legacy path.
 
@@ -294,6 +326,12 @@ straight to the code.
   the props panel. Block *movement* stays Move Up/Down-based — the flow layout has
   no absolute positions, so old-style free drag-move has no v2 equivalent
   (reordering within a section via Move Up/Down covers it; ↑/↓ nudges spacing).
+- **Row-wise fields = section columns, not free placement** — fields flow in rows of
+  N equal-width cells (Columns prop, §2 item 10). True free x/y placement (drag a
+  field to an arbitrary spot) is still deferred; if it lands, it will be a separate
+  model mode, not a columns change.
+- Columned sections lay cells out as equal-width tracks — per-field column
+  weighting or a column gap is not exposed (spacing is per-field margins).
 - Column drags have no horizontal snap (e.g. 25/50/75% marks) yet — the grid snap
   is vertical-only; x-axis snapping applies to the corner dots.
 - The dot drags snap/limit against the dragstart snapshot — neighbouring sections
