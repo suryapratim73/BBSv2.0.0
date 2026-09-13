@@ -22,6 +22,7 @@ const {
     ALL_VARIABLE_KEYS,
     LEGACY_MSG,
 } = require("../../lib/billBlockModel");
+const SNAP = require("../../lib/designerSnap");
 
 // 1 designer unit = 1 PDF pt; the preview renders pt-as-px, then scales.
 const PAGE_SIZES = {
@@ -53,6 +54,14 @@ const toastContainer = $("#toast-container");
 let page = createInvoiceTemplate();
 let selectedId = null;
 let zoom = 0.7;
+
+// Drag-resize + alignment grid state
+const GRID_STEP = 8; // 0.5rem grid — matches the section/page margin defaults
+const MIN_SECTION_HEIGHT = 16;
+const MAX_SECTION_HEIGHT = 800; // matches the schema cap
+let snapEnabled = true;
+let drag = null; // live drag session, or null
+let suppressClickOnce = false; // swallow the mouseup→click pair after a drag
 
 // ---------------------------------------------------------------------------
 // Model helpers (BillPage has no getProp/setProp — handle dot paths here)
@@ -112,6 +121,8 @@ function renderAll() {
         pageEl.appendChild(renderBlockEl(block, cw));
     });
     emptyHint.classList.toggle("hide", page.blocks.length > 0);
+    ensureOverlays();
+    attachResizeHandles();
     updateFrame();
 }
 
@@ -127,6 +138,11 @@ function renderBlockEl(block, cw) {
     if (chip) chip.textContent = block.name || BLOCK_TITLES[block.type] || block.type;
     el.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (suppressClickOnce) {
+            // the mouseup of a drag — selecting again would just re-render
+            suppressClickOnce = false;
+            return;
+        }
         selectBlock(block.id);
     });
     if (Array.isArray(block.blocks)) {
@@ -150,6 +166,233 @@ function scheduleRender() {
         renderQueued = false;
         renderAll();
     });
+}
+
+// ---------------------------------------------------------------------------
+// Drag-resize (section heights, table columns) + alignment grids
+// ---------------------------------------------------------------------------
+// The snap decisions live in lib/designerSnap.js (pure, Jest-covered). Here
+// we only translate pointer pixels to pt and drive the preview DOM. Pointer
+// positions are measured on the transformed #page, so divide by zoom to get
+// pt; everything inside #page is laid out in pt-as-px and scales together.
+
+/** Grid visibility mirrors snapEnabled — the toggle button drives both. */
+function syncGridUI() {
+    pageEl.classList.toggle("show-grid", snapEnabled);
+    const btn = $("#grid-toggle");
+    if (btn) btn.classList.toggle("active", snapEnabled);
+}
+
+/** Guide lines + live size bubble are wiped by renderAll's innerHTML reset. */
+function ensureOverlays() {
+    if (!pageEl.querySelector("#guide-layer")) {
+        const layer = document.createElement("div");
+        layer.id = "guide-layer";
+        pageEl.appendChild(layer);
+    }
+    if (!pageEl.querySelector("#live-bubble")) {
+        const bubble = document.createElement("div");
+        bubble.id = "live-bubble";
+        bubble.hidden = true;
+        pageEl.appendChild(bubble);
+    }
+}
+
+/** Grip on every section's bottom edge; dividers on table column headers. */
+function attachResizeHandles() {
+    pageEl.querySelectorAll(".section-block").forEach((el) => {
+        const block = findBlock(el.dataset.blockId);
+        if (!block || !isSection(block)) return;
+        const handle = document.createElement("div");
+        handle.className = "resize-handle";
+        handle.title = "Drag to resize the section height";
+        handle.addEventListener("mousedown", (e) => startSectionResize(e, block, el));
+        el.appendChild(handle);
+    });
+    pageEl.querySelectorAll(".table-block").forEach((el) => {
+        const block = findBlock(el.dataset.blockId);
+        if (!block || block.type !== "table") return;
+        const ths = el.querySelectorAll("thead th");
+        ths.forEach((th, i) => {
+            if (i >= ths.length - 1) return; // last column: no divider after it
+            const handle = document.createElement("div");
+            handle.className = "col-handle";
+            handle.title = "Drag to resize the column";
+            handle.addEventListener("mousedown", (e) => startColResize(e, block, i, th));
+            th.appendChild(handle);
+        });
+    });
+}
+
+/** Alignment lines: page edges, content box, centre, neighbouring sections. */
+function snapTargets(excludeId) {
+    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
+    const pageRect = pageEl.getBoundingClientRect();
+    const targets = [
+        { y: 0, label: "page top" },
+        { y: size.h, label: "page bottom" },
+        { y: page.margin.top, label: "content top" },
+        { y: size.h - page.margin.bottom, label: "content bottom" },
+        { y: Math.round(size.h / 2), label: "page centre" },
+    ];
+    // snapshot at dragstart — live targets would shift with the dragged
+    // section's own reflow and chase the pointer
+    pageEl.querySelectorAll(".section-block").forEach((el) => {
+        if (el.dataset.blockId === excludeId) return;
+        const top = (el.getBoundingClientRect().top - pageRect.top) / zoom;
+        targets.push({ y: Math.round(top), label: "section top" });
+        targets.push({ y: Math.round(top + el.offsetHeight), label: "section bottom" });
+    });
+    return targets;
+}
+
+function startSectionResize(e, block, el) {
+    e.preventDefault();
+    e.stopPropagation();
+    const pageRect = pageEl.getBoundingClientRect();
+    const top = (el.getBoundingClientRect().top - pageRect.top) / zoom;
+    const origH = block.height;
+    // auto-height sections convert to fixed on first drag, starting at their
+    // rendered height
+    const startH = origH > 0 ? origH : Math.max(Math.round(el.offsetHeight), MIN_SECTION_HEIGHT);
+    block.height = startH;
+    drag = {
+        kind: "section",
+        block,
+        el,
+        origH,
+        startY: e.clientY,
+        startH,
+        top,
+        targets: snapTargets(block.id),
+    };
+    el.style.overflow = "hidden"; // live phase clips like the final fixed box
+    beginDrag();
+}
+
+function startColResize(e, block, i, th) {
+    e.preventDefault();
+    e.stopPropagation();
+    const table = th.closest("table");
+    const tableRect = table.getBoundingClientRect();
+    drag = {
+        kind: "col",
+        block,
+        i,
+        startX: e.clientX,
+        tableW: Math.max(tableRect.width / zoom, 1),
+        w0: block.cols[i].width,
+        w1: block.cols[i + 1].width,
+        ths: Array.from(table.querySelectorAll("thead th")),
+    };
+    beginDrag();
+}
+
+function beginDrag() {
+    document.body.classList.add("dragging");
+    document.body.style.cursor = drag.kind === "col" ? "col-resize" : "ns-resize";
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", onDragEnd);
+    window.addEventListener("keydown", onDragKey);
+}
+
+function endDrag() {
+    document.body.classList.remove("dragging");
+    document.body.style.cursor = "";
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", onDragEnd);
+    window.removeEventListener("keydown", onDragKey);
+    const bubble = pageEl.querySelector("#live-bubble");
+    if (bubble) bubble.hidden = true;
+    const layer = pageEl.querySelector("#guide-layer");
+    if (layer) layer.innerHTML = "";
+}
+
+function onDragMove(e) {
+    if (!drag) return;
+    if (drag.kind === "section") {
+        const delta = (e.clientY - drag.startY) / zoom;
+        const raw = Math.round(drag.startH + delta);
+        const clamped = Math.min(Math.max(raw, MIN_SECTION_HEIGHT), MAX_SECTION_HEIGHT);
+        const snapped = SNAP.snapY(drag.top + clamped, drag.targets, {
+            gridStep: GRID_STEP,
+            snapGrid: snapEnabled,
+        });
+        const h = Math.min(
+            Math.max(Math.round(snapped.value - drag.top), MIN_SECTION_HEIGHT),
+            MAX_SECTION_HEIGHT
+        );
+        drag.block.height = h;
+        drag.el.style.height = h + "px";
+        drawGuides(snapped);
+        showBubble(h + " pt", e);
+    } else {
+        const deltaPct = ((e.clientX - drag.startX) / drag.tableW) * 100;
+        const [w0, w1] = SNAP.resizeColPair(drag.w0, drag.w1, deltaPct);
+        drag.block.cols[drag.i].width = w0;
+        drag.block.cols[drag.i + 1].width = w1;
+        drag.ths[drag.i].style.width = w0 + "%";
+        drag.ths[drag.i + 1].style.width = w1 + "%";
+        showBubble(w0.toFixed(1) + "%  |  " + w1.toFixed(1) + "%", e);
+    }
+}
+
+function onDragKey(e) {
+    if (e.key !== "Escape" || !drag) return;
+    e.preventDefault();
+    const d = drag;
+    if (d.kind === "section") d.block.height = d.origH;
+    else {
+        d.block.cols[d.i].width = d.w0;
+        d.block.cols[d.i + 1].width = d.w1;
+    }
+    drag = null;
+    endDrag();
+    renderAll();
+}
+
+function onDragEnd() {
+    const d = drag;
+    if (!d) return;
+    drag = null;
+    endDrag();
+    suppressClickOnce = true;
+    // the click event fires synchronously right after mouseup — clear the flag
+    // afterwards so a click landing outside the dragged element isn't eaten
+    setTimeout(() => {
+        suppressClickOnce = false;
+    }, 0);
+    // rebuild from the model so props/partitions/chip all reflect the new size
+    selectBlock(d.block.id);
+}
+
+function showBubble(text, e) {
+    const bubble = pageEl.querySelector("#live-bubble");
+    if (!bubble) return;
+    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
+    const pageRect = pageEl.getBoundingClientRect();
+    bubble.textContent = text;
+    bubble.style.left =
+        Math.max(4, Math.min((e.clientX - pageRect.left) / zoom + 14, size.w - 80)) + "px";
+    bubble.style.top = (e.clientY - pageRect.top) / zoom + 16 + "px";
+    bubble.hidden = false;
+}
+
+function drawGuides(snapped) {
+    const layer = pageEl.querySelector("#guide-layer");
+    if (!layer) return;
+    layer.innerHTML = "";
+    if (snapped.guide == null) return;
+    const line = document.createElement("div");
+    line.className = "guide-line";
+    line.style.top = snapped.guide + "px";
+    layer.appendChild(line);
+    const label = document.createElement("div");
+    label.className = "guide-label";
+    label.style.top = Math.max(2, snapped.guide - 14) + "px";
+    label.textContent =
+        Math.round(snapped.guide) + " pt" + (snapped.label ? " — " + snapped.label : "");
+    layer.appendChild(label);
 }
 
 function selectBlock(id) {
@@ -710,6 +953,11 @@ function init() {
         zoom = Math.min(1.2, Math.round((zoom + 0.1) * 100) / 100);
         updateFrame();
     });
+    $("#grid-toggle").addEventListener("click", () => {
+        snapEnabled = !snapEnabled;
+        syncGridUI();
+    });
+    syncGridUI();
 
     // block actions — operate on the selected block's parent container
     $("#move-up").addEventListener("click", () => {
