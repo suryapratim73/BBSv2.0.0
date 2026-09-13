@@ -1,6 +1,7 @@
 /* Bill Layout Designer — the old designer's shell rebuilt on the v2 block
-   model. Theme-aware via the same CSS vars applyTheme sets. */
-@import "../css/common.css";
+   model. Theme-aware via the same CSS vars applyTheme sets (inline on the
+   document root — no common.css import, whose app-wide rules like
+   `.block { display: flex }` collide with the preview's generic classes). */
 
 :root {
     --bd-bg: var(--theme-secondary, #ffffff);
