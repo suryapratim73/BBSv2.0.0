@@ -32,6 +32,10 @@ const BLOCK_TITLES = {
     image: "Image Block",
     table: "Items Table",
     totals: "Totals Block",
+    header: "Header Section",
+    body: "Body Section",
+    footer: "Footer Section",
+    section: "Custom Section",
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -98,17 +102,36 @@ function renderAll() {
         : "none";
     pageEl.innerHTML = "";
     page.blocks.forEach((block) => {
-        const el = block.renderDOM(cw);
-        el.dataset.blockId = block.id;
-        el.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectBlock(block.id);
-        });
-        if (block.id === selectedId) el.classList.add("selected");
-        pageEl.appendChild(el);
+        pageEl.appendChild(renderBlockEl(block, cw));
     });
     emptyHint.classList.toggle("hide", page.blocks.length > 0);
     updateFrame();
+}
+
+/**
+ * Build a block's preview element and wire it up recursively. Sections
+ * contain children — clicks on a child select the child (stopPropagation),
+ * clicks on the section's own padding/frame select the section.
+ */
+function renderBlockEl(block, cw) {
+    const el = block.renderDOM(cw);
+    el.dataset.blockId = block.id;
+    const chip = el.querySelector(".section-chip");
+    if (chip) chip.textContent = block.name || BLOCK_TITLES[block.type] || block.type;
+    el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectBlock(block.id);
+    });
+    if (Array.isArray(block.blocks)) {
+        const innerWidth = cw - 2 * (block.padding ?? 0);
+        block.blocks.forEach((child) => {
+            const childEl = el.querySelector(`:scope > [data-block-id="${child.id}"]`);
+            if (childEl)
+                childEl.replaceWith(renderBlockEl(child, innerWidth));
+        });
+    }
+    if (block.id === selectedId) el.classList.add("selected");
+    return el;
 }
 
 // throttle preview rebuilds while dragging sliders / typing
@@ -126,6 +149,99 @@ function selectBlock(id) {
     selectedId = id;
     renderAll();
     renderProps();
+    updateContextHint();
+}
+
+// ---------------------------------------------------------------------------
+// Block tree helpers (blocks live inside sections)
+// ---------------------------------------------------------------------------
+function isSection(block) {
+    return Array.isArray(block.blocks);
+}
+
+/** Find a block anywhere in the page/section tree. */
+function findBlock(id) {
+    if (page.getBlock(id)) return page.getBlock(id);
+    const search = (list) => {
+        for (const b of list) {
+            if (b.id === id) return b;
+            if (Array.isArray(b.blocks)) {
+                const found = search(b.blocks);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+    return search(page.blocks);
+}
+
+/** { container (page or section), index } for a block, so move/delete work on its parent. */
+function getParentOf(id) {
+    const idx = page.blocks.findIndex((b) => b.id === id);
+    if (idx >= 0) return { container: page, index: idx };
+    const search = (section) => {
+        for (let i = 0; i < section.blocks.length; i++) {
+            const b = section.blocks[i];
+            if (b.id === id) return { container: section, index: i };
+            if (Array.isArray(b.blocks)) {
+                const found = search(b);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+    for (const b of page.blocks) {
+        if (Array.isArray(b.blocks)) {
+            const found = search(b);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+/** Children of a section start from its font — they inherit the container. */
+function inheritFromSection(block, section) {
+    if (!section.font || !block.font) return;
+    block.font.family = section.font.family;
+    block.font.size = section.font.size;
+    block.font.color = section.font.color;
+}
+
+/** Section font changed → push the change down to every child (recursive). */
+function cascadeSectionFont(section) {
+    (section.blocks ?? []).forEach((child) => {
+        if (child.font) {
+            child.font.family = section.font.family;
+            child.font.size = section.font.size;
+            child.font.color = section.font.color;
+        }
+        if (isSection(child)) cascadeSectionFont(child);
+    });
+}
+
+function cascadeIfSectionFont(target, key) {
+    if (key.startsWith("font.") && isSection(target))
+        cascadeSectionFont(target);
+}
+
+function updateContextHint() {
+    const hint = $("#context-hint");
+    if (!hint) return;
+    const sel = selectedId ? findBlock(selectedId) : null;
+    if (sel && isSection(sel)) {
+        hint.textContent =
+            "Adding blocks now places them inside: " +
+            (sel.name || BLOCK_TITLES[sel.type] || sel.type);
+    } else if (sel) {
+        const parent = getParentOf(selectedId)?.container;
+        hint.textContent =
+            parent && parent !== page && isSection(parent)
+                ? "Adding blocks goes inside: " +
+                  (parent.name || BLOCK_TITLES[parent.type] || parent.type)
+                : "This block sits on the page.";
+    } else {
+        hint.textContent = "No block selected — new blocks go on the page.";
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -133,10 +249,12 @@ function selectBlock(id) {
 // ---------------------------------------------------------------------------
 function renderProps() {
     propsPanel.innerHTML = "";
-    const block = selectedId ? page.getBlock(selectedId) : null;
+    const block = selectedId ? findBlock(selectedId) : null;
     const target = block ?? page;
     const schema = block ? block.constructor.propsSchema : BillPage.propsSchema;
-    propsTitle.textContent = block ? BLOCK_TITLES[block.type] ?? "Block" : "Page Settings";
+    propsTitle.textContent = block
+        ? block.name || BLOCK_TITLES[block.type] || "Block"
+        : "Page Settings";
     blockActions.classList.toggle("hide", !block);
 
     // group entries by their schema group
@@ -189,6 +307,7 @@ function renderEntry(entry, target) {
         input.value = getPath(target, entry.key) || "#000000";
         input.addEventListener("input", () => {
             setPath(target, entry.key, input.value);
+            cascadeIfSectionFont(target, entry.key);
             scheduleRender();
         });
         const clear = document.createElement("button");
@@ -218,6 +337,7 @@ function renderEntry(entry, target) {
         input.value = getPath(target, entry.key);
         input.addEventListener("change", () => {
             setPath(target, entry.key, input.value);
+            cascadeIfSectionFont(target, entry.key);
             scheduleRender();
         });
         row.appendChild(input);
@@ -240,6 +360,7 @@ function renderEntry(entry, target) {
             input.addEventListener("input", () => {
                 setPath(target, entry.key, Number(input.value));
                 show();
+                cascadeIfSectionFont(target, entry.key);
                 scheduleRender();
             });
             row.appendChild(input);
@@ -248,6 +369,7 @@ function renderEntry(entry, target) {
             input.type = "number";
             input.addEventListener("input", () => {
                 setPath(target, entry.key, Number(input.value) || 0);
+                cascadeIfSectionFont(target, entry.key);
                 scheduleRender();
             });
             row.appendChild(input);
@@ -270,6 +392,7 @@ function renderEntry(entry, target) {
     input.value = getPath(target, entry.key) ?? "";
     input.addEventListener("input", () => {
         setPath(target, entry.key, input.value);
+        cascadeIfSectionFont(target, entry.key);
         scheduleRender();
     });
     row.appendChild(input);
@@ -462,16 +585,35 @@ function fillVariablePicker() {
     });
 }
 
+/**
+ * Add a block. If a section is selected the block goes inside it; if a block
+ * inside a section is selected the block joins that same section. Otherwise
+ * it goes on the page. Children inherit their section's font.
+ */
 function addBlock(type) {
-    const block = page.addBlock(type);
+    const sel = selectedId ? findBlock(selectedId) : null;
+    let parent = page;
+    if (sel) {
+        if (isSection(sel)) parent = sel;
+        else parent = getParentOf(selectedId)?.container ?? page;
+    }
+    const block = parent.addBlock(type);
+    if (parent !== page) inheritFromSection(block, parent);
     selectBlock(block.id);
 }
 
 function addVariableBlock(key) {
     key = String(key || "").trim();
     if (!key) return;
-    const block = page.addBlock("variable");
+    const sel = selectedId ? findBlock(selectedId) : null;
+    let parent = page;
+    if (sel) {
+        if (isSection(sel)) parent = sel;
+        else parent = getParentOf(selectedId)?.container ?? page;
+    }
+    const block = parent.addBlock("variable");
     block.variable = key;
+    if (parent !== page) inheritFromSection(block, parent);
     selectBlock(block.id);
 }
 
@@ -483,6 +625,7 @@ function resetDoc() {
     selectedId = null;
     renderAll();
     renderProps();
+    updateContextHint();
 }
 
 function saveAndExit() {
@@ -545,20 +688,21 @@ function init() {
         updateFrame();
     });
 
-    // block actions
+    // block actions — operate on the selected block's parent container
     $("#move-up").addEventListener("click", () => {
-        page.moveBlock(selectedId, -1);
+        getParentOf(selectedId)?.container?.moveBlock(selectedId, -1);
         renderAll();
     });
     $("#move-down").addEventListener("click", () => {
-        page.moveBlock(selectedId, 1);
+        getParentOf(selectedId)?.container?.moveBlock(selectedId, 1);
         renderAll();
     });
     $("#delete-block").addEventListener("click", () => {
-        page.removeBlock(selectedId);
+        getParentOf(selectedId)?.container?.removeBlock(selectedId);
         selectedId = null;
         renderAll();
         renderProps();
+        updateContextHint();
     });
 
     // file actions
@@ -573,22 +717,24 @@ function init() {
         if (!selectedId) return;
         if (e.key === "ArrowUp") {
             e.preventDefault();
-            page.moveBlock(selectedId, -1);
+            getParentOf(selectedId)?.container?.moveBlock(selectedId, -1);
             renderAll();
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
-            page.moveBlock(selectedId, 1);
+            getParentOf(selectedId)?.container?.moveBlock(selectedId, 1);
             renderAll();
         } else if (e.key === "Delete" || e.key === "Backspace") {
             e.preventDefault();
-            page.removeBlock(selectedId);
+            getParentOf(selectedId)?.container?.removeBlock(selectedId);
             selectedId = null;
             renderAll();
             renderProps();
+            updateContextHint();
         } else if (e.key === "Escape") {
             selectedId = null;
             renderAll();
             renderProps();
+            updateContextHint();
         }
     });
 
@@ -613,6 +759,7 @@ function init() {
             selectedId = null;
             renderAll();
             renderProps();
+            updateContextHint();
         } catch (err) {
             toast(err.message || LEGACY_MSG);
         }

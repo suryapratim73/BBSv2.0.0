@@ -6,6 +6,11 @@ const {
     ImageBlock,
     TableBlock,
     TotalsBlock,
+    BillSection,
+    HeaderBlock,
+    BodyBlock,
+    FooterBlock,
+    SectionBlock,
     VARIABLES,
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
@@ -207,6 +212,111 @@ describe("BillPage", () => {
             const copy = BillPage.fromJSON(JSON.parse(JSON.stringify(page.toJSON())));
             expect(copy.blocks).toHaveLength(page.blocks.length);
         });
+    });
+});
+
+describe("BillSection classes (Header/Body/Footer/Custom)", () => {
+    test("section types registered and instance type getters resolve", () => {
+        expect(new HeaderBlock().type).toBe("header");
+        expect(new BodyBlock().type).toBe("body");
+        expect(new FooterBlock().type).toBe("footer");
+        expect(new SectionBlock().type).toBe("section");
+        ["header", "body", "footer", "section"].forEach((type) => {
+            expect(BillBlock.TYPES[type]).toBeDefined();
+        });
+    });
+
+    test("a fresh Body comes pre-loaded with the items table", () => {
+        const body = new BodyBlock();
+        expect(body.blocks).toHaveLength(1);
+        expect(body.blocks[0]).toBeInstanceOf(TableBlock);
+        // an explicit blocks list is respected (no re-seeding)
+        const empty = new BodyBlock({ blocks: [] });
+        expect(empty.blocks).toHaveLength(0);
+    });
+
+    test("section round-trip preserves children, partitions and shape", () => {
+        const section = new SectionBlock({
+            name: "Stamp",
+            shape: "circle",
+            height: 80,
+            cornerRadius: 12,
+            padding: 8,
+            partitions: [
+                { direction: "col", range: 33, lWidth: 2 },
+                { direction: "row", range: 50, lWidth: 1 },
+            ],
+            blocks: [{ type: "text", content: "inside" }],
+        });
+        const copy = roundTrip(section);
+        expect(copy).toBeInstanceOf(SectionBlock);
+        expect(copy.name).toBe("Stamp");
+        expect(copy.shape).toBe("circle");
+        expect(copy.height).toBe(80);
+        expect(copy.cornerRadius).toBe(12);
+        expect(copy.padding).toBe(8);
+        expect(copy.partitions).toEqual(section.partitions);
+        expect(copy.blocks).toHaveLength(1);
+        expect(copy.blocks[0]).toBeInstanceOf(TextBlock);
+        expect(copy.blocks[0].content).toBe("inside");
+    });
+
+    test("sections are structural: never empty, height measured by the engine", () => {
+        const section = new SectionBlock({ blocks: [] });
+        expect(section.isEmpty()).toBe(false);
+        expect(section.measure()).toBeNull();
+        expect(new HeaderBlock().isEmpty()).toBe(false);
+    });
+
+    test("nested sections round-trip through BillPage", () => {
+        const page = new BillPage();
+        const header = page.addBlock("header");
+        header.addBlock("text").content = "My Shop";
+        const body = page.addBlock("body");
+        body.addBlock("variable").variable = "bill-copy";
+        const inner = body.addBlock("section");
+        inner.shape = "rounded";
+        inner.addBlock("totals");
+        page.addBlock("footer").addBlock("text").content = "Thank you";
+        const copy = BillPage.fromJSON(JSON.parse(JSON.stringify(page.toJSON())));
+        expect(copy.blocks.map((b) => b.type)).toEqual(["header", "body", "footer"]);
+        expect(copy.blocks[0].blocks[0].content).toBe("My Shop");
+        // a fresh Body comes pre-loaded with the items table
+        expect(copy.blocks[1].blocks.map((b) => b.type)).toEqual([
+            "table",
+            "variable",
+            "section",
+        ]);
+        expect(copy.blocks[1].blocks[2].shape).toBe("rounded");
+        expect(copy.blocks[1].blocks[2].blocks[0].type).toBe("totals");
+        expect(copy.blocks[2].blocks[0].content).toBe("Thank you");
+    });
+
+    test("section child operations (addBlock/getBlock/moveBlock/removeBlock)", () => {
+        const section = new HeaderBlock();
+        const a = section.addBlock("text");
+        const b = section.addBlock("variable");
+        expect(section.blocks.map((x) => x.id)).toEqual([a.id, b.id]);
+        expect(section.getBlock(a.id)).toBe(a);
+        section.moveBlock(b.id, -1);
+        expect(section.blocks[0].id).toBe(b.id);
+        section.removeBlock(a.id);
+        expect(section.blocks).toHaveLength(1);
+        expect(section.getBlock(a.id)).toBeUndefined();
+        // unknown type still throws
+        expect(() => section.addBlock("nope")).toThrow(/Unknown block type/);
+    });
+
+    test("section propsSchema exposes name/shape/height/partitions + common props", () => {
+        const keys = BillSection.propsSchema.map((e) => e.key);
+        expect(keys).toContain("name");
+        expect(keys).toContain("shape");
+        expect(keys).toContain("height");
+        expect(keys).toContain("partitions");
+        expect(keys).toContain("font.family");
+        expect(keys).toContain("applyBorder");
+        const shape = BillSection.propsSchema.find((e) => e.key === "shape");
+        expect(shape.options).toEqual(["rectangle", "rounded", "circle", "ellipse"]);
     });
 });
 

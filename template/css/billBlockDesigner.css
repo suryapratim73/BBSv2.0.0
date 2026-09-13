@@ -239,6 +239,39 @@ body {
     min-height: 1.2em;
 }
 
+/* ---------- sections (containers) ---------- */
+#page .section-block {
+    position: relative;
+    min-height: 10px;
+}
+
+#page .section-block .section-chip {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    z-index: 2;
+    font-size: 9px;
+    line-height: 1.1;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.10);
+    color: rgba(0, 0, 0, 0.55);
+    pointer-events: none; /* clicks fall through to the section itself */
+    text-transform: capitalize;
+}
+
+#page .section-block .partition-line {
+    position: absolute;
+    background: #000;
+    pointer-events: none;
+}
+
+#page .section-block[data-shape="circle"] .section-chip,
+#page .section-block[data-shape="ellipse"] .section-chip {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
 /* ---------- props panel ---------- */
 #props-panel {
     display: flex;

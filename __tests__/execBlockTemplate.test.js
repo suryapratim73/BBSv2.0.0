@@ -31,8 +31,12 @@ class FakeDoc {
         this.texts = [];
         this.images = [];
         this.rects = [];
+        this.lines = [];
+        this.shapes = [];
+        this.clips = 0;
         this.saves = 0;
         this.restores = 0;
+        this._pendingMove = null;
     }
     addPage() {
         this.pageCount++;
@@ -64,10 +68,29 @@ class FakeDoc {
         return this;
     }
     rect(x, y, w, h) { this.rects.push({ x, y, w, h, page: this.pageCount }); return this; }
+    roundedRect(x, y, w, h, r) {
+        this.shapes.push({ kind: "rounded", x, y, w, h, r, page: this.pageCount });
+        return this;
+    }
+    ellipse(x, y, r1, r2) {
+        this.shapes.push({ kind: "ellipse", x, y, r1, r2, page: this.pageCount });
+        return this;
+    }
+    circle(x, y, radius) {
+        this.shapes.push({ kind: "circle", x, y, radius, page: this.pageCount });
+        return this;
+    }
+    clip() { this.clips++; return this; }
     fill() { return this; }
     stroke() { return this; }
-    moveTo() { return this; }
-    lineTo() { return this; }
+    moveTo(x, y) { this._pendingMove = { x, y, page: this.pageCount }; return this; }
+    lineTo(x, y) {
+        if (this._pendingMove) {
+            this.lines.push({ from: this._pendingMove, to: { x, y, page: this.pageCount } });
+            this._pendingMove = null;
+        }
+        return this;
+    }
     save() { this.saves++; return this; }
     restore() { this.restores++; return this; }
     end() { this.ended = true; return this; }
@@ -337,6 +360,137 @@ describe("execBlockTemplate — direct renderPage", () => {
         const doc = new FakeDoc();
         await renderPage(doc, page, { billObj: makeBill(), saleConfig, pageNo: 1, captionIndex: 0 }, { blockStart: 1, rowStart: 0 });
         expect(doc.texts.map((t) => t.str)).toEqual(["DRAW"]);
+    });
+});
+
+describe("execBlockTemplate — sections (Header/Body/Footer)", () => {
+    function sectionPage() {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const header = page.addBlock("header");
+        header.addBlock("text").content = "INV HEADER";
+        const body = page.addBlock("body");
+        const table = body.blocks[0]; // preloaded items table
+        table.thHeight = 20;
+        table.fSize = 12;
+        table.rSpacing = 2;
+        table.cellPadding = 2;
+        table.cols = [
+            { label: "Sl", variable: "slno", width: 20 },
+            { label: "Name", variable: "name", width: 80 },
+        ];
+        const footer = page.addBlock("footer");
+        footer.addBlock("text").content = "THANK YOU";
+        return page;
+    }
+
+    test("header + footer repeat on every page; body table pages once per row", async () => {
+        const page = sectionPage();
+        const doc = new FakeDoc(300, 200);
+        await main(doc, "C:/fake.pdf", makeBill(20), page.toJSON(), saleConfig);
+        expect(doc.ended).toBe(true);
+        expect(doc.pageCount).toBeGreaterThan(1);
+        expect(doc.texts.filter((t) => t.str === "INV HEADER")).toHaveLength(doc.pageCount);
+        expect(doc.texts.filter((t) => t.str === "THANK YOU")).toHaveLength(doc.pageCount);
+        const slnos = doc.texts.filter((t) => /^\d+$/.test(t.str)).map((t) => Number(t.str));
+        expect(slnos).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+        const names = doc.texts.filter((t) => /^Item /.test(t.str)).map((t) => t.str);
+        expect(names).toEqual(Array.from({ length: 20 }, (_, i) => "Item " + (i + 1)));
+    });
+
+    test("bottom-anchored footer renders inside the page bounds on every page", async () => {
+        const page = sectionPage();
+        const doc = new FakeDoc(300, 200);
+        await main(doc, "C:/fake.pdf", makeBill(20), page.toJSON(), saleConfig);
+        const footers = doc.texts.filter((t) => t.str === "THANK YOU");
+        expect(footers).toHaveLength(doc.pageCount);
+        footers.forEach((t) => {
+            // footer text sits below the table zone, within the page
+            expect(t.y).toBeGreaterThan(100);
+            expect(t.y).toBeLessThanOrEqual(200);
+        });
+    });
+
+    test("section children resolve variables inside the section", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const header = page.addBlock("header");
+        const copy = header.addBlock("variable");
+        copy.variable = "bill-copy";
+        page.addBlock("body");
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        expect(doc.texts.map((t) => t.str)).toContain("Original Buyer's Copy");
+    });
+
+    test("partitions draw divider lines inside the section", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const body = page.addBlock("body");
+        body.blocks[0].cols = [{ label: "Sl", variable: "slno", width: 100 }];
+        body.partitions = [
+            { direction: "col", range: 50, lWidth: 2 },
+            { direction: "row", range: 50, lWidth: 1 },
+        ];
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const colLines = doc.lines.filter((l) => l.from.x === l.to.x);
+        const rowLines = doc.lines.filter((l) => l.from.y === l.to.y);
+        expect(colLines.length).toBeGreaterThan(0);
+        expect(rowLines.length).toBeGreaterThan(0);
+    });
+
+    test("custom section with circle shape + fixed height clips children", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const stamp = page.addBlock("section");
+        stamp.shape = "circle";
+        stamp.height = 60;
+        stamp.name = "Stamp";
+        stamp.addBlock("text").content = "PAID";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        expect(doc.texts.map((t) => t.str)).toContain("PAID");
+        expect(doc.shapes.some((s) => s.kind === "circle")).toBe(true);
+        expect(doc.clips).toBeGreaterThan(0);
+        expect(doc.restores).toBe(doc.saves); // clip save/restore balanced
+    });
+
+    test("rounded custom section renders rounded frame without clipping", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const card = page.addBlock("section");
+        card.shape = "rounded";
+        card.cornerRadius = 8;
+        card.addBlock("text").content = "NOTE";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        expect(doc.texts.map((t) => t.str)).toContain("NOTE");
+        expect(doc.shapes.some((s) => s.kind === "rounded" && s.r === 8)).toBe(true);
+        expect(doc.clips).toBe(0);
+    });
+
+    test("nested custom sections render their children in order", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const body = page.addBlock("body");
+        const inner = body.addBlock("section");
+        inner.addBlock("text").content = "DEEP";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const texts = doc.texts.map((t) => t.str);
+        expect(texts).toContain("DEEP");
+    });
+
+    test("section background (auto height) paints a box sized to the content", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const body = page.addBlock("body");
+        body.blocks[0].cols = [{ label: "Sl", variable: "slno", width: 100 }];
+        body.background = "#ffeecc";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        const fills = doc.rects.filter((r) => r.page === 1);
+        expect(fills.length).toBeGreaterThan(0);
+        expect(doc.texts.length).toBeGreaterThan(0);
+    });
+
+    test("empty sections still draw their box (border) and advance the cursor", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const header = page.addBlock("header");
+        header.padding = 5;
+        page.addBlock("text").content = "AFTER";
+        const doc = await runMain(page.toJSON(), makeBill(1));
+        expect(doc.texts.map((t) => t.str)).toEqual(["AFTER"]);
+        // header box consumed padding.top + padding.bottom before AFTER
+        expect(doc.texts[0].y).toBeCloseTo(10 + 5 + 5);
     });
 });
 

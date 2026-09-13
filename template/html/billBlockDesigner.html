@@ -11,6 +11,23 @@
 </head>
 <body>
     <aside id="palette" class="pane">
+        <h2>Sections</h2>
+        <div class="palette-grid">
+            <button type="button" class="palette-btn" data-add-block="header" title="Top strip of the invoice — repeats on every printed page">
+                <i class="fa-solid fa-arrow-up"></i> Header
+            </button>
+            <button type="button" class="palette-btn" data-add-block="body" title="Middle of the invoice — holds the items table; pages flow here">
+                <i class="fa-solid fa-align-center"></i> Body
+            </button>
+            <button type="button" class="palette-btn" data-add-block="footer" title="Bottom strip of the invoice — repeats on every printed page">
+                <i class="fa-solid fa-arrow-down"></i> Footer
+            </button>
+            <button type="button" class="palette-btn" data-add-block="section" title="An extra custom section — pick a shape (rectangle, rounded, circle, ellipse) in its properties">
+                <i class="fa-solid fa-shapes"></i> Custom Section
+            </button>
+        </div>
+        <p class="hint">An invoice has three sections — Header, Body, Footer. Select a section, then add blocks: they go inside it and inherit its font.</p>
+
         <h2>Blocks</h2>
         <div class="palette-grid">
             <button type="button" class="palette-btn" data-add-block="text" title="Static text on the bill">
@@ -29,6 +46,7 @@
                 <i class="fa-solid fa-calculator"></i> Totals
             </button>
         </div>
+        <p class="hint" id="context-hint"></p>
 
         <h2>Quick Variable</h2>
         <select id="variable-picker" title="Pick a known bill field to add as a variable block"></select>
