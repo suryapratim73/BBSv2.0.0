@@ -4,12 +4,19 @@
  *
  * Three panes:
  *   1. Palette (left)  — add block types, quick-add variable blocks
- *   2. Workspace       — scaled page preview built from block.renderDOM()
+ *   2. Workspace       — a CANVAS page preview laid out by lib/billCanvasPreview.js
  *   3. Properties      — generic panel driven by propsSchema
  *
  * The page model is lib/billBlockModel.js (shared with the PDF generator);
  * saving sends page.toJSON() — pure data, no DOM — through the same IPC the
  * original designer used (save-bill-template / new-template-response / etc.).
+ *
+ * The canvas preview mirrors the PDF engine's cursor math one-to-one (same box
+ * widths, column cells, partition lines, fixed-height clipping and bottom-
+ * anchored footers as lib/execBlockTemplate.js), so what you see prints exactly
+ * in the same coordinates. Selection, resize grips/dots, column drags, guides,
+ * the gap pill and the live bubble all work by hit-testing the layout records
+ * the paint pass returns.
  *
  * Old-designer features kept on top of the v2 model: double-click drill-down,
  * corner dots on the selected section (top/left/right = margins, bottom =
@@ -27,16 +34,10 @@ const {
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
     LEGACY_MSG,
-    innerWidthOf,
-    cellWidthOf,
 } = require("../../lib/billBlockModel");
 const SNAP = require("../../lib/designerSnap");
+const { PAGE_SIZES, renderPreview, recordAt } = require("../../lib/billCanvasPreview");
 
-// 1 designer unit = 1 PDF pt; the preview renders pt-as-px, then scales.
-const PAGE_SIZES = {
-    a4: { w: 595.28, h: 841.89 },
-    letter: { w: 612, h: 792 },
-};
 const BLOCK_TITLES = {
     text: "Text Block",
     variable: "Variable Block",
@@ -71,7 +72,12 @@ const MAX_MARGIN = 200; // pt — ceiling for the corner-dot margin drags
 const GAP_PILL_RANGE = 10; // pt — show the gap readout to the nearest neighbour
 let snapEnabled = true;
 let drag = null; // live drag session, or null
-let suppressClickOnce = false; // swallow the mouseup→click pair after a drag
+let lastLayout = null; // layout records from the latest paint (hit-testing)
+let hoveredId = null;
+// transient drag readouts drawn on top of the page (cleared by renderAll)
+let overlay = { guide: null, bubble: null, gapPill: null };
+
+const ctx2d = pageEl.getContext("2d");
 
 // ---------------------------------------------------------------------------
 // Model helpers (BillPage has no getProp/setProp — handle dot paths here)
@@ -97,75 +103,48 @@ function toast(msg) {
 }
 
 // ---------------------------------------------------------------------------
-// Preview
+// Preview — canvas paint (layout by lib/billCanvasPreview.js)
 // ---------------------------------------------------------------------------
-function updateFrame() {
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
+const pageSize = () => PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
+
+function accentColor() {
+    const v = getComputedStyle(document.documentElement)
+        .getPropertyValue("--bd-accent")
+        .trim();
+    return v || "#663399";
+}
+
+/** Paint the page onto the canvas. Canvas is in pt units, scaled by DPR × zoom. */
+function paint() {
+    const size = pageSize();
+    const dpr = window.devicePixelRatio || 1;
+    const bw = Math.max(1, Math.round(size.w * zoom * dpr));
+    const bh = Math.max(1, Math.round(size.h * zoom * dpr));
+    if (pageEl.width !== bw) pageEl.width = bw;
+    if (pageEl.height !== bh) pageEl.height = bh;
+    pageEl.style.width = bw / dpr + "px";
+    pageEl.style.height = bh / dpr + "px";
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lastLayout = renderPreview(ctx2d, page, {
+        grid: snapEnabled,
+        selectedId,
+        hoveredId,
+        accent: accentColor(),
+        guide: overlay.guide,
+        bubble: overlay.bubble,
+        gapPill: overlay.gapPill,
+    });
+}
+
+/** Full repaint from the model; transient drag readouts are gone afterwards. */
+function renderAll() {
+    overlay = { guide: null, bubble: null, gapPill: null };
+    const size = pageSize();
     pageFrame.style.width = size.w * zoom + "px";
     pageFrame.style.height = size.h * zoom + "px";
-    pageEl.style.transform = `scale(${zoom})`;
     $("#zoom-label").textContent = Math.round(zoom * 100) + "%";
-}
-
-function renderAll() {
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
-    const { margin } = page;
-    const cw = size.w - margin.left - margin.right;
-    pageEl.style.width = size.w + "px";
-    pageEl.style.height = size.h + "px";
-    pageEl.style.padding = `${margin.top}px ${margin.right}px ${margin.bottom}px ${margin.left}px`;
-    pageEl.style.border = page.applyBorder
-        ? `${page.border}px solid #000`
-        : "none";
-    pageEl.innerHTML = "";
-    // Top-level footers are bottom-anchored in the PDF — draw them last in
-    // the preview too, whatever their array position.
-    const topBlocks = page.blocks.filter((b) => b.type !== "footer");
-    const bottomBlocks = page.blocks.filter((b) => b.type === "footer");
-    [...topBlocks, ...bottomBlocks].forEach((block) => {
-        pageEl.appendChild(renderBlockEl(block, cw));
-    });
     emptyHint.classList.toggle("hide", page.blocks.length > 0);
-    ensureOverlays();
-    attachResizeHandles();
-    attachCornerDots();
-    updateFrame();
-}
-
-/**
- * Build a block's preview element and wire it up recursively. Sections
- * contain children — clicks on a child select the child (stopPropagation),
- * clicks on the section's own padding/frame select the section.
- */
-function renderBlockEl(block, cw) {
-    const el = block.renderDOM(cw);
-    el.dataset.blockId = block.id;
-    const chip = el.querySelector(".section-chip");
-    if (chip) chip.textContent = block.name || BLOCK_TITLES[block.type] || block.type;
-    el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (suppressClickOnce) {
-            // the mouseup of a drag — selecting again would just re-render
-            suppressClickOnce = false;
-            return;
-        }
-        selectBlock(block.id);
-    });
-    if (Array.isArray(block.blocks)) {
-        // mirror BillSection.renderDOM: children flow inside padding + border,
-        // and a columned section hands each child a CELL (innerWidth / cols),
-        // not the full box — the shared helpers keep this in lockstep with the
-        // model and the engine
-        const innerWidth = innerWidthOf(block, cw);
-        const cellWidth = cellWidthOf(block, innerWidth);
-        block.blocks.forEach((child) => {
-            const childEl = el.querySelector(`:scope > [data-block-id="${child.id}"]`);
-            if (childEl)
-                childEl.replaceWith(renderBlockEl(child, cellWidth));
-        });
-    }
-    if (block.id === selectedId) el.classList.add("selected");
-    return el;
+    paint();
 }
 
 // throttle preview rebuilds while dragging sliders / typing
@@ -183,83 +162,83 @@ function scheduleRender() {
 // Drag-resize (section heights + edge dots, table columns) + alignment grids
 // ---------------------------------------------------------------------------
 // The snap decisions live in lib/designerSnap.js (pure, Jest-covered). Here
-// we only translate pointer pixels to pt and drive the preview DOM. Pointer
-// positions are measured on the transformed #page, so divide by zoom to get
-// pt; everything inside #page is laid out in pt-as-px and scales together.
+// we only translate pointer pixels to pt, mutate the model and repaint.
+// Pointer positions are measured on the canvas, whose CSS size is size × zoom,
+// so divide by zoom to get pt.
+
+/** Pointer position in page pt. */
+function ptFromEvent(e) {
+    const rect = pageEl.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) / zoom,
+        y: (e.clientY - rect.top) / zoom,
+    };
+}
 
 /** Grid visibility mirrors snapEnabled — the toggle button drives both. */
 function syncGridUI() {
-    pageEl.classList.toggle("show-grid", snapEnabled);
     const btn = $("#grid-toggle");
     if (btn) btn.classList.toggle("active", snapEnabled);
-}
-
-/** Guide lines + live size bubble are wiped by renderAll's innerHTML reset. */
-function ensureOverlays() {
-    if (!pageEl.querySelector("#guide-layer")) {
-        const layer = document.createElement("div");
-        layer.id = "guide-layer";
-        pageEl.appendChild(layer);
-    }
-    if (!pageEl.querySelector("#live-bubble")) {
-        const bubble = document.createElement("div");
-        bubble.id = "live-bubble";
-        bubble.hidden = true;
-        pageEl.appendChild(bubble);
-    }
-}
-
-/** Grip on every section's bottom edge; dividers on table column headers. */
-function attachResizeHandles() {
-    pageEl.querySelectorAll(".section-block").forEach((el) => {
-        const block = findBlock(el.dataset.blockId);
-        if (!block || !isSection(block)) return;
-        const handle = document.createElement("div");
-        handle.className = "resize-handle";
-        handle.title = "Drag to resize the section height";
-        handle.addEventListener("mousedown", (e) => startSectionResize(e, block, el));
-        el.appendChild(handle);
-    });
-    pageEl.querySelectorAll(".table-block").forEach((el) => {
-        const block = findBlock(el.dataset.blockId);
-        if (!block || block.type !== "table") return;
-        const ths = el.querySelectorAll("thead th");
-        ths.forEach((th, i) => {
-            if (i >= ths.length - 1) return; // last column: no divider after it
-            const handle = document.createElement("div");
-            handle.className = "col-handle";
-            handle.title = "Drag to resize the column";
-            handle.addEventListener("mousedown", (e) => startColResize(e, block, i, th));
-            th.appendChild(handle);
-        });
-    });
+    renderAll(); // grid lines are painted by the canvas
 }
 
 /**
- * Corner dots on the selected section (the old designer's adj-points):
- * top/bottom sit on the vertical edge midpoints, left/right on the horizontal
- * ones. Bottom = height (same as the grip); top = margin.top with the bottom
- * edge pinned; left/right = the horizontal margins.
+ * Which resize affordance sits under the pointer:
+ * selection corner dots (selected section) → every section's bottom grip
+ * (9pt strip) → table column dividers (±5pt in the header band) → null.
  */
-function attachCornerDots() {
-    pageEl.querySelectorAll(".section-block.selected").forEach((el) => {
-        const block = findBlock(el.dataset.blockId);
-        if (!block || !isSection(block)) return;
-        ["top", "bottom", "left", "right"].forEach((tag) => {
-            const dot = document.createElement("div");
-            dot.className = "corner-dot";
-            dot.dataset.tag = tag;
-            dot.title =
-                tag === "bottom"
-                    ? "Drag to resize the section height"
-                    : `Drag to adjust the section's ${tag} edge`;
-            dot.addEventListener("mousedown", (e) => {
-                if (tag === "bottom") startSectionResize(e, block, el);
-                else startDotResize(e, block, el, tag);
-            });
-            el.appendChild(dot);
-        });
-    });
+function handleAt(pt) {
+    const records = lastLayout?.records ?? [];
+    if (selectedId) {
+        const rec = records.find((r) => r.id === selectedId);
+        if (rec && isSection(rec.block)) {
+            const b = rec.box;
+            const dots = [
+                { tag: "top", x: b.x + b.w / 2, y: b.y + 5 },
+                { tag: "bottom", x: b.x + b.w / 2, y: b.y + b.h - 5 },
+                { tag: "left", x: b.x + 5, y: b.y + b.h / 2 },
+                { tag: "right", x: b.x + b.w - 5, y: b.y + b.h / 2 },
+            ];
+            for (const d of dots) {
+                if (Math.hypot(pt.x - d.x, pt.y - d.y) <= 7)
+                    return { kind: "dot", tag: d.tag, block: rec.block, rec };
+            }
+        }
+    }
+    for (const r of records) {
+        if (r.kind !== "section") continue;
+        const b = r.box;
+        if (
+            pt.y >= b.y + b.h - 9 &&
+            pt.y <= b.y + b.h &&
+            pt.x >= b.x &&
+            pt.x <= b.x + b.w
+        ) {
+            return { kind: "grip", block: r.block, rec: r };
+        }
+    }
+    for (const r of records) {
+        if (r.kind !== "table" || !r.colX) continue;
+        for (let i = 1; i < r.colX.length - 1; i++) {
+            if (
+                Math.abs(pt.x - r.colX[i]) <= 5 &&
+                pt.y >= r.headerY &&
+                pt.y <= r.headerY + r.thHeight
+            ) {
+                return { kind: "col", block: r.block, rec: r, i: i - 1 };
+            }
+        }
+    }
+    return null;
+}
+
+function handleCursor(h) {
+    if (!h) return "";
+    if (h.kind === "grip") return "ns-resize";
+    if (h.kind === "dot")
+        return h.tag === "left" || h.tag === "right" ? "ew-resize" : "ns-resize";
+    if (h.kind === "col") return "col-resize";
+    return "";
 }
 
 /**
@@ -269,8 +248,7 @@ function attachCornerDots() {
  * {y, label} on both axes (snapY's math is axis-agnostic).
  */
 function snapTargets(excludeId) {
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
-    const pageRect = pageEl.getBoundingClientRect();
+    const size = pageSize();
     const y = [
         { y: 0, label: "page top" },
         { y: size.h, label: "page bottom" },
@@ -285,103 +263,99 @@ function snapTargets(excludeId) {
         { y: size.w - page.margin.right, label: "content right" },
         { y: Math.round(size.w / 2), label: "page centre" },
     ];
-    pageEl.querySelectorAll(".section-block").forEach((el) => {
-        if (el.dataset.blockId === excludeId) return;
-        const rect = el.getBoundingClientRect();
-        const top = (rect.top - pageRect.top) / zoom;
-        const left = (rect.left - pageRect.left) / zoom;
-        y.push({ y: Math.round(top), label: "section top" });
-        y.push({ y: Math.round(top + el.offsetHeight), label: "section bottom" });
-        x.push({ y: Math.round(left), label: "section left" });
-        x.push({ y: Math.round(left + el.offsetWidth), label: "section right" });
+    (lastLayout?.records ?? []).forEach((r) => {
+        if (r.kind !== "section" || r.id === excludeId) return;
+        const b = r.box;
+        y.push({ y: Math.round(b.y), label: "section top" });
+        y.push({ y: Math.round(b.y + b.h), label: "section bottom" });
+        x.push({ y: Math.round(b.x), label: "section left" });
+        x.push({ y: Math.round(b.x + b.w), label: "section right" });
     });
     return { x, y };
 }
 
-function startSectionResize(e, block, el) {
+function startSectionResize(e, h) {
     e.preventDefault();
     e.stopPropagation();
-    const pageRect = pageEl.getBoundingClientRect();
-    const top = (el.getBoundingClientRect().top - pageRect.top) / zoom;
-    const origH = block.height;
+    const b = h.rec.box;
+    const origH = h.block.height;
     // auto-height sections convert to fixed on first drag, starting at their
-    // rendered height
-    const startH = origH > 0 ? origH : Math.max(Math.round(el.offsetHeight), MIN_SECTION_HEIGHT);
-    block.height = startH;
+    // rendered height (the fixed box clips its children from now on)
+    const startH = origH > 0 ? origH : Math.max(Math.round(b.h), MIN_SECTION_HEIGHT);
+    h.block.height = startH;
     drag = {
         kind: "section",
-        block,
-        el,
+        block: h.block,
         origH,
         startY: e.clientY,
         startH,
-        top,
-        targets: snapTargets(block.id),
+        top: b.y,
+        targets: snapTargets(h.block.id),
     };
-    el.style.overflow = "hidden"; // live phase clips like the final fixed box
+    renderAll(); // fixed height now clips the children, like the PDF
     beginDrag();
 }
 
-function startDotResize(e, block, el, tag) {
+function startDotResize(e, h) {
     e.preventDefault();
     e.stopPropagation();
-    const pageRect = pageEl.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
+    const b = h.rec.box;
     const orig = {
-        marginTop: block.margin?.top ?? 0,
-        marginLeft: block.margin?.left ?? 0,
-        marginRight: block.margin?.right ?? 0,
-        height: block.height,
+        marginTop: h.block.margin?.top ?? 0,
+        marginLeft: h.block.margin?.left ?? 0,
+        marginRight: h.block.margin?.right ?? 0,
+        height: h.block.height,
     };
     drag = {
         kind: "dot",
-        tag,
-        block,
-        el,
+        tag: h.tag,
+        block: h.block,
         orig,
         // border-box edges at dragstart (pt): the visible box, not its margins
-        top0: (rect.top - pageRect.top) / zoom,
-        left0: (rect.left - pageRect.left) / zoom,
-        width0: el.offsetWidth,
+        top0: b.y,
+        left0: b.x,
+        width0: b.w,
         // dragging the top dot pins the bottom edge — an auto-height section
         // converts to fixed at its rendered height, like the bottom grip does
-        baseH: orig.height > 0 ? orig.height : Math.max(Math.round(el.offsetHeight), MIN_SECTION_HEIGHT),
+        baseH: orig.height > 0 ? orig.height : Math.max(Math.round(b.h), MIN_SECTION_HEIGHT),
         startX: e.clientX,
         startY: e.clientY,
-        targets: snapTargets(block.id),
+        targets: snapTargets(h.block.id),
     };
-    if (tag === "top") el.style.overflow = "hidden";
     beginDrag();
 }
 
-function startColResize(e, block, i, th) {
+function startColResize(e, h) {
     e.preventDefault();
     e.stopPropagation();
-    const table = th.closest("table");
-    const tableRect = table.getBoundingClientRect();
     // Work from the EFFECTIVE widths — a sumup column's stored width is 0 and
     // its rendered share is "whatever the fixed columns leave behind".
-    const eff = SNAP.effectiveColWidths(block.cols);
+    const eff = SNAP.effectiveColWidths(h.block.cols);
     drag = {
         kind: "col",
-        block,
-        i,
+        block: h.block,
+        i: h.i,
         startX: e.clientX,
-        tableW: Math.max(tableRect.width / zoom, 1),
-        w0: eff[i],
-        w1: eff[i + 1],
+        tableW: Math.max(h.rec.box.w, 1),
+        w0: eff[h.i],
+        w1: eff[h.i + 1],
         // the stored state, so Esc can restore it exactly
-        saved0: { width: block.cols[i].width, sumup: Boolean(block.cols[i].sumup) },
-        saved1: { width: block.cols[i + 1].width, sumup: Boolean(block.cols[i + 1].sumup) },
+        saved0: { width: h.block.cols[h.i].width, sumup: Boolean(h.block.cols[h.i].sumup) },
+        saved1: { width: h.block.cols[h.i + 1].width, sumup: Boolean(h.block.cols[h.i + 1].sumup) },
         materialized: false, // sumup pair converted to fixed widths yet?
-        ths: Array.from(table.querySelectorAll("thead th")),
     };
     beginDrag();
 }
 
 function beginDrag() {
     document.body.classList.add("dragging");
-    document.body.style.cursor = drag.kind === "col" ? "col-resize" : drag.kind === "dot" && drag.tag !== "top" ? "ew-resize" : "ns-resize";
+    hoveredId = null;
+    document.body.style.cursor =
+        drag.kind === "dot"
+            ? handleCursor(drag)
+            : drag.kind === "col"
+            ? "col-resize"
+            : "ns-resize";
     window.addEventListener("mousemove", onDragMove);
     window.addEventListener("mouseup", onDragEnd);
     window.addEventListener("keydown", onDragKey);
@@ -393,10 +367,7 @@ function endDrag() {
     window.removeEventListener("mousemove", onDragMove);
     window.removeEventListener("mouseup", onDragEnd);
     window.removeEventListener("keydown", onDragKey);
-    const bubble = pageEl.querySelector("#live-bubble");
-    if (bubble) bubble.hidden = true;
-    const layer = pageEl.querySelector("#guide-layer");
-    if (layer) layer.innerHTML = "";
+    overlay = { guide: null, bubble: null, gapPill: null };
 }
 
 function onDragMove(e) {
@@ -414,10 +385,11 @@ function onDragMove(e) {
             MAX_SECTION_HEIGHT
         );
         drag.block.height = h;
-        drag.el.style.height = h + "px";
+        renderAll();
         drawGuides(snapped, "y");
         drawGapPill(drag.top + h, "below", drag.targets.y, e);
         showBubble(h + " pt", e);
+        paint();
     } else if (drag.kind === "dot") {
         if (drag.tag === "top") {
             const delta = (e.clientY - drag.startY) / zoom;
@@ -436,11 +408,11 @@ function onDragMove(e) {
             );
             drag.block.margin.top = marginTop;
             drag.block.height = height;
-            drag.el.style.marginTop = marginTop + "px";
-            drag.el.style.height = height + "px";
+            renderAll();
             drawGuides(snapped, "y");
             drawGapPill(drag.top0 + d, "above", drag.targets.y, e);
             showBubble("gap ↑ " + Math.round(marginTop) + " pt  |  h " + height + " pt", e);
+            paint();
         } else {
             const delta = (e.clientX - drag.startX) / zoom;
             const edge0 = drag.tag === "left" ? drag.left0 : drag.left0 + drag.width0;
@@ -458,10 +430,11 @@ function onDragMove(e) {
                     : Math.min(Math.max(snapped.value - edge0, origM - MAX_MARGIN), origM);
             const m = drag.tag === "left" ? origM + d : origM - d;
             drag.block.margin[drag.tag] = m;
-            drag.el.style["margin" + (drag.tag === "left" ? "Left" : "Right")] = m + "px";
+            renderAll();
             drawGuides(snapped, "x");
             drawGapPill(edge0 + d, drag.tag === "left" ? "left" : "right", drag.targets.x, e);
             showBubble("margin " + drag.tag + " " + Math.round(m) + " pt", e);
+            paint();
         }
     } else {
         // first movement of a pair containing a sumup column: freeze the
@@ -477,9 +450,9 @@ function onDragMove(e) {
         const [w0, w1] = SNAP.resizeColPair(drag.w0, drag.w1, deltaPct);
         drag.block.cols[drag.i].width = w0;
         drag.block.cols[drag.i + 1].width = w1;
-        drag.ths[drag.i].style.width = w0 + "%";
-        drag.ths[drag.i + 1].style.width = w1 + "%";
+        renderAll();
         showBubble(w0.toFixed(1) + "%  |  " + w1.toFixed(1) + "%", e);
+        paint();
     }
 }
 
@@ -510,61 +483,22 @@ function onDragEnd() {
     if (!d) return;
     drag = null;
     endDrag();
-    suppressClickOnce = true;
-    // the click event fires synchronously right after mouseup — clear the flag
-    // afterwards so a click landing outside the dragged element isn't eaten
-    setTimeout(() => {
-        suppressClickOnce = false;
-    }, 0);
     // rebuild from the model so props/partitions/chip all reflect the new size
     selectBlock(d.block.id);
 }
 
 function showBubble(text, e) {
-    const bubble = pageEl.querySelector("#live-bubble");
-    if (!bubble) return;
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
-    const pageRect = pageEl.getBoundingClientRect();
-    bubble.textContent = text;
-    bubble.style.left =
-        Math.max(4, Math.min((e.clientX - pageRect.left) / zoom + 14, size.w - 80)) + "px";
-    bubble.style.top = (e.clientY - pageRect.top) / zoom + 16 + "px";
-    bubble.hidden = false;
+    const size = pageSize();
+    const pt = ptFromEvent(e);
+    overlay.bubble = {
+        text,
+        x: Math.max(4, Math.min(pt.x + 14, size.w - 80)),
+        y: pt.y + 16,
+    };
 }
 
 function drawGuides(snapped, axis = "y") {
-    const layer = pageEl.querySelector("#guide-layer");
-    if (!layer) return;
-    layer.innerHTML = "";
-    if (snapped.guide == null) return;
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
-    if (snapped.label === "page centre") {
-        // snapping to the centre shows the full-page crosshair
-        const h = document.createElement("div");
-        h.className = "guide-line";
-        h.style.top = Math.round(size.h / 2) + "px";
-        layer.appendChild(h);
-        const v = document.createElement("div");
-        v.className = "guide-line-vertical";
-        v.style.left = Math.round(size.w / 2) + "px";
-        layer.appendChild(v);
-    } else {
-        const line = document.createElement("div");
-        line.className = axis === "x" ? "guide-line-vertical" : "guide-line";
-        line.style[axis === "x" ? "left" : "top"] = snapped.guide + "px";
-        layer.appendChild(line);
-    }
-    const label = document.createElement("div");
-    label.className = "guide-label";
-    if (axis === "x") {
-        label.style.left = Math.max(2, snapped.guide + 6) + "px";
-        label.style.top = "4px";
-    } else {
-        label.style.top = Math.max(2, snapped.guide - 14) + "px";
-    }
-    label.textContent =
-        Math.round(snapped.guide) + " pt" + (snapped.label ? " — " + snapped.label : "");
-    layer.appendChild(label);
+    overlay.guide = snapped.guide == null ? null : { snapped, axis };
 }
 
 /**
@@ -575,31 +509,27 @@ function drawGuides(snapped, axis = "y") {
  * @param {{y: number, label?: string}[]} targets dragstart snapshot
  */
 function drawGapPill(pos, dir, targets, e) {
-    const layer = pageEl.querySelector("#guide-layer");
-    if (!layer) return;
-    layer.querySelectorAll(".gap-tooltip").forEach((el) => el.remove());
     let bestDist = Infinity;
     for (const t of targets ?? []) {
         if (!(t.label ?? "").startsWith("section")) continue;
         const d = dir === "above" || dir === "left" ? pos - t.y : t.y - pos;
         if (d >= 0 && d <= GAP_PILL_RANGE && d < bestDist) bestDist = d;
     }
+    overlay.gapPill = null;
     if (!isFinite(bestDist)) return;
-    const size = PAGE_SIZES[page.size] ?? PAGE_SIZES.a4;
-    const pageRect = pageEl.getBoundingClientRect();
-    const px = (e.clientX - pageRect.left) / zoom;
-    const py = (e.clientY - pageRect.top) / zoom;
-    const pill = document.createElement("div");
-    pill.className = "gap-tooltip";
-    pill.textContent = Math.round(bestDist) + " pt";
-    if (dir === "above" || dir === "below") {
-        pill.style.left = Math.max(4, Math.min(px, size.w - 44)) + "px";
-        pill.style.top = pos + (dir === "below" ? bestDist / 2 : -bestDist / 2) + "px";
-    } else {
-        pill.style.top = Math.max(4, Math.min(py, size.h - 20)) + "px";
-        pill.style.left = pos + (dir === "right" ? bestDist / 2 : -bestDist / 2) + "px";
-    }
-    layer.appendChild(pill);
+    const size = pageSize();
+    const pt = ptFromEvent(e);
+    overlay.gapPill = {
+        text: Math.round(bestDist) + " pt",
+        x:
+            dir === "above" || dir === "below"
+                ? Math.max(4, Math.min(pt.x, size.w - 44))
+                : pos + (dir === "right" ? bestDist / 2 : -bestDist / 2),
+        y:
+            dir === "above" || dir === "below"
+                ? pos + (dir === "below" ? bestDist / 2 : -bestDist / 2)
+                : Math.max(4, Math.min(pt.y, size.h - 20)),
+    };
 }
 
 function selectBlock(id) {
@@ -1205,28 +1135,54 @@ function init() {
         }
     });
 
-    // workspace
-    pageEl.addEventListener("click", (e) => {
-        if (e.target === pageEl && selectedId) {
+    // workspace — mousedown hit-tests the painted layout: selection chrome
+    // first (dots/grip/column dividers), then the deepest block, then empty
+    // paper (deselect). There is no click handler — selection happens on
+    // mousedown, so drags never trigger it.
+    pageEl.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        const pt = ptFromEvent(e);
+        const h = handleAt(pt);
+        if (h?.kind === "grip") return startSectionResize(e, h);
+        if (h?.kind === "dot") return startDotResize(e, h);
+        if (h?.kind === "col") return startColResize(e, h);
+        const rec = lastLayout ? recordAt(lastLayout, pt.x, pt.y) : null;
+        if (rec) {
+            selectBlock(rec.id);
+        } else if (selectedId) {
             selectedId = null;
             renderAll();
             renderProps();
+            updateContextHint();
         }
     });
-    // double-click drill-down (old designer): jump straight into the block
-    pageEl.addEventListener("dblclick", (e) => {
-        const el = e.target.closest("[data-block-id]");
-        if (!el) return;
-        const block = findBlock(el.dataset.blockId);
-        if (block) selectBlock(block.id);
+    pageEl.addEventListener("mousemove", (e) => {
+        if (drag) return; // drag sessions repaint themselves
+        const pt = ptFromEvent(e);
+        const h = handleAt(pt);
+        const cursor = handleCursor(h);
+        pageEl.style.cursor = cursor;
+        const next = cursor
+            ? null
+            : (lastLayout ? recordAt(lastLayout, pt.x, pt.y) : null)?.id ?? null;
+        if (next !== hoveredId) {
+            hoveredId = next;
+            paint(); // hover outline only — no model change
+        }
+    });
+    pageEl.addEventListener("mouseleave", () => {
+        if (hoveredId !== null) {
+            hoveredId = null;
+            paint();
+        }
     });
     $("#zoom-out").addEventListener("click", () => {
         zoom = Math.max(0.4, Math.round((zoom - 0.1) * 100) / 100);
-        updateFrame();
+        renderAll();
     });
     $("#zoom-in").addEventListener("click", () => {
         zoom = Math.min(1.2, Math.round((zoom + 0.1) * 100) / 100);
-        updateFrame();
+        renderAll();
     });
     $("#grid-toggle").addEventListener("click", () => {
         snapEnabled = !snapEnabled;
@@ -1274,13 +1230,13 @@ function init() {
         if (e.ctrlKey && e.shiftKey && e.code === "Equal") {
             e.preventDefault();
             zoom = Math.min(1.2, Math.round((zoom + 0.1) * 100) / 100);
-            updateFrame();
+            renderAll();
             return;
         }
         if (e.ctrlKey && e.shiftKey && e.code === "Minus") {
             e.preventDefault();
             zoom = Math.max(0.4, Math.round((zoom - 0.1) * 100) / 100);
-            updateFrame();
+            renderAll();
             return;
         }
         if (e.ctrlKey && !e.shiftKey && e.code === "KeyN") {
@@ -1296,13 +1252,13 @@ function init() {
             e.preventDefault();
             const sel = selectedId ? findBlock(selectedId) : null;
             if (!sel || !isSection(sel)) return;
-            const el = pageEl.querySelector(
-                `.section-block[data-block-id="${sel.id}"]`
-            );
+            // rendered box height from the last layout (auto sections convert
+            // to fixed at their drawn height, like the bottom grip does)
+            const rec = lastLayout?.records.find((r) => r.id === sel.id);
             const base =
                 sel.height > 0
                     ? sel.height
-                    : Math.max(Math.round(el?.offsetHeight ?? 0), MIN_SECTION_HEIGHT);
+                    : Math.max(Math.round(rec?.box.h ?? 0), MIN_SECTION_HEIGHT);
             sel.height = Math.min(
                 Math.max(base + (e.code === "NumpadAdd" ? 1 : -1), MIN_SECTION_HEIGHT),
                 MAX_SECTION_HEIGHT

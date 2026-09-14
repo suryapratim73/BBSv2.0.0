@@ -4,10 +4,14 @@ Review companion for the Header / Body / Footer / Custom Section work, the
 **pre-built structural template**, **drag-to-resize + alignment grids**, the
 **designer merge** (2026-09-14: the old designer's shell rebuilt on the v2
 model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
-are retired) and the **template picker** (2026-09-14: Blank / Three Sections /
-Default 1 / Default 2 starting layouts in the workspace bar). Everything below
+are retired), the **template picker** (2026-09-14: Blank / Three Sections /
+Default 1 / Default 2 starting layouts in the workspace bar) and the
+**canvas preview** (2026-09-15: the DOM preview is replaced by a canvas
+renderer, `lib/billCanvasPreview.js`, that paints in the PDF engine's own
+coordinates — same box math, same column cells, same partition lines, same
+clipping, same footer anchoring). Everything below
 is keyed to file + line so you can jump straight to the code.
-**Test status: 257/257 passing (13 suites).**
+**Test status: 271/271 passing (14 suites).**
 
 ---
 
@@ -56,8 +60,9 @@ is keyed to file + line so you can jump straight to the code.
    inside* them, change height/padding/margin — but the sections themselves cannot
    be reordered, deleted or duplicated (model enforces it; the UI hides the
    move/delete buttons and toasts on locked keyboard actions).
-6. **Drag-to-resize**: hover a section — a grip bar appears on its bottom edge,
-   and the selected section shows four **red corner dots** on its edge midpoints
+6. **Drag-to-resize**: hovering a block shows a dashed accent outline; the
+   selected section shows a **grip pill** on its bottom edge and four **red
+   corner dots** on its edge midpoints
    (the old designer's adj-points): bottom = fixed height, top = the gap above
    (margin.top, bottom edge pinned), left/right = the horizontal margins. Drag a
    table column divider in the header row to resize that column (the neighbour
@@ -65,7 +70,8 @@ is keyed to file + line so you can jump straight to the code.
    preview == print; a column flagged **"Use remaining space"** — the legacy
    *sumup* — absorbs whatever the fixed columns leave, and freezes into a real
    width on first drag). A live bubble shows the current size; **Esc cancels**
-   mid-drag.
+   mid-drag. All hit-testing runs against the canvas layout records, not DOM
+   elements.
 7. **Alignment grids**: the page shows a 0.5rem grid (8pt minor / 40pt major),
    toggled from the workspace bar (grid button, default on). While dragging, the
    pointer snaps to grid lines and to guide lines on both axes — page edges,
@@ -84,14 +90,14 @@ is keyed to file + line so you can jump straight to the code.
 10. **Columns (row-wise flow)**: a section property (default 1) — set **Columns
     (2+)** in a section's properties panel and its fields flow in rows of N
     equal-width cells (e.g. Bill No + Date side by side). Rows are laid out
-    identically in the preview (CSS grid) and the PDF engine (per-row cursor
-    math: each cell renders from the row top, the row advances by its tallest
-    cell), so print == preview; empty fields collapse to leave their cell
-    blank. Cells are chunked relative to the page-break resume point, so a row
-    interrupted by a break re-forms around the broken field on the next page.
-    The designer's recursive element builder (`renderBlockEl`) shares the
-    model's `innerWidthOf`/`cellWidthOf` helpers with `renderDOM`, so preview
-    cells can't drift from the engine's row math.
+    identically in the canvas preview and the PDF engine — the canvas
+    `flowChildren` mirrors the engine's per-row cursor math (each cell renders
+    from the row top, the row advances by its tallest cell) — so print ==
+    preview; empty fields collapse to leave their cell blank. Cells are chunked
+    relative to the page-break resume point, so a row interrupted by a break
+    re-forms around the broken field on the next page. The canvas `flowChildren`
+    and the engine's `renderChildren` are separate code but pin each other via
+    the shared tests (cell x/y math asserted on both).
 11. **Template picker** (workspace bar, beside zoom/grid — a dropdown after the
     grid button): starts a new design from one of four layouts — **Blank**
     (an empty page; add Header/Body/Footer from the palette and they slot into
@@ -113,23 +119,23 @@ is keyed to file + line so you can jump straight to the code.
 
 | Line | What |
 |---|---|
-| `497` | `PAGE_PROPS_SCHEMA` — page margin prop defaults to **8pt** per side |
-| `1038` | `clampColumns(value)` — section columns clamped to 1..6 (garbage/0/negative → 1) |
-| `1043` | `BillSection extends BillBlock` — base for all section types |
-| `1048` | `propsSchema`: name, shape, cornerRadius, height, **columns**, partitions |
-| `1071` | `applyTypeProps`: **padding defaults 8**, **margin defaults 8pt/side**, **applyBorder defaults true** (0.5rem everywhere; a fresh section is visible), **columns clamped**, partitions normalized, children built via `BillBlock.fromJSON` |
-| `1108` | `measure()` returns `null` — the engine measures sections, not the block |
-| `1112` | `isEmpty()` returns `false` — a section renders even with no children |
-| `1119` | `renderDOM` — designer preview: chip, children, partition lines, **columns > 1 switches the section to `display: grid`** (`repeat(N, 1fr)`, `align-items: start`; each child gets `innerWidth / cols`), **fixed height via `el.style.height`** (`1175`, border-box), circle/ellipse `border-radius: 50%` |
-| `1188` | `HeaderBlock` / `BodyBlock` (`1194`, seeds a `TableBlock` when constructed empty) / `FooterBlock` (`1208`) / `SectionBlock` (`1214`) |
-| `1221` | `applyBlockContainerMixin` — `addBlock/getBlock/moveBlock/removeBlock`; children added without an explicit font inherit `fFamily ?? font.family ?? "Times-Roman"` |
-| `1253` | `BillBlock.TYPES` registry includes the four section types |
-| `1300` | `STRUCTURAL_TYPES = ["header", "body", "footer"]` |
-| `1258` | `BillPage` constructor — page `margin` defaults **8pt/side**, explicit values win per-side |
-| `1311` | `addBlock` structural branch: a structural type **throws if it already exists** (`A Header section already exists.`), and is inserted at its **canonical slot** — header → 0, body → after header (or 0), footer → end |
-| `1337` | `moveBlock`: refused when either the moved or target block is structural — the three zones are pinned |
-| `1355` | `removeBlock`: **no-op** for structural sections — they are permanent |
-| `1372` | `createInvoiceTemplate()` — the pre-built template (see §4.2) |
+| `498` | `PAGE_PROPS_SCHEMA` — page margin prop defaults to **8pt** per side |
+| `952` | `clampColumns(value)` — section columns clamped to 1..6 (garbage/0/negative → 1) |
+| `981` | `BillSection extends BillBlock` — base for all section types |
+| `986` | `propsSchema`: name, shape, cornerRadius, height, **columns**, partitions |
+| `1009` | `applyTypeProps`: **padding defaults 8**, **margin defaults 8pt/side**, **applyBorder defaults true** (0.5rem everywhere; a fresh section is visible), **columns clamped**, partitions normalized, children built via `BillBlock.fromJSON` |
+| `1046` | `measure()` returns `null` — the engine measures sections, not the block |
+| `1052` | `isEmpty()` returns `false` — a section renders even with no children |
+| — | The model has **no DOM code** — the designer preview is painted on canvas by `lib/billCanvasPreview.js` (the pre-canvas `renderDOM`/`applyDOMStyles` were deleted) |
+| `1058` | `HeaderBlock` / `BodyBlock` (`1064`, seeds a `TableBlock` when constructed empty) / `FooterBlock` (`1078`) / `SectionBlock` (`1084`) |
+| `1091` | `applyBlockContainerMixin` — `addBlock/getBlock/moveBlock/removeBlock`; children added without an explicit font inherit `fFamily ?? font.family ?? "Times-Roman"` |
+| `1123` | `BillBlock.TYPES` registry includes the four section types |
+| `1144` | `STRUCTURAL_TYPES = ["header", "body", "footer"]` |
+| `1146` | `BillPage` constructor — page `margin` defaults **8pt/side**, explicit values win per-side |
+| `1200` | `addBlock` structural branch: a structural type **throws if it already exists** (`A Header section already exists.`), and is inserted at its **canonical slot** — header → 0, body → after header (or 0), footer → end |
+| `1231` | `moveBlock`: refused when either the moved or target block is structural — the three zones are pinned |
+| `1249` | `removeBlock`: **no-op** for structural sections — they are permanent |
+| `1266` | `createInvoiceTemplate()` — the pre-built template (see §4.2) |
 
 ### Snap geometry — `lib/designerSnap.js` (pure, no DOM/electron — Jest-pinned)
 
@@ -173,34 +179,54 @@ is keyed to file + line so you can jump straight to the code.
   steal a body table's row state.
 - Header/Footer (`isRepeat`) render with `bottomY: Infinity` — they never page-break.
 
+### Canvas preview — `lib/billCanvasPreview.js` (pure, no DOM/electron — Jest-pinned)
+
+The designer's page is a `<canvas>` painted in **pt units** (DPR × zoom
+transform in the designer). `layoutPage` mirrors the engine's cursor math one
+to one — it builds per-block **layout records** (id, kind, depth, box, block,
+and `colX`/`headerY`/`thHeight`/`rowHeight` for tables) used for hit-testing,
+and `renderPreview` paints page + blocks + chips + selection chrome + guides.
+
+| Line | What |
+|---|---|
+| `16` | `PAGE_SIZES` — a4/letter, same numbers as the engine |
+| `111` | `tableRowHeight` — `fSize × 1.2 + 2 × rSpacing`; `tableHeight` = header + 1 sample row |
+| `123` | `measureChildren` / `measureSection` — engine's `measureChildren`/`sectionBoxHeight` math (fixed height, columns, tables, images, 0.3×lh totals gap) |
+| `422` | `drawSection` — engine order: degenerate-margin branch → background pre-measure → **fixed: frame first, `save/shapePath/clip`, children, partitions, `restore`** → **auto: children, `boxHeight = max(innerY + pad − boxTop, 1)`, partitions, frame** |
+| `501` | `flowChildren` — the engine's `renderChildren` rows-of-N-cells walk (cell from row top, row advances by tallest cell) |
+| `540` | `layoutPage` — top-level walk, then footers bottom-anchored exactly like `drawFooters`: `h = measureSection(f); startY = fy − margin.top − h; fy = startY − margin.bottom` |
+| `586` | `recordAt` — deepest record at a point (ties: smallest area) |
+| `660` | `drawGuide` — dashed accent guide + label pill; `page centre` snaps draw the full-page crosshair |
+| `695` | `drawSelection` — 2pt accent outline, bottom grip pill (28×3pt), four red dots ±5pt inside the edge midpoints; hover outline dashed |
+| `748` | `renderPreview(ctx, page, opts)` — white ground, page border, optional grid (8/40pt), blocks, chips, selection/hover, guide, bubble/gap pill; returns the layout |
+
 ### Designer — `template/js/billLayout.js` + html/css (the merged designer)
 
 | Line | What |
 |---|---|
-| `60` | `let page = createInvoiceTemplate()` — the designer starts with the pre-built invoice (reset at `1117` too) |
-| `108` | `renderAll` draws top-level **footers last** in the DOM preview, mirroring their PDF bottom anchoring; attaches resize grips + corner dots |
-| `138` | `renderBlockEl` — recursive preview; children replace their `renderDOM` placeholder (works because every block now sets `data-block-id`); sections shrink children by `cw − mL − mR − 2×pad − 2×border` |
-| `244` | `attachCornerDots` — 4 red edge-midpoint dots on the selected section (bottom routes to `startSectionResize`, the others to `startDotResize`) |
-| `271` | `snapTargets` — x + y alignment lines (page edges, content box, centre, neighbour section edges), snapshotted at dragstart so targets don't chase the pointer |
-| `325` | `startDotResize` — top dot pins the bottom edge (auto-height converts to fixed at rendered height); left/right drag the horizontal margins |
-| `357` | `startColResize` — snapshots **effective** widths (`SNAP.effectiveColWidths`) + the stored state so Esc restores sumup flags exactly |
-| `402` | `onDragMove` — section (height, y-snap), dot (margins + top-dot height compensation, x-snap for left/right), col (materializes a sumup pair into real widths on first move, then `resizeColPair`) |
-| `486` | `onDragKey` — Esc restores the dragstart state for all three kinds |
-| `535` | `drawGuides(snapped, axis)` — horizontal or vertical dashed guide; `page centre` snaps draw the full crosshair |
-| `577` | `drawGapPill(pos, dir, targets, e)` — nearest neighbour edge within 10pt in the drag direction → "N pt" pill at mid-gap |
-| `605` | `selectBlock` — selection drives the props panel + context hint |
-| `620` | `findBlock(id)` — recursive search through sections |
-| `636` | `getParentOf(id)` → `{ container, index }` used by move/delete |
-| `660` | `inheritFromSection(block, section)` — copies font family/size/color on add |
-| `668` | `cascadeSectionFont(section)` — font prop change pushes down to all descendants |
-| `684` | `updateContextHint` — structural sections get: *"X is a fixed section — edit or remove its fields, but the section itself stays in place."* |
-| `711` | `renderProps` — **schema-driven** (every `propsSchema` entry renders automatically, so a section's new **Columns** input needs zero designer JS); move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
-| `915` | `renderListEditor` — list items support **checkbox fields** (the table column "Use remaining space" flag); checking a sumup column clears the flag on every other column (one absorb-the-rest column at a time) |
-| `1049` | `fillVariablePicker` — the full VARIABLES registry grouped, plus the datalist for free-text keys |
-| `1078` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
-| `1140` | `init` — wiring incl. double-click drill-down (`1177`) and the keyboard map (`1218-1330`): zoom `Ctrl+Shift+=`/`-`, `Ctrl+N` adds a section, `Ctrl+Numpad+`/`-` nudges section height, `↑`/`↓` nudge margin.top (clamped 0–200), Delete/Backspace removes (locked toast for structural), Esc deselects; input/textarea/contentEditable and mid-drag keystrokes are guarded |
-| — | `suppressClickOnce` — swallows the browser's mouseup→click pair after a drag so the drag's release doesn't re-select/re-render; cleared next tick |
-| — | Grid toggle in `init()` (`#grid-toggle`, default on): `syncGridUI` flips `#page.show-grid` + button state; palette hint + toolbar button in `template/html/billLayout.html`; all visuals (grid, grips, corner dots, guides, gap pill, bubble) styled in `template/css/billLayout.css` — **no `common.css` import** (its app-wide `.block { display: flex }` / `.block > div { flex: 1 }` collide with the preview's generic class names; theming comes from applyTheme's inline `--theme-*` vars on the document root) |
+| `63` | `let page = createInvoiceTemplate()` — the designer starts with the pre-built invoice (reset at `1085` too) |
+| `118` | `paint()` — sizes the canvas backing store (DPR × zoom), `setTransform(dpr, …)`, then `renderPreview` into pt space; `lastLayout` = the returned records (hit-testing source) |
+| `140` | `renderAll` — re-sizes the page frame, clears overlays (guide/bubble/gapPill), calls `paint()`; every model mutation goes through it, so the canvas is always in sync |
+| `170` | `ptFromEvent` — pointer → pt via `getBoundingClientRect() / zoom` |
+| `190` | `handleAt(pt)` — hit-testing on `lastLayout` records: selected-section dots (r=7pt around the four dot centers) → section grip strips (bottom 9pt of every section box) → table column dividers (±5pt around `colX` in the header band) → `recordAt` deepest record → null |
+| `235` | `handleCursor(h)` — pointer cursor per handle (dots → ew-resize, grip/top/bottom → ns-resize, col → col-resize) |
+| `250` | `snapTargets` — x + y alignment lines (page edges, content box, centre, neighbour section edges) from `lastLayout` records, snapshotted at dragstart so targets don't chase the pointer |
+| `277` | `startSectionResize` / `startDotResize` (`299`) / `startColResize` (`328`) — snapshot drag state (top dot pins the bottom edge, auto-height converts to fixed at rendered height; col snapshots effective widths + stored state so Esc restores sumup flags exactly) |
+| `373` | `onDragMove` — section (height, y-snap), dot (margins + top-dot height compensation, x-snap for left/right), col (materializes a sumup pair into real widths on first move, then `resizeColPair`); mutates the model → `renderAll()` → sets the overlay |
+| `459` | `onDragKey` — Esc restores the dragstart state for all three kinds |
+| `490` | `showBubble` / `drawGuides` (`500`) / `drawGapPill` (`511`) — build the overlay objects (`bubble`, `guide {snapped, axis}`, `gapPill`) that `renderPreview` paints; gap pill = nearest neighbour edge within 10pt in the drag direction |
+| `535` | `selectBlock` — selection drives the props panel + context hint |
+| `550` | `findBlock(id)` — recursive search through sections |
+| `566` | `getParentOf(id)` → `{ container, index }` used by move/delete |
+| `590` | `inheritFromSection(block, section)` — copies font family/size/color on add |
+| `598` | `cascadeSectionFont(section)` — font prop change pushes down to all descendants |
+| `614` | `updateContextHint` — structural sections get: *"X is a fixed section — edit or remove its fields, but the section itself stays in place."* |
+| `641` | `renderProps` — **schema-driven** (every `propsSchema` entry renders automatically, so a section's new **Columns** input needs zero designer JS); move/delete action buttons hidden (`blockActions.classList.toggle("hide", locked)`) for structural sections |
+| `845` | `renderListEditor` — list items support **checkbox fields** (the table column "Use remaining space" flag); checking a sumup column clears the flag on every other column (one absorb-the-rest column at a time) |
+| `979` | `fillVariablePicker` — the full VARIABLES registry grouped, plus the datalist for free-text keys |
+| `1008` | `addBlock` — structural types route through `page.addBlock(type)` (duplicate → toast), others through the selected container |
+| `1110` | `init` — wiring incl. mousedown hit-testing (canvas), double-click drill-down and the keyboard map: zoom `Ctrl+Shift+=`/`-`, `Ctrl+N` adds a section, `Ctrl+Numpad+`/`-` nudges section height, `↑`/`↓` nudge margin.top (clamped 0–200), Delete/Backspace removes (locked toast for structural), Esc deselects; input/textarea/contentEditable and mid-drag keystrokes are guarded |
+| — | No preview DOM at all — the page is one `<canvas id="page">`; grid, grips, dots, guides, gap pill, bubble, chips are all painted (`template/css/billLayout.css` keeps only panes/workspace/props styling) — **no `common.css` import** (its app-wide `.block { display: flex }` rules would collide; theming comes from applyTheme's inline `--theme-*` vars on the document root) |
 
 ### Tests
 
@@ -218,6 +244,21 @@ is keyed to file + line so you can jump straight to the code.
   untouched-when-far), resizeColPair (sum preserved, min clamps, degenerate pairs)
   and effectiveColWidths (sumup absorbs the remainder, passthrough, 1% minimum,
   empty lists).
+- `__tests__/billCanvasPreview.test.js` — "canvas preview" (15 tests, 2026-09-15),
+  running `layoutPage`/`renderPreview` against a recording `FakeCtx` (texts,
+  rects, lines {from,to}, clips, dashSets — same spirit as the engine's FakeDoc):
+  box math (text margins/padding, `x = left+mL`, `h = lines×12×1.2 + 2×pad`),
+  pdfkit-style wrapping (narrow content → extra lines), columned cells
+  (`cellWidth = innerWidth/cols`, both cells inside the padded interior),
+  fixed-height clip (clip path = the section box), **footer bottom-anchoring**
+  (`box.y + box.h === pageH − margin.bottom`), degenerate margins (flow still
+  advances), table sumup absorbs the remainder (`colX` shares 10/90), totals
+  2-row gap `2×14.4 + 0.3×14.4`, image `%` dimensions, `recordAt` deepest-wins +
+  empty-paper null, selection chrome (outline, 28×3 grip pill, 4 dots),
+  dashed hover + guide (page-centre crosshair), page border `strokeRect(border/2,
+  …, w−border, h−border)`, and the bundled templates: **Default1's centre
+  partition lands at x = 297.64** (page margin 30, 50% of 535.28) and Default2
+  lays out with all its top-level sections recorded.
 - `__tests__/execBlockTemplate.test.js` — "section columns" suite (3 tests, 2026-09-14):
   rows of N cells with x/y math (cell = `(contentWidth − 2×pad) / cols`, row height =
   tallest cell, next row starts below it); an empty variable mid-row collapses its
@@ -255,8 +296,8 @@ is keyed to file + line so you can jump straight to the code.
    old generators until verified.
 9. **Snap rules are pure and tested** — all snap/column math lives in
    `lib/designerSnap.js` (alignment within 5pt beats grid within 3pt); the designer JS
-   only translates pointer pixels to pt (`/zoom` on the transformed page) and updates
-   the DOM. Resizing a column never changes the pair's combined share, so the preview's
+   only translates pointer pixels to pt (`/zoom`) and re-paints the canvas. Resizing
+   a column never changes the pair's combined share, so the preview's
    percentage widths equal the PDF's normalized shares.
 10. **The merged designer is old shell + v2 model** — `template/js/billLayout.js` (the
     original designer's file) was rebuilt as the 3-panel designer editing `BillPage`;
@@ -265,7 +306,7 @@ is keyed to file + line so you can jump straight to the code.
     legacy v1 templates still print through `lib/execCustomTemplate.js` untouched
     (opening one in the designer shows the friendly `LEGACY_MSG` toast).
 11. **Horizontal margins are honored end-to-end** (2026-09-14 fix): the engine and the
-    DOM preview both lay boxes out as `contentWidth − margin.left − margin.right` for
+    canvas preview both lay boxes out as `contentWidth − margin.left − margin.right` for
     sections, text-like blocks, images and tables (frames, partitions, clips and
     backgrounds included); sections further inset their children by `2×border`. Tests
     pin the numbers (slno x = 26, body frame 563.28pt @ x = 16).
@@ -286,12 +327,24 @@ is keyed to file + line so you can jump straight to the code.
     clamped 0–200pt).
 15. **Columns are the flow answer to row-wise fields** (2026-09-14) — a section-level
     `columns` prop (default 1, clamped 1–6), NOT absolute placement. Rows of N
-    equal cells render identically in the preview (CSS grid on the section; each
-    child gets `innerWidth / cols`) and the engine (per-row cursor math in
+    equal cells render identically in the canvas preview (`flowChildren`, cell =
+    `innerWidth / cols`) and the engine (per-row cursor math in
     `renderChildren` + row-aware `measureChildren`). Cells are chunked *relative to
     the page-break resume point* so a broken row re-forms on the next page; the
     single-column path is byte-for-byte the previous flow (the row math degenerates
     to `colIdx === 0` always). Free x/y placement remains deferred (§6).
+16. **The preview is a canvas painted in the PDF's own coordinates** (2026-09-15) —
+    `lib/billCanvasPreview.js` mirrors the engine's cursor math one to one (box
+    math, cells, partition lines, fixed-height clip order, bottom-anchored
+    footers, table effective widths, 0.3×lh totals gaps), so the preview can't
+    drift from print the way the CSS approximation could — Default 1's centre
+    partition is a plain `x = 30 + 0.5 × 535.28 = 297.64` on both sides. All
+    designer interaction (selection, dots, grip, column drags, guides, bubble,
+    gap pill, keyboard) hit-tests against the same layout records that painted
+    the frame. The model keeps zero DOM code; the renderer is pure (FakeCtx
+    in Jest), and a small engine fix rode along: `renderSection`'s degenerate
+    branch referenced `boxTop` before its declaration (TDZ crash) — the
+    declaration now precedes the branch.
 
 ## 5. Manual verification checklist
 
@@ -370,7 +423,8 @@ is keyed to file + line so you can jump straight to the code.
   can't chase the pointer.
 - Circle sections use the inscribed circle — a wide box shows a centered circle, not a
   filled wide ellipse; use ellipse for that.
-- The DOM preview approximates the PDF (CSS vs pdfkit); the PDF is authoritative.
+- Canvas text wraps by naive word-splitting (`wrapLines`) — close enough for design
+  work, but pdfkit's word engine may break very long single words differently.
 - Bundled `default1/default2.json` are section-based recreations of the legacy
   layouts, including their divider lines as section partitions; the legacy
   hardcoded builders (buildPage.default.js) still win for *printing* whenever a
