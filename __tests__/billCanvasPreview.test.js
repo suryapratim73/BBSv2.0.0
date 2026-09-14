@@ -302,6 +302,71 @@ describe("canvas preview layout (engine coordinate parity)", () => {
         expect(b.w).toBeCloseTo(A4.w - 16, 5);
         expect(b.h).toBeCloseTo(0.1 * b.w, 5);
     });
+
+    test("field width shrinks a block inside its cell and align offsets it", () => {
+        const block = new TextBlock({ content: "Hello" });
+        block.width = 50;
+        const page = pageWith([block]);
+        page.margin = { top: 8, right: 8, bottom: 8, left: 8 };
+        const cw = A4.w - 16;
+
+        const layout = layoutPage(new FakeCtx(), page);
+        const b = rec(layout, block.id).box;
+        expect(b.w).toBeCloseTo(cw / 2, 5);
+        expect(b.x).toBeCloseTo(8, 5);
+        // the record carries its own cell for the width drag handle
+        expect(rec(layout, block.id).avail).toEqual({ x: 8, w: cw });
+
+        block.align = "right";
+        const r = layoutPage(new FakeCtx(), page);
+        expect(rec(r, block.id).box.x).toBeCloseTo(8 + cw / 2, 5);
+
+        block.align = "center";
+        const c = layoutPage(new FakeCtx(), page);
+        expect(rec(c, block.id).box.x).toBeCloseTo(8 + cw / 4, 5);
+    });
+
+    test("field width is a % of the column cell inside a columned section", () => {
+        const section = new SectionBlock();
+        section.columns = 2;
+        section.padding = 0;
+        section.applyBorder = false;
+        section.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        const c1 = new VariableBlock({ variable: "billNo", width: 50 });
+        const c2 = new VariableBlock({ variable: "billNo" });
+        section.blocks = [c1, c2];
+        const page = pageWith([section]);
+        page.margin = { top: 8, right: 8, bottom: 8, left: 8 };
+
+        const layout = layoutPage(new FakeCtx(), page);
+        const sb = rec(layout, section.id).box;
+        const cell = sb.w / 2;
+        const b1 = rec(layout, c1.id).box;
+        const b2 = rec(layout, c2.id).box;
+        expect(b1.w).toBeCloseTo(cell / 2, 5);
+        expect(b2.w).toBeCloseTo(cell, 5);
+        // avail is the CELL (width % is relative to it), not the shrunk box
+        expect(rec(layout, c1.id).avail.w).toBeCloseTo(cell, 5);
+    });
+
+    test("a 50% footer bottom-anchors as a half-width band", () => {
+        const page = new BillPage();
+        page.margin = { top: 8, right: 8, bottom: 8, left: 8 };
+        const f = page.addBlock("footer");
+        f.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        f.padding = 0;
+        f.applyBorder = false;
+        f.width = 50;
+        f.align = "right";
+        f.blocks = [new TextBlock({ content: "bottom" })];
+
+        const layout = layoutPage(new FakeCtx(), page);
+        const fb = rec(layout, f.id).box;
+        const cw = A4.w - 16;
+        expect(fb.w).toBeCloseTo(cw / 2, 5);
+        expect(fb.x).toBeCloseTo(8 + cw / 2, 5);
+        expect(fb.y + fb.h).toBeCloseTo(A4.h - 8, 5); // still bottom-anchored
+    });
 });
 
 describe("canvas preview hit-testing and overlays", () => {
@@ -357,6 +422,35 @@ describe("canvas preview hit-testing and overlays", () => {
         );
         // 4 dots (edge midpoints inside the box)
         expect(ctx.arcs).toHaveLength(4);
+    });
+
+    test("selected non-section block draws the right-edge width handle", () => {
+        const block = new TextBlock({ content: "Hello", width: 50 });
+        const page = pageWith([block]);
+        page.margin = { top: 8, right: 8, bottom: 8, left: 8 };
+        const ctx = new FakeCtx();
+        const layout = renderPreview(ctx, page, { selectedId: block.id, accent: "#663399" });
+        const b = rec(layout, block.id).box;
+        expect(ctx.fillRects).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    x: b.x + b.w - 4,
+                    y: b.y + b.h / 2 - 8,
+                    w: 3,
+                    h: 16,
+                }),
+            ])
+        );
+    });
+
+    test("recordAt respects the shrunk box (empty cell area stays paper)", () => {
+        const block = new TextBlock({ content: "Hello", width: 50, align: "right" });
+        const page = pageWith([block]);
+        page.margin = { top: 8, right: 8, bottom: 8, left: 8 };
+        const layout = layoutPage(new FakeCtx(), page);
+        const b = rec(layout, block.id).box;
+        expect(recordAt(layout, b.x + b.w / 2, b.y + b.h / 2).id).toBe(block.id);
+        expect(recordAt(layout, b.x - 20, b.y + b.h / 2)).toBeNull();
     });
 
     test("hover outline is dashed; a snapped guide draws a dashed line + label", () => {

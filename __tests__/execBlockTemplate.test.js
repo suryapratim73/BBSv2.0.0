@@ -227,6 +227,53 @@ describe("execBlockTemplate — layout engine", () => {
         expect(doc.pageCount).toBe(1);
         expect(doc.texts[0].str).toBe("HUGE");
     });
+
+    test("field width shrinks a block's wrap width to half its cell", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const block = page.addBlock("text");
+        block.content = "Hello";
+        block.width = 50;
+        const doc = await runMain(page.toJSON(), makeBill());
+        const cw = 595.28 - 20;
+        expect(doc.texts[0].opts.width).toBeCloseTo(cw / 2, 5);
+        expect(doc.texts[0].x).toBeCloseTo(10, 5);
+    });
+
+    test("field width positions the box by align inside its cell", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const right = page.addBlock("text");
+        right.content = "R";
+        right.width = 50;
+        right.align = "right";
+        const centre = page.addBlock("text");
+        centre.content = "C";
+        centre.width = 50;
+        centre.align = "center";
+        const doc = await runMain(page.toJSON(), makeBill());
+        const cw = 595.28 - 20;
+        expect(doc.texts[0].x).toBeCloseTo(10 + cw / 2, 5);
+        expect(doc.texts[0].opts.width).toBeCloseTo(cw / 2, 5);
+        expect(doc.texts[1].x).toBeCloseTo(10 + cw / 4, 5);
+    });
+
+    test("footer field width anchors the whole footer cell (measure + layout)", async () => {
+        const page = new BillPage({ margin: { top: 10, right: 10, bottom: 10, left: 10 } });
+        const footer = page.addBlock("footer");
+        footer.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        footer.padding = 0;
+        footer.applyBorder = false;
+        footer.width = 50;
+        footer.align = "right";
+        const text = new TextBlock({ content: "F" });
+        text.margin = { top: 0, right: 0, bottom: 0, left: 0 };
+        text.padding = 0;
+        footer.blocks = [text];
+        const doc = await runMain(page.toJSON(), makeBill());
+        const cw = 595.28 - 20;
+        expect(doc.texts[0].str).toBe("F");
+        expect(doc.texts[0].x).toBeCloseTo(10 + cw / 2, 5);
+        expect(doc.texts[0].opts.width).toBeCloseTo(cw / 2, 5);
+    });
 });
 
 describe("execBlockTemplate — table", () => {

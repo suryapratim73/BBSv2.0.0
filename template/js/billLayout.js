@@ -203,6 +203,16 @@ function handleAt(pt) {
                 if (Math.hypot(pt.x - d.x, pt.y - d.y) <= 7)
                     return { kind: "dot", tag: d.tag, block: rec.block, rec };
             }
+        } else if (rec && rec.avail) {
+            // right-edge width handle on the box's vertical centreline band
+            const b = rec.box;
+            if (
+                Math.abs(pt.x - (b.x + b.w)) <= 5 &&
+                pt.y >= b.y + b.h / 2 - 8 &&
+                pt.y <= b.y + b.h / 2 + 8
+            ) {
+                return { kind: "width", block: rec.block, rec };
+            }
         }
     }
     for (const r of records) {
@@ -238,6 +248,7 @@ function handleCursor(h) {
     if (h.kind === "dot")
         return h.tag === "left" || h.tag === "right" ? "ew-resize" : "ns-resize";
     if (h.kind === "col") return "col-resize";
+    if (h.kind === "width") return "ew-resize";
     return "";
 }
 
@@ -347,14 +358,36 @@ function startColResize(e, h) {
     beginDrag();
 }
 
+function startWidthResize(e, h) {
+    e.preventDefault();
+    e.stopPropagation();
+    const b = h.rec.box;
+    drag = {
+        kind: "width",
+        block: h.block,
+        orig: { width: Number(h.block.width ?? 100), align: h.block.align },
+        // the block's own cell (full available width + its left edge) — the
+        // width % is relative to this, and margins sit inside it
+        cellW: h.rec.avail?.w ?? Math.max(b.w, 1),
+        cellLeft: h.rec.avail?.x ?? b.x,
+        mL: h.block.margin?.left ?? 0,
+        mR: h.block.margin?.right ?? 0,
+        startW: b.w,
+        startLeft: b.x,
+        startX: e.clientX,
+        materialized: false, // center/right-aligned block anchored left yet?
+    };
+    beginDrag();
+}
+
 function beginDrag() {
     document.body.classList.add("dragging");
     hoveredId = null;
     document.body.style.cursor =
         drag.kind === "dot"
             ? handleCursor(drag)
-            : drag.kind === "col"
-            ? "col-resize"
+            : drag.kind === "col" || drag.kind === "width"
+            ? "ew-resize"
             : "ns-resize";
     window.addEventListener("mousemove", onDragMove);
     window.addEventListener("mouseup", onDragEnd);
@@ -436,7 +469,7 @@ function onDragMove(e) {
             showBubble("margin " + drag.tag + " " + Math.round(m) + " pt", e);
             paint();
         }
-    } else {
+    } else if (drag.kind === "col") {
         // first movement of a pair containing a sumup column: freeze the
         // "remaining space" into a real width so the drag has a fixed base
         if (!drag.materialized && (drag.saved0.sumup || drag.saved1.sumup)) {
@@ -452,6 +485,27 @@ function onDragMove(e) {
         drag.block.cols[drag.i + 1].width = w1;
         renderAll();
         showBubble(w0.toFixed(1) + "%  |  " + w1.toFixed(1) + "%", e);
+        paint();
+    } else {
+        // width: the right edge follows the pointer, the left edge anchors to
+        // the cell's left edge (center/right-aligned blocks convert to left on
+        // first movement, folding the left-edge jump into the start width so
+        // the right edge stays under the pointer)
+        if (!drag.materialized && drag.block.align !== "left") {
+            drag.block.align = "left";
+            // fold the left-edge jump into the start width so the right edge
+            // stays under the pointer (box x = cellLeft + mL once left-aligned)
+            drag.startW += drag.startLeft - drag.cellLeft - drag.mL;
+            drag.materialized = true;
+        }
+        const delta = (e.clientX - drag.startX) / zoom;
+        // box width = cellW × pct/100 − mL − mR → pct = (w + mL + mR) / cellW
+        const pct = Math.round(
+            ((drag.startW + delta + drag.mL + drag.mR) / drag.cellW) * 100
+        );
+        drag.block.width = Math.min(Math.max(pct, 1), 100);
+        renderAll();
+        showBubble(drag.block.width + "%", e);
         paint();
     }
 }
@@ -472,6 +526,9 @@ function onDragKey(e) {
         d.block.margin.left = d.orig.marginLeft;
         d.block.margin.right = d.orig.marginRight;
         d.block.height = d.orig.height;
+    } else if (d.kind === "width") {
+        d.block.width = d.orig.width;
+        d.block.align = d.orig.align;
     }
     drag = null;
     endDrag();
@@ -1146,6 +1203,7 @@ function init() {
         if (h?.kind === "grip") return startSectionResize(e, h);
         if (h?.kind === "dot") return startDotResize(e, h);
         if (h?.kind === "col") return startColResize(e, h);
+        if (h?.kind === "width") return startWidthResize(e, h);
         const rec = lastLayout ? recordAt(lastLayout, pt.x, pt.y) : null;
         if (rec) {
             selectBlock(rec.id);

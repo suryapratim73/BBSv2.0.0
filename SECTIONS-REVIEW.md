@@ -9,9 +9,11 @@ Default 1 / Default 2 starting layouts in the workspace bar) and the
 **canvas preview** (2026-09-15: the DOM preview is replaced by a canvas
 renderer, `lib/billCanvasPreview.js`, that paints in the PDF engine's own
 coordinates — same box math, same column cells, same partition lines, same
-clipping, same footer anchoring). Everything below
+clipping, same footer anchoring) and **field width** (2026-09-15: every block
+has a `width` — % of its cell, default 100 — editable via a right-edge drag
+handle on the canvas and a Width % slider in the properties panel). Everything below
 is keyed to file + line so you can jump straight to the code.
-**Test status: 271/271 passing (14 suites).**
+**Test status: 282/282 passing (14 suites).**
 
 ---
 
@@ -112,6 +114,20 @@ is keyed to file + line so you can jump straight to the code.
     with no selection, and File → New returns it to Three Sections. The saved
     result is a normal v2 template (Save dialog on first save, prints through
     the v2 engine).
+12. **Field width**: every block has a **Width %** property (default 100 — the
+    full cell). Select a block (any non-section: text, variable, image, table,
+    totals) and a small vertical **handle on its right edge** appears — drag it
+    and the right edge follows the pointer while the left edge anchors to the
+    cell's left edge (a live bubble shows the %, **Esc cancels**). The same
+    property is editable as a **Width % slider** in the properties panel (the
+    panel is schema-driven — the entry renders from `COMMON_PROPS_SCHEMA` with
+    zero designer JS). Width is a % **of the block's own cell** — inside a
+    columned section that's the column cell, so the two compose. Align
+    (left/center/right) positions the narrower box inside its cell; dragging a
+    center/right-aligned block converts it to left-aligned on first movement
+    (Esc restores both width and align). Width applies to sections too (a
+    half-width, right-aligned Footer band), though sections keep their corner
+    dots for margin/height resize.
 
 ## 3. Architecture map
 
@@ -119,8 +135,10 @@ is keyed to file + line so you can jump straight to the code.
 
 | Line | What |
 |---|---|
+| `~493` | `COMMON_PROPS_SCHEMA` — the shared prop list every block gets, incl. the new **`width`** entry (`Width %`, `type: "range"`, default 100, 1–100) — the props-panel slider renders from it with zero designer JS |
 | `498` | `PAGE_PROPS_SCHEMA` — page margin prop defaults to **8pt** per side |
 | `952` | `clampColumns(value)` — section columns clamped to 1..6 (garbage/0/negative → 1) |
+| `~991` | `effectiveWidthOf(block, availableWidth)` / `alignedLeftOf(block, cellLeft, availableWidth)` — the shared field-width math: `width` % (default 100, clamped 1–100) of the available cell width; align left/center/right positions the box inside the cell. The engine, the canvas preview and the designer's width drag all use it, so preview == print == drag |
 | `981` | `BillSection extends BillBlock` — base for all section types |
 | `986` | `propsSchema`: name, shape, cornerRadius, height, **columns**, partitions |
 | `1009` | `applyTypeProps`: **padding defaults 8**, **margin defaults 8pt/side**, **applyBorder defaults true** (0.5rem everywhere; a fresh section is visible), **columns clamped**, partitions normalized, children built via `BillBlock.fromJSON` |
@@ -184,7 +202,8 @@ is keyed to file + line so you can jump straight to the code.
 The designer's page is a `<canvas>` painted in **pt units** (DPR × zoom
 transform in the designer). `layoutPage` mirrors the engine's cursor math one
 to one — it builds per-block **layout records** (id, kind, depth, box, block,
-and `colX`/`headerY`/`thHeight`/`rowHeight` for tables) used for hit-testing,
+`avail` — the block's own cell `{x, w}` the width % is relative to, and
+`colX`/`headerY`/`thHeight`/`rowHeight` for tables) used for hit-testing,
 and `renderPreview` paints page + blocks + chips + selection chrome + guides.
 
 | Line | What |
@@ -193,11 +212,11 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
 | `111` | `tableRowHeight` — `fSize × 1.2 + 2 × rSpacing`; `tableHeight` = header + 1 sample row |
 | `123` | `measureChildren` / `measureSection` — engine's `measureChildren`/`sectionBoxHeight` math (fixed height, columns, tables, images, 0.3×lh totals gap) |
 | `422` | `drawSection` — engine order: degenerate-margin branch → background pre-measure → **fixed: frame first, `save/shapePath/clip`, children, partitions, `restore`** → **auto: children, `boxHeight = max(innerY + pad − boxTop, 1)`, partitions, frame** |
-| `501` | `flowChildren` — the engine's `renderChildren` rows-of-N-cells walk (cell from row top, row advances by tallest cell) |
-| `540` | `layoutPage` — top-level walk, then footers bottom-anchored exactly like `drawFooters`: `h = measureSection(f); startY = fy − margin.top − h; fy = startY − margin.bottom` |
+| `501` | `flowChildren` — the engine's `renderChildren` rows-of-N-cells walk (cell from row top, row advances by tallest cell); each child gets `childW = effectiveWidthOf(block, cellWidth)` + `childLeft = alignedLeftOf(...)` and its record carries the parent `cell` as `avail` |
+| `540` | `layoutPage` — top-level walk (each block width/align-positioned in the content box), then footers bottom-anchored exactly like `drawFooters`: `fw = effectiveWidthOf(f, contentWidth)`, `h = measureSection(f, fw); startY = fy − margin.top − h; fy = startY − margin.bottom` |
 | `586` | `recordAt` — deepest record at a point (ties: smallest area) |
 | `660` | `drawGuide` — dashed accent guide + label pill; `page centre` snaps draw the full-page crosshair |
-| `695` | `drawSelection` — 2pt accent outline, bottom grip pill (28×3pt), four red dots ±5pt inside the edge midpoints; hover outline dashed |
+| `695` | `drawSelection` — 2pt accent outline, bottom grip pill (28×3pt), four red dots ±5pt inside the edge midpoints; a selected **non-section** block instead draws the right-edge **width handle** (3×16pt on the box's vertical centreline); hover outline dashed |
 | `748` | `renderPreview(ctx, page, opts)` — white ground, page border, optional grid (8/40pt), blocks, chips, selection/hover, guide, bubble/gap pill; returns the layout |
 
 ### Designer — `template/js/billLayout.js` + html/css (the merged designer)
@@ -208,12 +227,12 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
 | `118` | `paint()` — sizes the canvas backing store (DPR × zoom), `setTransform(dpr, …)`, then `renderPreview` into pt space; `lastLayout` = the returned records (hit-testing source) |
 | `140` | `renderAll` — re-sizes the page frame, clears overlays (guide/bubble/gapPill), calls `paint()`; every model mutation goes through it, so the canvas is always in sync |
 | `170` | `ptFromEvent` — pointer → pt via `getBoundingClientRect() / zoom` |
-| `190` | `handleAt(pt)` — hit-testing on `lastLayout` records: selected-section dots (r=7pt around the four dot centers) → section grip strips (bottom 9pt of every section box) → table column dividers (±5pt around `colX` in the header band) → `recordAt` deepest record → null |
-| `235` | `handleCursor(h)` — pointer cursor per handle (dots → ew-resize, grip/top/bottom → ns-resize, col → col-resize) |
+| `190` | `handleAt(pt)` — hit-testing on `lastLayout` records: selected-section dots (r=7pt around the four dot centers) → the selected non-section block's **width handle** (±5pt around the box's right edge, ±8pt around its vertical centreline) → section grip strips (bottom 9pt of every section box) → table column dividers (±5pt around `colX` in the header band) → `recordAt` deepest record → null |
+| `235` | `handleCursor(h)` — pointer cursor per handle (dots/width → ew-resize, grip/top/bottom → ns-resize, col → col-resize) |
 | `250` | `snapTargets` — x + y alignment lines (page edges, content box, centre, neighbour section edges) from `lastLayout` records, snapshotted at dragstart so targets don't chase the pointer |
-| `277` | `startSectionResize` / `startDotResize` (`299`) / `startColResize` (`328`) — snapshot drag state (top dot pins the bottom edge, auto-height converts to fixed at rendered height; col snapshots effective widths + stored state so Esc restores sumup flags exactly) |
-| `373` | `onDragMove` — section (height, y-snap), dot (margins + top-dot height compensation, x-snap for left/right), col (materializes a sumup pair into real widths on first move, then `resizeColPair`); mutates the model → `renderAll()` → sets the overlay |
-| `459` | `onDragKey` — Esc restores the dragstart state for all three kinds |
+| `277` | `startSectionResize` / `startDotResize` (`299`) / `startColResize` (`328`) / `startWidthResize` (`347`) — snapshot drag state (top dot pins the bottom edge, auto-height converts to fixed at rendered height; col snapshots effective widths + stored state so Esc restores sumup flags exactly; width snapshots the block's cell from the record's `avail`, its start box and its width + align) |
+| `373` | `onDragMove` — section (height, y-snap), dot (margins + top-dot height compensation, x-snap for left/right), col (materializes a sumup pair into real widths on first move, then `resizeColPair`), width (right edge follows the pointer, left edge anchors to the cell's left edge — a center/right-aligned block converts to left on first movement, folding the left-edge jump into the start width so the handle stays under the pointer; `pct = (w + mL + mR) / cellW`, clamped 1–100); mutates the model → `renderAll()` → sets the overlay |
+| `459` | `onDragKey` — Esc restores the dragstart state for all four kinds (width restores both width and align) |
 | `490` | `showBubble` / `drawGuides` (`500`) / `drawGapPill` (`511`) — build the overlay objects (`bubble`, `guide {snapped, axis}`, `gapPill`) that `renderPreview` paints; gap pill = nearest neighbour edge within 10pt in the drag direction |
 | `535` | `selectBlock` — selection drives the props panel + context hint |
 | `550` | `findBlock(id)` — recursive search through sections |
@@ -244,7 +263,7 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
   untouched-when-far), resizeColPair (sum preserved, min clamps, degenerate pairs)
   and effectiveColWidths (sumup absorbs the remainder, passthrough, 1% minimum,
   empty lists).
-- `__tests__/billCanvasPreview.test.js` — "canvas preview" (15 tests, 2026-09-15),
+- `__tests__/billCanvasPreview.test.js` — "canvas preview" (20 tests, 2026-09-15),
   running `layoutPage`/`renderPreview` against a recording `FakeCtx` (texts,
   rects, lines {from,to}, clips, dashSets — same spirit as the engine's FakeDoc):
   box math (text margins/padding, `x = left+mL`, `h = lines×12×1.2 + 2×pad`),
@@ -258,7 +277,20 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
   dashed hover + guide (page-centre crosshair), page border `strokeRect(border/2,
   …, w−border, h−border)`, and the bundled templates: **Default1's centre
   partition lands at x = 297.64** (page margin 30, 50% of 535.28) and Default2
-  lays out with all its top-level sections recorded.
+  lays out with all its top-level sections recorded. **Field width (2026-09-15):**
+  50% width halves the box and align right/center offsets it (`avail` = the
+  cell `{x: 8, w: cw}`), width composes with section columns (50% of the cell),
+  a 50% right-aligned footer bottom-anchors as a half-width band, the selected
+  non-section block draws the 3×16pt right-edge handle, and `recordAt` respects
+  the shrunk box (empty cell area stays paper).
+- `__tests__/execBlockTemplate.test.js` — **field width (2026-09-15):** a
+  50%-width block's text gets `opts.width = cell/2` at `x = left`; align
+  right/center position the narrower box (x = left + cell/2, left + cell/4);
+  a 50% right-aligned footer anchors its whole cell (`x = left + cell/2`).
+  Model side: `billBlockModel.test.js` pins width default 100 + JSON
+  round-trip + the schema entry (`range`, 1–100), `effectiveWidthOf`
+  (garbage/0/negative/over-100 all fall back to full width) and
+  `alignedLeftOf` (left/right/center offsets, full-width anchors at the edge).
 - `__tests__/execBlockTemplate.test.js` — "section columns" suite (3 tests, 2026-09-14):
   rows of N cells with x/y math (cell = `(contentWidth − 2×pad) / cols`, row height =
   tallest cell, next row starts below it); an empty variable mid-row collapses its
@@ -345,6 +377,19 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
     in Jest), and a small engine fix rode along: `renderSection`'s degenerate
     branch referenced `boxTop` before its declaration (TDZ crash) — the
     declaration now precedes the branch.
+17. **Field width is a % of the block's own cell, positions by align** (2026-09-15) —
+    `width` (default 100 = the old full-width behaviour byte-for-byte) shrinks
+    the block inside whatever cell it occupies; `align` (left/center/right)
+    positions the narrower box inside that cell. The shared helpers
+    `effectiveWidthOf`/`alignedLeftOf` (billBlockModel) are used by the engine
+    (renderChildren, measureChildren, footerReserve/drawFooters), the canvas
+    preview and the designer's width drag, so the three can't disagree. Inside
+    a columned section the cell is the column cell, so width and Columns
+    compose. The drag handles on the **box's** right edge; dragging a
+    center/right-aligned block materializes it to left-aligned on first
+    movement (the left edge becomes the anchor, the right edge stays under the
+    pointer), and Esc restores width + align. The props-panel slider needs zero
+    designer JS — the `range` schema entry renders generically.
 
 ## 5. Manual verification checklist
 
@@ -402,14 +447,30 @@ and `renderPreview` paints page + blocks + chips + selection chrome + guides.
 - [ ] Picker state: after File → Open the dropdown shows the "Template…"
       placeholder (no starter selected); after File → New it shows Three
       Sections again.
+- [ ] Select a Text/Variable field → a small vertical handle appears on its
+      right edge → drag it: the right edge follows the pointer, the left edge
+      stays anchored at the cell's left edge, a live bubble shows the %; Esc
+      mid-drag restores the original width. The props panel shows the same
+      Width % value (slider 1–100); set it there and the canvas updates.
+- [ ] Set Width % = 50 + Align = right on a field → it hugs the right half of
+      its cell; Align = center → centred in the cell. Drag its width handle →
+      it converts to left-aligned on first movement with the handle staying
+      under the pointer; Esc restores both width and align.
+- [ ] Width inside a columned section (Columns = 2) → the field shrinks inside
+      its own column cell, not the whole section. Print → the PDF shows the
+      same narrowed field in the same cell.
+- [ ] Set a Footer's Width % = 50 → it bottom-anchors as a half-width band on
+      every printed page.
 
 ## 6. Known limitations / future work
 
 - **Drag-resize covers section height (grip + bottom dot), section margins (top/
-  left/right dots) and table column width (divider).** Image blocks still resize via
-  the props panel. Block *movement* stays Move Up/Down-based — the flow layout has
-  no absolute positions, so old-style free drag-move has no v2 equivalent
-  (reordering within a section via Move Up/Down covers it; ↑/↓ nudges spacing).
+  left/right dots), table column width (divider) and field width (right-edge
+  handle on non-section blocks).** The width handle snaps to nothing (free drag,
+  whole-% bubble) — grid/guide snapping stays on the section edge drags.
+- Block *movement* stays Move Up/Down-based — the flow layout has no absolute
+  positions, so old-style free drag-move has no v2 equivalent (reordering within
+  a section via Move Up/Down covers it; ↑/↓ nudges spacing).
 - **Row-wise fields = section columns, not free placement** — fields flow in rows of
   N equal-width cells (Columns prop, §2 item 10). True free x/y placement (drag a
   field to an arbitrary spot) is still deferred; if it lands, it will be a separate

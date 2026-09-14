@@ -20,6 +20,8 @@ const {
     clampColumns,
     innerWidthOf,
     cellWidthOf,
+    effectiveWidthOf,
+    alignedLeftOf,
 } = require("../lib/billBlockModel");
 const default1 = require("../template/billTemplates/default1.json");
 const default2 = require("../template/billTemplates/default2.json");
@@ -511,5 +513,41 @@ describe("variable registry shape", () => {
             });
         });
         expect(ALL_VARIABLE_KEYS).toHaveLength(Object.keys(VARIABLES).length);
+    });
+});
+
+describe("field width (width % of the available cell width)", () => {
+    test("width defaults to 100 and survives a round-trip", () => {
+        const block = new TextBlock({ content: "X" });
+        expect(block.width).toBe(100);
+        expect(roundTrip(block).width).toBe(100);
+
+        const narrow = new VariableBlock({ variable: "billNo", width: 50 });
+        expect(narrow.width).toBe(50);
+        expect(roundTrip(narrow).width).toBe(50);
+        // the schema entry drives the props panel slider
+        const entry = TextBlock.propsSchema.find((e) => e.key === "width");
+        expect(entry).toEqual(
+            expect.objectContaining({ type: "range", default: 100, unit: "%", min: 1, max: 100 })
+        );
+    });
+
+    test("effectiveWidthOf maps % to points, clamping garbage and overflow", () => {
+        expect(effectiveWidthOf({ width: 50 }, 400)).toBeCloseTo(200, 5);
+        expect(effectiveWidthOf({ width: 100 }, 400)).toBeCloseTo(400, 5);
+        expect(effectiveWidthOf({ width: 1 }, 400)).toBeCloseTo(4, 5);
+        // missing / 0 / negative / over-100 all fall back to the full width
+        expect(effectiveWidthOf({}, 400)).toBeCloseTo(400, 5);
+        expect(effectiveWidthOf({ width: 0 }, 400)).toBeCloseTo(400, 5);
+        expect(effectiveWidthOf({ width: -5 }, 400)).toBeCloseTo(400, 5);
+        expect(effectiveWidthOf({ width: 250 }, 400)).toBeCloseTo(400, 5);
+    });
+
+    test("alignedLeftOf positions the box inside the cell", () => {
+        expect(alignedLeftOf({ width: 50, align: "left" }, 100, 400)).toBeCloseTo(100, 5);
+        expect(alignedLeftOf({ width: 50, align: "right" }, 100, 400)).toBeCloseTo(300, 5);
+        expect(alignedLeftOf({ width: 50, align: "center" }, 100, 400)).toBeCloseTo(200, 5);
+        // full-width blocks anchor at the cell edge whatever the align
+        expect(alignedLeftOf({ width: 100, align: "center" }, 100, 400)).toBeCloseTo(100, 5);
     });
 });
