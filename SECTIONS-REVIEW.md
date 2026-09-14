@@ -7,7 +7,7 @@ model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
 are retired) and the **template picker** (2026-09-14: Blank / Three Sections /
 Default 1 / Default 2 starting layouts in the workspace bar). Everything below
 is keyed to file + line so you can jump straight to the code.
-**Test status: 255/255 passing (13 suites).**
+**Test status: 257/257 passing (13 suites).**
 
 ---
 
@@ -89,6 +89,9 @@ is keyed to file + line so you can jump straight to the code.
     cell), so print == preview; empty fields collapse to leave their cell
     blank. Cells are chunked relative to the page-break resume point, so a row
     interrupted by a break re-forms around the broken field on the next page.
+    The designer's recursive element builder (`renderBlockEl`) shares the
+    model's `innerWidthOf`/`cellWidthOf` helpers with `renderDOM`, so preview
+    cells can't drift from the engine's row math.
 11. **Template picker** (workspace bar, beside zoom/grid — a dropdown after the
     grid button): starts a new design from one of four layouts — **Blank**
     (an empty page; add Header/Body/Footer from the palette and they slot into
@@ -336,9 +339,13 @@ is keyed to file + line so you can jump straight to the code.
 - [ ] Template picker: Blank → empty page, add Header/Body/Footer from the
       palette → they slot header-first, body-after-header, footer-last. Three
       Sections → the pre-built 30/40/30 invoice. Default 1 / Default 2 → the
-      legacy layouts as stacked v2 blocks (each asks "Replace?" first; Cancel
-      keeps the design and restores the picker). Save & Exit from any of them →
-      Save dialog, saved file opens again, prints through the v2 engine.
+      legacy layouts as section-based v2 blocks with their partition lines
+      (each asks "Replace?" first; Cancel keeps the design and restores the
+      picker). Save & Exit from any of them → Save dialog, saved file opens
+      again, prints through the v2 engine.
+- [ ] Columned sections in Default 1 / Default 2: each field sits inside its
+      cell (half/third of the section width), the partition lines run between
+      the cells, and selecting a cell section shows its resize dots/grip.
 - [ ] Picker state: after File → Open the dropdown shows the "Template…"
       placeholder (no starter selected); after File → New it shows Three
       Sections again.

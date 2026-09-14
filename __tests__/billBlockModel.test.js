@@ -18,6 +18,9 @@ const {
     ALL_VARIABLE_KEYS,
     LEGACY_MSG,
     applyDOMStyles,
+    clampColumns,
+    innerWidthOf,
+    cellWidthOf,
 } = require("../lib/billBlockModel");
 const default1 = require("../template/billTemplates/default1.json");
 const default2 = require("../template/billTemplates/default2.json");
@@ -386,6 +389,35 @@ describe("structural sections & default template", () => {
         section.columns = 4;
         const copy = BillPage.fromJSON(JSON.parse(JSON.stringify(page.toJSON())));
         expect(copy.blocks[0].columns).toBe(4);
+    });
+
+    test("innerWidthOf subtracts the section frame from the content width", () => {
+        const section = new SectionBlock({
+            margin: { left: 3, right: 5 },
+            padding: 8,
+            applyBorder: true,
+            border: 1,
+        });
+        // 200 - 3 - 5 - 2×8 (padding) - 2×1 (border) = 174
+        expect(innerWidthOf(section, 200)).toBe(174);
+        // defaults are 8pt margins/padding and a visible 1pt border:
+        // 100 - 8 - 8 - 2×4 (padding) - 2×1 (border) = 74
+        expect(innerWidthOf(new SectionBlock({ padding: 4 }), 100)).toBe(74);
+        // 100 - 8 - 8 - 2×8 (padding) - 2×1 (border) = 66
+        expect(innerWidthOf(new SectionBlock(), 100)).toBe(66);
+    });
+
+    test("cellWidthOf hands each columned child a cell, never the full box", () => {
+        const section = new SectionBlock({ columns: 2 });
+        expect(cellWidthOf(section, 100)).toBe(50);
+        section.columns = 3;
+        expect(cellWidthOf(section, 150)).toBe(50);
+        section.columns = 0; // clamps back to 1 -> full width
+        expect(cellWidthOf(section, 150)).toBe(150);
+        expect(cellWidthOf(new SectionBlock({ columns: "nope" }), 150)).toBe(150);
+        expect(clampColumns(undefined)).toBe(1);
+        expect(clampColumns(6)).toBe(6);
+        expect(clampColumns(7)).toBe(6);
     });
 
     test("BillPage margin defaults to 0.5rem; explicit margins still win", () => {

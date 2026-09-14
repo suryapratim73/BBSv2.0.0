@@ -27,6 +27,8 @@ const {
     VARIABLE_GROUPS,
     ALL_VARIABLE_KEYS,
     LEGACY_MSG,
+    innerWidthOf,
+    cellWidthOf,
 } = require("../../lib/billBlockModel");
 const SNAP = require("../../lib/designerSnap");
 
@@ -151,17 +153,15 @@ function renderBlockEl(block, cw) {
     });
     if (Array.isArray(block.blocks)) {
         // mirror BillSection.renderDOM: children flow inside padding + border,
-        // and the section box itself is shrunk by its horizontal margins
-        const innerWidth =
-            cw -
-            (block.margin?.left ?? 0) -
-            (block.margin?.right ?? 0) -
-            2 * (block.padding ?? 0) -
-            2 * (block.applyBorder ? (block.border ?? 0) : 0);
+        // and a columned section hands each child a CELL (innerWidth / cols),
+        // not the full box — the shared helpers keep this in lockstep with the
+        // model and the engine
+        const innerWidth = innerWidthOf(block, cw);
+        const cellWidth = cellWidthOf(block, innerWidth);
         block.blocks.forEach((child) => {
             const childEl = el.querySelector(`:scope > [data-block-id="${child.id}"]`);
             if (childEl)
-                childEl.replaceWith(renderBlockEl(child, innerWidth));
+                childEl.replaceWith(renderBlockEl(child, cellWidth));
         });
     }
     if (block.id === selectedId) el.classList.add("selected");
