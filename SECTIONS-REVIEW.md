@@ -7,7 +7,7 @@ model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
 are retired) and the **template picker** (2026-09-14: Blank / Three Sections /
 Default 1 / Default 2 starting layouts in the workspace bar). Everything below
 is keyed to file + line so you can jump straight to the code.
-**Test status: 253/253 passing (13 suites).**
+**Test status: 255/255 passing (13 suites).**
 
 ---
 
@@ -94,8 +94,10 @@ is keyed to file + line so you can jump straight to the code.
     (an empty page; add Header/Body/Footer from the palette and they slot into
     their canonical positions), **Three Sections** (the pre-built
     `createInvoiceTemplate()`), **Default 1** / **Default 2** (the bundled
-    `template/billTemplates/default1|2.json` v2 data-template conversions of
-    the legacy hardcoded layouts, loaded over IPC `read-bill-template`).
+    `template/billTemplates/default1|2.json` section-based recreations of the
+    legacy hardcoded layouts — boxed bands and their vertical/horizontal
+    divider lines restored as section `partitions` — loaded over IPC
+    `read-bill-template`).
     Switching asks first (`confirm-replace-template`, Replace/Cancel — the
     design is replaced wholesale); opening a file from disk shows the picker
     with no selection, and File → New returns it to Three Sections. The saved
@@ -362,7 +364,10 @@ is keyed to file + line so you can jump straight to the code.
 - Circle sections use the inscribed circle — a wide box shows a centered circle, not a
   filled wide ellipse; use ellipse for that.
 - The DOM preview approximates the PDF (CSS vs pdfkit); the PDF is authoritative.
-- Bundled `default1/default2.json` remain flat (no sections) until migrated deliberately
-  to the pre-built structure.
+- Bundled `default1/default2.json` are section-based recreations of the legacy
+  layouts, including their divider lines as section partitions; the legacy
+  hardcoded builders (buildPage.default.js) still win for *printing* whenever a
+  saved template is named `default1`/`default2` (billTemplateResolver.js) — the
+  JSONs are designer starting points until that routing is retired.
 - Nested sections deeper than ~3 levels are untested in the designer UI (engine
   continuation paths are generic and test-covered for nesting).

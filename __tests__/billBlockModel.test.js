@@ -216,17 +216,42 @@ describe("BillPage", () => {
         expect(page.blocks).toHaveLength(1);
     });
 
-    test("bundled default templates load through fromJSON", () => {
+    test("bundled default templates load through fromJSON as section layouts", () => {
         [default1, default2].forEach((template) => {
             const page = BillPage.fromJSON(template);
             expect(page.version).toBe(2);
-            expect(page.blocks.length).toBeGreaterThan(10);
-            page.blocks.forEach((block) => {
-                expect(["text", "variable", "image", "table", "totals"]).toContain(block.type);
+            // top level is the three structural sections
+            expect(page.blocks.map((b) => b.type)).toEqual(["header", "body", "footer"]);
+            // partitions restore the legacy divider lines (col = vertical, row = horizontal)
+            const collectPartitions = (blocks, out = []) => {
+                blocks.forEach((b) => {
+                    if (b.partitions) out.push(...b.partitions);
+                    if (b.blocks) collectPartitions(b.blocks, out);
+                });
+                return out;
+            };
+            const partitions = collectPartitions(page.blocks);
+            expect(partitions.length).toBeGreaterThanOrEqual(4);
+            partitions.forEach((p) => {
+                expect(["col", "row"]).toContain(p.direction);
+                expect(p.range).toBeGreaterThan(0);
+                expect(p.range).toBeLessThanOrEqual(100);
+                expect(p.lWidth).toBe(1);
             });
+            // every nested child is a renderable block type
+            const check = (blocks) =>
+                blocks.forEach((b) => {
+                    expect([
+                        "header", "body", "footer", "section",
+                        "text", "variable", "image", "table", "totals",
+                    ]).toContain(b.type);
+                    if (b.blocks) check(b.blocks);
+                });
+            check(page.blocks);
             // round-trip is stable (schema changes fail this test)
             const copy = BillPage.fromJSON(JSON.parse(JSON.stringify(page.toJSON())));
             expect(copy.blocks).toHaveLength(page.blocks.length);
+            expect(collectPartitions(copy.blocks)).toHaveLength(partitions.length);
         });
     });
 });

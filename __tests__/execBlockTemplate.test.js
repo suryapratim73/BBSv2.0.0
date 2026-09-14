@@ -689,5 +689,28 @@ describe("execBlockTemplate — bundled templates", () => {
             expect(doc.ended).toBe(true);
             expect(doc.texts.length).toBeGreaterThan(0);
         });
+
+        test(`${file} renders its partition lines (legacy header/footer dividers)`, async () => {
+            const template = JSON.parse(
+                fs.readFileSync(path.join(TEMPLATE_DIR, file), "utf8")
+            );
+            const page = BillPage.fromJSON(template);
+            const doc = new FakeDoc();
+            await main(doc, "C:/fake.pdf", makeBill(12), page.toJSON(), saleConfig);
+            // col partitions are vertical strokes, row partitions horizontal
+            const verticals = doc.lines.filter(
+                (l) => l.from.x === l.to.x && l.from.y !== l.to.y
+            );
+            const horizontals = doc.lines.filter(
+                (l) => l.from.y === l.to.y && l.from.x !== l.to.x
+            );
+            expect(verticals.length).toBeGreaterThanOrEqual(2);
+            expect(horizontals.length).toBeGreaterThanOrEqual(1);
+            // both layouts carry a col-50 partition down the middle of the
+            // content area: left margin + half of (A4 width − side margins)
+            expect(
+                verticals.some((l) => Math.abs(l.from.x - 297.64) < 0.5)
+            ).toBe(true);
+        });
     });
 });
