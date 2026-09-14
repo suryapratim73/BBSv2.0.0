@@ -26,7 +26,7 @@
                 <i class="fa-solid fa-shapes"></i> Custom Section
             </button>
         </div>
-        <p class="hint">New templates start pre-built: Header (30%) / Body (40%) / Footer (30%) with the mandatory invoice fields inside. Fields can be removed or restyled; the three sections stay in this order. Select a section, then add blocks — they go inside it and inherit its font. Double-click any element to drill into it. Drag the red dots on a selected section's edges to resize it (top/left/right = the section's spacing, bottom = its height) and drag table column dividers to resize columns.</p>
+        <p class="hint">New templates start pre-built: Header (30%) / Body (40%) / Footer (30%) with the mandatory invoice fields inside. The Template dropdown in the workspace bar starts a Blank page, this pre-built Three Sections layout, or the Default 1 / Default 2 layouts instead. Fields can be removed or restyled; the three sections stay in this order. Select a section, then add blocks — they go inside it and inherit its font. Double-click any element to drill into it. Drag the red dots on a selected section's edges to resize it (top/left/right = the section's spacing, bottom = its height) and drag table column dividers to resize columns.</p>
 
         <h2>Blocks</h2>
         <div class="palette-grid">
@@ -72,6 +72,16 @@
             <button type="button" id="grid-toggle" title="Toggle the alignment grid and snapping (0.5rem steps)">
                 <i class="fa-solid fa-border-all"></i>
             </button>
+            <label id="template-picker-wrap" title="Start a new design from a template — replaces the current design">
+                <i class="fa-solid fa-file"></i>
+                <select id="template-picker">
+                    <option value="" disabled hidden>Template…</option>
+                    <option value="blank">Blank</option>
+                    <option value="sections">Three Sections</option>
+                    <option value="default1">Default 1</option>
+                    <option value="default2">Default 2</option>
+                </select>
+            </label>
         </div>
         <div id="workspace-scroll">
             <div id="page-frame">

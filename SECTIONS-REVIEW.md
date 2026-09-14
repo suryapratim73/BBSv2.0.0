@@ -1,11 +1,12 @@
 # Bill Layout Designer v2 — Sections + Structural Template + Drag-Resize Review
 
 Review companion for the Header / Body / Footer / Custom Section work, the
-**pre-built structural template**, **drag-to-resize + alignment grids**, and
-the **designer merge** (2026-09-14: the old designer's shell rebuilt on the v2
+**pre-built structural template**, **drag-to-resize + alignment grids**, the
+**designer merge** (2026-09-14: the old designer's shell rebuilt on the v2
 model as `template/js/billLayout.js`; the interim `billBlockDesigner.*` files
-are retired). Everything below is keyed to file + line so you can jump
-straight to the code.
+are retired) and the **template picker** (2026-09-14: Blank / Three Sections /
+Default 1 / Default 2 starting layouts in the workspace bar). Everything below
+is keyed to file + line so you can jump straight to the code.
 **Test status: 253/253 passing (13 suites).**
 
 ---
@@ -88,6 +89,18 @@ straight to the code.
     cell), so print == preview; empty fields collapse to leave their cell
     blank. Cells are chunked relative to the page-break resume point, so a row
     interrupted by a break re-forms around the broken field on the next page.
+11. **Template picker** (workspace bar, beside zoom/grid — a dropdown after the
+    grid button): starts a new design from one of four layouts — **Blank**
+    (an empty page; add Header/Body/Footer from the palette and they slot into
+    their canonical positions), **Three Sections** (the pre-built
+    `createInvoiceTemplate()`), **Default 1** / **Default 2** (the bundled
+    `template/billTemplates/default1|2.json` v2 data-template conversions of
+    the legacy hardcoded layouts, loaded over IPC `read-bill-template`).
+    Switching asks first (`confirm-replace-template`, Replace/Cancel — the
+    design is replaced wholesale); opening a file from disk shows the picker
+    with no selection, and File → New returns it to Three Sections. The saved
+    result is a normal v2 template (Save dialog on first save, prints through
+    the v2 engine).
 
 ## 3. Architecture map
 
@@ -318,6 +331,15 @@ straight to the code.
       other field in the row keeps its position; rows below stay in place.
 - [ ] Open an old (v1/legacy) template → friendly "legacy" toast; it still prints
       through the legacy path.
+- [ ] Template picker: Blank → empty page, add Header/Body/Footer from the
+      palette → they slot header-first, body-after-header, footer-last. Three
+      Sections → the pre-built 30/40/30 invoice. Default 1 / Default 2 → the
+      legacy layouts as stacked v2 blocks (each asks "Replace?" first; Cancel
+      keeps the design and restores the picker). Save & Exit from any of them →
+      Save dialog, saved file opens again, prints through the v2 engine.
+- [ ] Picker state: after File → Open the dropdown shows the "Template…"
+      placeholder (no starter selected); after File → New it shows Three
+      Sections again.
 
 ## 6. Known limitations / future work
 

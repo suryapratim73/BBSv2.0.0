@@ -1866,6 +1866,37 @@ ipcMain.handle("new-template-response", async (e, page) => {
   }
 });
 
+// Starter templates for the designer's template picker — the bundled v2
+// data-template conversions of the legacy Default1/Default2 layouts.
+ipcMain.handle("read-bill-template", async (_e, name) => {
+  try {
+    if (!["default1", "default2"].includes(name))
+      throw new Error(`Unknown template "${name}".`);
+    const file = path.join(__dirname, "template", "billTemplates", `${name}.json`);
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (err) {
+    return { error: String(err.message || err) };
+  }
+});
+
+// The picker replaces the whole design — ask before discarding it.
+ipcMain.handle("confirm-replace-template", async (e, name) => {
+  let win = BrowserWindow.fromId(e.frameId);
+  try {
+    return dialog.showMessageBox(win, {
+      type: "question",
+      message: `Replace with the ${String(name)} template?`,
+      detail: "The current design will be replaced. Unsaved changes will be lost.",
+      buttons: ["Replace", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+      icon: appIcon,
+    });
+  } catch (err) {
+    return err;
+  }
+});
+
 //Company profile IPCs
 ipcMain.on("company-profile-info", async (e, data) => {
   let win = BrowserWindow.fromId(e.frameId);

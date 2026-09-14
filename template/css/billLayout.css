@@ -158,6 +158,39 @@ body {
     color: var(--bd-muted);
 }
 
+/* Template picker — same look as the bar buttons, separated as its own group */
+#template-picker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding-left: 14px;
+    border-left: 1px solid var(--bd-muted);
+}
+
+#template-picker-wrap > i {
+    font-size: 12px;
+    color: var(--bd-muted);
+}
+
+#template-picker {
+    height: 28px;
+    max-width: 140px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font: inherit;
+    font-size: 12px;
+    padding: 0 6px;
+    cursor: pointer;
+}
+
+#template-picker:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
 #workspace-scroll {
     flex: 1;
     overflow: auto;

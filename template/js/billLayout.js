@@ -1114,12 +1114,52 @@ function addVariableBlock(key) {
 // ---------------------------------------------------------------------------
 // File IPC (same contracts as the original designer)
 // ---------------------------------------------------------------------------
+// Which starter template the workspace currently holds: "blank" | "sections"
+// | "default1" | "default2", or null for a file opened from disk.
+let currentTemplate = "sections";
+
+function syncTemplatePicker() {
+    $("#template-picker").value = currentTemplate ?? "";
+}
+
+async function loadStarterTemplate(name) {
+    // The picker replaces the whole design — ask before discarding.
+    try {
+        const sig = await ipcRenderer.invoke("confirm-replace-template", name);
+        if (!sig || sig.response !== 0) return syncTemplatePicker();
+    } catch (err) {
+        console.error(err);
+        return syncTemplatePicker();
+    }
+    try {
+        if (name === "blank") page = new BillPage();
+        else if (name === "sections") page = createInvoiceTemplate();
+        else {
+            // Bundled v2 copies of the legacy Default1/Default2 layouts.
+            const data = await ipcRenderer.invoke("read-bill-template", name);
+            if (!data || data.error)
+                throw new Error(data?.error || "Could not load template.");
+            page = BillPage.fromJSON(data);
+        }
+        currentTemplate = name;
+        selectedId = null;
+        renderAll();
+        renderProps();
+        updateContextHint();
+    } catch (err) {
+        toast(err.message || "Could not load template.");
+    }
+    syncTemplatePicker();
+}
+
 function resetDoc() {
     page = createInvoiceTemplate();
+    currentTemplate = "sections";
     selectedId = null;
     renderAll();
     renderProps();
     updateContextHint();
+    syncTemplatePicker();
 }
 
 function saveAndExit() {
@@ -1193,6 +1233,10 @@ function init() {
         syncGridUI();
     });
     syncGridUI();
+    $("#template-picker").addEventListener("change", (e) => {
+        if (e.target.value) loadStarterTemplate(e.target.value);
+    });
+    syncTemplatePicker();
 
     // block actions — operate on the selected block's parent container
     $("#move-up").addEventListener("click", () => {
@@ -1317,10 +1361,12 @@ function init() {
             page = BillPage.fromJSON(data);
             page.newDoc = false;
             page.filePath = filePath;
+            currentTemplate = null;
             selectedId = null;
             renderAll();
             renderProps();
             updateContextHint();
+            syncTemplatePicker();
         } catch (err) {
             toast(err.message || LEGACY_MSG);
         }
