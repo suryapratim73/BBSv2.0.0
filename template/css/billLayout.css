@@ -1,92 +1,257 @@
-@import "../css/common.css";
-:root{
-    --left_range:50%;
-    --top_range:-200%;
-    --popup-width:2rem;
-    --display:flex;
+/* Bill Layout Designer — the classic designer's behavior in the modern
+   3-pane shell. Theme-aware via the same CSS vars applyTheme sets (inline on
+   the document root — no @import of common.css; the designer needs only a
+   handful of its utility rules, ported below). */
+
+:root {
+    --bd-bg: var(--theme-secondary, #ffffff);
+    --bd-fg: var(--theme-text-color, #000000);
+    --bd-accent: var(--theme-primary, #663399);
+    --bd-shadow: var(--theme-shadow-color, #808080);
+    --bd-muted: rgba(128, 128, 128, 0.55);
+    --bd-pane-w: 280px;
+    /* range-tooltip machinery (ported from the classic designer) */
+    --left_range: 50%;
+    --top_range: -200%;
+    --popup-width: 2rem;
+    --display: flex;
 }
-body{
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
     display: flex;
-    padding: unset;
-    background: gray;
-}
-aside{
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    background: var(--theme-primary);
-    padding: 0.5rem;
-    max-width: 40%;
-}
-aside>div:last-child{
-    display: flex;
-    justify-content: space-between;
-    flex-direction: column;
-}
-aside>div:last-child>div{
-    align-items: stretch;
-    gap: 0.5rem;
-}
-aside>div>div{
-    display: flex;
-    align-items: center;
-    margin: 0.5rem 0;
-}
-aside>div>div *{
-    flex: 1;
-}
-aside button{
-    padding: 0.75rem 0.25rem;
-    outline: none;
-}
-aside span{
-    font-size: 0.8rem;
-}
-aside input{
-    width: 100%;
-    height: 100%;
-    color: black;
-    max-width: 5rem;
-    min-height: 1rem;
-}
-aside select{
-    max-width: 5rem;
-}
-p,label{
-    color: var(--theme-text-color);
-    white-space: nowrap;
+    height: 100vh;
     overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.9rem;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--bd-fg);
+    background: var(--bd-bg);
+}
+
+/* ---------- panes ---------- */
+.pane {
+    width: var(--bd-pane-w);
+    min-width: var(--bd-pane-w);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    overflow-y: auto;
+    background: var(--bd-bg);
+    border-right: 1px solid var(--bd-muted);
+}
+
+#props {
+    border-right: none;
+    border-left: 1px solid var(--bd-muted);
+}
+
+.pane h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bd-accent);
+    margin-top: 6px;
+}
+
+.hint {
+    font-size: 11px;
+    color: var(--bd-muted);
+    line-height: 1.4;
+}
+
+/* ---------- palette ---------- */
+.palette-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.palette-btn,
+#props button {
     display: flex;
     align-items: center;
-    background: none;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 10px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font-size: 13px;
+    cursor: pointer;
 }
-h1{
+
+.palette-btn:hover,
+#props button:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
+#variable-picker,
+#custom-variable,
+#props-panel input,
+#props-panel select,
+#props-panel textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font-size: 13px;
+}
+
+#props-panel input[type="range"] {
+    min-width: 0;
+}
+
+#props-panel input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+
+.custom-var-row {
+    display: flex;
+    gap: 6px;
+}
+
+.custom-var-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.custom-var-row .palette-btn {
+    width: 40px;
+    flex: none;
+}
+
+option {
+    color: black;
+}
+
+/* ---------- workspace ---------- */
+#workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background:
+        repeating-linear-gradient(45deg, transparent 0 14px, rgba(128, 128, 128, 0.06) 14px 16px);
+}
+
+#workspace-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px;
+    border-bottom: 1px solid var(--bd-muted);
+    background: var(--bd-bg);
+}
+
+#workspace-bar button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    cursor: pointer;
+}
+
+#workspace-bar button:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
+#workspace-bar button.active {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+    background: rgba(128, 128, 128, 0.08);
+}
+
+#zoom-label {
+    font-size: 12px;
+    min-width: 42px;
+    text-align: center;
+    color: var(--bd-muted);
+}
+
+/* Template picker — same look as the bar buttons, separated as its own group */
+#template-picker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding-left: 14px;
+    border-left: 1px solid var(--bd-muted);
+}
+
+#template-picker-wrap > i {
+    font-size: 12px;
+    color: var(--bd-muted);
+}
+
+#template-picker {
+    height: 28px;
+    max-width: 140px;
+    border: 1px solid var(--bd-muted);
+    border-radius: 6px;
+    background: var(--bd-bg);
+    color: var(--bd-fg);
+    font: inherit;
+    font-size: 12px;
+    padding: 0 6px;
+    cursor: pointer;
+}
+
+#template-picker:hover {
+    border-color: var(--bd-accent);
+    color: var(--bd-accent);
+}
+
+#workspace-scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* ---------- the page canvas (classic designer rules) ---------- */
+main {
+    margin: 0 auto;
+    flex: none;
+    background-color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 18px var(--bd-shadow);
+}
+
+/* visual-only 8pt lattice (the grid toggle paints via this class) */
+main.grid-on {
+    background-image:
+        repeating-linear-gradient(to right, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 8pt),
+        repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 8pt);
+}
+
+h1 {
     color: black;
     position: absolute;
     top: 25%;
     left: 50%;
-    transform: translate(-50%,-25%);
+    transform: translate(-50%, -25%);
     width: fit-content;
 }
-body>div{
-    flex: 4;
-    padding: 0.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    overflow: auto;
-    background: gray;
-    position: relative;
-}
-main{
-    background-color: white;
-    position: relative;
-    overflow: hidden;
-}
-.new-elem{
+
+.new-elem {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -95,17 +260,20 @@ main{
     justify-content: center;
     align-items: center;
 }
-.selected{
+
+.selected {
     border-color: green;
     background: unset;
     color: unset;
 }
-#selector{
+
+#selector {
     position: absolute;
     border: 1px dashed black;
     resize: both;
 }
-#selector.show-msg::after{
+
+#selector.show-msg::after {
     content: attr(data-msg);
     position: absolute;
     top: 0;
@@ -115,75 +283,52 @@ main{
     padding: 0.15rem;
     font-size: 0.75rem;
 }
-.adv-option-div>div{
-    display: flex;
-    margin: 0.5rem 0;
-}
-.adv-option-div>div>div{
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-}
-option{
-    color: black;
-}
-.selected-btn{
-    box-shadow: inset 0 0 3px 1px var(--theme-primary);
-}
-#coordinate-marker{
-    position: absolute;
-    top:50%;
-    left:50%;
-    transform: translate(-50%,-50%);
-}
-#coordinate-marker::after{
-    content: attr(data-msg);
-    position: absolute;
-    top: 0;
-    right: 0;
-    color: white;
-    background-color: gray;
-    padding: 0.15rem;
-    font-size: 0.75rem;
-}
-.adj-pts,#helper-line{
+
+.adj-pts,
+#helper-line {
     position: absolute;
     z-index: 11;
 }
-.hovered-over{
+
+.hovered-over {
     border: 1px solid cyan;
 }
-.alignment-line-over{
+
+.alignment-line-over {
     border: 1px solid green !important;
 }
-input[type="range"]{
-    position: relative;
-}
-input[type="range"]:hover::after,input[type="range"]:focus::after,
-i:hover::after,
-p:hover::after,
-label:hover::after{
-    content: attr(data-msg);
-    z-index: 10;
+
+#coordinate-marker {
     position: absolute;
-    width: var(--popup-width, 2rem);
-    top:var(--top_range);
-    left:var(--left_range);
-    display: var(--display);
-    justify-content: center;
-    background: white;
-    padding: 0.5rem 0.25rem;
-    border-radius: 5px;
-    font-size: 0.9rem;
-    color: black;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
-button.fa-solid{
+
+#coordinate-marker::after {
+    content: attr(data-msg);
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: white;
+    background-color: gray;
+    padding: 0.15rem;
+    font-size: 0.75rem;
+}
+
+.selected-btn {
+    box-shadow: inset 0 0 3px 1px var(--theme-primary);
+}
+
+button.fa-solid {
     font-size: 0.6rem;
 }
-button.fa-solid.selected-btn-2{
+
+button.fa-solid.selected-btn-2 {
     color: var(--theme-primary);
 }
-.gap-displavy{
+
+.gap-displavy {
     position: absolute;
     width: fit-content;
     z-index: 1000;
@@ -194,21 +339,180 @@ button.fa-solid.selected-btn-2{
     border-radius: 5px;
     box-shadow: 1px 1px;
 }
-#zoom-btn{
+
+/* ---------- option panels (classic designer rules, in the right pane) ---------- */
+.adv-option-div > div {
+    display: flex;
+    margin: 0.5rem 0;
+}
+
+.adv-option-div > div > div {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+.adv-option-div p,
+.adv-option-div label {
+    color: var(--bd-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    background: none;
+}
+
+/* range tooltip machinery (the JS positions the popups via these vars) */
+input[type="range"] {
+    position: relative;
+}
+
+input[type="range"]:hover::after,
+input[type="range"]:focus::after,
+i:hover::after,
+p:hover::after,
+label:hover::after {
+    content: attr(data-msg);
+    z-index: 10;
+    position: absolute;
+    width: var(--popup-width, 2rem);
+    top: var(--top_range);
+    left: var(--left_range);
+    display: var(--display);
+    justify-content: center;
+    background: white;
+    padding: 0.5rem 0.25rem;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    color: black;
+}
+
+/* ---------- actions ---------- */
+#block-actions,
+#file-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+    border-top: 1px solid var(--bd-muted);
+    padding-top: 12px;
+}
+
+#block-actions.hide {
+    display: none;
+}
+
+#block-actions button.danger,
+#props button.danger {
+    color: #b91c1c;
+}
+
+#props button.danger:hover {
+    border-color: #b91c1c;
+    color: #b91c1c;
+}
+
+/* ---------- utility rules (ported from common.css) ---------- */
+.hide {
+    display: none !important;
+}
+
+.hover:hover.hover::before {
+    content: attr(data-msg);
+    z-index: 10;
+    position: absolute;
+    width: 7rem;
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0.25rem;
+    border-radius: 5px;
+    box-shadow: 3px 3px 3px 0px var(--theme-shadow-color), -1px -1px 1px 0px var(--theme-shadow-color);
+    font-size: 1rem;
+    color: inherit;
+    background: inherit;
+    max-width: 250px;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.hover.left:hover.hover.left::before {
+    right: unset !important;
+    left: 0;
+    margin-left: -80px;
+    transform: translateX(-50%);
+}
+
+.hover.right:hover.hover.right::before {
+    left: unset !important;
+    right: 0;
+    margin-right: -40px;
+    transform: translateX(-50%)
+}
+
+.hover.top:hover.hover.top::before {
+    bottom: unset;
+    top: 0;
+    margin-top: -80px;
+    left: 0;
+}
+
+.hover.bottom:hover.hover.bottom::before {
+    top: 100%;
+    margin-top: 8px;
+    bottom: unset;
+    left: 0;
+}
+
+/* Top-right tooltip: consistent gap above parent */
+.hover.top.right:hover.hover.top.right::before {
+    top: auto;
+    bottom: 100%;
+    right: 0;
+    left: unset;
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.floating-toast {
     position: absolute;
     z-index: 100;
-    right: 10%;
-    bottom: 10%;
-    background: transparent;
-    width: fit-content;
-}
-#zoom-btn button{
     font-size: 2rem;
-    margin: 0.25rem;
-    width: 3rem;
-    border: none;
-    height: 3rem;
-    border-radius: 50%;
-    box-shadow: 1px 1px 2px 2px;
-    outline: none;
+    color: white;
+    top: 5%;
+    left: 50%;
+    background: grey;
+    padding: 1rem;
+    border-radius: 15px;
+    transform: translateX(-50%);
+}
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 1100px) {
+    :root {
+        --bd-pane-w: 230px;
+    }
+}
+
+@media (max-width: 900px) {
+    body {
+        flex-wrap: wrap;
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .pane {
+        width: 100%;
+        min-width: 0;
+        border: none;
+        border-bottom: 1px solid var(--bd-muted);
+    }
+
+    #workspace {
+        order: -1;
+        min-height: 60vh;
+    }
 }

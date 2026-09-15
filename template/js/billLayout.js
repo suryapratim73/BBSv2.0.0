@@ -1,5 +1,7 @@
 const { ipcRenderer } = require("electron");
 const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme, getAppPolicyPath, roundOffTo2DecimalPlace } = require("../js/common");
+const { Section, Field, Page, buildStarter } = require("../../lib/billElementClasses");
+const { VARIABLE_GROUPS, ALL_VARIABLE_KEYS } = require("../../lib/billVariableRegistry");
 const fs = require("fs");
 const uuid = require("uuid");
 
@@ -19,26 +21,7 @@ let columnObj = {},feildObj = {}, partitionObj = {}, focusTimer;
 let midGuideTimer,zoomFactor = 1;
 
 function initPageObj(){
-    return {
-        size:"a4",
-        applyMargin:false,
-        margin:{
-            top:0,
-            bottom:0,
-            left:0,
-            right:0
-        },
-        head:{},
-        body:{},
-        footer:{},
-        feilds:[],
-        sections:[],
-        applyBorder:false,
-        border:1,
-        newDoc:true,
-        filePath:"",
-        fFamily:"Times-Roman"
-    };
+    return new Page().toJSON();
 }
 
 function init(){
@@ -118,22 +101,20 @@ function mouseUpOnDocHelper(){
 }
 
 function createSection(mode=1){
-    let section = document.createElement("canvas");
-    section.width = (actPointer?.width || 160);
-    section.height = (actPointer?.height || 160);
-    let ctx = section.getContext("2d");
-    ctx.strokeRect(0,0,section.width,section.height);
-    ctx.stroke();
-    section.classList.add("new-elem");
-    mainDiv.appendChild(section);
-    section.style.zIndex = 1;
+    let section = new Section({
+        width: actPointer?.width || 160,
+        height: actPointer?.height || 160,
+        applyBorder: true,
+        border: 1,
+    }).draw(mainDiv, page, 1);
+    // The class leaves a brand-new section in the CSS-centered slot; freeze
+    // that position into logical (1px = 1pt) coordinates like legacy did.
     let { left:left_mainDiv,top:top_mainDiv } = mainDiv.getBoundingClientRect();
     let { left,top } = section.getBoundingClientRect();
     section.style.left = (left - left_mainDiv)/zoomFactor + "px";
     section.dataset.left = (left - left_mainDiv)/zoomFactor;
     section.style.top = (top - top_mainDiv)/zoomFactor + "px";
     section.dataset.top = (top - top_mainDiv)/zoomFactor;
-    section.dataset.id = uuid.v4();
     if(mode===1){
         page.sections.push({id:section.dataset.id,elem:section});
         actPointer = page.sections.find(obj=>obj.id===section.dataset.id);
@@ -286,6 +267,9 @@ function zoomFunc(width_mainDiv,height_mainDiv,zoomIn=true){
     else zoomFactor -= 0.1;
     zoomFactor *= 100;
     zoomFactor = Math.round(zoomFactor)/100;
+    let zoomLabel = document.getElementById("zoom-label");
+    if(zoomLabel)
+        zoomLabel.textContent = Math.round(zoomFactor*100) + "%";
     let { width,height } = zoomHelper(mainDiv,width_mainDiv,height_mainDiv,zoomFactor);
     borderCanvas.width = width;
     borderCanvas.height = height;
@@ -414,9 +398,17 @@ function computeContraints(){
 
 async function btnCtrls(e){
     let { cmd,dir="" } = e.target.dataset;
+    // The 3-pane shell delegates from panes that also hold plain text — and
+    // cmd.startsWith below would throw on those clicks (a latent legacy crash).
+    if(!cmd) return;
     let { width,height } = mainDiv.getBoundingClientRect();
     if(cmd.startsWith("Zoom"))
         return zoomFunc(width,height,cmd==="Zoom-In");
+    if(cmd==="grid"){
+        mainDiv.classList.toggle("grid-on");
+        e.target.classList.toggle("active");
+        return;
+    }
     if(cmd==="change-input"){
         let input = e.target.parentNode.querySelector("input");
         if(input.getAttribute("type")==="range")
@@ -622,22 +614,10 @@ async function btnCtrls(e){
 }
 
 function elemRemoval(obj){
-    if(obj && Object.keys(obj).length>0){
-        let _obj = obj instanceof Array ? [...obj] : {...obj};
-        return Object.keys(_obj)
-            .reduce((acc,key)=>{
-                if(["elem","parentNode","id"].includes(key))
-                    Reflect.deleteProperty(_obj,key);
-                else
-                if(typeof _obj[key]==="object" && Object.keys(_obj[key]).length>0)
-                    acc[key] = elemRemoval(_obj[key]);
-                else
-                    acc[key] = _obj[key];
-                return acc;
-            },(_obj instanceof Array ? [] : {}));
-    }
-    else
-        return {};
+    // Page.elemRemoval dispatches class instances through their toJSON()
+    // first (so only the legacy keys are saved), then strips elem /
+    // parentNode / id recursively — byte-identical to the legacy version.
+    return Page.elemRemoval(obj);
 }
 
 function blockOnFocus(){
@@ -1009,9 +989,17 @@ function move(e){
                     option = input.querySelector(`option[value="${actPointer.role}"]`);
                     option?.setAttribute("selected",true);
                 }
-                    
+
             }
         })
+        if(advOpt.querySelector('[data-cmd="shape"]')){
+            let shapeInput = advOpt.querySelector('[data-cmd="shape"]');
+            shapeInput.value = actPointer.shape || "rectangle";
+            advOpt.querySelector('[data-show="shape-rounded"]').classList.toggle("hide", shapeInput.value!=="rounded");
+            let crInput = advOpt.querySelector('[data-cmd="cornerRadius"]');
+            if(crInput)
+                crInput.value = actPointer.cornerRadius ?? 8;
+        }
     }
     deleteBTNDiv.classList.remove("hide");
     if(!document.getElementById("selector") || selectedElem!==lastFocus){
@@ -1140,14 +1128,8 @@ function resizeNote(entries){
         selectedElem.dataset.width = width - 40;
         selectedElem.dataset.height = height - 40;
     }
-    let ctx = selectedElem?.getContext?.("2d");
-    if(ctx){
-        ctx.clearRect(0,0,selectedElem.width,selectedElem.height);
-        ctx.lineWidth = actPointer?.border || 1;
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0,0,width - 40,height - 40);
-        ctx.stroke();
-    }
+    // Shape-aware repaint through the class recipes (the legacy strokeRect
+    // here would wipe a rounded/circle/ellipse border back to a rectangle).
     drawAssist.call({elem:selector,type:"resize"});
     drawPartition();
 }
@@ -1320,6 +1302,21 @@ function assignBlockOptions(e){
             commonFunc_range(e.target,val,"%");
         }
     }
+    else
+    if(cmd==="shape"){
+        actPointer.shape = val;
+        if(["head","body","footer"].includes(actPointer.role) && page[actPointer.role]!==actPointer)
+            page[actPointer.role].shape = val;
+        document.querySelector('[data-show="shape-rounded"]').classList.toggle("hide", val!=="rounded");
+        drawPartition();
+    }
+    else
+    if(cmd==="cornerRadius"){
+        actPointer.cornerRadius = Number(val) || 8;
+        if(["head","body","footer"].includes(actPointer.role) && page[actPointer.role]!==actPointer)
+            page[actPointer.role].cornerRadius = Number(val) || 8;
+        drawPartition();
+    }
     updateUI();
 }
 
@@ -1353,29 +1350,26 @@ function partitionManager(e){
     drawPartition();
 }
 
-function drawPartition(){
+function redrawSectionCanvas(extraPartition){
     if(!selectedElem || selectedElem.classList.contains("feild-elem")) return;
     let ctx = selectedElem.getContext("2d");
     ctx.clearRect(0,0,selectedElem.width,selectedElem.height);
-    if(actPointer.applyBorder)
-        ctx.strokeRect(0,0,selectedElem.width,selectedElem.height);
-    if("plan" in actPointer)
-        drawTable();
-    ctx.beginPath();
-    [...actPointer.partitions,partitionObj]
-    .forEach(partitionObj=>{
-        let { direction,lWidth,range } = partitionObj;
-        ctx.lineWidth = lWidth;
-        if(direction==="col"){
-            ctx.moveTo(range*selectedElem.width/100,0);
-            ctx.lineTo(range*selectedElem.width/100,selectedElem.height);
-        }
-        else{
-            ctx.moveTo(0,range*selectedElem.height/100);
-            ctx.lineTo(selectedElem.width,range*selectedElem.height/100);
-        }
-    });
-    ctx.stroke();
+    // One class-driven pass: border shape + partitions + table (the class
+    // recipes mirror the legacy drawPartition/drawTable paint order).
+    let section = new Section(actPointer);
+    ctx.lineWidth = section.border || 1;
+    ctx.strokeStyle = section.applyBorder ? "black" : "gray";
+    section.drawShapePath(ctx);
+    section.drawPartitions(ctx, extraPartition && Object.keys(extraPartition).length ? [extraPartition] : []);
+    section.drawTable(ctx, page);
+}
+
+function drawPartition(){
+    redrawSectionCanvas(partitionObj);
+}
+
+function drawTable(){
+    redrawSectionCanvas();
 }
 
 // Table Design Section
@@ -1400,35 +1394,6 @@ function selectColumn(e){
         advOpt.querySelector(`[data-cmd="width"]`).dataset.msg = columnObj.width + "%";
         advOpt.querySelector(`[data-cmd="rem-row"]`).classList.remove("hide");
     }
-}
-
-function drawTable(){
-    if(!actPointer || Object.keys((actPointer.plan ?? {})).length===0) return;
-    let { cols=[],padding=10,fSize=16,thHeight=32 } = actPointer.plan;
-    if(cols.length===0) return;
-    let netPercent = cols.reduce((acc,{width})=>acc+width,0);
-    if(netPercent>100) return alert("Net column widths cannot exceed width of it's host.");
-    let ctx = selectedElem.getContext("2d");
-    ctx.font = `bold ${fSize}px ${page.fFamily}`;
-    ctx.clearRect(0,0,selectedElem.width,selectedElem.height);
-    ctx.strokeStyle = "black";
-    if(actPointer.applyBorder)
-        ctx.strokeRect(0,0,selectedElem.width,selectedElem.height);
-    ctx.beginPath();
-    ctx.moveTo(0,thHeight);
-    ctx.lineTo(selectedElem.width,thHeight);
-    let xPos = 0,yPos = (thHeight + fSize)/2;
-    cols.forEach((col)=>{
-        let { label,width:colWidth } = col;
-        col.xPos = xPos;
-        col.yPos = yPos;
-        ctx.fillText(label,xPos+padding,yPos,(colWidth/100)*selectedElem.width);
-        xPos += (colWidth/100)*selectedElem.width;
-        ctx.moveTo(xPos,0);
-        ctx.lineTo(xPos,selectedElem.height)
-    });
-    ctx.stroke();
-    ctx.fill();
 }
 
 function commonFunc_range(elem,value,msg="%"){
@@ -1510,7 +1475,15 @@ function selectFeildCanv(mode=2){
                 feild.value = feildObj[key];
             if(key==="type" && feildObj[key]==="variable"){
                 advOpt.querySelector('[data-show="variable"]')?.classList.remove("hide");
-                advOpt.querySelector(`[data-show="variable"] option[value="${feildObj.fType}"]`)?.setAttribute("seleccted",true);
+                let fTypeOpt = advOpt.querySelector(`[data-show="variable"] option[value="${feildObj.fType}"]`);
+                if(fTypeOpt)
+                    fTypeOpt.setAttribute("selected",true);
+                else{// free-text custom key — not one of the registry's options
+                    advOpt.querySelector('[data-show="variable"] [data-cmd="fType"]').value = "__custom";
+                    let customInput = advOpt.querySelector('[data-cmd="custom-fType"]');
+                    customInput.classList.remove("hide");
+                    customInput.value = feildObj.fType;
+                }
             }
             if(key==="fFamily")
                 advOpt.querySelector(`[data-cmd="fFamily"] option[value="${feildObj.fFamily}"]`)?.setAttribute("selected",true);
@@ -1570,6 +1543,8 @@ function assignFeildOptions(e){
     if(value==="variable" && cmd==="type"){
         varOptDiv.classList.remove("hide");
         feildObj.fType = "date";
+        varOptDiv.querySelector('[data-cmd="fType"]').value = "date";
+        varOptDiv.querySelector('[data-cmd="custom-fType"]').classList.add("hide");
     }
     else
     if(value==="string" && cmd==="type")
@@ -1592,6 +1567,14 @@ function assignFeildOptions(e){
         feildObj.imgHeight = 10;
         feildObj.imgOpacity = 100;
     }
+    if(cmd==="fType"){
+        feildObj.fType = value==="__custom" ? "" : value;
+        advOpt.querySelector('[data-cmd="custom-fType"]').classList.toggle("hide", value!=="__custom");
+    }
+    else
+    if(cmd==="custom-fType")
+        feildObj.fType = value;
+    else
     if(["fSize","fWidth"].includes(cmd))
         feildObj[cmd] =  Number(value);
     else
@@ -1606,73 +1589,17 @@ function assignFeildOptions(e){
 }
 
 function drawFeildText(feildObj){
-    let { fSize,text="",fType,type,elem,fFamily,fWidth } = feildObj;
-    if(type==="image") return imageBox(feildObj)
-    let ctx = elem.getContext("2d");
-    let { left,top } = elem.getBoundingClientRect();
-    ctx.fillStyle = "black";
-    ctx.font = fSize + "px " + page.fFamily;
-    text = text+((type==="variable" && text!=="") ? ": " : "")+(fType ?? "");
-    let width = 1.25 * ctx.measureText(text).width;
-    let height = fSize + 16;
-    let parentElem = document.elementsFromPoint(left,top).filter(_elem=>_elem.classList.contains("new-elem") && _elem!==elem)?.pop() || mainDiv;
-    let { width:parentWidth } = parentElem.getBoundingClientRect();
-    let widthConstraints = parentWidth*fWidth*0.01;
-    elem.style.zIndex = 100;
-    let multiplier = Math.ceil(width / widthConstraints);
-    width = widthConstraints;
-    height = multiplier * fSize + 16;
-    elem.width = width;
-    elem.height = height;
-    let selector = document.getElementById("selector");
-    if(selector)
-        selector.style.width = elem.width + 40 + "px";
-    let style = "";
-    for(let key of ["bold","italic"]){ 
-        if(!(key in feildObj)) continue;
-        if(key in feildObj && feildObj[key])
-            style += key + " ";
-    }
-    ctx.font = style + " " + fSize + "px " + fFamily;
-    ctx.clearRect(0,0,elem.width,elem.height);
-    let line = "",initY=fSize;
-    let words = text.split(" ");
-    for(const [ index,word ] of words.entries()){
-        let testLine = line + word + " ";
-        let testLineWidth = ctx.measureText(testLine).width;
-        if(testLineWidth>widthConstraints){
-            ctx.fillText(line,0,initY);
-            line = word + " ";
-            initY += fSize + 8;
-        }
-        else
-            line = testLine;
-    }
-    ctx.fillText(line,0,initY);
-    if("underline" in feildObj && feildObj.underline){
-        ctx.moveTo(0,fSize+3);
-        ctx.lineWidth = fSize * (/"bold"/.test(style) ? 0.16 : 0.08);
-        let textWidth = ctx.measureText(text).width;
-        ctx.lineTo(textWidth,fSize+3);
-        ctx.stroke();
-    }
-    ctx.fill();
+    // The Field class paints its own canvas (legacy drawFeildText recipe).
+    if(!(feildObj instanceof Field))
+        feildObj = new Field(feildObj);
+    feildObj.draw(mainDiv, page);
 }
 
 function createFeildCanvas(){
-    let { width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
-    let feildCanv = document.createElement("canvas");
-    if(!document.contains(feildObj?.elem)){
-        mainDiv.appendChild(feildCanv);
-        feildCanv.style.left = (feildObj?.x || width_mainDiv/2) + "px";
-        feildCanv.style.top = (feildObj?.y || height_mainDiv/2) + "px";
-        feildCanv.style.position = "absolute";
-        feildCanv.dataset.id = "id" in feildObj ? feildObj.id : uuid.v4();
-        feildCanv.className = "feild-elem new-elem";
-        if(feildObj.type==="image")
-            feildCanv.classList.add("image-placeholder");
-    }
-    return feildCanv;
+    // Field.createCanvas carries the two legacy zoom fixes: the canvas gets
+    // dataset.left/top (zoomFunc repositions it like sections) and
+    // style.left/top honor the current zoomFactor instead of logical px.
+    return new Field(feildObj).createCanvas(mainDiv, zoomFactor);
 }
 
 function insertFeild(){
@@ -1717,32 +1644,30 @@ ipcRenderer.on("new-template",async ()=>{
 });
 
 function renderSection(){
-    let section = createSection(2);
-    section.style.left = actPointer.x + "px";
-    section.style.top = actPointer.y + "px";
-    let ctx = section.getContext("2d");
-    ctx.beginPath();
-    ctx.clearRect(0,0,section.width,section.height);
-    ctx.lineWidth = actPointer.border;
+    // The Section class draws its own canvas: border shape (rectangle /
+    // rounded / circle / ellipse), partitions and table — and positions it
+    // at x * zoomFactor (the legacy NaN-at-zoom load quirk, fixed).
+    let section = new Section(actPointer).draw(mainDiv, page, zoomFactor);
+    actPointer.id = section.dataset.id;
     selectedElem = section;
-    if(actPointer.applyBorder)
-        ctx.strokeStyle = "black";
-    else
-        ctx.strokeStyle = "gray";
-    ctx.strokeRect(0,0,section.width,section.height);
-    ctx.stroke();
-    drawPartition();
-    drawTable();
     return section;
 }
 
-ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
+/** Re-render the designer from a template object at the CURRENT zoomFactor
+    (the legacy open path dropped the zoom — sections landed at raw x/y px).
+    Used by Open, the template picker and undo/redo. */
+function restorePage(_page){
     page = _page;
-    page.newDoc = false;
-    page.filePath = filePath;
+    syncMainSize();
     removeAllElem(".new-elem,.selector");
     borderCanvas.getContext("2d").clearRect(0,0,borderCanvas.width,borderCanvas.height);
-    mainDiv.querySelector("#blanck-header").classList.add("hide");
+    let header = mainDiv.querySelector("#blanck-header");
+    let hasContent = ["head","body","footer"].some(key=>Object.keys(page[key] || {}).length>1)
+        || page.sections.length>0 || page.feilds.length>0;
+    if(hasContent)
+        header.classList.add("hide");
+    else
+        header.classList.remove("hide");
     drawMargin();
     ["head","body","footer"]
     .forEach(key=>{
@@ -1765,6 +1690,33 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
         feildObj.id = elem.dataset.id;
         drawFeildText(feildObj);
     });
+    selectedElem = null;
+    actPointer = {};
+    feildObj = {};
+    updateUI();
+}
+
+/** Match main's size to the page's paper size at the current zoom, keeping
+    the zoomHelper caches consistent (width_100 / aspectRatio / per-zoom). */
+function syncMainSize(){
+    let { width,height } = appDefault[page.size] || appDefault.a4;
+    mainDiv.dataset.width_100 = width;
+    mainDiv.dataset.height_100 = height;
+    mainDiv.dataset.aspectRatio = Math.round((width/height)*100)/100;
+    Object.keys(mainDiv.dataset)
+        .filter(key=>/^(width|height)_\d+$/.test(key))
+        .forEach(key=>delete mainDiv.dataset[key]);
+    mainDiv.style.width = roundOffTo2DecimalPlace(width*zoomFactor) + "px";
+    mainDiv.style.height = roundOffTo2DecimalPlace(height*zoomFactor) + "px";
+    borderCanvas.width = width*zoomFactor;
+    borderCanvas.height = height*zoomFactor;
+}
+
+ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
+    page = _page;
+    page.newDoc = false;
+    page.filePath = filePath;
+    restorePage(page);
 });
 
 ipcRenderer.on("save-as",()=>{
@@ -1774,21 +1726,10 @@ ipcRenderer.on("save-as",()=>{
 
 //Image or logo handler
 function imageBox(feildObj){
-    let { elem,imgWidth,imgHeight } = feildObj;
-    elem.classList.add("image-placeholder");
-    let { top,left } = elem.getBoundingClientRect();
-    let parentNode = [...document.elementsFromPoint(left,top)]
-                    .filter(elem=>elem.classList.contains("new-elem") && elem!==feildObj.elem).reverse().pop() ?? mainDiv;
-    let { width } = parentNode.getBoundingClientRect();
-    elem.width = imgWidth*width*0.01;
-    elem.height = imgHeight*width*0.01;
-    elem.style.zIndex = 100;
-    feildObj.zIndex = 100;
-    let ctx = elem.getContext("2d");
-    ctx.fillStyle = "#FF3939" + Math.round(feildObj.imgOpacity*0.01*255).toString(16).toUpperCase();
-    ctx.fillRect(0,0,elem.width,elem.height);
-    ctx.strokeText("_img",elem.width/2-ctx.measureText("_img").width/2,elem.height/2);
-    ctx.fill();
+    // The Field class paints its own image placeholder (legacy imageBox).
+    if(!(feildObj instanceof Field))
+        feildObj = new Field(feildObj);
+    feildObj.draw(mainDiv, page);
 }
 
 function imgOpts(e){
@@ -1820,3 +1761,66 @@ function imgOpts(e){
     else
         feildObj[cmd] = value;
 }
+
+// Starter templates & the Quick Variable picker (the modern shell's extras)
+
+function pickTemplate(e){
+    let name = e.target.value;
+    if(!name) return;
+    e.target.selectedIndex = 0;
+    const labels = {blank:"Blank", sections:"Three Sections", default1:"Default 1", default2:"Default 2"};
+    if(!window.confirm(`Start a new design from the "${labels[name]}" template? This replaces the current design.`))
+        return;
+    page = buildStarter(name, appDefault).toJSON();
+    restorePage(page);
+}
+
+function addQuickVariable(){
+    let custom = document.getElementById("custom-variable");
+    let key = (custom.value || "").trim() || document.getElementById("variable-picker").value;
+    if(!key) return;
+    feildObj = new Field({
+        type: "variable",
+        fType: key,
+        fSize: 16,
+        fFamily: page.fFamily,
+        fWidth: 50,
+        text: "",
+    }).toJSON();
+    insertFeild();
+    custom.value = "";
+}
+
+/** Fill the feild-option fType select and the Quick Variable picker from
+    the variable registry's grouped keys (mutates the <template> itself, so
+    every clone inherits the optgroups). */
+function hydrateVariableUI(){
+    let fTypeSelect = document.querySelector("#feild-option-template [data-cmd='fType']");
+    VARIABLE_GROUPS.forEach(({group,keys})=>{
+        let optgroup = document.createElement("optgroup");
+        optgroup.label = group;
+        keys.forEach(key=>{
+            let option = document.createElement("option");
+            option.value = key;
+            option.textContent = key;
+            optgroup.appendChild(option);
+        });
+        fTypeSelect.appendChild(optgroup);
+        let pickerGroup = document.createElement("optgroup");
+        pickerGroup.label = group;
+        keys.forEach(key=>{
+            let option = document.createElement("option");
+            option.value = key;
+            option.textContent = key;
+            pickerGroup.appendChild(option);
+        });
+        document.getElementById("variable-picker").appendChild(pickerGroup);
+    });
+    let datalist = document.getElementById("variable-datalist");
+    ALL_VARIABLE_KEYS.forEach(key=>{
+        let option = document.createElement("option");
+        option.value = key;
+        datalist.appendChild(option);
+    });
+}
+hydrateVariableUI();

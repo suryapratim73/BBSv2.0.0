@@ -10,38 +10,95 @@
     <script src="../js/billLayout.js" defer></script>
 </head>
 <body>
-    <aside onclick="btnCtrls(event)">
-        <div>
-            <div>
-                <button tabindex="0" class="ctrl-btns hover bottom" data-cmd="section" data-msg="Add new section">Section</button>
-                <button tabindex="0" class="ctrl-btns hover bottom" data-cmd="feild" data-msg="Add new field">Feild</button>
-            </div>
-            <div>
-                <button tabindex="0" class="ctrl-btns hover bottom" data-cmd="table" data-msg="Add table">Table</button>
-                <button tabindex="0" class="ctrl-btns hover bottom" data-cmd="page" data-msg="Add new page">Page</button>
-            </div>
-            <div id="delete-btn-div" class="hide">
-                <button tabindex="0" data-cmd="delete" data-msg="Delete selected element" class="hover bottom">Delete</button>
-            </div>
+    <!-- Left pane — elements to add. The classic designer's data-cmd buttons,
+         restyled in the modern shell. -->
+    <aside id="palette" class="pane" onclick="btnCtrls(event)">
+        <h2>Elements</h2>
+        <div class="palette-grid">
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-msg="Add new section" title="Add a new section — set its role (Head/Body/Footer/Section) in the properties panel">
+                <i class="fa-solid fa-shapes"></i> Section
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="feild" data-msg="Add new field" title="Add a text, variable or image field">
+                <i class="fa-solid fa-font"></i> Feild
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="table" data-msg="Add table" title="Add an items table to the selected section">
+                <i class="fa-solid fa-table"></i> Table
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="page" data-msg="Add new page" title="Page size, margin, page border and default font">
+                <i class="fa-solid fa-file"></i> Page
+            </button>
+        </div>
+        <p class="hint">Pick an element, then drag it anywhere on the page. Drag the red dots on a selected section to resize it; use More Properties for width/height in %. Select a section and use Create Partition / Table to split it.</p>
+
+        <h2>Quick Variable</h2>
+        <select id="variable-picker" title="Pick a known bill field to add as a variable field">
+            <option value="" disabled selected hidden>Known field…</option>
+        </select>
+        <div class="custom-var-row">
+            <input id="custom-variable" list="variable-datalist" placeholder="Any billMeta key…" title="Type any bill field key, even ones added in the future">
+            <datalist id="variable-datalist"></datalist>
+            <button tabindex="0" type="button" id="add-custom-variable" class="palette-btn" onclick="addQuickVariable()" title="Add a variable field for the picked or typed key">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+        </div>
+        <p class="hint">Known fields are grouped; anything else you type resolves straight from billMeta.</p>
+
+        <h2>Keys</h2>
+        <p class="hint">↑/↓/←/→ nudge the selected element ±1pt · Ctrl+N adds a section · Ctrl+Numpad± / Ctrl+Shift+Numpad± resize the section ±1pt · Ctrl+Shift+= / Ctrl+Shift+- zoom · Delete removes · Esc deselects · double-click a table column to edit it.</p>
+    </aside>
+
+    <!-- Workspace — the page canvas, zoom, grid and the starter templates. -->
+    <section id="workspace">
+        <div id="workspace-bar" onclick="btnCtrls(event)">
+            <button tabindex="0" type="button" data-cmd="Zoom-Out" data-msg="Zoom-Out" title="Zoom out (Ctrl+Shift+-)">-</button>
+            <span id="zoom-label">100%</span>
+            <button tabindex="0" type="button" data-cmd="Zoom-In" data-msg="Zoom-In" title="Zoom in (Ctrl+Shift+=)">+</button>
+            <button tabindex="0" type="button" id="grid-toggle" data-cmd="grid" title="Toggle an 8pt alignment grid (visual only)">
+                <i class="fa-solid fa-border-all"></i>
+            </button>
+            <label id="template-picker-wrap" title="Start a new design from a template — replaces the current design">
+                <i class="fa-solid fa-file"></i>
+                <select id="template-picker" onchange="pickTemplate(event)">
+                    <option value="" disabled selected hidden>Template…</option>
+                    <option value="blank">Blank</option>
+                    <option value="sections">Three Sections</option>
+                    <option value="default1">Default 1</option>
+                    <option value="default2">Default 2</option>
+                </select>
+            </label>
+        </div>
+        <div id="workspace-scroll">
+            <main onmousedown="move(event)">
+                <h1 id="blanck-header">Start creating bill design</h1>
+            </main>
+        </div>
+    </section>
+
+    <!-- Right pane — properties panels (the classic designer's option panels)
+         plus Delete / Save / Exit. -->
+    <aside id="props" class="pane" onclick="btnCtrls(event)">
+        <h2 id="props-title">Properties</h2>
+        <div id="props-panel">
             <div id="adv-options"></div>
             <div id="adv-options-2"></div>
         </div>
-        <div>
-            <div>
-                <button tabindex="0" data-cmd="save-exit" data-msg="Save and exit designer" class="hover bottom">Save</button>
-                <button tabindex="0" data-cmd="exit" data-msg="Exit without saving" class="hover bottom">Exit</button>
+        <div id="block-actions">
+            <div id="delete-btn-div" class="hide">
+                <button tabindex="0" type="button" data-cmd="delete" data-msg="Delete selected element" class="hover bottom danger" title="Delete the selected element (Delete key)">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
             </div>
         </div>
-    </aside>
-    <div>
-        <main onmousedown="move(event)">
-            <h1 id="blanck-header">Start creating bill design</h1>
-        </main>
-        <div id="zoom-btn" onclick="btnCtrls(event)">
-            <button tabindex="0" data-cmd="Zoom-Out" data-msg="Zoom-Out" class="hover right top">-</button>
-            <button tabindex="0" data-cmd="Zoom-In" data-msg="Zoom-In" class="hover right top">+</button>
+        <div id="file-actions">
+            <button tabindex="0" type="button" data-cmd="save-exit" data-msg="Save and exit designer" class="hover bottom" title="Save the template and return to the main page">
+                <i class="fa-solid fa-floppy-disk"></i> Save &amp; Exit
+            </button>
+            <button tabindex="0" type="button" data-cmd="exit" data-msg="Exit without saving" class="hover bottom danger" title="Return to the main page without saving">
+                <i class="fa-solid fa-right-from-bracket"></i> Exit
+            </button>
         </div>
-    </div>
+    </aside>
+
     <template id="block-option-template">
         <div class="adv-option-div" oninput="assignBlockOptions(event)">
             <div>
@@ -66,6 +123,19 @@
                     <option value="false">No</option>
                     <option value="true" selected>Yes</option>
                 </select>
+            </div>
+            <div>
+                <p data-msg="Border shape of the section.">Shape</p>
+                <select tabindex="0" data-cmd="shape">
+                    <option value="rectangle" selected>Rectangle</option>
+                    <option value="rounded">Rounded</option>
+                    <option value="circle">Circle</option>
+                    <option value="ellipse">Ellipse</option>
+                </select>
+            </div>
+            <div data-show="shape-rounded" class="hide">
+                <p>Corner radius</p>
+                <input tabindex="0" type="text" value="8" data-cmd="cornerRadius" data-name="quantity" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
             </div>
             <div>
                 <button tabindex="0" data-cmd="create-partition" data-msg="Create partition in section" class="hover bottom">Create Partition</button>
@@ -169,34 +239,11 @@
                 <button tabindex="0" data-cmd="underline" class="fa-solid fa-underline hover bottom" data-msg="Toggle underline"></button>
             </div>
             <div class="hide" data-show="variable">
-                <p>Variable Type</p>
-                <select tabindex="0" data-cmd="fType">
-                    <option value="date">Date</option>
-                    <option value="billNo">Bill Number</option>
-                    <option value="biller-name">Biller Name</option>
-                    <option value="biller-address">Biller Address</option>
-                    <option value="biller-gst">Biller GST</option>
-                    <option value="biller-phone">Biller Contact</option>
-                    <option value="biller-bank">Biller Bank</option>
-                    <option value="customer-name">Customer Name</option>
-                    <option value="customer-address">Customer Address</option>
-                    <option value="customer-gst">Customer GST</option>
-                    <option value="customer-phone">Customer Contact</option>
-                    <option value="pay-mode">Pay Mode</option>
-                    <option value="pay-date">Pay Date</option>
-                    <option value="pay-status">Payment Status</option>
-                    <option value="billStatus">Bill Status</option>
-                    <option value="page-no">Page Number</option>
-                    <option value="netAmtTax">Grand Total</option>
-                    <option value="netAmt">Total</option>
-                    <option value="netTax">Net Tax</option>
-                    <option value="net-CGST">Net CGST</option>
-                    <option value="net-SGST">Net SGST</option>
-                    <option value="net-IGST">Net IGST</option>
-                    <option value="ro">Rounding off value</option>
-                    <option value="gtotal-words">Net Amount in words</option>
-                    <option value="bill-copy">Bill copy</option>
+                <p>Variable</p>
+                <select tabindex="0" data-cmd="fType" title="The bill variable this field prints — grouped by the variable registry">
+                    <option value="__custom">Custom billMeta key…</option>
                 </select>
+                <input tabindex="0" type="text" class="hide" placeholder="Any billMeta key" data-cmd="custom-fType" title="Type any bill field key, even ones added in the future">
             </div>
             <div>
                 <label for="label">Feild label</label>
