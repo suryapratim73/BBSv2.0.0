@@ -45,6 +45,20 @@ body {
     border-right: 1px solid var(--bd-muted);
 }
 
+/* Scrollbars stay fully functional (wheel / trackpad / drag) but invisible
+   — the designer's panes and canvas area get a clean, app-like look. */
+.pane,
+#workspace-scroll,
+#preview-panel {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge */
+}
+.pane::-webkit-scrollbar,
+#workspace-scroll::-webkit-scrollbar,
+#preview-panel::-webkit-scrollbar {
+    display: none; /* Chromium */
+}
+
 #props {
     border-right: none;
     border-left: 1px solid var(--bd-muted);
