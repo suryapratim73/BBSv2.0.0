@@ -10,7 +10,7 @@ const {
     coerceOrderItems,
     VARIABLES,
     VARIABLE_GROUPS,
-} = require("../lib/billBlockModel");
+} = require("../lib/billVariableRegistry");
 
 const billObj = {
     billMeta: {
@@ -130,8 +130,53 @@ describe("resolveVariable — registry keys", () => {
         expect(resolveVariable("biller-phone", billObj, saleConfig)).toBe("9830000000");
         expect(resolveVariable("biller-email", billObj, saleConfig)).toBe("kt@example.com");
         expect(resolveVariable("biller-bank", billObj, saleConfig)).toEqual([
-            "SBI | Siliguri | A/c 1234567890 | IFSC SBIN0001234",
+            "Bank Details: SBI",
+            "Bank Details: Siliguri",
+            "Account No: 1234567890",
+            "IFSC SBIN0001234",
         ]);
+    });
+
+    test("biller-phone falls back to a plain string (legacy quirk)", () => {
+        expect(
+            resolveVariable("biller-phone", {}, { phones: "9830000000" })
+        ).toBe("9830000000");
+        expect(resolveVariable("biller-phone", {}, {})).toBe("");
+    });
+
+    test("biller-bank returns legacy line sets without mutating saleConfig", () => {
+        const twoBanks = {
+            bankDetails: [
+                { bank: "SBI", branch: "Siliguri", accNo: "A1", ifsc: "I1" },
+                { bank: "HDFC", branch: "Bagdogra", accNo: "A2", ifsc: "I2" },
+            ],
+        };
+        expect(resolveVariable("biller-bank", {}, twoBanks)).toEqual([
+            // legacy order = bankDetails reversed
+            "Bank Details: HDFC",
+            "Bank Details: Bagdogra",
+            "Account No: A2",
+            "IFSC I2",
+            "Bank Details: SBI",
+            "Bank Details: Siliguri",
+            "Account No: A1",
+            "IFSC I1",
+        ]);
+        // the config array must be untouched (no reverse() side effect)
+        expect(twoBanks.bankDetails[0].bank).toBe("SBI");
+    });
+
+    test("billNo / netAmt / netAmtTax round numbers like the legacy engine", () => {
+        const fractional = {
+            billMeta: { billNo: 950.6, netAmt: 950.6, netAmtTax: 950.6 },
+        };
+        expect(resolveVariable("billNo", fractional, saleConfig)).toBe("951");
+        expect(resolveVariable("netAmt", fractional, saleConfig)).toBe("951");
+        expect(resolveVariable("netAmtTax", fractional, saleConfig)).toBe("951");
+        // missing -> empty
+        expect(resolveVariable("billNo", {}, {})).toBe("");
+        expect(resolveVariable("netAmt", {}, {})).toBe("");
+        expect(resolveVariable("netAmtTax", {}, {})).toBe("");
     });
 
     test("customer keys come from billObj.customer", () => {
