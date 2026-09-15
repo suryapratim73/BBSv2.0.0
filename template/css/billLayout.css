@@ -1,430 +1,214 @@
-/* Bill Layout Designer — the old designer's shell rebuilt on the v2 block
-   model. Theme-aware via the same CSS vars applyTheme sets (inline on the
-   document root — no common.css import, whose app-wide rules like
-   `.block { display: flex }` collide with the preview's generic classes). */
-
-:root {
-    --bd-bg: var(--theme-secondary, #ffffff);
-    --bd-fg: var(--theme-text-color, #000000);
-    --bd-accent: var(--theme-primary, #663399);
-    --bd-shadow: var(--theme-shadow-color, #808080);
-    --bd-muted: rgba(128, 128, 128, 0.55);
-    --bd-pane-w: 280px;
+@import "../css/common.css";
+:root{
+    --left_range:50%;
+    --top_range:-200%;
+    --popup-width:2rem;
+    --display:flex;
 }
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
+body{
     display: flex;
-    height: 100vh;
-    overflow: hidden;
-    font-family: "Segoe UI", system-ui, sans-serif;
-    color: var(--bd-fg);
-    background: var(--bd-bg);
+    padding: unset;
+    background: gray;
 }
-
-/* ---------- panes ---------- */
-.pane {
-    width: var(--bd-pane-w);
-    min-width: var(--bd-pane-w);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    overflow-y: auto;
-    background: var(--bd-bg);
-    border-right: 1px solid var(--bd-muted);
-}
-
-#props {
-    border-right: none;
-    border-left: 1px solid var(--bd-muted);
-}
-
-.pane h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--bd-accent);
-    margin-top: 6px;
-}
-
-.hint {
-    font-size: 11px;
-    color: var(--bd-muted);
-    line-height: 1.4;
-}
-
-/* ---------- palette ---------- */
-.palette-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.palette-btn,
-#props button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 9px 10px;
-    border: 1px solid var(--bd-muted);
-    border-radius: 6px;
-    background: var(--bd-bg);
-    color: var(--bd-fg);
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.palette-btn:hover,
-#props button:hover {
-    border-color: var(--bd-accent);
-    color: var(--bd-accent);
-}
-
-#variable-picker,
-#custom-variable,
-.props-panel input,
-.props-panel select,
-.props-panel textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid var(--bd-muted);
-    border-radius: 6px;
-    background: var(--bd-bg);
-    color: var(--bd-fg);
-    font-size: 13px;
-}
-
-.custom-var-row {
-    display: flex;
-    gap: 6px;
-}
-
-.custom-var-row input {
-    flex: 1;
-    min-width: 0;
-}
-
-.custom-var-row .palette-btn {
-    width: 40px;
-    flex: none;
-}
-
-/* ---------- workspace ---------- */
-#workspace {
+aside{
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0;
-    background:
-        repeating-linear-gradient(45deg, transparent 0 14px, rgba(128, 128, 128, 0.06) 14px 16px);
-}
-
-#workspace-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 8px;
-    border-bottom: 1px solid var(--bd-muted);
-    background: var(--bd-bg);
-}
-
-#workspace-bar button {
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--bd-muted);
-    border-radius: 6px;
-    background: var(--bd-bg);
-    color: var(--bd-fg);
-    cursor: pointer;
-}
-
-#workspace-bar button:hover {
-    border-color: var(--bd-accent);
-    color: var(--bd-accent);
-}
-
-#zoom-label {
-    font-size: 12px;
-    min-width: 42px;
-    text-align: center;
-    color: var(--bd-muted);
-}
-
-/* Template picker — same look as the bar buttons, separated as its own group */
-#template-picker-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: 8px;
-    padding-left: 14px;
-    border-left: 1px solid var(--bd-muted);
-}
-
-#template-picker-wrap > i {
-    font-size: 12px;
-    color: var(--bd-muted);
-}
-
-#template-picker {
-    height: 28px;
-    max-width: 140px;
-    border: 1px solid var(--bd-muted);
-    border-radius: 6px;
-    background: var(--bd-bg);
-    color: var(--bd-fg);
-    font: inherit;
-    font-size: 12px;
-    padding: 0 6px;
-    cursor: pointer;
-}
-
-#template-picker:hover {
-    border-color: var(--bd-accent);
-    color: var(--bd-accent);
-}
-
-#workspace-scroll {
-    flex: 1;
-    overflow: auto;
-    padding: 24px;
-}
-
-/* Canvas page preview: drawn in pt units by lib/billCanvasPreview.js, scaled
-   via the canvas backing store (DPR × zoom). Blocks, partitions, chips,
-   selection chrome, guides and readouts are all painted — no preview DOM. */
-#page-frame {
-    margin: 0 auto;
-    overflow: hidden;
-    box-shadow: 0 4px 18px var(--bd-shadow);
-    background: #ffffff;
-}
-
-#page {
-    display: block;
-    background: #ffffff;
-    cursor: default;
-}
-
-#empty-hint {
-    margin: 30px auto;
-    text-align: center;
-    color: var(--bd-muted);
-    font-size: 14px;
-}
-
-#empty-hint.hide {
-    display: none;
-}
-
-body.dragging {
-    user-select: none;
-}
-
-#workspace-bar button.active {
-    border-color: var(--bd-accent);
-    color: var(--bd-accent);
-    background: rgba(128, 128, 128, 0.08);
-}
-
-/* ---------- props panel ---------- */
-#props-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.props-group-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--bd-muted);
-    border-bottom: 1px solid var(--bd-muted);
-    padding-bottom: 3px;
-}
-
-.props-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.props-row label {
-    font-size: 12px;
-    color: var(--bd-fg);
-}
-
-.props-row .unit {
-    font-size: 11px;
-    color: var(--bd-muted);
-    margin-left: 4px;
-}
-
-.props-row.row-inline {
-    flex-direction: row;
-    align-items: center;
     justify-content: space-between;
+    background: var(--theme-primary);
+    padding: 0.5rem;
+    max-width: 40%;
 }
-
-.props-row.row-inline label {
-    font-size: 13px;
-}
-
-.props-row input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-}
-
-.props-row input[type="range"] {
-    width: 100%;
-}
-
-.props-row .range-value {
-    font-size: 11px;
-    color: var(--bd-muted);
-    align-self: flex-end;
-}
-
-.props-row .color-row {
+aside>div:last-child{
     display: flex;
-    gap: 6px;
-}
-
-.props-row .color-row input[type="color"] {
-    flex: 1;
-    padding: 2px;
-    height: 32px;
-}
-
-.props-row .color-clear {
-    width: 32px;
-    flex: none;
-}
-
-/* list editors (table columns / totals rows) */
-.props-list {
-    display: flex;
+    justify-content: space-between;
     flex-direction: column;
-    gap: 8px;
 }
-
-.props-list-item {
-    border: 1px solid var(--bd-muted);
-    border-radius: 6px;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    background: rgba(128, 128, 128, 0.05);
+aside>div:last-child>div{
+    align-items: stretch;
+    gap: 0.5rem;
 }
-
-.props-list-item .list-item-head {
+aside>div>div{
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--bd-muted);
+    margin: 0.5rem 0;
 }
-
-.props-list-item .list-item-head button {
-    width: 24px;
-    height: 24px;
-    padding: 0;
+aside>div>div *{
+    flex: 1;
 }
-
-.props-list-add {
-    align-self: flex-start;
+aside button{
+    padding: 0.75rem 0.25rem;
+    outline: none;
 }
-
-/* ---------- actions ---------- */
-#block-actions,
-#file-actions {
+aside span{
+    font-size: 0.8rem;
+}
+aside input{
+    width: 100%;
+    height: 100%;
+    color: black;
+    max-width: 5rem;
+    min-height: 1rem;
+}
+aside select{
+    max-width: 5rem;
+}
+p,label{
+    color: var(--theme-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 6px;
-    border-top: 1px solid var(--bd-muted);
-    padding-top: 12px;
-}
-
-#block-actions.hide {
-    display: none;
-}
-
-#block-actions button.danger,
-#props button.danger {
-    color: #b91c1c;
-}
-
-#props button.danger:hover {
-    border-color: #b91c1c;
-    color: #b91c1c;
-}
-
-/* ---------- toasts (reuse app classes) ---------- */
-#toast-container {
-    position: fixed;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 1000;
-}
-
-#toast-container .toast-div {
-    background: #1f2937;
-    color: #f9fafb;
-    border-radius: 6px;
-    padding: 10px 12px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    max-width: 340px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    font-size: 13px;
-}
-
-#toast-container .toast-div button {
+    align-items: center;
     background: none;
+}
+h1{
+    color: black;
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%,-25%);
+    width: fit-content;
+}
+body>div{
+    flex: 4;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: auto;
+    background: gray;
+    position: relative;
+}
+main{
+    background-color: white;
+    position: relative;
+    overflow: hidden;
+}
+.new-elem{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    cursor: grab;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.selected{
+    border-color: green;
+    background: unset;
+    color: unset;
+}
+#selector{
+    position: absolute;
+    border: 1px dashed black;
+    resize: both;
+}
+#selector.show-msg::after{
+    content: attr(data-msg);
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: white;
+    background-color: gray;
+    padding: 0.15rem;
+    font-size: 0.75rem;
+}
+.adv-option-div>div{
+    display: flex;
+    margin: 0.5rem 0;
+}
+.adv-option-div>div>div{
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+option{
+    color: black;
+}
+.selected-btn{
+    box-shadow: inset 0 0 3px 1px var(--theme-primary);
+}
+#coordinate-marker{
+    position: absolute;
+    top:50%;
+    left:50%;
+    transform: translate(-50%,-50%);
+}
+#coordinate-marker::after{
+    content: attr(data-msg);
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: white;
+    background-color: gray;
+    padding: 0.15rem;
+    font-size: 0.75rem;
+}
+.adj-pts,#helper-line{
+    position: absolute;
+    z-index: 11;
+}
+.hovered-over{
+    border: 1px solid cyan;
+}
+.alignment-line-over{
+    border: 1px solid green !important;
+}
+input[type="range"]{
+    position: relative;
+}
+input[type="range"]:hover::after,input[type="range"]:focus::after,
+i:hover::after,
+p:hover::after,
+label:hover::after{
+    content: attr(data-msg);
+    z-index: 10;
+    position: absolute;
+    width: var(--popup-width, 2rem);
+    top:var(--top_range);
+    left:var(--left_range);
+    display: var(--display);
+    justify-content: center;
+    background: white;
+    padding: 0.5rem 0.25rem;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    color: black;
+}
+button.fa-solid{
+    font-size: 0.6rem;
+}
+button.fa-solid.selected-btn-2{
+    color: var(--theme-primary);
+}
+.gap-displavy{
+    position: absolute;
+    width: fit-content;
+    z-index: 1000;
+    color: black;
+    font-size: 0.7rem;
+    padding: 0.5rem;
+    background: antiquewhite;
+    border-radius: 5px;
+    box-shadow: 1px 1px;
+}
+#zoom-btn{
+    position: absolute;
+    z-index: 100;
+    right: 10%;
+    bottom: 10%;
+    background: transparent;
+    width: fit-content;
+}
+#zoom-btn button{
+    font-size: 2rem;
+    margin: 0.25rem;
+    width: 3rem;
     border: none;
-    color: inherit;
-    cursor: pointer;
-    font-size: 13px;
-}
-
-/* ---------- narrow screens ---------- */
-@media (max-width: 1100px) {
-    :root {
-        --bd-pane-w: 230px;
-    }
-}
-
-@media (max-width: 900px) {
-    body {
-        flex-wrap: wrap;
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
-    }
-
-    .pane {
-        width: 100%;
-        min-width: 0;
-        border: none;
-        border-bottom: 1px solid var(--bd-muted);
-    }
-
-    #workspace {
-        order: -1;
-        min-height: 60vh;
-    }
+    height: 3rem;
+    border-radius: 50%;
+    box-shadow: 1px 1px 2px 2px;
+    outline: none;
 }
