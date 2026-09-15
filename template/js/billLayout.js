@@ -19,6 +19,11 @@ let selectedBTN,moveFlag = true,shallResize = false,selectedCTRLDot;
 let helperLineTimer,alignmentLineCSSTimer;
 let columnObj = {},feildObj = {}, partitionObj = {}, focusTimer;
 let midGuideTimer,zoomFactor = 1;
+// Undo/redo history — snapshots of the page as pure legacy JSON.
+// dragSnap: pre-session snapshot; historySession() commits it on a
+// session's first mutation (drag / resize / nudge / slider drag).
+let undoStack = [], redoStack = [], dragSnap = null;
+const HISTORY_CAP = 100;
 
 function initPageObj(){
     return new Page().toJSON();
@@ -27,6 +32,7 @@ function initPageObj(){
 function init(){
     ipcRenderer.send("set-app-status","block-non-sp-key");
     page = initPageObj();
+    undoStack = []; redoStack = []; dragSnap = null; // fresh document — fresh history
     let {width,height} = appDefault[page.size];
     mainDiv.style.width = width + "px";
     mainDiv.style.height = height + "px";
@@ -98,6 +104,7 @@ function dblClickHandler(e){
 function mouseUpOnDocHelper(){
     moveFlag = true;
     shallResize = false;
+    dragSnap = null; // session ended; its history entry stays committed
 }
 
 function createSection(mode=1){
@@ -210,11 +217,24 @@ function keydownListener(e){
     let selector = document.getElementById("selector");
     let { left:left_mainDiv,top:top_mainDiv,width:width_mainDiv,height:height_mainDiv } = mainDiv.getBoundingClientRect();
     let { code,ctrlKey,shiftKey } = e;
+    if(ctrlKey && !shiftKey && code==="KeyZ"){
+        e.preventDefault();
+        return undo();
+    }
+    if((ctrlKey && shiftKey && code==="KeyZ") || (ctrlKey && code==="KeyY")){
+        e.preventDefault();
+        return redo();
+    }
+    if(code==="Escape" && dragSnap!==null){
+        e.preventDefault();
+        return cancelDrag();
+    }
     if((ctrlKey && shiftKey && code==="Equal") || (ctrlKey && code==="NumpadAdd"))
         zoomFunc(width_mainDiv,height_mainDiv);
     if((ctrlKey && shiftKey && code==="Minus") || (ctrlKey && code==="NumpadSubtract"))
         zoomFunc(width_mainDiv,height_mainDiv,false);
     if(ctrlKey && code==="KeyN"){
+        pushHistory();
         document.getElementById("blanck-header").classList.add("hide");
         selectedElem = createSection();
     }
@@ -245,7 +265,10 @@ function keydownListener(e){
     else
     if(shiftKey && ctrlKey && code==="NumpadSubtract" && checkConstraints(selectorWidth,selectorHeight - 1))
         selector.style.height = selectorHeight - 1 + "px";
-    if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown","NumpadAdd","NumpadSubtract"].includes(code)) e.preventDefault();
+    if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown","NumpadAdd","NumpadSubtract"].includes(code)){
+        historySession();
+        e.preventDefault();
+    }
     if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown"].includes(code)){
         moveElemHelper(diffX,diffY);
         drawFeilds(diffX,diffY);
@@ -432,6 +455,7 @@ async function btnCtrls(e){
     }
     else
     if(cmd==="new-col" && dir==="ok"){
+        pushHistory();
         removeAllElem("#adv-options-2 *");
         if(("cols" in actPointer.plan ? actPointer.plan.cols : []).find(colObj=>colObj.var===columnObj.var)===undefined)
             actPointer.plan.cols = [...("cols" in actPointer.plan ? actPointer.plan.cols : []),columnObj];
@@ -459,6 +483,7 @@ async function btnCtrls(e){
         let no_elems = [...document.querySelectorAll(".new-elem")]
                         .filter(elem=>!elem.classList.contains("feild-elem"))
         if((cmd==="section" && no_elems.length===0) || cmd==="new-section"){
+            pushHistory();
             actPointer = {};
             selectedElem = createSection();
             blockOnFocus();
@@ -519,6 +544,7 @@ async function btnCtrls(e){
     if(!selectedElem) return;
 
     if(cmd==="delete"){// Debug required
+        pushHistory();
         if(selectedElem.classList.contains("feild-elem")){
             page.feilds = page.feilds.filter(obj=>obj.id!==feildObj.id);
             feildObj = {};
@@ -530,10 +556,13 @@ async function btnCtrls(e){
         selectedElem.remove();
     }
     else
-    if(cmd==="rem-table")
+    if(cmd==="rem-table"){
+        pushHistory();
         actPointer.plan = {};
+    }
     else
     if(cmd==="rem-row" && actPointer.plan.cols.length>0 && columnObj){
+        pushHistory();
         removeAllElem("#adv-options-2 *");
         actPointer.plan.cols = actPointer.plan.cols.filter(colObj=>colObj!==columnObj);
     }
@@ -558,11 +587,15 @@ async function btnCtrls(e){
         drawPartition();
     }
     else
-    if(cmd==="save-partition")
+    if(cmd==="save-partition"){
+        pushHistory();
         actPointer.partitions.push(partitionObj);
+    }
     else
-    if(cmd==="undo-partitions")
+    if(cmd==="undo-partitions"){
+        pushHistory();
         actPointer.partitions.pop();
+    }
     else
     if(cmd==="properties"){
         removeAllElem("#adv-options-2 *");
@@ -618,6 +651,52 @@ function elemRemoval(obj){
     // first (so only the legacy keys are saved), then strips elem /
     // parentNode / id recursively — byte-identical to the legacy version.
     return Page.elemRemoval(obj);
+}
+
+// ---------- Undo/redo history (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) ----------
+
+function snapshot(){ return JSON.stringify(elemRemoval(page)); }
+
+function pushHistory(){
+    undoStack.push(snapshot());
+    if(undoStack.length>HISTORY_CAP) undoStack.shift();
+    redoStack = []; // a fresh mutation invalidates the redo chain
+}
+
+// One entry per interaction session: the session's first mutation commits
+// the pre-session snapshot; later events in the same session are one step.
+function historySession(){
+    if(dragSnap!==null) return;
+    dragSnap = snapshot();
+    pushHistory();
+}
+
+function undo(){
+    if(!undoStack.length) return;
+    redoStack.push(snapshot());
+    if(redoStack.length>HISTORY_CAP) redoStack.shift();
+    dragSnap = null;
+    page = JSON.parse(undoStack.pop());
+    restorePage(page);
+}
+
+function redo(){
+    if(!redoStack.length) return;
+    undoStack.push(snapshot());
+    if(undoStack.length>HISTORY_CAP) undoStack.shift();
+    dragSnap = null;
+    page = JSON.parse(redoStack.pop());
+    restorePage(page);
+}
+
+// Esc mid-drag: revert to the pre-session snapshot (no half-drag states).
+function cancelDrag(){
+    if(dragSnap===null) return;
+    undoStack.pop(); // drop the session's entry — we are restoring it
+    page = JSON.parse(dragSnap);
+    dragSnap = null;
+    removeSelector();
+    restorePage(page);
 }
 
 function blockOnFocus(){
@@ -1017,6 +1096,7 @@ function move(e){
     updateUI();
     drawAssist.call({elem:selector,type:"move"});
     function moveElem(e){
+        historySession();
         if(shallResize && selectedElem.classList.contains("new-elem") && selectedCTRLDot){
             let { tag,initX,initY } = selectedCTRLDot.dataset;
             let { x,y } = e;
@@ -1074,6 +1154,7 @@ function move(e){
         moveElemHelper(newX,newY);
         drawFeilds(newX,newY);
     }
+    dragSnap = null; // fresh drag session — the first movement commits history
     mainDiv.addEventListener("mousemove",moveElem);
     mainDiv.addEventListener("mouseup",function(e){
         if(!selectedElem) return;
@@ -1158,6 +1239,7 @@ function drawMargin(){
 function pageSetup(e){
     let { cmd } = e.target.dataset;
     let { value:val } = e.target;
+    historySession();
     if(cmd==="pageSize"){
         let { width,height } = appDefault[val];
         mainDiv.style.width = width + "px";
@@ -1222,7 +1304,8 @@ function assignBlockOptions(e){
     let { value:val } = e.target;
     if(!selectedElem) return;
     if(selectedElem.classList.contains("feild-elem")) return;
-    if(["head","body","footer"].includes(val) && "elem" in page[val]) return alert(`Cannot create 2 or more ${val}`)
+    if(["head","body","footer"].includes(val) && "elem" in page[val]) return alert(`Cannot create 2 or more ${val}`);
+    historySession();
     if(cmd==="section" && ["head","body","footer"].includes(val)){
         document.getElementById("section-name").value = val;
         document.getElementById("section-name").setAttribute("disabled",true);actPointer.parentNode = mainDiv;
@@ -1410,6 +1493,10 @@ function commonFunc_range(elem,value,msg="%"){
 function tableDesignHelper(e){
     if(!selectedElem) return alert("Select host section.");
     let { dataset:{cmd,type},value:val } = e.target;
+    // Draft-column edits commit only via the new-col OK button; page-
+    // touching edits (table props, existing columns, sumup) open a session.
+    if(type==="Number" || cmd==="sumup" || (["label","var","width"].includes(cmd) && actPointer.plan.cols.includes(columnObj)))
+        historySession();
     if(type==="Number")
         actPointer.plan[cmd] = Number(val);
     else
@@ -1516,6 +1603,7 @@ function assignFeildOptions(e){
     let { value,dataset:{cmd} } = e.target;
     let advOpt = document.getElementById("field-option-1");
     let varOptDiv = advOpt.querySelector(`[data-show="variable"]`);
+    if(page.feilds.includes(feildObj)) historySession(); // committed feild; drafts commit on Create
     if(cmd==="type"){
         [...advOpt.querySelectorAll("div")]
         .forEach(elem=>{
@@ -1604,6 +1692,8 @@ function createFeildCanvas(){
 
 function insertFeild(){
     feildObj.id = "id" in feildObj ? feildObj.id : uuid.v4();
+    if(!(page.feilds.some(obj=>obj.id===feildObj.id)))
+        pushHistory(); // a brand-new feild; edits to existing ones already opened a session
     let feildCanv = "elem" in feildObj ? feildObj.elem : createFeildCanvas();
     feildObj.elem = feildCanv;
     feildObj.zIndex = 100;
@@ -1717,6 +1807,7 @@ ipcRenderer.on("set-opened-file",(e,_page,filePath)=>{
     page.newDoc = false;
     page.filePath = filePath;
     restorePage(page);
+    undoStack = []; redoStack = []; dragSnap = null; // opened document — fresh history
 });
 
 ipcRenderer.on("save-as",()=>{
@@ -1734,6 +1825,7 @@ function imageBox(feildObj){
 
 function imgOpts(e){
     let { dataset:{cmd},value,type,checked } = e.target;
+    if(page.feilds.includes(feildObj)) historySession();
     removeSelector();
     if(type==="checkbox"){
         feildObj.applyAspectRatio = checked;
@@ -1773,6 +1865,7 @@ function pickTemplate(e){
         return;
     page = buildStarter(name, appDefault).toJSON();
     restorePage(page);
+    undoStack = []; redoStack = []; dragSnap = null; // starter document — fresh history
 }
 
 function addQuickVariable(){
