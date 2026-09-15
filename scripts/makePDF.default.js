@@ -52,17 +52,9 @@ exports.billPDF = async function(billObj,temp=false){
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     let { margin, paperSize } = saleConfig;
     if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===true && fs.existsSync(saleConfig.billTemplate.file)){
-        // NEW (v2): templates saved from the new Bill Layout Designer route to
-        // the block engine. Default1/Default2 and v1 templates keep using the
-        // legacy code below until the new generator is verified — flip logic
-        // documented in lib/billTemplateResolver.js.
-        let data = fs.readFileSync(saleConfig.billTemplate.file).toString();
-        let template = JSON.parse(data);
-        if(template && template.version===2 && Array.isArray(template.blocks)){
-            const {doc,pdfPath} = initBillPDF(billObj,template,true,temp,paperSize);
-            return require("../lib/execBlockTemplate").main(doc,pdfPath,billObj,template,saleConfig);
-        }
         let { main } = require("../lib/execCustomTemplate");
+        let data = fs.readFileSync(saleConfig.billTemplate.file);
+        let template = JSON.parse(data.toString());
         const {doc,pdfPath} = initBillPDF(billObj,template,true,temp,paperSize);
         return main(doc,pdfPath,billObj,template);
     }
