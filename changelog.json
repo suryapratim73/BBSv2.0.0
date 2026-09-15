@@ -1,6 +1,7 @@
 {
     "version":"2.23.0",
     "highlights":[
+        "[2.23.0] Change: Bill Layout Designer restructured — classic designer and print engine restored with the modern 3-pane shell, element classes, starter templates, section shapes, full undo/redo and a dry-run Preview",
         "[2.23.0] Add: Auto-repair broken hash chain in log files if breakage caused by app bug",
         "[2.23.0] Fix: Multiple genesis line hash bug",
         "[2.23.0] Fix: Undefined attribute error in Default Bill Templat 2 causing NaN tax fields and abnormal line breaks in invoices after Edit",
@@ -9,6 +10,7 @@
         "[2.23.0] Add: Re-added separate Bill Summary Section in Sale Page."
     ],
     "fullchange":[
+        "[2.23.0] Change: Bill Layout Designer restructured — the v2 block-architecture rewrite is removed and the classic designer + print engine restored (free drag-move, real zoom, resize dots, partitions, table editor with sumup). A small element class library (Element/Header/Body/Footer/Section/Field/Table) drives the designer and serializes to the legacy template JSON, so the engine prints it unchanged. Kept from v2: the modern 3-pane shell and the grouped variable fetcher with free-text billMeta keys. New: section shapes (rounded/circle/ellipse), full undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, Esc cancels a drag), starter templates (Blank / Three Sections / Default 1 / Default 2) and a dry-run Preview that prints the design with a sample bill via pdfjs.",
         "[2.22.4] Fix: Duplicate bill number — save_exit now calls allocate() to verify the reserved number matches the actual billNo before consuming. Mismatch triggers release() instead of silently leaking the reservation. Edit-bill and edit-order modes excluded from this check.",
         "[2.22.4] Fix: Update download button — replaced separate BrowserWindow modal (had frame, script loading, and IPC timing issues) with native dialog.showMessageBox. In-page modal code kept for future use.",
         "[2.22.4] Fix: appLogger hash chain — hash advances after every write() regardless of backpressure (data is in Node's internal buffer, not lost). Drain handler only clears the pending-confirmation queue — no re-writing (eliminates silent duplicate entries from v2.22.3).",
