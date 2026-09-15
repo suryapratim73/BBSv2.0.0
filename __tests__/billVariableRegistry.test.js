@@ -284,6 +284,12 @@ describe("resolveColumnVar", () => {
         expect(resolveColumnVar("hsn", itemA, 0)).toBe("1001");
     });
 
+    test("gst column prints igst when present, else cgst * 2 (D2 contract)", () => {
+        expect(resolveColumnVar("gst", itemA, 0)).toBe(5); // cgst 2.5 * 2
+        expect(resolveColumnVar("gst", billObj.orderItems[1], 1)).toBe(5); // igst 5
+        expect(resolveColumnVar("gst", { ...itemA, igst: 3 }, 0)).toBe(3); // igst wins
+    });
+
     test("new computed columns", () => {
         // unit-price = rate × unitMap multiplier
         expect(resolveColumnVar("unit-price", itemA, 0, saleConfig)).toBe(100);
@@ -301,6 +307,38 @@ describe("resolveColumnVar", () => {
         const item = { name: "X", rate: 50, quantity: 3, cgst: 0, sgst: 0, igst: 0 };
         expect(resolveColumnVar("qty", item, 0)).toBe(3);
         expect(resolveColumnVar("amt", item, 0)).toBe(150);
+    });
+});
+
+describe("resolveVariable — C3 legacyScalar passthroughs", () => {
+    test("fractional numeric passthroughs keep the legacy Math.round", () => {
+        const fractional = {
+            billMeta: {
+                netQty: 42.7,
+                netDue: 42.7,
+                netPayment: 42.7,
+                discVal: 42.7,
+                delCharge: 42.7,
+                scrapTDSAmt: 42.7,
+            },
+        };
+        expect(resolveVariable("netQty", fractional, saleConfig)).toBe("43");
+        expect(resolveVariable("netDue", fractional, saleConfig)).toBe("43");
+        expect(resolveVariable("netPayment", fractional, saleConfig)).toBe("43");
+        expect(resolveVariable("discVal", fractional, saleConfig)).toBe("43");
+        expect(resolveVariable("delCharge", fractional, saleConfig)).toBe("43");
+        expect(resolveVariable("scrapTDSAmt", fractional, saleConfig)).toBe("43");
+        // whole numbers unchanged
+        expect(resolveVariable("netDue", billObj, saleConfig)).toBe("0");
+        expect(resolveVariable("discVal", billObj, saleConfig)).toBe("50");
+    });
+
+    test("payment guard accepts D2 scalar payments without throwing", () => {
+        expect(resolveVariable("payment", { billMeta: { payment: 0 } }, saleConfig)).toBe("0");
+        expect(resolveVariable("payment", { billMeta: { payment: 1500 } }, saleConfig)).toBe("1500");
+        expect(resolveVariable("payment", { billMeta: {} }, saleConfig)).toBe("");
+        // array form unchanged (legacy line pairs)
+        expect(resolveVariable("payment", billObj, saleConfig)).toEqual(["Cash: 1000"]);
     });
 });
 
