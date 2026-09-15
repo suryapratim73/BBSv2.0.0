@@ -15,8 +15,17 @@
     <aside id="palette" class="pane" onclick="btnCtrls(event)">
         <h2>Elements</h2>
         <div class="palette-grid">
-            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-msg="Add new section" title="Add a new section — set its role (Head/Body/Footer/Section) in the properties panel">
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-msg="Add new section" title="Add a generic section — set its role (Head/Body/Footer/Section) in the properties panel">
                 <i class="fa-solid fa-shapes"></i> Section
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-role="head" data-msg="Add header" title="Add a full-width header band at the top of the page">
+                <i class="fa-solid fa-heading"></i> Header
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-role="body" data-msg="Add body" title="Add a full-width body band below the header">
+                <i class="fa-solid fa-align-justify"></i> Body
+            </button>
+            <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="section" data-role="footer" data-msg="Add footer" title="Add a full-width footer band at the bottom of the page">
+                <i class="fa-solid fa-angles-down"></i> Footer
             </button>
             <button tabindex="0" type="button" class="ctrl-btns palette-btn hover bottom" data-cmd="feild" data-msg="Add new field" title="Add a text, variable or image field">
                 <i class="fa-solid fa-font"></i> Feild

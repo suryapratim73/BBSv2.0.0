@@ -1,6 +1,6 @@
 const { ipcRenderer } = require("electron");
 const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme, getAppPolicyPath, roundOffTo2DecimalPlace } = require("../js/common");
-const { Section, Field, Page, buildStarter } = require("../../lib/billElementClasses");
+const { Section, Field, Page, buildStarter, mainSectionBand } = require("../../lib/billElementClasses");
 const { VARIABLE_GROUPS, ALL_VARIABLE_KEYS } = require("../../lib/billVariableRegistry");
 const fs = require("fs");
 const uuid = require("uuid");
@@ -107,27 +107,79 @@ function mouseUpOnDocHelper(){
     dragSnap = null; // session ended; its history entry stays committed
 }
 
-function createSection(mode=1){
+function pageDims(){
+    let { width, height } = appDefault[page.size] || appDefault.a4;
+    return [width, height];
+}
+
+function createSection(mode=1, role){
+    // Header/Body/Footer arrive at their canonical band (full page width at
+    // the top/middle/bottom); a generic section keeps the legacy 160×160
+    // CSS-centered slot.
+    let band = role ? mainSectionBand(role, ...pageDims()) : null;
     let section = new Section({
-        width: actPointer?.width || 160,
-        height: actPointer?.height || 160,
+        ...(band || { width: actPointer?.width || 160, height: actPointer?.height || 160 }),
+        role,
+        name: role,
         applyBorder: true,
         border: 1,
-    }).draw(mainDiv, page, 1);
-    // The class leaves a brand-new section in the CSS-centered slot; freeze
-    // that position into logical (1px = 1pt) coordinates like legacy did.
-    let { left:left_mainDiv,top:top_mainDiv } = mainDiv.getBoundingClientRect();
-    let { left,top } = section.getBoundingClientRect();
-    section.style.left = (left - left_mainDiv)/zoomFactor + "px";
-    section.dataset.left = (left - left_mainDiv)/zoomFactor;
-    section.style.top = (top - top_mainDiv)/zoomFactor + "px";
-    section.dataset.top = (top - top_mainDiv)/zoomFactor;
+    }).draw(mainDiv, page, band ? zoomFactor : 1);
+    if(!band){
+        // The class leaves a brand-new section in the CSS-centered slot; freeze
+        // that position into logical (1px = 1pt) coordinates like legacy did.
+        let { left:left_mainDiv,top:top_mainDiv } = mainDiv.getBoundingClientRect();
+        let { left,top } = section.getBoundingClientRect();
+        section.style.left = (left - left_mainDiv)/zoomFactor + "px";
+        section.dataset.left = (left - left_mainDiv)/zoomFactor;
+        section.style.top = (top - top_mainDiv)/zoomFactor + "px";
+        section.dataset.top = (top - top_mainDiv)/zoomFactor;
+    }
     if(mode===1){
         page.sections.push({id:section.dataset.id,elem:section});
         actPointer = page.sections.find(obj=>obj.id===section.dataset.id);
     }
     actPointer.id = section.dataset.id;
     return section;
+}
+
+/**
+ * Promote the selected section to a main role (head/body/footer): the legacy
+ * model bookkeeping, plus the canonical band geometry — a Header is a
+ * full-width band at the top of the page, never the small new-section slot.
+ */
+function assignSectionRole(role){
+    let band = mainSectionBand(role, ...pageDims());
+    if(!band) return;
+    Object.assign(actPointer, band, {
+        role,
+        name: role,
+        applyBorder: actPointer.applyBorder ?? true,
+        border: actPointer.border ?? 1,
+        parentNode: mainDiv,
+    });
+    document.getElementById("section-name").value = role;
+    document.getElementById("section-name").setAttribute("disabled",true);
+    Object.keys(actPointer)
+    .forEach(key=>{
+        page[role][key] = actPointer[key];
+    });
+    page.sections = page.sections.filter(obj=>obj.id!==actPointer.id);
+    // Re-fit the on-page canvas to the band (resetting a canvas clears it,
+    // so border/partitions/table are redrawn from the model afterwards).
+    let { x, y, width, height } = actPointer;
+    selectedElem.width = width;
+    selectedElem.height = height;
+    selectedElem.style.width = width * zoomFactor + "px";
+    selectedElem.style.height = height * zoomFactor + "px";
+    selectedElem.style.left = x * zoomFactor + "px";
+    selectedElem.style.top = y * zoomFactor + "px";
+    selectedElem.dataset.left = x;
+    selectedElem.dataset.top = y;
+    selectedElem.dataset.width_100 = width;
+    selectedElem.dataset.height_100 = height;
+    selectedElem.dataset.aspectRatio = Math.round((width / height) * 100) / 100;
+    redrawSectionCanvas();
+    selectorPosHelper();
 }
 
 function selectorPosHelper(){
@@ -479,15 +531,20 @@ async function btnCtrls(e){
     });
 
     if(cmd==="section" || cmd==="new-section"){
+        let role = e.target.dataset.role; // Header/Body/Footer palette buttons
+        if(role && "elem" in page[role])
+            return alert(`Cannot create 2 or more ${role}`);
         removeAllElem("#adv-options *,#adv-options-2 *");
         if(cmd==="new-section")
             removeSelector();
         let no_elems = [...document.querySelectorAll(".new-elem")]
                         .filter(elem=>!elem.classList.contains("feild-elem"))
-        if((cmd==="section" && no_elems.length===0) || cmd==="new-section"){
+        if((cmd==="section" && no_elems.length===0) || cmd==="new-section" || role){
             pushHistory();
             actPointer = {};
-            selectedElem = createSection();
+            selectedElem = createSection(1, role);
+            if(role)
+                assignSectionRole(role);
             blockOnFocus();
         }
         let advOpts = document.getElementById("block-option-template").content.cloneNode(true).querySelector("div");
@@ -1309,15 +1366,7 @@ function assignBlockOptions(e){
     if(["head","body","footer"].includes(val) && "elem" in page[val]) return alert(`Cannot create 2 or more ${val}`);
     historySession();
     if(cmd==="section" && ["head","body","footer"].includes(val)){
-        document.getElementById("section-name").value = val;
-        document.getElementById("section-name").setAttribute("disabled",true);actPointer.parentNode = mainDiv;
-        actPointer.role = val;
-        actPointer.name = val;
-        Object.keys(actPointer)
-        .forEach(key=>{
-            page[val][key] = actPointer[key];
-        });
-        page.sections = page.sections.filter(obj=>obj.id!==actPointer.id);
+        assignSectionRole(val);
     }
     else
     if(cmd==="section" && !["head","body","footer"].includes(val)){

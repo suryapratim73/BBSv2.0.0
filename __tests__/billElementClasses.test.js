@@ -15,6 +15,8 @@ const {
     Table,
     Page,
     buildStarter,
+    mainSectionBand,
+    MAIN_SECTION_BANDS,
 } = require("../lib/billElementClasses");
 const { VARIABLES, resolveVariable } = require("../lib/billVariableRegistry");
 
@@ -499,5 +501,45 @@ describe("buildStarter — the four templates", () => {
 
     test("unknown starter name throws", () => {
         expect(() => buildStarter("nope")).toThrow(/Unknown starter/);
+    });
+});
+
+describe("mainSectionBand — canonical main-section defaults", () => {
+    test("returns the exact Three Sections starter bands on A4", () => {
+        expect(mainSectionBand("head")).toEqual({ x: 8, y: 8, width: 579.28, height: 246 });
+        expect(mainSectionBand("body")).toEqual({ x: 8, y: 262, width: 579.28, height: 330 });
+        expect(mainSectionBand("footer")).toEqual({ x: 8, y: 600, width: 579.28, height: 234 });
+    });
+
+    test("scales proportionally to the host page size", () => {
+        // A5 (half of A4): every coordinate halves.
+        const half = mainSectionBand("head", 595.28 / 2, 841.89 / 2);
+        expect(half).toEqual({ x: 4, y: 4, width: 289.64, height: 123 });
+        expect(mainSectionBand("body", 595.28 / 2, 841.89 / 2).y).toBeCloseTo(131, 5);
+    });
+
+    test("unknown roles and the band map stay in lockstep", () => {
+        expect(mainSectionBand("section")).toBeNull();
+        expect(mainSectionBand("nope")).toBeNull();
+        expect(Object.keys(MAIN_SECTION_BANDS).sort()).toEqual(["body", "footer", "head"]);
+    });
+
+    test("a Header instantiated with its band serializes as a full-width top band", () => {
+        const head = new Header({ ...mainSectionBand("head"), applyBorder: true });
+        expect(head.toJSON()).toMatchObject({
+            role: "head",
+            name: "head",
+            x: 8,
+            y: 8,
+            width: 579.28,
+            height: 246,
+            applyBorder: true,
+            border: 1,
+            shape: "rectangle",
+            cornerRadius: 8,
+        });
+        // The legacy section contract has no padding/margin keys.
+        expect(head.toJSON().padding).toBeUndefined();
+        expect(head.toJSON().margin).toBeUndefined();
     });
 });
