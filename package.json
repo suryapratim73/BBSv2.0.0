@@ -33,6 +33,7 @@
     "dotenv": "^8.2.0",
     "electron-window-state": "^5.0.3",
     "keytar": "^7.9.0",
+    "pdfjs-dist": "^3.11.174",
     "pdfkit": "^0.12.1",
     "qrcode": "^1.5.0",
     "sequelize": "^6.13.0",

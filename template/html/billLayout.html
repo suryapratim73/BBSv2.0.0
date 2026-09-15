@@ -66,11 +66,17 @@
                     <option value="default2">Default 2</option>
                 </select>
             </label>
+            <button tabindex="0" type="button" id="preview-btn" data-cmd="preview" title="Dry-run: print this design with sample data">
+                <i class="fa-solid fa-eye"></i> Preview
+            </button>
         </div>
         <div id="workspace-scroll">
             <main onmousedown="move(event)">
                 <h1 id="blanck-header">Start creating bill design</h1>
             </main>
+        </div>
+        <div id="preview-panel" class="hide">
+            <div id="preview-pages"></div>
         </div>
     </section>
 

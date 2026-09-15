@@ -477,4 +477,38 @@ describe("main — end to end", () => {
         expect(texts).toContain("200"); // amt row 1
         expect(texts).toContain("700"); // amt row 2
     });
+
+    test("prints static parts only when the body has no plan (Blank starter)", async () => {
+        const doc = FakeDoc();
+        const template = baseTemplate([feild("billNo")], { body: {} }); // no table
+        const pdfPath = await main(doc, "/tmp/out.pdf", billObj, template);
+        expect(pdfPath).toBe("/tmp/out.pdf");
+        expect(doc._saved).toBe(true);
+        expect(printedTexts(doc)).toContain("101");
+        expect(printedTexts(doc)).not.toContain("Item A");
+    });
+
+    test("resets the page counter for repeated renders", async () => {
+        const doc = FakeDoc();
+        const template = baseTemplate([feild("page-no")], {
+            body: {
+                x: 10, y: 225, width: 590, height: 405,
+                applyBorder: false, border: 1, partitions: [],
+                plan: { fSize: 12, padding: 10, thHeight: 35, rSpacing: 8,
+                    cols: [
+                        { label: "Sl No", var: "slno", width: 10, xPos: 0, yPos: 23.5 },
+                        { label: "Item", var: "name", width: 45, xPos: 59, yPos: 23.5 },
+                    ] },
+            },
+        });
+        // Two 2-caption renders advance the counter to 4; a fresh render
+        // must start back at 1 (the designer preview re-renders repeatedly).
+        await main(doc, "/tmp/a.pdf", billObj, template);
+        await main(doc, "/tmp/b.pdf", billObj, template);
+        await main(doc, "/tmp/c.pdf", billObj, template);
+        const printed = printedTexts(doc);
+        expect(printed.filter(text => text === "1").length).toBeGreaterThanOrEqual(3); // one per render
+        expect(printed).not.toContain("3");
+        expect(printed).not.toContain("4");
+    });
 });

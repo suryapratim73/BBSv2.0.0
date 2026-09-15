@@ -225,6 +225,36 @@ option {
     align-items: flex-start;
 }
 
+/* ---------- dry-run preview (engine-rendered PDF pages) ---------- */
+#preview-btn {
+    width: auto;
+    padding: 0 10px;
+    margin-left: 8px;
+}
+
+#preview-panel {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+#preview-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+#preview-pages canvas {
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 4px 18px var(--bd-shadow);
+}
+
 /* ---------- the page canvas (classic designer rules) ---------- */
 main {
     margin: 0 auto;

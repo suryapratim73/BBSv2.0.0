@@ -1866,6 +1866,81 @@ ipcMain.handle("new-template-response", async (e, page) => {
   }
 });
 
+// Dry-run preview (Bill Layout Designer): print the template with a
+// synthetic sample bill through the same engine, return the PDF bytes and
+// delete the temp file. The biller details resolve from the real saleConfig.
+function sampleBillForPreview(){
+  const today = new Date();
+  const items = [
+    { name:"Cement (50 kg bag)", hsn:"252329", qty:20, sellUnit:"BAG", rate:380, cgst:14, sgst:14, igst:0 },
+    { name:"TMT Steel Bar 12 mm", hsn:"72142090", qty:120, sellUnit:"KG", rate:58, cgst:9, sgst:9, igst:0 },
+    { name:"River Sand (1 ton)", hsn:"25051011", qty:2, sellUnit:"TON", rate:950, cgst:2.5, sgst:2.5, igst:0 },
+    { name:"Red Clay Bricks", hsn:"69041000", qty:500, sellUnit:"PCS", rate:7.5, cgst:6, sgst:6, igst:0 },
+    { name:"PVC Pipe 4 inch (bundle)", hsn:"39172310", qty:3, sellUnit:"BUNDLE", rate:1240, cgst:9, sgst:9, igst:0 },
+  ];
+  const netAmt = items.reduce((acc,{rate,qty})=>acc+rate*qty,0);
+  const netTax = items.reduce((acc,{rate,qty,cgst,sgst})=>acc+(cgst+sgst)*rate*qty*0.01,0);
+  const netAmtTax = netAmt + netTax;
+  return {
+    billMeta: {
+      billNo:"PREVIEW",
+      billDate:today,
+      billType:"sale",
+      billStatus:"complete",
+      orderRef:"",
+      ewayBill:"EWB 1234 5678 9012",
+      mode:"counter",
+      stateNcode:"West Bengal (19)",
+      placeOfSupply:"West Bengal (19)",
+      netQty:items.reduce((acc,{qty})=>acc+qty,0),
+      netAmt,
+      netTax,
+      netAmtTax,
+      netDue:netAmtTax,
+      netPayment:0,
+      paymentStatus:false,
+      discVal:0,
+      delCharge:0,
+      scrapTDSAmt:0,
+      payment:[{ type:"Cash", payment:netAmtTax }],
+      printObj:{ captions:["Original Buyer's Copy"], copies:1, printer:"", paperSize:"A4", printOrientation:"portrait" },
+    },
+    customer: {
+      name:"Sample Customer",
+      address:"42, Lake View Road, Kolkata, West Bengal - 700029",
+      gst:"19ABCDE1234F1Z5",
+      phones:[null,"98765 43210"],
+    },
+    payment:{ type:"cash" },
+    orderItems:items,
+  };
+}
+
+ipcMain.handle("preview-bill-template", async (_e, template) => {
+  try {
+    let { size="a4", applyMargin=false, margin=0 } = template || {};
+    const PDFDocument = require("pdfkit");
+    const doc = new PDFDocument({
+      size,
+      margin: applyMargin ? margin : 0,
+      autoFirstPage: true,
+    });
+    const pdfPath = path.join(app.getPath("temp"), `bill-layout-preview-${Date.now()}.pdf`);
+    const out = fs.createWriteStream(pdfPath);
+    doc.pipe(out);
+    require("./lib/execCustomTemplate").main(doc, pdfPath, sampleBillForPreview(), template);
+    await new Promise((res, rej) => {
+      out.on("finish", res);
+      out.on("error", rej);
+    });
+    const bytes = fs.readFileSync(pdfPath);
+    fs.unlink(pdfPath, () => {});
+    return bytes;
+  } catch (err) {
+    return { error: String(err.message || err) };
+  }
+});
+
 // Starter templates for the designer's template picker — the bundled v2
 // data-template conversions of the legacy Default1/Default2 layouts.
 ipcMain.handle("read-bill-template", async (_e, name) => {

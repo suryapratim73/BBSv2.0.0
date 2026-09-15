@@ -432,6 +432,8 @@ async function btnCtrls(e){
         e.target.classList.toggle("active");
         return;
     }
+    if(cmd==="preview")
+        return togglePreview();
     if(cmd==="change-input"){
         let input = e.target.parentNode.querySelector("input");
         if(input.getAttribute("type")==="range")
@@ -1855,6 +1857,52 @@ function imgOpts(e){
 }
 
 // Starter templates & the Quick Variable picker (the modern shell's extras)
+
+// ---------- Dry-run preview: the engine renders this design with a sample
+// bill to a temp PDF (main process), displayed page-by-page via pdfjs ----------
+
+let pdfjsLib;
+function initPDFJS(){
+    if(pdfjsLib) return pdfjsLib;
+    // pdfjs-dist 3.x legacy UMD build; its bundled worker can't load from
+    // the packaged app, so pdf.js falls back to the main-thread fake worker.
+    pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+    return pdfjsLib;
+}
+
+async function togglePreview(){
+    let panel = document.getElementById("preview-panel");
+    let btn = document.getElementById("preview-btn");
+    if(!panel.classList.contains("hide")){// back to Design
+        panel.classList.add("hide");
+        document.getElementById("workspace-scroll").classList.remove("hide");
+        btn.classList.remove("active");
+        return;
+    }
+    try{// fresh render on every press (dry-run semantics)
+        let bytes = await ipcRenderer.invoke("preview-bill-template", elemRemoval(page));
+        if(!bytes || bytes.error) throw new Error(bytes?.error || "The engine returned no PDF.");
+        removeAllElem("#preview-pages *");
+        let pdf = await initPDFJS().getDocument({ data: bytes }).promise;
+        let pagesDiv = document.getElementById("preview-pages");
+        for(let i = 1; i <= pdf.numPages; i++){
+            let pageObj = await pdf.getPage(i);
+            let viewport = pageObj.getViewport({ scale: 1 });
+            let canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            pagesDiv.appendChild(canvas);
+            await pageObj.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        }
+        document.getElementById("workspace-scroll").classList.add("hide");
+        panel.classList.remove("hide");
+        btn.classList.add("active");
+    }
+    catch(err){
+        console.error(err);
+        alert("Preview failed: " + (err.message || err));
+    }
+}
 
 function pickTemplate(e){
     let name = e.target.value;
