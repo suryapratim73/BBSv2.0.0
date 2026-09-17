@@ -21,8 +21,10 @@ const ACCOUNT_NAME = 'MasterEncryptionSecret';
 exports.attempt = function(fn, fallback) {
     try {
         const result = fn();
-        return result instanceof Promise ? result.catch(() => fallback) : result;
-    } catch (_) { return fallback; }
+        return result instanceof Promise ? result.catch((err) => (typeof fallback=="function" ? fallback(err) : fallback)) : result;
+    } catch (err) {
+        return typeof fallback=="function" ? fallback(err) : fallback;
+    }
 };
 
 exports.closeAndDisplay = function(msg){
