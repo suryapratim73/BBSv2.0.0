@@ -604,6 +604,19 @@ button.selected{
     margin-bottom: 8px;
     margin-top: 0;
 }
+/* Top-left tooltip: consistent gap above parent. Without this, .top + .left
+   fall through to their individual rules and stack two hardcoded -80px
+   offsets, floating the popup far above the element. */
+.hover.top.left:hover.hover.top.left::before {
+    top: auto;
+    bottom: 100%;
+    left: 0;
+    right: unset;
+    margin-bottom: 8px;
+    margin-top: 0;
+    margin-left: 0;
+    transform: none;
+}
 .appear>div{
     transform: scale(0);
     animation: appear 0.3s linear 0s 1 forwards;

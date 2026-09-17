@@ -59,9 +59,9 @@
     <!-- Workspace — the page canvas, zoom, grid and the starter templates. -->
     <section id="workspace">
         <div id="workspace-bar" onclick="btnCtrls(event)">
-            <button tabindex="0" type="button" data-cmd="Zoom-Out" data-msg="Zoom-Out" title="Zoom out (Ctrl+Shift+-)">-</button>
+            <button tabindex="0" type="button" data-cmd="Zoom-Out" data-msg="Zoom-Out" class="hover bottom" title="Zoom out (Ctrl+Shift+-)">-</button>
             <span id="zoom-label">100%</span>
-            <button tabindex="0" type="button" data-cmd="Zoom-In" data-msg="Zoom-In" title="Zoom in (Ctrl+Shift+=)">+</button>
+            <button tabindex="0" type="button" data-cmd="Zoom-In" data-msg="Zoom-In" class="hover bottom" title="Zoom in (Ctrl+Shift+=)">+</button>
             <button tabindex="0" type="button" id="grid-toggle" data-cmd="grid" title="Toggle an 8pt alignment grid (visual only)">
                 <i class="fa-solid fa-border-all"></i>
             </button>
@@ -99,16 +99,16 @@
         </div>
         <div id="block-actions">
             <div id="delete-btn-div" class="hide">
-                <button tabindex="0" type="button" data-cmd="delete" data-msg="Delete selected element" class="hover bottom danger" title="Delete the selected element (Delete key)">
+                <button tabindex="0" type="button" data-cmd="delete" data-msg="Delete selected element" class="hover left danger" title="Delete the selected element (Delete key)">
                     <i class="fa-solid fa-trash"></i> Delete
                 </button>
             </div>
         </div>
         <div id="file-actions">
-            <button tabindex="0" type="button" data-cmd="save-exit" data-msg="Save and exit designer" class="hover bottom" title="Save the template and return to the main page">
+            <button tabindex="0" type="button" data-cmd="save-exit" data-msg="Save and exit designer" class="hover top" title="Save the template and return to the main page">
                 <i class="fa-solid fa-floppy-disk"></i> Save &amp; Exit
             </button>
-            <button tabindex="0" type="button" data-cmd="exit" data-msg="Exit without saving" class="hover bottom danger" title="Return to the main page without saving">
+            <button tabindex="0" type="button" data-cmd="exit" data-msg="Exit without saving" class="hover top danger" title="Return to the main page without saving">
                 <i class="fa-solid fa-right-from-bracket"></i> Exit
             </button>
         </div>
@@ -117,10 +117,10 @@
     <template id="block-option-template">
         <div class="adv-option-div" oninput="assignBlockOptions(event)">
             <div>
-                <button tabindex="0" data-cmd="new-section" data-msg="Create new section" class="hover bottom">Create section</button>
+                <button tabindex="0" data-cmd="new-section" data-msg="Create new section" class="hover left">Create section</button>
             </div>
             <div>
-                <p data-msg="Define the role of the section.">Role</p>
+                <p data-msg="Define the role of the section." class="hover left">Role</p>
                 <select tabindex="0" data-cmd="section" data-name="role">
                     <option value="head">Head</option>
                     <option value="body">Body</option>
@@ -129,7 +129,7 @@
                 </select>
             </div>
             <div>
-                <p data-msg="Set name of the section.">Name</p>
+                <p data-msg="Set name of the section." class="hover left">Name</p>
                 <input tabindex="0" type="text" id="section-name" data-cmd="name">
             </div>
             <div>
@@ -140,7 +140,7 @@
                 </select>
             </div>
             <div>
-                <p data-msg="Border shape of the section.">Shape</p>
+                <p data-msg="Border shape of the section." class="hover left">Shape</p>
                 <select tabindex="0" data-cmd="shape">
                     <option value="rectangle" selected>Rectangle</option>
                     <option value="rounded">Rounded</option>
@@ -153,11 +153,11 @@
                 <input tabindex="0" type="text" value="8" data-cmd="cornerRadius" data-name="quantity" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
             </div>
             <div>
-                <button tabindex="0" data-cmd="create-partition" data-msg="Create partition in section" class="hover bottom">Create Partition</button>
-                <button tabindex="0" data-cmd="undo-partitions" data-msg="Remove all partitions" class="hover bottom">Undo Partitions</button>
+                <button tabindex="0" data-cmd="create-partition" data-msg="Create partition in section" class="hover left">Create Partition</button>
+                <button tabindex="0" data-cmd="undo-partitions" data-msg="Remove all partitions" class="hover left">Undo Partitions</button>
             </div>
             <div>
-                <button tabindex="0" data-cmd="properties" data-msg="Show more properties" class="hover bottom">More Properties</button>
+                <button tabindex="0" data-cmd="properties" data-msg="Show more properties" class="hover left">More Properties</button>
             </div>
         </div>
     </template>
@@ -179,8 +179,8 @@
                 <input tabindex="0" value="1" data-cmd="lWidth" data-name="quantity" type="text" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
             </div>
             <div>
-                <button tabindex="0" data-cmd="save-partition" data-msg="Save partition" class="hover bottom">Create</button>
-                <button tabindex="0" data-cmd="cancel-partition" data-msg="Cancel partition" class="hover bottom">Cancel</button>
+                <button tabindex="0" data-cmd="save-partition" data-msg="Save partition" class="hover left">Create</button>
+                <button tabindex="0" data-cmd="cancel-partition" data-msg="Cancel partition" class="hover left">Cancel</button>
             </div>
         </div>
     </template>
@@ -196,77 +196,87 @@
         <div class="adv-option-div" oninput="assignBlockOptions(event)">
             <div>
                 <div>
-                    <label data-msg="Percentage of width w.r.t. Parent node.">% width</label>
+                    <label data-msg="Percentage of width w.r.t. Parent node." class="hover left">% width</label>
                 </div>
                 <div>
-                    <input tabindex="0" type="range" data-msg="Not set" data-cmd="width" min="0" max="100" value="50">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <input tabindex="0" type="range" class="hover top left" data-msg="Not set" data-cmd="width" min="0" max="100" value="50">
+                    <i tabindex="0" class="hover left top" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
                 <div>
-                    <label data-msg="Percentage of width w.r.t. Parent node.">% height</label>
+                    <label data-msg="Percentage of width w.r.t. Parent node." class="hover left">% height</label>
                 </div>
                 <div>
                     <input tabindex="0" type="range" data-msg="Not set" data-cmd="height" min="0" max="100" value="50">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <i tabindex="0" class="hover left" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
-                <button tabindex="0" data-cmd="confirm-section-prop" data-msg="Apply properties" class="hover bottom">Ok</button>
-                <button tabindex="0" data-cmd="cancel-section-prop" data-msg="Cancel changes" class="hover bottom">Cancel</button>
+                <button tabindex="0" data-cmd="confirm-section-prop" data-msg="Apply properties" class="hover left">Ok</button>
+                <button tabindex="0" data-cmd="cancel-section-prop" data-msg="Cancel changes" class="hover left">Cancel</button>
             </div>
         </div>
     </template>
     <template id="feild-option-template">
         <div class="adv-option-div" id="field-option-1" oninput="assignFeildOptions(event)">
             <div>
-                <p>Feild Type</p>
-                <select tabindex="0" data-cmd="type">
-                    <option value="string">Text</option>
-                    <option value="variable">Variable</option>
-                    <option value="image">Image</option>
-                </select>
-            </div>
-            <div>
-                <p>Font Size</p>
-                <input tabindex="0" type="text" value="16" data-cmd="fSize" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)">
-            </div>
-            <div>
-                <p>Feild Width in %</p>
+                <div><label>Feild Type</label></div>
                 <div>
-                    <input tabindex="0" type="range" max="100" min="10" value="50" data-msg="50%" data-cmd="fWidth">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <select tabindex="0" data-cmd="type">
+                        <option value="string">Text</option>
+                        <option value="variable">Variable</option>
+                        <option value="image">Image</option>
+                    </select>
                 </div>
             </div>
             <div>
-                <p>Font Family</p>
-                <select tabindex="0" data-cmd="fFamily">
-                    <option value="Times-Roman" selected>Times Roman</option>
-                    <option value="Courier">Courier</option>
-                    <option value="Helvetica">Helvetica</option>
-                </select>
+                <div>
+                    <label>Font Size</label>
+                </div>
+                <div><input tabindex="0" type="text" value="16" data-cmd="fSize" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)"></div>
+            </div>
+            <div>
+                <div><label>Feild Width in %</label></div>
+                <div>
+                    <input tabindex="0" type="range" class="hover top left" max="100" min="10" value="50" data-msg="50%" data-cmd="fWidth">
+                    <i tabindex="0" class="hover top right" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
+                </div>
+            </div>
+            <div>
+                <div><label>Font Family</label></div>
+                <div>
+                    <select tabindex="0" data-cmd="fFamily">
+                        <option value="Times-Roman" selected>Times Roman</option>
+                        <option value="Courier">Courier</option>
+                        <option value="Helvetica">Helvetica</option>
+                    </select>
+                </div>
             </div>
             <div onclick="assignFeildOptions(event)">
-                <p>Style</p>
-                <button tabindex="0" data-cmd="bold" class="fa-solid fa-bold hover bottom" data-msg="Toggle bold"></button>
-                <button tabindex="0" data-cmd="italic" class="fa-solid fa-italic hover bottom" data-msg="Toggle italic"></button>
-                <button tabindex="0" data-cmd="underline" class="fa-solid fa-underline hover bottom" data-msg="Toggle underline"></button>
+                <div><label>Style</label></div>
+                <div>
+                    <button tabindex="0" data-cmd="bold" class="hover top left" data-msg="Toggle bold"><strong>B</strong></button>
+                    <button tabindex="0" data-cmd="italic" class="hover top right" data-msg="Toggle italic"><strong>I</strong></button>
+                    <button tabindex="0" data-cmd="underline" class="hover top right" data-msg="Toggle underline"><strong>U</strong></button>
+                </div>
             </div>
             <div class="hide" data-show="variable">
-                <p>Variable</p>
-                <select tabindex="0" data-cmd="fType" title="The bill variable this field prints — grouped by the variable registry">
-                    <option value="__custom">Custom billMeta key…</option>
-                </select>
-                <input tabindex="0" type="text" class="hide" placeholder="Any billMeta key" data-cmd="custom-fType" title="Type any bill field key, even ones added in the future">
+                <div><label>Variable</label></div>
+                <div>
+                    <select tabindex="0" data-cmd="fType" title="The bill variable this field prints — grouped by the variable registry">
+                        <option value="__custom">Custom billMeta key…</option>
+                    </select>
+                    <input tabindex="0" type="text" class="hide" placeholder="Any billMeta key" data-cmd="custom-fType" title="Type any bill field key, even ones added in the future">
+                </div>
             </div>
             <div>
-                <label for="label">Feild label</label>
-                <input tabindex="0" type="text" id="label" data-cmd="text">
+                <div><label for="label">Feild label</label></div>
+                <div><input tabindex="0" type="text" id="label" data-cmd="text"></div>
             </div>
             <div>
-                <button tabindex="0" data-cmd="create-feild" onclick="insertFeild()" data-msg="Create or save field" class="hover bottom">Create/Save</button>
-                <button tabindex="0" onclick="cancelFeild()" data-msg="Cancel field creation" class="hover bottom">Cancel</button>
+                <button tabindex="0" data-cmd="create-feild" onclick="insertFeild()" data-msg="Create or save field" class="hover left">Create/Save</button>
+                <button tabindex="0" onclick="cancelFeild()" data-msg="Cancel field creation" class="hover left">Cancel</button>
             </div>
         </div>
     </template>
@@ -292,8 +302,8 @@
                 <div id="column-name-display"></div>
             </div>
             <div>
-                <button tabindex="0" data-cmd="new-col" data-msg="Add new column to table" class="hover bottom">Add new column</button>
-                <button tabindex="0" data-cmd="rem-table" data-msg="Remove table" class="hover bottom">Remove table</button>
+                <button tabindex="0" data-cmd="new-col" data-msg="Add new column to table" class="hover left">Add new column</button>
+                <button tabindex="0" data-cmd="rem-table" data-msg="Remove table" class="hover left">Remove table</button>
             </div>
         </div>
     </template>
@@ -323,7 +333,7 @@
                 <p>Column width</p>
                 <div>
                     <input tabindex="0" type="range" id="table-col-width-input" data-msg="20%" style="--left_range:20%" min="0" max="100" value="20" placeholder="in %" data-cmd="width">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <i tabindex="0" class="hover left" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
@@ -332,11 +342,11 @@
                 <label for="sumup">Use remaining spaces</label>
             </div>
             <div>
-                <button tabindex="0" data-cmd="new-col" data-dir="ok" data-msg="Save column" class="hover bottom">Ok</button>
-                <button tabindex="0" data-cmd="new-col" data-dir="cancel" data-msg="Cancel column" class="hover bottom">Cancel</button>
+                <button tabindex="0" data-cmd="new-col" data-dir="ok" data-msg="Save column" class="hover left">Ok</button>
+                <button tabindex="0" data-cmd="new-col" data-dir="cancel" data-msg="Cancel column" class="hover left">Cancel</button>
             </div>
             <div>
-                <button tabindex="0" data-cmd="rem-row" class="hide hover bottom" data-msg="Remove row">Remove Row</button>
+                <button tabindex="0" data-cmd="rem-row" class="hide hover left" data-msg="Remove row">Remove Row</button>
             </div>
         </div>
     </template>
@@ -421,14 +431,14 @@
                 <p>Image width</p>
                 <div>
                     <input tabindex="0" type="range" data-msg="10%" style="--left_range:20%" min="0" max="100" value="10" placeholder="in %" data-cmd="imgWidth">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <i tabindex="0" class="hover left" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
                 <p>Image height</p>
                 <div>
                     <input tabindex="0" type="range" data-msg="10%" style="--left_range:20%" min="0" max="100" value="10" placeholder="in %" data-cmd="imgHeight">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <i tabindex="0" class="hover left" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
@@ -452,7 +462,7 @@
                 <p>Opacity</p>
                 <div>
                     <input tabindex="0" type="range" data-msg="100%" style="--left_range:100%" min="0" max="100" value="100" placeholder="in %" data-cmd="imgOpacity">
-                    <i tabindex="0" class="fa-solid fa-arrows-rotate" data-cmd="change-input" data-msg="Change input"></i>
+                    <i tabindex="0" class="hover left" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
                 </div>
             </div>
             <div>
@@ -462,7 +472,7 @@
                 </div>
             </div>
             <div>
-                <button tabindex="0" data-cmd="close" data-msg="Save and close properties" class="hover bottom">Save & Close</button>
+                <button tabindex="0" data-cmd="close" data-msg="Save and close properties" class="hover left">Save & Close</button>
             </div>
         </div>
     </template>

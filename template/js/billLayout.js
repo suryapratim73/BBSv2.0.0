@@ -67,7 +67,7 @@ function init(){
             }
             else{
                 target.parentNode.style.position = "relative";
-                document.documentElement.style.setProperty("--top_range",-200+"%");
+                // document.documentElement.style.setProperty("--top_range",-200+"%");
             }
             let { left } = target.getBoundingClientRect();
             document.documentElement.style.setProperty("--left_range",e.x - left+"%");
@@ -1985,7 +1985,10 @@ function addQuickVariable(){
     the variable registry's grouped keys (mutates the <template> itself, so
     every clone inherits the optgroups). */
 function hydrateVariableUI(){
-    let fTypeSelect = document.querySelector("#feild-option-template [data-cmd='fType']");
+    removeAllElem("#adv-options *");
+    let advOpt = document.getElementById("feild-option-template").content.cloneNode(true).querySelector("div");
+    document.getElementById("adv-options").appendChild(advOpt);
+    let fTypeSelect = document.querySelector("#field-option-1 [data-cmd='fType']");
     VARIABLE_GROUPS.forEach(({group,keys})=>{
         let optgroup = document.createElement("optgroup");
         optgroup.label = group;
