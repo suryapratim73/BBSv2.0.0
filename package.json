@@ -81,7 +81,7 @@
       "publish": [
         {
           "provider": "generic",
-          "url": "http://code.mbtcverse.com:3030/os/linux/",
+          "url": "https://code.mbtcverse.com/os/linux/",
           "publishAutoUpdate": true
         }
       ]
@@ -137,5 +137,5 @@
     ],
     "asar": false
   },
-  "homepage": "http://code.mbtcverse.com/"
+  "homepage": "https://code.mbtcverse.com/"
 }

@@ -73,7 +73,8 @@ const {
   deleteSecret,
   getBillsDir,
   getLocalDateStr,
-  getTodaysLogDate
+  getTodaysLogDate,
+  attempt
 } = require("./common");
 // const { getBillsDir } = require("./paths");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
@@ -160,7 +161,7 @@ windowOptions = {
   unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
   idleLockTimer,appLocked = true,
   appIcon = nativeImage.createFromPath(path.resolve(__dirname,"./logo256.png")),
-  fileMonitor = null;
+  fileMonitor = null, appHeartBeatTimer;
 const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
   ];
@@ -221,7 +222,7 @@ class Job{
   }
 }
 
-// Handle protocol URLs from external launches (e.g., updator.bat using bbs://update-complete)
+// Handle protocol URLs from external launches (e.g., updator.vbs using bbs://update-complete)
 function handleProtocolUrl(url) {
   console.log("========================================");
   console.log("🔗 Protocol URL Handler Triggered!");
@@ -236,7 +237,7 @@ function handleProtocolUrl(url) {
   // Parse the protocol URL for actions
   if (url.includes('update-complete')) {
     console.log("Showing update complete notification");
-    
+    showUpdateSuccessMsg()
     // Show notification
     const notification = new Notification({
       title: "Update Complete",
@@ -377,7 +378,7 @@ async function createWindow() {
       app.on("second-instance",(event, commandLine)=>{
         if(process.env.APP_ENV==="DEV") return;
         
-        // Check for protocol URL in command line (e.g., from updator.bat)
+        // Check for protocol URL in command line (e.g., from updator.vbs)
         console.log("Second instance detected, commandLine:", commandLine);
         const protocolUrl = commandLine.find(arg => arg.startsWith('bbs://'));
         if (protocolUrl) {
@@ -389,6 +390,13 @@ async function createWindow() {
           mainWindow.restore();
         mainWindow.focus();
       });
+
+      // Protocol URL passed on first launch (e.g., "bbs bbs://update-complete"
+      // from updator.sh on Linux) - no second instance exists to forward it,
+      // so handle it directly from argv.
+      const argvProtocolUrl = process.argv.find(arg => arg.startsWith('bbs://'));
+      if (argvProtocolUrl)
+        handleProtocolUrl(argvProtocolUrl);
     }
 
     // Removing temporary files.
@@ -560,6 +568,7 @@ app.setAsDefaultProtocolClient("bbs");
 
 app.on("quit", async () => {
   clearWeatherInterval();
+  appHeartBeatTimer && clearInterval(appHeartBeatTimer);
   try{
     if(dbInitialized)
       await sequelize.close()
@@ -829,7 +838,24 @@ app.on("ready", async () => {
   }
 
   encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
+
+  appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins
 });
+
+async function heartBeatFn(){
+  checkDeviceStatus();
+
+}
+
+async function checkDeviceStatus(){
+  let baseURL = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
+  let statusObj = await attempt(()=>{
+    if(typeof global.deviceUUID=="undefined") return;
+    return axios.get(baseURL+"device/status?id="+global.deviceUUID)
+  },{});
+
+  console.log("[main.js]: statusObj:",statusObj.data);
+}
 
 async function encryptAndUploadS3(keepLocal=false){
   try{
@@ -981,7 +1007,8 @@ async function uploadToS3(filePath,fileName,logType="device_log"){
     const contentMD5 = crypto.createHash("md5").update(fileBuffer).digest("base64");
 
     // Get signed URL from server (pass contentMD5 so server can sign it)
-    let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";// "http://localhost:3030/";// "http://192.168.0.110:3030/";
+    let serverUrl = process.env.APP_ENV==="PROD" 
+    ;// "http://localhost:3030/";// "http://192.168.0.110:3030/";
     let { signedUrl } = (await axios.post(serverUrl+"app-logs",{
       deviceId:global.deviceUUID,
       gstNumber:process.presets.gst,
@@ -1033,7 +1060,8 @@ async function appRegistrationHandler(silent=true){
   const salt = generateSecureSalt(encryptionKey ,`${diskSerial}-${motherboardSerial}`);
   const deviceId = uuid.v5(`${diskSerial}-${motherboardSerial}`, salt);
   global.deviceUUID = deviceId;
-  let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://localhost:3030/";
+  console.log("[main.js] Setting global.deviceUUID",global.deviceUUID);
+  let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
   if(typeof process.presets.gst === "undefined" || process.presets.gst===""){
     appLogger({
       title:"App Registration Error: Require GST Number",
@@ -1047,10 +1075,12 @@ async function appRegistrationHandler(silent=true){
       gstNumber
     },{timeout:5000})
   .then(({data})=>{
+    console.log("silent route hit")
     global.userId = data.id;
     console.log({userId:data.id})
   })
   .catch(err=>{
+    console.log("silent route miss",err)
     global.userId = null;
     let title = "App Registration Info Error";
     if(silent)
@@ -2599,10 +2629,21 @@ ipcMain.on("app-registration", async (e, gst) => {
 exports.updateCommon = updateCommon;
 
 // IPC handler for executing update (used by versionManager to avoid circular dependency)
-ipcMain.on("execute-update", (e, fileName, version, showMsgFlag, relPath) => {
-  updateCommon.call({ fileName, version, isSaved: true }, showMsgFlag, relPath);
+ipcMain.on("execute-update", (e, fileName, version, showMsgFlag, relPath,isSaved=false) => {
+  updateCommon.call({ fileName, version, isSaved }, showMsgFlag, relPath);
 });
 async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
+  // Single choke point for spawning installer scripts (update install and
+  // version restore). Only admin roles may run them - a guest user must
+  // never be able to trigger an install on a machine they don't own.
+  if(!["admin","all"].includes(currentUser?.role)){
+    appLogger({
+      title:"Update Install",
+      message:"Unauthorized install attempt blocked. Role: "+(currentUser?.role ?? "none"),
+      func:"updateCommon"
+    });
+    return;
+  }
   let data = {
     currentVersion:app.getVersion(),
     path2file:path.resolve(app.getPath("appData"),relPath),
@@ -2616,8 +2657,6 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   }
   if(this.hashInfo) // Storing hashInfo only once when app checks for update.
     data.hashInfo = this.hashInfo;
-  if(this.isSaved===false)// Saving the update data only when it's not saved previously. This is to avoid overwriting the data when user tries to install update later and then tries to install again from settings without downloading again.
-    recordDownloadedVersion(data);
   if(showMsgFlag){
     let resp = await dialog.showMessageBox({
       title:"Download complete",
@@ -2628,6 +2667,7 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     });
     if(resp.response===1){
       data.installMoment = "later";
+      fs.writeFileSync(app.getPath("appData")+"/BBS/updtConf.json", JSON.stringify(data));
       return;
     }
   }
@@ -2643,26 +2683,34 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
     ipcMain.eventNames().forEach(event => ipcMain.removeAllListeners(event));
     process.removeAllListeners();
     await sequelize.close();
+    if(this.isSaved===false)// Saving the update data only when it's not saved previously. This is to avoid overwriting the data when user tries to install update later and then tries to install again from settings without downloading again.
+      recordDownloadedVersion(data);
   }
   if(data.installMoment==="now" && ["darwin","linux"].includes(process.platform)){
     appLogger({
       title:"Update Install",
       message:"Launching updator.sh.",
-      cmd:`./updator.sh -u ${this.version}`,
+      cmd:`bash ./updator.sh -u ${this.version}`,
       func:"updateCommon"
     });
-    proc = spawn(`./updator.sh -u ${this.version}`,{
+    proc = spawn("bash",[path.resolve(__dirname,"./updator.sh"),"-u",String(this.version)],{
       cwd:__dirname,
-      shell:true,
       detached:true,
       stdio:'ignore'
     });
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
-    // Pass parent PID to batch file so it can wait for app to fully exit
-    proc = spawn("updator.bat",[process.pid, data.path2file],{
-      shell:true,
+    // Launch the windowless VBS helper via wscript.exe (GUI-only host, so no
+    // console window ever appears). It waits for this app to fully exit,
+    // runs the installer silently and relaunches the app from its installed
+    // location (process.execPath = %LOCALAPPDATA%\Programs\bbs\BBS.exe).
+    proc = spawn("wscript.exe",[
+      path.resolve(__dirname,"./updator.vbs"),
+      String(process.pid),
+      data.path2file,
+      process.execPath
+    ],{
       cwd:__dirname,
       detached:true,
       windowsHide:true,
@@ -3374,7 +3422,7 @@ async function checkForUpdates(flag="auto") {
           if(typeof updtConf!=="undefined" && updtConf?.updateDownloaded && updtConf?.versionDownloaded===appVersion && fs.existsSync(updtConf?.path2file)){
             // Update already downloaded and ready for install
             appLogger({ title:"Update", message: "Update is already downloaded.", func:"checkForUpdates", appendToLog: false, allowConsole: true })
-            updateCommon.call({version:appVersion,fileName:updtConf.fileName,isSaved:true});
+            updateCommon.call({version:appVersion,fileName:updtConf.fileName,isSaved:false});
           }
           else {
             // First-time download or updtConf missing — start fresh download

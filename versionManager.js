@@ -3,7 +3,7 @@ const { BrowserWindow, app, ipcMain, dialog, ipcRenderer, shell } = require("ele
 const { createModal, getMainWindow } = require("./createModal");
 const { getTemplatePath } = require("./viewManager");
 const path = require("path");
-const { appLogger } = require("./common");
+const { appLogger, attempt } = require("./common");
 const fs = require("fs");
 const { default: axios } = require("axios");
 const readLine = require("readline");
@@ -89,7 +89,7 @@ async function versionLogReader(){
                 output:process.stdout,
                 terminal:false
             });
-            fileInterface.on("line",line=>lines.push(JSON.parse(line)));
+            fileInterface.on("line",line=>lines.push(attempt(()=>{return JSON.parse(line)},{})));
             fileInterface.on("close",()=>{
                 return res(lines);
             });
@@ -134,10 +134,10 @@ async function showUpdateSuccessMsg(){// Runs after update completion
         updateConf.currentVersion = app.getVersion();
         fs.writeFileSync(path.resolve(appPath,"./updtConf.json"),JSON.stringify(updateConf));
         fs.appendFileSync(path.resolve(appPath,"./logs/versionLogs.txt"),JSON.stringify(updtLogEntry)+"\n");
-        dialog.showMessageBox({
-            title:"Update Complete",
-            message:"App has been updated, check versionManager for update details."
-        });
+        // dialog.showMessageBox({
+        //     title:"Update Complete",
+        //     message:"App has been updated, check versionManager for update details."
+        // });
         return;
     }
     catch(err){
@@ -155,6 +155,26 @@ ipcMain.handle("get-app-path",()=>{
 
 ipcMain.handle("btn-ctrl-backend",async (e,cmd,versionObj)=>{
     try {
+        // Only admin roles may manage versions - restore/delete touch backups
+        // and restore triggers the update installer. Read the role from the
+        // live auth cookie (removed on logout, unlike the stale global.user).
+        let ses = e.sender.session;
+        let authCookies = await ses.cookies.get({
+            name: "bbs_auth"+process.env.APP_ENV,
+            url: "http://localhost",
+        });
+        let role = null;
+        if (authCookies.length > 0 && authCookies[0].expirationDate > Date.now()/1000) {
+            role = JSON.parse(authCookies[0].value).role;
+        }
+        if(!["admin","all"].includes(role)) {
+            appLogger({
+                title: "Error",
+                message: "Unauthorized version-manager access blocked. Role: "+(role ?? "none"),
+                func: "btn-ctrl-backend IPC"
+            });
+            return { success: false, error: "Unauthorized: only admin roles can manage versions." };
+        }
         // Input validation
         if (!versionObj || !versionObj.appVersion || !versionObj.fileName) {
             appLogger({
@@ -186,6 +206,8 @@ ipcMain.handle("btn-ctrl-backend",async (e,cmd,versionObj)=>{
         
         if(cmd==="restore"){
             let fileListPath = path.resolve(backupFolderPath,"./fileList.json");
+            const { sequelize } = require("./model/dbConfig");
+            await sequelize.close();
             if (!fs.existsSync(fileListPath)) {
                 appLogger({
                     title: "Error",
@@ -224,7 +246,7 @@ ipcMain.handle("btn-ctrl-backend",async (e,cmd,versionObj)=>{
             
             if(fs.existsSync(installerFile)) {
                 // Use IPC emit to call updateCommon in main.js (avoid circular dependency)
-                ipcMain.emit("execute-update", null, versionObj.fileName, versionObj.appVersion, false, relPath);
+                ipcMain.emit("execute-update", null, versionObj.fileName, versionObj.appVersion, false, relPath,true);
                 return { success: true, message: "Restore initiated" };
             } else {
                 appLogger({
