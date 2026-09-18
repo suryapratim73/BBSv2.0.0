@@ -27,6 +27,20 @@ exports.attempt = function(fn, fallback) {
     }
 };
 
+function getPythonExecutablePath() {
+  // Runtime layout: fetch_python.js extracts to python-env/<platform>/ in DEV;
+  // electron-builder extraResources ships the matching runtime at
+  // <resources>/python-env in PROD (win: python.exe at root, unix: bin/python3).
+  const platform = process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux';
+  const baseDir = process.env.APP_ENV === 'DEV'
+    ? path.join(__dirname, 'python-env', platform)
+    : path.join(process.resourcesPath, 'python-env');
+  return process.platform === 'win32'
+    ? path.join(baseDir, 'python.exe')
+    : path.join(baseDir, 'bin', 'python3');
+}
+exports.getPythonExecutablePath = getPythonExecutablePath;
+
 exports.closeAndDisplay = function(msg){
     let purchaseWindows = BrowserWindow.getAllWindows()
     let parentWindow = BrowserWindow.getFocusedWindow().getParentWindow();

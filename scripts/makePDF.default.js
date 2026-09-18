@@ -14,8 +14,20 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     const { getPDF_FileName, openFormatForDate,getBillsDir } = require('../common');
     let docOpts = {
         margin,
+        compress: true,
+        // userPassword: null,
+        ownerPassword: "1234", // Will use cryptography for it later
+        permissions: {
+        printing: "highResolution",
+        modifying: false,
+        copying: true,
+        annotating: false,
+        fillingForms: false,
+        contentAccessibility: true,
+        documentAssembly: false,
+        },
         autoFirstPage,
-        size: paperSize || "A4"
+        size: paperSize || "A4",
     }
     if(template){
         let { size,applyMargin,margin } = template;

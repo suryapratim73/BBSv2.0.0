@@ -7,7 +7,9 @@
         "[2.23.0] Fix: Undefined attribute error in Default Bill Templat 2 causing NaN tax fields and abnormal line breaks in invoices after Edit",
         "[2.23.0] Fix: Uncancelable bill issue after SalePage on Edit mode is closed/cancelled.",
         "[2.23.0] Add: More meta fields are editble - report ifsome fields are still not editable.",
-        "[2.23.0] Add: Re-added separate Bill Summary Section in Sale Page."
+        "[2.23.0] Add: Re-added separate Bill Summary Section in Sale Page.",
+        "[2.23.0] Add: New Invoice Designer",
+        "[2.23.0] Add: More secure invoice PDFs"
     ],
     "fullchange":[
         "[2.23.0] Change: Bill Layout Designer restructured — the v2 block-architecture rewrite is removed and the classic designer + print engine restored (free drag-move, real zoom, resize dots, partitions, table editor with sumup). A small element class library (Element/Header/Body/Footer/Section/Field/Table) drives the designer and serializes to the legacy template JSON, so the engine prints it unchanged. Kept from v2: the modern 3-pane shell and the grouped variable fetcher with free-text billMeta keys. New: section shapes (rounded/circle/ellipse), full undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, Esc cancels a drag), starter templates (Blank / Three Sections / Default 1 / Default 2) and a dry-run Preview that prints the design with a sample bill via pdfjs.",

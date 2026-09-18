@@ -7,6 +7,9 @@
     "bbsDev": "nodemon --exec electron .",
     "build_linux": "electron-builder -l",
     "build_win": "electron-builder -w",
+    "prebuild": "node scripts/fetch_python.js win32 linux",
+    "prebuild_win": "node scripts/fetch_python.js win32",
+    "prebuild_linux": "node scripts/fetch_python.js linux",
     "build": "electron-builder -wl",
     "test": "jest",
     "test:unit": "jest",
@@ -76,6 +79,12 @@
           ]
         }
       ],
+      "extraResources": [
+        {
+          "from": "python-env/linux",
+          "to": "python-env"
+        }
+      ],
       "category": "Office",
       "icon": "./logo256.png",
       "publish": [
@@ -98,6 +107,12 @@
           "arch": [
             "x64"
           ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "python-env/win32",
+          "to": "python-env"
         }
       ],
       "publisherName": "Codemint",
@@ -133,7 +148,8 @@
       "!test-results/**",
       "!playwright-report/**",
       "!jest.config.js",
-      "!playwright.config.js"
+      "!playwright.config.js",
+      "!python-env/"
     ],
     "asar": false
   },
