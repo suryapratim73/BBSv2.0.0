@@ -18,15 +18,34 @@ let cloudActiveTab = "connect";
 async function cloudPageInit(){
     let host = document.getElementById("cloud-div");
     if(!host) return;
+    armCloudStatePush();
     cloudState = await ipcRenderer.invoke("cloud-get-state");
     renderCloudView(host);
 }
 
+// Main pushes "cloud-state-changed" after a protocol URL (bbs://verify-email)
+// completes server-side — re-pull state so an open Cloud page updates live.
+// Armed once: classic scripts share one global scope, so guard against
+// re-invocations stacking listeners.
+let cloudStatePushArmed = false;
+function armCloudStatePush(){
+    if(cloudStatePushArmed) return;
+    cloudStatePushArmed = true;
+    ipcRenderer.on("cloud-state-changed", async function(){
+        cloudState = await ipcRenderer.invoke("cloud-get-state");
+        let host = document.getElementById("cloud-div");
+        if(host) renderCloudView(host);
+    });
+    ipcRenderer.on("cloud-verify-email-error", function(event, message){
+        showToastNotification(message || "Email verification failed.", ["animation-common","move-left","red-toast-box"], "app-banner");
+    });
+}
+
 function renderCloudView(host){
     removeAllElem("#cloud-div > *");
-    // if(cloudState && cloudState.signedIn)
-    //     renderCloudDashboard(host);
-    // else
+    if(cloudState && cloudState.signedIn)
+        renderCloudDashboard(host);
+    else
         renderCloudAuth(host);
 }
 
@@ -34,6 +53,14 @@ function renderCloudView(host){
 
 function renderCloudAuth(host){
     let content = appendToHost("#cloud-auth-template", host, "div");
+
+    // TOTP setup replaces the auth form once the email link has verified —
+    // the JWT-only state (step 4 done, token exchange pending) shows success.
+    if(cloudState.pendingTotp)
+        return showTotpSetup(host, false);
+    if(cloudState.jwt)
+        return showTotpSetup(host, true);
+
     let profile = cloudState?.profile || {};
     let prefill = cloudState?.prefill || {};
 
@@ -52,6 +79,14 @@ function renderCloudAuth(host){
     });
     content.querySelector("#cloud-auth-form").addEventListener("submit", cloudAuthSubmit);
     switchCloudTab(content, "connect");
+    console.log({
+        cond:cloudState.authSet==false && cloudState.verification_expires && cloudState.verification_expires>new Date(),
+        cond1:cloudState.authSet==false, 
+        cond2:cloudState.verification_expires,
+        cond3:cloudState.verification_expires>new Date()
+    })
+    if(cloudState.authSet==false && cloudState.verification_expires && new Date(cloudState.verification_expires)>new Date())
+        showWaitingPage(host);
 }
 
 function switchCloudTab(content, tab){
@@ -62,6 +97,10 @@ function switchCloudTab(content, tab){
     // Sign-in needs only GST + email; Connect also collects business details
     content.querySelectorAll(".cc-signup-only").forEach(field=>{
         field.classList.toggle("hide", tab === "signin");
+    });
+
+    content.querySelectorAll(".cc-signin-only").forEach(field=>{
+        field.classList.toggle("hide", tab === "connect");
     });
     content.querySelector("#cc-submit").textContent = tab === "signin" ? "Sign In" : "Connect to Cloud";
     let err = content.querySelector("#cc-error");
@@ -123,8 +162,94 @@ async function doCloudRegister(form, errBox, payload){
         return showCloudError(errBox, (result && result.error) || "Could not connect to BBS Cloud. Please try again.");
 
     cloudState = result.data;
-    showToastNotification("Connected to BBS Cloud.", ["animation-common","move-left","blue-toast-box"], "app-banner");
-    renderCloudView(document.getElementById("cloud-div"));
+    if(result.authSet){
+        showToastNotification("Connected to BBS Cloud.", ["animation-common","move-left","blue-toast-box"], "app-banner");
+        renderCloudView(document.getElementById("cloud-div"));
+    }
+    else{
+        showToastNotification("Complete registration by following link sent on email.", ["animation-common","move-left","blue-toast-box"], "app-banner");
+        showWaitingPage(document.getElementById("cloud-div"));
+    }
+}
+
+function showWaitingPage(cloudDiv){
+    removeAllElem("#cloud-div .cc-auth-card *");
+    let ccAuthCard = cloudDiv.querySelector(".cc-auth-card");
+    let template = document.getElementById("email-verification-template");
+    ccAuthCard.appendChild(template.content.cloneNode(true));
+    let emailNode = ccAuthCard.querySelector("#user-email");
+    if(emailNode && cloudState.profile && cloudState.profile.email)
+        emailNode.textContent = cloudState.profile.email;
+}
+
+// ---- TOTP setup (after the email verification link opened the app) ------
+
+function showTotpSetup(host, successOnly){
+    removeAllElem("#cloud-div .cc-auth-card *");
+    let card = host.querySelector(".cc-auth-card");
+    if(!card) return;
+    let tpl = document.getElementById("totp-setup-template");
+    card.appendChild(tpl.content.cloneNode(true));
+    let form = card.querySelector("#cc-totp-form");
+    let success = card.querySelector("#cc-totp-success");
+    if(successOnly){
+        form.classList.add("hide");
+        success.classList.remove("hide");
+        return;
+    }
+    success.classList.add("hide");
+    let totp = cloudState.pendingTotp || {};
+    card.querySelector("#cc-totp-qr").src = totp.qrCode || "";
+    card.querySelector("#cc-totp-manual").textContent = totp.manualEntry || totp.secret || "";
+    card.querySelector("#cc-totp-copy").addEventListener("click", function(){
+        copyTotpManual(card.querySelector("#cc-totp-manual").textContent || "", this);
+    });
+    form.addEventListener("submit", totpSetupSubmit);
+}
+
+function copyTotpManual(text, btn){
+    let done = function(){
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+        setTimeout(function(){
+            btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+        }, 2000);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(function(){});
+        return;
+    }
+    // fallback: select the code so the user can copy it manually
+    let node = document.getElementById("cc-totp-manual");
+    if(node){
+        let range = document.createRange();
+        range.selectNodeContents(node);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+    }
+    done();
+}
+
+async function totpSetupSubmit(e){
+    e.preventDefault();
+    let form = e.target;
+    let errBox = form.querySelector("#cc-totp-error");
+    errBox.classList.add("hide");
+    let payload = {
+        password: form.querySelector("[name='password']").value,
+        confirmPassword: form.querySelector("[name='confirmPassword']").value,
+        totpCode: form.querySelector("[name='totpCode']").value.trim()
+    };
+    if(payload.password !== payload.confirmPassword)
+        return showCloudError(errBox, "Passwords do not match.");
+    let btn = form.querySelector("#cc-totp-submit");
+    btn.disabled = true;
+    let result = await ipcRenderer.invoke("cloud-verify-totp", payload);
+    btn.disabled = false;
+    if(!result || result.ok !== true)
+        return showCloudError(errBox, (result && result.error) || "Could not verify the authentication code. Please try again.");
+    cloudState = result.data;
+    showToastNotification("Verification complete — your JWT is stored on this device.", ["animation-common","move-left","blue-toast-box"], "app-banner");
+    showTotpSetup(document.getElementById("cloud-div"), true);
 }
 
 function showCloudError(errBox, msg){

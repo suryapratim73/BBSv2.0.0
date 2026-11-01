@@ -92,7 +92,7 @@ let {
 } = require("./createModal");
 const { getTemplatePath, initializeThemeAndBanners, reapplyTheme, storeUserThemeObj, clearWeatherInterval, isBannerDismissed, saveDismissedBanner, registerIPC: registerThemeIPC } = require("./viewManager");
 const { shouldShowBetaPrompt, BETA_PROMPT_ID } = require("./lib/betaPrompt");
-const { registerCloudIPC } = require("./lib/cloudConnect");
+const { registerCloudIPC, verifyEmailToken } = require("./lib/cloudConnect");
 const { registerEulaIPC } = require("./lib/eula");
 const scheduler = require("./lib/scheduler");
 const { registerOverviewRecipeIPC } = require("./lib/overviewRecipe");
@@ -207,7 +207,7 @@ function bootCommon(mainWindow){
 function handleProtocolUrl(url) {
   console.log("========================================");
   console.log("🔗 Protocol URL Handler Triggered!");
-  console.log("URL:", url);
+  console.log("URL:", url.split("?")[0]);
   console.log("========================================");
   
   if (!url || !url.startsWith('bbs://')) {
@@ -242,7 +242,77 @@ function handleProtocolUrl(url) {
   }
   // Add more protocol URL handlers here as needed
   // e.g., bbs://open-customer/123, bbs://new-sale, etc.
+  if(url.includes("verify-email")){
+    console.log("verify-email-protocol");
+    let token = null;
+    try {
+      token = new URL(url).searchParams.get("token");
+    } catch(err) {
+      appLogger({ title: "Protocol URL parse error", message: String(err), func: "handleProtocolURL" });
+    }
+    if (!token) {
+      appLogger({ title: "Email verification", message: "verify-email link has no token", func: "handleProtocolURL" });
+      return;
+    }
+    // Step 2 of cloud signup: confirm the email token, store the TOTP setup
+    // data, and push the updated state to the renderer (warm launch). On a
+    // cold launch the page may not be loaded yet — the renderer pulls
+    // cloud-get-state on open, so the push being dropped is harmless.
+    verifyEmailToken(token).then(result => {
+      if (!result || result.ok !== true) {
+        appLogger({
+          title: "Email verification failed",
+          message: (result && result.error) || "Unknown error",
+          func: "handleProtocolURL"
+        });
+        const mainWin = getMainWindow();
+        if (mainWin)
+          mainWin.webContents.send("cloud-verify-email-error", (result && result.error) || "Email verification failed.");
+        return;
+      }
+      const mainWin = getMainWindow();
+      if (mainWin) mainWin.webContents.send("cloud-state-changed");
+    });
+  }
 }
+
+// Single-instance handling. The lock is requested in every environment so
+// protocol launches forward their bbs:// URL to the running instance — a
+// skip in DEV used to make every link click spawn a detached duplicate app
+// whose console output was invisible. DEV retries briefly because a nodemon
+// restart can start the new process before the old one has released the
+// lock; protocol-launched instances exit immediately after forwarding.
+async function acquireSingleInstanceLock() {
+  if (app.requestSingleInstanceLock()) return true;
+  const wasProtocolLaunch = process.argv.some(arg => arg.startsWith('bbs://'));
+  if (process.env.APP_ENV === "DEV" && !wasProtocolLaunch) {
+    for (let i = 0; i < 10; i++) {
+      await delay(200);
+      if (app.requestSingleInstanceLock()) return true;
+    }
+  }
+  app.quit();
+  return false;
+}
+
+// Dedupe guard: a retrying instance notifies the lock holder on every retry
+// and a double click fires twice — handle each protocol URL only once.
+let lastProtocolUrl = "";
+let lastProtocolUrlAt = 0;
+app.on("second-instance", (event, commandLine) => {
+  console.log("Second instance detected, commandLine:", commandLine);
+  const protocolUrl = commandLine.find(arg => arg.startsWith('bbs://'));
+  if (protocolUrl && (protocolUrl !== lastProtocolUrl || Date.now() - lastProtocolUrlAt > 5000)) {
+    lastProtocolUrl = protocolUrl;
+    lastProtocolUrlAt = Date.now();
+    handleProtocolUrl(protocolUrl);
+  }
+  const mainWin = getMainWindow();
+  if (mainWin) {
+    if (mainWin.isMinimized()) mainWin.restore();
+    mainWin.focus();
+  }
+});
 
 async function createWindow() {
   // Check if schemas need to be bootstrapped
@@ -352,33 +422,12 @@ async function createWindow() {
       { maxWinCount: 1, label: "Main" }
     );
 
-    // Single instance lock
-    if(process.env.APP_ENV!="DEV" && !app.requestSingleInstanceLock())
-      app.quit();
-    else{
-      app.on("second-instance",(event, commandLine)=>{
-        if(process.env.APP_ENV==="DEV") return;
-        
-        // Check for protocol URL in command line (e.g., from updator.vbs)
-        console.log("Second instance detected, commandLine:", commandLine);
-        const protocolUrl = commandLine.find(arg => arg.startsWith('bbs://'));
-        if (protocolUrl) {
-          handleProtocolUrl(protocolUrl);
-        }
-        
-        // Focus window
-        if(mainWindow.isMinimized())
-          mainWindow.restore();
-        mainWindow.focus();
-      });
-
-      // Protocol URL passed on first launch (e.g., "bbs bbs://update-complete"
-      // from updator.sh on Linux) - no second instance exists to forward it,
-      // so handle it directly from argv.
-      const argvProtocolUrl = process.argv.find(arg => arg.startsWith('bbs://'));
-      if (argvProtocolUrl)
-        handleProtocolUrl(argvProtocolUrl);
-    }
+    // Protocol URL passed on cold start (e.g., an OS protocol launch with no
+    // instance running, or "bbs bbs://update-complete" from updator.sh on
+    // Linux). Warm launches arrive via the second-instance handler.
+    const argvProtocolUrl = process.argv.find(arg => arg.startsWith('bbs://'));
+    if (argvProtocolUrl)
+      handleProtocolUrl(argvProtocolUrl);
 
     // Removing temporary files.
     let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS") : __dirname;
@@ -545,7 +594,16 @@ ipcMain.handle("get-users", async () => {
       return [];
 });
 
-app.setAsDefaultProtocolClient("bbs");
+// Register "bbs://" as this app's protocol handler.
+// In dev, process.execPath is electron.exe — the app directory must be passed
+// as an argument, otherwise the OS launches electron.exe with the bbs:// URL
+// as the app path and Electron reports it can't find the app.
+if (process.defaultApp) {
+  if (process.argv.length >= 2)
+    app.setAsDefaultProtocolClient("bbs", process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient("bbs");
+}
 
 app.on("quit", async () => {
   clearWeatherInterval();
@@ -607,6 +665,7 @@ function paySalary(refWindow) {
 }
 
 app.on("ready", async () => {
+  if (!(await acquireSingleInstanceLock())) return;
   if(typeof process.presets==="undefined")
     process.presets = {};
   appLogger({title:"Log", message:"ready event", func:"app ready event"})

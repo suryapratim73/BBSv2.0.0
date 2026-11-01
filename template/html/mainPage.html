@@ -1268,11 +1268,11 @@
                         <label for="cc-device">Device name</label>
                         <input type="text" id="cc-device" name="device_name" maxlength="255" placeholder="e.g. Office Desktop" tabindex="0">
                     </div>
-                    <div class="cc-field">
+                    <div class="cc-field cc-signin-only">
                         <label for="cc-passwd">Password/Auth Code <span class="cc-required">*</span></label>
                         <input type="password" id="cc-passwd" name="password" required tabindex="0">
                     </div>
-                    <div class="cc-field">
+                    <div class="cc-field cc-signin-only">
                         <div>
                             <div><label for="cc-auth-type">Auth Type <span class="cc-required">*</span></label></div>
                             <div>
@@ -1289,6 +1289,236 @@
                 <p class="cc-legal">By connecting, you agree to the BBS Cloud terms of service. Your credentials are stored securely in the operating system keychain.</p>
                 <p class="cc-legal">Your app auto refresh you cloud access unless app fails to connect for 15 days.</p>
             </section>
+        </div>
+    </template>
+    <template id="email-verification-template">
+        <style>
+            .verification-card {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            padding: 32px 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+            box-sizing: border-box;
+            }
+
+            .icon-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            background: #eef2ff;
+            color: #6366f1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            font-size: 32px;
+            }
+
+            /* Floating Zzz effect for the sleeping cat */
+            .zzz {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            animation: float 2s infinite ease-in-out;
+            }
+
+            @keyframes float {
+            0%, 100% { transform: translateY(0) scale(0.9); opacity: 0.5; }
+            50% { transform: translateY(-6px) scale(1.1); opacity: 1; }
+            }
+
+            .verification-card h3 {
+            margin: 0 0 8px 0;
+            color: #1e293b;
+            font-size: 20px;
+            font-weight: 600;
+            }
+
+            .verification-card p {
+            margin: 0 0 20px 0;
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+            }
+
+            .email-highlight {
+            font-weight: 600;
+            color: #334155;
+            }
+
+            .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 20px;
+            }
+
+            .status-badge i {
+            font-size: 11px;
+            }
+        </style>
+
+        <div class="verification-card">
+            <div class="icon-container">
+            <i class="fa-solid fa-cat"></i>
+            <span class="zzz">zZ</span>
+            </div>
+            
+            <h3>Check your inbox</h3>
+            <p>We sent a verification link to <br><span class="email-highlight" id="user-email">user@example.com</span></p>
+            
+            <div class="status-badge">
+            <i class="fa-solid fa-spinner fa-spin"></i> Waiting for verification...
+            </div>
+        </div>
+    </template>
+    <template id="totp-setup-template">
+        <style>
+            .cc-totp-card {
+                background: #ffffff;
+                padding: 32px 24px;
+                border-radius: 16px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+                text-align: center;
+                max-width: 340px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .cc-totp-card h3 {
+                margin: 0 0 8px 0;
+                color: #1e293b;
+                font-size: 20px;
+                font-weight: 600;
+            }
+            .cc-totp-card p {
+                margin: 0 0 20px 0;
+                color: #64748b;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            .cc-totp-qr-box { margin: 0 auto 16px auto; }
+            .cc-totp-qr-box img {
+                width: 160px;
+                height: 160px;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 8px;
+                background: #ffffff;
+            }
+            .cc-totp-manual-box {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                margin-bottom: 20px;
+            }
+            .cc-totp-manual-box code {
+                background: #f1f5f9;
+                color: #334155;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                word-break: break-all;
+                max-width: 220px;
+            }
+            .cc-totp-manual-box button {
+                border: 1px solid #cbd5e1;
+                background: #ffffff;
+                color: #475569;
+                padding: 8px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            .cc-totp-card .cc-field { margin-bottom: 14px; text-align: left; }
+            .cc-totp-card .cc-field label {
+                display: block;
+                margin-bottom: 6px;
+                color: #334155;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            .cc-totp-card .cc-field input {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 9px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                font-size: 14px;
+                background: #ffffff;
+                color: #0f172a;
+            }
+            .cc-totp-card .cc-field input:focus { outline: none; border-color: #6366f1; }
+            .cc-totp-actions { margin-top: 8px; }
+            .cc-totp-actions button {
+                width: 100%;
+                padding: 10px;
+                border: none;
+                border-radius: 8px;
+                background: #6366f1;
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .cc-totp-actions button:disabled { opacity: 0.6; cursor: default; }
+            .cc-totp-card .cc-error { margin-top: 12px; }
+            .cc-totp-success-icon {
+                width: 70px;
+                height: 70px;
+                background: #ecfdf5;
+                color: #10b981;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 20px auto;
+                font-size: 32px;
+            }
+        </style>
+        <form id="cc-totp-form" class="cc-totp-card" novalidate>
+            <h3>Set up two-factor authentication</h3>
+            <p>Scan this QR with your authenticator app (Google Authenticator, Authy, …).</p>
+            <div class="cc-totp-qr-box">
+                <img id="cc-totp-qr" alt="TOTP QR code" src="">
+            </div>
+            <div class="cc-totp-manual-box">
+                <code id="cc-totp-manual"></code>
+                <button type="button" id="cc-totp-copy" tabindex="0"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+            <div class="cc-field">
+                <label for="cc-totp-password">New password</label>
+                <input type="password" id="cc-totp-password" name="password" required tabindex="0">
+            </div>
+            <div class="cc-field">
+                <label for="cc-totp-confirm">Confirm password</label>
+                <input type="password" id="cc-totp-confirm" name="confirmPassword" required tabindex="0">
+            </div>
+            <div class="cc-field">
+                <label for="cc-totp-code">6-digit authenticator code</label>
+                <input type="text" id="cc-totp-code" name="totpCode" maxlength="6" inputmode="numeric" required tabindex="0">
+            </div>
+            <div class="cc-totp-actions">
+                <button type="submit" id="cc-totp-submit" tabindex="0">Verify &amp; set password</button>
+            </div>
+            <p class="cc-error hide" id="cc-totp-error"></p>
+        </form>
+        <div id="cc-totp-success" class="cc-totp-card hide">
+            <div class="cc-totp-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <h3>Verification complete</h3>
+            <p>Your JWT has been received and stored on this device. Access and refresh token exchange is coming in a future update.</p>
         </div>
     </template>
     <template id="cloud-dashboard-template">

@@ -528,6 +528,7 @@ h1{
 #sale-purchase-btn-div button{
     background: var(--theme-primary);
     color: var(--theme-secondary);
+    border-radius: 5px;
 }
 #scheduler-div{
     border-radius: 15px;

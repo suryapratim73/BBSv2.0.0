@@ -6,6 +6,7 @@ const {
     GST_PATTERN,
     EMAIL_PATTERN,
     validateCloudPayload,
+    validateTotpPayload,
     formatCloudError,
     toPublicState,
     defaultCloudState
@@ -143,6 +144,55 @@ describe("toPublicState — renderer-facing state shape", () => {
         expect(fresh.userId).toBeNull();
         expect(fresh.isDev).toBe(false);
         expect(fresh.profile).toEqual({});
+        expect(fresh.pendingTotp).toBeNull();
+        expect(fresh.jwt).toBeNull();
         expect(fresh.lastConnectedAt).toBeNull();
+    });
+
+    test("exposes pendingTotp (QR + manual entry) when present", () => {
+        const withTotp = {
+            ...state,
+            pendingTotp: { secret: "JBSWY3DP", qrCode: "data:image/png;base64,xyz", manualEntry: "JBSWY3DP" }
+        };
+        const pub = toPublicState(withTotp, {}, {});
+        expect(pub.pendingTotp.qrCode).toBe("data:image/png;base64,xyz");
+        expect(pub.pendingTotp.manualEntry).toBe("JBSWY3DP");
+        expect(pub.pendingTotp.secret).toBe("JBSWY3DP");
+    });
+
+    test("pendingTotp is null when absent and jwt passes through", () => {
+        expect(toPublicState(state, {}, {}).pendingTotp).toBeNull();
+        expect(toPublicState(state, {}, {}).jwt).toBeNull();
+        expect(toPublicState({ ...state, jwt: "jwt.header.payload" }, {}, {}).jwt).toBe("jwt.header.payload");
+    });
+});
+
+describe("validateTotpPayload — TOTP setup form (step 3)", () => {
+    const base = { password: "password123", confirmPassword: "password123", totpCode: "123456" };
+
+    test("accepts matching passwords and a 6-digit code", () => {
+        const verdict = validateTotpPayload(base);
+        expect(verdict.ok).toBe(true);
+        expect(verdict.payload.password).toBe("password123");
+        expect(verdict.payload.totpCode).toBe("123456");
+    });
+
+    test("rejects a password below the minimum length", () => {
+        expect(validateTotpPayload({ ...base, password: "short", confirmPassword: "short" }).ok).toBe(false);
+    });
+
+    test("rejects mismatched passwords", () => {
+        expect(validateTotpPayload({ ...base, confirmPassword: "different1" }).ok).toBe(false);
+    });
+
+    test("rejects a non-6-digit authenticator code", () => {
+        expect(validateTotpPayload({ ...base, totpCode: "12345" }).ok).toBe(false);
+        expect(validateTotpPayload({ ...base, totpCode: "abcdef" }).ok).toBe(false);
+        expect(validateTotpPayload({ ...base, totpCode: " 123456 " }).ok).toBe(true); // trimmed
+    });
+
+    test("tolerates a null/undefined raw payload", () => {
+        expect(validateTotpPayload(null).ok).toBe(false);
+        expect(validateTotpPayload(undefined).ok).toBe(false);
     });
 });
