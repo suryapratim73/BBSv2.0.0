@@ -417,8 +417,14 @@ async function reInitFormData() {
                                 .setAttribute("selected", true);
                     });
                 });
-                if ("discVal" in billMeta)
-                    main.querySelector("#discount-div>input").value = billMeta.discVal;
+                if ("discVal" in billMeta) {
+                    // The manual discount input moved to Zen Mode / Bill Settings
+                    // in the Zen build, so #discount-div no longer exists here.
+                    // Guard it: an unguarded querySelector used to throw and skip
+                    // reassignSummaryDivFeilds() below on every bill re-init.
+                    const discountInput = main.querySelector("#discount-div>input");
+                    if (discountInput) discountInput.value = billMeta.discVal;
+                }
                 reassignSummaryDivFeilds();
             }
         });
@@ -1169,21 +1175,39 @@ function displaySection(show=true) {
         let {pHistory,pScore} = itemObj;
         pHistory = pHistory ? attempt(()=>JSON.parse(pHistory),[]) : [];
         pScore = Number(pScore || 0);
-        [...document.querySelectorAll("#product-summary .blue")]
-        .forEach(h2=>{
-            let key = h2.dataset.name;
-            if(key==="specialPrice"){
-                let res = attempt(()=>JSON.parse(itemObj[key]).filter(obj=>obj.customerId===customer.id).sort((a,b)=>new Date(a) - new Date(b)).pop(),{});
-                h2.textContent = roundOffTo2DecimalPlace(res?.rate ?? 0);
-            }
-            else
-                h2.textContent = key=="name" ? itemObj[key] : roundOffTo2DecimalPlace(itemObj[key]);
-        });
-        // Item-wise discount (pInfo.discount): summary rates show the discounted value
+        // Rates get a fallback from the item's sell history (pHistory) so the
+        // summary never shows rows of zeros: standardSellPrice ← newest history
+        // rate, lastSellPrice ← previous one (or the newest), specialPrice ←
+        // customer-specific else newest. 0 when no history exists.
+        const historyRates = [...pHistory]
+            .sort((a,b)=>{
+                const da = new Date(a?.date), db = new Date(b?.date);
+                return (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) ? 0 : da - db;
+            })
+            .map(obj=>Number(obj?.rate) || 0)
+            .filter(rate=>rate > 0);
+        const newestRate = historyRates.length ? historyRates[historyRates.length-1] : 0;
+        const prevRate = historyRates.length > 1 ? historyRates[historyRates.length-2] : newestRate;
+        const standardPrice = Number(itemObj.standardSellPrice) || newestRate;
+        const lastSellPrice = Number(itemObj.lastSellPrice) || prevRate || newestRate;
+        let specialPrice = 0;
+        if(itemObj.specialPrice){
+            const res = attempt(()=>JSON.parse(itemObj.specialPrice).filter(obj=>obj.customerId===customer.id).sort((a,b)=>new Date(a) - new Date(b)).pop(),{});
+            specialPrice = Number(res?.rate) || 0;
+        }
+        if(!specialPrice) specialPrice = newestRate;
+        // Item-wise discount (pInfo.discount): a dedicated Discounted Rate row shows
+        // lastSellPrice (or standardSellPrice, or 0) minus the discount. (Earlier the
+        // three rate rows were shown pre-discounted; they keep raw values now so the
+        // comparison stays visible.)
         const itemDiscount = Number(attempt(()=>{
             const pInfo = typeof itemObj?.pInfo === "string" ? JSON.parse(itemObj.pInfo) : (itemObj?.pInfo || {});
             return pInfo?.discount ?? 0;
         },0));
+        const discountedRate = Math.max(0, (lastSellPrice || standardPrice || 0) - itemDiscount);
+        /*
+        // (2026-11-02) Old behaviour — each rate row shown pre-discounted. Kept
+        // commented: replaced by the dedicated Discounted Rate row above.
         if(itemDiscount > 0){
             ["standardSellPrice","lastSellPrice","specialPrice"]
             .forEach(key=>{
@@ -1193,8 +1217,26 @@ function displaySection(show=true) {
                 el.textContent = roundOffTo2DecimalPlace(Math.max(0, rate - itemDiscount));
             });
         }
+        */
+        [...document.querySelectorAll("#product-summary .blue")]
+        .forEach(h2=>{
+            let key = h2.dataset.name;
+            if(key==="specialPrice")
+                h2.textContent = roundOffTo2DecimalPlace(specialPrice);
+            else
+            if(key==="standardSellPrice")
+                h2.textContent = roundOffTo2DecimalPlace(standardPrice);
+            else
+            if(key==="lastSellPrice")
+                h2.textContent = roundOffTo2DecimalPlace(lastSellPrice);
+            else
+            if(key==="discountedRate")
+                h2.textContent = roundOffTo2DecimalPlace(discountedRate);
+            else
+                h2.textContent = key==="name" ? itemObj[key] : roundOffTo2DecimalPlace(itemObj[key]);
+        });
         // Clicking a summary rate copies it into the selected row's rate field
-        [...document.querySelectorAll(`#product-summary .blue[data-name="standardSellPrice"], #product-summary .blue[data-name="lastSellPrice"], #product-summary .blue[data-name="specialPrice"]`)]
+        [...document.querySelectorAll(`#product-summary .blue[data-name="standardSellPrice"], #product-summary .blue[data-name="lastSellPrice"], #product-summary .blue[data-name="specialPrice"], #product-summary .blue[data-name="discountedRate"]`)]
         .forEach(el=>{
             el.style.cursor = "pointer";
             el.title = "Click to set this rate";

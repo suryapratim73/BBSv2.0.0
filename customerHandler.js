@@ -111,37 +111,42 @@ ipcMain.on("get-customer",async e=>{
         return;
     }
     checkNLogMemoryUsage("customerList",appLogger,getFivePercentOfMemory);
-    if(typeof global.sales!=="undefined" && global.sales instanceof Array){
-        let custIds = [...new Set(global.sales.map(({customerId})=>(customerId)))];
-        _customerList = _customerList.filter(({id})=>custIds.findIndex(custId=>custId===id)!==-1);
-    }
-    let { strtDt=null,endDt=null } = getFinYearStrtEndDt(0) ?? {};
-    try{
-        let customerIdArr = (await sale.findAll({
-            where:{
-                billDate:{
-                    [Op.between]:[strtDt,endDt]
-                },
-            },
-            attributes:["customerId"]
-        })).map(({dataValues})=>dataValues);
-        customerIdArr = [...new Set(customerIdArr.map(({customerId})=>(customerId)))];
-        let _customerIdArr = _customerList.map(({id})=>id);
-        _customerIdArr = new Set(_customerIdArr);
-        if(new Set([...customerIdArr,..._customerIdArr]).size!==customerIdArr.length){
-            global.customerList = undefined;
-            global.customerList = await getCustomerList();
-            global.customerList = global.customerList.filter(({id})=>customerIdArr.findIndex(custId=>custId===id)!==-1);
-            _customerList = global.customerList;
-        }
-        e.sender.send("customer-list",_customerList);
-    }
-    catch(err){
-        console.log({err});
-        global.customerList = undefined;
-        _customerList = await getCustomerList();
-        e.sender.send("customer-list",_customerList);
-    }
+    // Financial-year restriction dropped (2026-11-02): the portal's first
+    // page used to show only customers with a sale in the current FY (via
+    // the global.sales filter below and the billDate-between query). Now the
+    // full customer list is displayed.
+    // if(typeof global.sales!=="undefined" && global.sales instanceof Array){
+    //     let custIds = [...new Set(global.sales.map(({customerId})=>(customerId)))];
+    //     _customerList = _customerList.filter(({id})=>custIds.findIndex(custId=>custId===id)!==-1);
+    // }
+    // let { strtDt=null,endDt=null } = getFinYearStrtEndDt(0) ?? {};
+    // try{
+    //     let customerIdArr = (await sale.findAll({
+    //         where:{
+    //             billDate:{
+    //                 [Op.between]:[strtDt,endDt]
+    //             },
+    //         },
+    //         attributes:["customerId"]
+    //     })).map(({dataValues})=>dataValues);
+    //     customerIdArr = [...new Set(customerIdArr.map(({customerId})=>(customerId)))];
+    //     let _customerIdArr = _customerList.map(({id})=>id);
+    //     _customerIdArr = new Set(_customerIdArr);
+    //     if(new Set([...customerIdArr,..._customerIdArr]).size!==customerIdArr.length){
+    //         global.customerList = undefined;
+    //         global.customerList = await getCustomerList();
+    //         global.customerList = global.customerList.filter(({id})=>customerIdArr.findIndex(custId=>custId===id)!==-1);
+    //         _customerList = global.customerList;
+    //     }
+    //     e.sender.send("customer-list",_customerList);
+    // }
+    // catch(err){
+    //     console.log({err});
+    //     global.customerList = undefined;
+    //     _customerList = await getCustomerList();
+    //     e.sender.send("customer-list",_customerList);
+    // }
+    e.sender.send("customer-list",_customerList);
 });
 
 ipcMain.handle("get-full-customer-ledger",async (e,id)=>{

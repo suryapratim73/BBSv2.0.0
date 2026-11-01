@@ -15,7 +15,10 @@
  *        - verifyTotp (via the real cloud-verify-totp IPC handler):
  *          validation rejections, server 400, missing-JWT response, success
  *          → jwt persisted + pendingTotp cleared; the posted request shape
- *          { email, password, totp_code } is asserted (server contract)
+ *          { email, password, totp_code } is asserted (server contract);
+ *          the JWT→pair exchange to device/jwt-exchange is asserted too
+ *          (request shape, keychain store, signed-in state) with a fallback
+ *          case for servers without the endpoint
  *   C. live API contract (code.mbtcverse.com), side-effect free:
  *        - verify-email with a bogus token / empty body → 400
  *        - verify-totp with a bogus payload → 4xx, never 200
@@ -42,6 +45,8 @@ const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), "bbs-verify-email-"));
 fs.mkdirSync(path.join(TEMP, "config"), { recursive: true });
 
 const ipcHandlers = new Map();
+const keytarCalls = [];   // setPassword calls, asserted by the exchange checks
+const keytarStore = new Map(); // in-memory keychain so getPassword sees setPassword
 const mockAxios = { post: async () => { throw new Error("no axios mock set"); } };
 const axios = require("axios"); // real axios, captured before the override
 
@@ -50,7 +55,11 @@ Module._load = function (request, parent, isMain) {
   if (request === "electron")
     return { ipcMain: { handle: (channel, fn) => ipcHandlers.set(channel, fn) } };
   if (request === "keytar")
-    return { setPassword: async () => {}, getPassword: async () => null, deletePassword: async () => {} };
+    return {
+      setPassword: async (service, account, password) => { keytarCalls.push({ service, account, password }); keytarStore.set(account, password); },
+      getPassword: async (service, account) => keytarStore.get(account) || null,
+      deletePassword: async () => {}
+    };
   if (request === "axios") return mockAxios;
   if (request === "../common")
     return { appLogger: () => {}, getBaseDir: () => TEMP }; // isolate state writes
@@ -159,8 +168,14 @@ async function main() {
   const noJwt = await invokeTotp({ password: "password123", confirmPassword: "password123", totpCode: "123456" });
   check("verify-totp: response without JWT → ok:false", noJwt.ok === false && noJwt.error.includes("JWT"), noJwt.error);
 
+  const TEST_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoidXNlci0xMjMifQ.sig";
   let lastTotpPost = null;
-  setMockPost(async (url, body) => { lastTotpPost = body; return { data: { token: "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoidXNlci0xMjMifQ.sig" } }; });
+  setMockPost(async (url, body) => {
+    if (String(url).includes("verify-totp")) lastTotpPost = body;
+    // no access/refresh pair in the response → the exchange falls back to
+    // the stored JWT (server without /device/jwt-exchange)
+    return { data: { token: TEST_JWT } };
+  });
   const totpGood = await invokeTotp({ password: "password123", confirmPassword: "password123", totpCode: "123456" });
   const after = tempState();
   check("verify-totp: posts { email, password, totp_code } to the server",
@@ -169,7 +184,35 @@ async function main() {
   check("verify-totp: success → ok:true", totpGood.ok === true);
   check("verify-totp: jwt saved to state and exposed", isJwt(after.jwt) && totpGood.data.jwt === after.jwt, (after.jwt || "").slice(0, 40) + "…");
   check("verify-totp: pendingTotp cleared", after.pendingTotp === null);
-  check("verify-totp: still signed-out (token exchange pending)", totpGood.data.signedIn === false);
+  check("verify-totp: fallback — exchange returned no pair → still signed-out, JWT kept",
+    totpGood.data.signedIn === false && isJwt(after.jwt));
+
+  // exchange path: re-seed pendingTotp, mock the pair response, and assert
+  // the device ends up signed in with tokens in the keychain
+  fs.writeFileSync(path.join(TEMP, "config", "cloud.json"), JSON.stringify({
+    deviceId: "dev-1",
+    pendingTotp: { user: { id: "user-123", email: "accounts@example.com" }, secret: "JBSWY3DPEHPK3PXP" }
+  }));
+  let lastExchangePost = null;
+  setMockPost(async (url, body) => {
+    if (String(url).includes("verify-totp")) lastTotpPost = body;
+    if (String(url).includes("jwt-exchange")) {
+      lastExchangePost = body;
+      return { data: { accessToken: "acc-token", refreshToken: "ref-token", userId: "user-123", isDev: true, authSet: true } };
+    }
+    return { data: { token: TEST_JWT } };
+  });
+  const totpEx = await invokeTotp({ password: "password123", confirmPassword: "password123", totpCode: "654321" });
+  const afterEx = tempState();
+  check("verify-totp: exchange posts { token } to device/jwt-exchange",
+    lastExchangePost && lastExchangePost.token === TEST_JWT, JSON.stringify(lastExchangePost));
+  check("verify-totp: exchange pair stored in the keychain",
+    keytarCalls.some(c => c.account === "CodemintCloudAccessToken" && c.password === "acc-token")
+    && keytarCalls.some(c => c.account === "CodemintCloudRefreshToken" && c.password === "ref-token"),
+    JSON.stringify(keytarCalls.map(c => c.account)));
+  check("verify-totp: exchange success → signed in (authSet, userId from server)",
+    totpEx.ok === true && totpEx.data.signedIn === true && afterEx.authSet === true
+    && afterEx.userId === "user-123" && afterEx.pendingTotp === null);
 
   // ---- C. live API contract (side-effect free) ------------------------------
   const root = await call("GET", "/");

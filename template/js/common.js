@@ -1542,7 +1542,11 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 input.value = selectedItem.unit;
             else
             if(key==="standardSellPrice"){
-                input.value = roundOffTo2DecimalPlace(selectedItem.standardSellPrice);
+                // Item-wise discount (pInfo.discount): the row rate is the stock
+                // rate minus the discount, so the bill rows and the page-3 summary
+                // section show the discounted rate right away (clamped at 0).
+                const itemDiscount = Number(selectedItem?.pInfo?.discount) || 0;
+                input.value = roundOffTo2DecimalPlace(Math.max(0, Number(selectedItem.standardSellPrice || 0) - itemDiscount));
                 if(selectedItem.specialPrice!==""){
                     let list;
                     try{
@@ -2043,6 +2047,18 @@ exports.bodyRowInpFillup = itemObj=>{
                     opt.removeAttribute("selected");
             });
     });
+    // Item-wise discount (pInfo.discount): the row rate is the stock rate minus
+    // the discount, so the bill rows and the page-3 summary section show the
+    // discounted rate (clamped at 0).
+    try {
+        const pInfo = typeof itemObj?.pInfo === "string" ? JSON.parse(itemObj.pInfo) : (itemObj?.pInfo || {});
+        const itemDiscount = Number(pInfo?.discount) || 0;
+        if (itemDiscount > 0) {
+            const rateInput = document.querySelector(`.body.row:nth-last-child(2) input[data-name="standardSellPrice"]`);
+            const rate = Number(rateInput?.value) || 0;
+            rateInput.value = roundOffTo2DecimalPlace(Math.max(0, rate - itemDiscount));
+        }
+    } catch (_) { /* pInfo unparsable — keep the rate as filled */ }
     calculateAmounts();
 }
 
@@ -2568,8 +2584,11 @@ async function checkForUpdate() {
 
     var showWelcome = function() { showWelcomeModal(content.welcome, content.version); };
 
-    // EULA gate only on the main page — every other page goes straight to the welcome/tour
-    if (!/mainPage\.html([?#]|$)/.test(location.href)) { showWelcome(); return; }
+    // EULA + changelog belong to the main page only. Every other page
+    // (bill windows, portal, …) goes straight to the tour — it only
+    // highlights matched elements and never marks the update seen, so
+    // the changelog still appears once on the main page.
+    if (!/mainPage\.html([?#]|$)/.test(location.href)) { startTour(); return; }
 
     var eulas = null;
     try { eulas = await ipcRenderer.invoke("get-eula-content"); } catch (_) {}
@@ -2628,24 +2647,48 @@ function showWelcomeModal(welcomeText, version) {
     });
 }
 
-/** Attach tour attributes from update.md selectors and launch the tour. */
+/** Attach tour attributes from update.md selectors and launch the tour.
+ *  Stops whose element isn't on this page (or is mounted but hidden, like
+ *  the portal buttons inside .hide containers) are skipped; on non-main
+ *  pages the collection re-checks for up to 60s so windows that mount
+ *  their features after load (portal customer view, order manager tabs)
+ *  still get their tour when the elements appear. */
+var _tourRetryTimer = null;
 function startTour() {
+    // a tour is already showing — don't stack a second one
+    if (tourOverlay || tourTooltip) return;
+
     // Dynamically attach isUpdated + updateMsg to matched elements
     var stops = [];
     for (var i = 0; i < _updateTourStops.length; i++) {
         var stop = _updateTourStops[i];
         try {
             var el = document.querySelector(stop.selector);
-            if (!el) continue; // selector not on this page — skip silently
+            // selector not on this page, or mounted but hidden — skip
+            if (!el || !el.getClientRects().length) continue;
             el.setAttribute("isUpdated", "");
             el.setAttribute("updateMsg", stop.msg);
             stops.push(el);
         } catch (_) { /* invalid selector — skip */ }
     }
     if (stops.length === 0) {
-        try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+        // nothing visible on this page to highlight yet — only the main
+        // page may mark the update seen; other pages leave the changelog
+        // pending and re-check while the page is used
+        if (/mainPage\.html([?#]|$)/.test(location.href)) {
+            try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+            return;
+        }
+        if (!_tourRetryTimer) {
+            var tries = 0;
+            _tourRetryTimer = setInterval(function() {
+                if (++tries > 30) { clearInterval(_tourRetryTimer); _tourRetryTimer = null; return; }
+                if (!tourOverlay && !tourTooltip) startTour();
+            }, 2000);
+        }
         return;
     }
+    if (_tourRetryTimer) { clearInterval(_tourRetryTimer); _tourRetryTimer = null; }
 
     tourElements = stops;
     tourIndex = 0;
@@ -2733,7 +2776,11 @@ function endTour() {
     if (tourTooltip) { tourTooltip.remove(); tourTooltip = null; }
     tourElements = [];
     tourIndex = 0;
-    try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+    // only the main page's tour marks the update seen — other windows
+    // must not consume the changelog
+    if (/mainPage\.html([?#]|$)/.test(location.href)) {
+        try { ipcRenderer.send("set-update-seen"); } catch (_) {}
+    }
 }
 
 exports.startUpdateTour = function() { checkForUpdate(); }; // runs in DEV too (for review)

@@ -3,7 +3,7 @@
 ## welcome
 ### Welcome to BBS v2.23.0
 
-- **Customer Policy** — Give every customer their own payment terms. To use: open a customer's Ledger or Bills in the customer portal and press **Customer Policy** (or Ctrl+Y). Set due days, credit limit, early-pay discount and an automatic sale-page discount, plus automated email reminders — on the due date, then repeating daily, weekly or on chosen weekdays — with your own message and optional bill PDF, payment link and ledger balance. Over-limit customers show a credit-limit warning on their card, the payment modal shows the early-pay amount, and reminders send through BBS Cloud and survive app restarts.
+- **Customer Policy** — Give every customer their own payment terms. To use: open a customer's Ledger or Bills in the customer portal and press **Customer Policy** (or Ctrl+Y). Set due days, credit limit, early-pay discount and an automatic sale-page discount, plus automated email reminders — on the due date, then repeating daily, weekly or on chosen weekdays — with a standard reminder message and optional bill PDF, payment link and ledger balance. Over-limit customers show a credit-limit warning on their card, the payment modal shows the early-pay amount, and reminders send through BBS Cloud and survive app restarts.
 - **Modifiable Dashboard** — Overview, Sale and Purchase are now one page. To activate: open Overview and press **Customize** in its toolbar. Pick from 15 widgets (sale/purchase charts and tables, monthly-yearly cards, order table, scheduler, cloud usage, file monitor and more), stack cards, and add or remove row bands (minimum 1 band). Your layout is saved and restored on every launch.
 - **Proforma Bills** — Quotes are saved now. To use: open **Order Manager** (Shift+F5) and go to the **Proforma Bills** tab to create a quote; it stays out of your dashboard until you convert it to a real invoice in one click, with a fresh bill number and all items and customer prefilled.
 - **Bill Layout Designer** — To activate: press **Ctrl+B**. Modify the default layouts or create your own invoice layout with live preview, drag-move, zoom, resize dots, section shapes, a table editor, starter templates (Blank / Three Sections / Default 1 / Default 2) and full undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y). When you pick Default 1 or Default 2 in Bill Settings, a preview image is shown before you apply it.
@@ -23,3 +23,8 @@
 #zen-status :: Click here to start Zen Mode and bill every invoice with the same date until the stop condition.
 #sale-purchase-btn-div :: Proforma Bills are saved now — open Sale → View Orders (Shift+F5) to manage quotes and convert them to real invoices.
 #overview-div .ov-toolbar :: New modifiable dashboard — click Customize to pick widgets, stack cards, and add or remove row bands on your Overview page.
+#tab-proformas :: Proforma Bills are saved now — switch to this tab to create a quote and convert it to a real invoice in one click.
+#btn-container button[data-cmd="cust-policy"] :: Customer Policy — payment terms, credit limit, discounts and automatic email reminders for this customer (Ctrl+Y).
+#palette :: Bill Layout Designer — add sections, fields and tables here to build your own invoice layout with live preview.
+#summary-div :: Item-wise discounts now show here — press Ctrl+S for the full bill summary with discounted rates.
+[data-feildname="discount"] :: Item-wise discount — set it while editing an item in View Stock.

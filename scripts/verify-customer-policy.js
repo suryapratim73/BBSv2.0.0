@@ -25,6 +25,7 @@ const ROOT = path.join(__dirname, "..");
 const SHOTS = path.join(ROOT, "test-results", "cust-policy-shots");
 const BACKUP = path.join(ROOT, "test-results", "cust-policy-backup");
 const REMINDER_JSON = path.join(ROOT, "config", "customerReminders.json");
+const { DEFAULT_POLICY } = require(path.join(ROOT, "lib", "customerPolicyLogic"));
 
 const SAVED_POLICY = {
   dueDays: 20,
@@ -171,11 +172,13 @@ async function main() {
         name: form.querySelector(".cust-policy-name").textContent,
         dueDays: form.querySelector("input[name='dueDays']").value,
         reminderEnabled: form.querySelector("input[name='reminderEnabled']").checked,
-        message: form.querySelector("textarea[name='message']").value
+        message: form.querySelector("textarea[name='message']").value,
+        messageReadonly: form.querySelector("textarea[name='message']").readOnly
       };
     });
     check("policy: modal shows the customer name", opened.name === custName, opened.name);
     check("policy: modal hydrates existing policy", opened.dueDays === String(policyBefore.dueDays) && opened.reminderEnabled === !!policyBefore.reminder.enabled, JSON.stringify(opened).slice(0, 160));
+    check("policy: template textarea is locked (readonly)", opened.messageReadonly === true);
 
     // ---- fill and save ----
     await portalPage.evaluate(policy => {
@@ -208,7 +211,7 @@ async function main() {
     check("policy: credit limit persisted", saved && saved.creditLimit === 25000);
     check("policy: early-pay discount persisted", saved && saved.earlyPayDiscount.percent === 2 && saved.earlyPayDiscount.withinDays === 5);
     check("policy: reminder persisted", saved && saved.reminder.enabled && saved.reminder.onDueDate && saved.reminder.repeat.enabled && saved.reminder.repeat.frequency === "custom" && JSON.stringify(saved.reminder.repeat.days) === JSON.stringify([1, 3]) && saved.reminder.repeat.time === "18:30", JSON.stringify(saved && saved.reminder));
-    check("policy: template persisted", saved && saved.template.message === SAVED_POLICY.template.message && saved.template.includePDF && saved.template.includePaymentLink && saved.template.includeLedgerBalance, JSON.stringify(saved && saved.template));
+    check("policy: template locked — custom message ignored, default persisted", saved && saved.template.message === DEFAULT_POLICY.template.message && saved.template.includePDF && saved.template.includePaymentLink && saved.template.includeLedgerBalance, JSON.stringify(saved && saved.template));
 
     // ---- reopen → hydration round-trip ----
     await portalPage.locator("#btn-container [data-cmd='cust-policy']").click();
@@ -226,7 +229,7 @@ async function main() {
         message: form.querySelector("textarea[name='message']").value
       };
     });
-    check("policy: reopen hydrates saved values", hydrated.dueDays === "20" && hydrated.saleDiscount === "7" && hydrated.reminderEnabled && hydrated.freq === "custom" && JSON.stringify(hydrated.days) === JSON.stringify(["1", "3"]) && hydrated.time === "18:30" && hydrated.includePDF && hydrated.message === SAVED_POLICY.template.message, JSON.stringify(hydrated).slice(0, 200));
+    check("policy: reopen hydrates saved values", hydrated.dueDays === "20" && hydrated.saleDiscount === "7" && hydrated.reminderEnabled && hydrated.freq === "custom" && JSON.stringify(hydrated.days) === JSON.stringify(["1", "3"]) && hydrated.time === "18:30" && hydrated.includePDF && hydrated.message === DEFAULT_POLICY.template.message, JSON.stringify(hydrated).slice(0, 200));
     await portalPage.screenshot({ path: path.join(SHOTS, "1-policy-modal.png") });
     await portalPage.evaluate(() => closeModal());
 

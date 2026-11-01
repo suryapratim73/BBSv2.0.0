@@ -71,12 +71,12 @@ describe("normalizePolicy", () => {
         expect(normalizePolicy({ reminder: { repeat: { time: "7:00" } } }).policy.reminder.repeat.time).toBe("7:00");
     });
 
-    test("keeps a custom message and falls back on blank", () => {
-        expect(normalizePolicy({ template: { message: "Pay {billNo}!" } }).policy.template.message).toBe("Pay {billNo}!");
+    test("ignores custom messages — template locked until moderation lands", () => {
+        expect(normalizePolicy({ template: { message: "Pay {billNo}!" } }).policy.template.message).toBe(DEFAULT_POLICY.template.message);
         expect(normalizePolicy({ template: { message: "   " } }).policy.template.message).toBe(DEFAULT_POLICY.template.message);
     });
 
-    test("round-trips a full policy unchanged", () => {
+    test("round-trips a full policy unchanged except the locked message", () => {
         const full = {
             dueDays: 20,
             creditLimit: 50000,
@@ -85,7 +85,10 @@ describe("normalizePolicy", () => {
             reminder: { enabled: true, onDueDate: true, repeat: { enabled: true, frequency: "custom", days: [0, 6], time: "18:30" } },
             template: { message: "Hi {name}, pay bill {billNo}.", includePDF: true, includePaymentLink: false, includeLedgerBalance: true }
         };
-        expect(normalizePolicy(full).policy).toEqual(full);
+        expect(normalizePolicy(full).policy).toEqual({
+            ...full,
+            template: { ...full.template, message: DEFAULT_POLICY.template.message }
+        });
     });
 });
 

@@ -1303,6 +1303,9 @@
             max-width: 320px;
             width: 100%;
             box-sizing: border-box;
+            margin: auto;              /* center inside the auth card, both axes */
+            max-height: 100%;          /* cap at the auth card height… */
+            overflow-y: auto;          /* …and scroll inside when the window is short */
             }
 
             .icon-container {
@@ -1395,6 +1398,9 @@
                 max-width: 340px;
                 width: 100%;
                 box-sizing: border-box;
+                margin: auto;              /* center inside the auth card, both axes */
+                max-height: 100%;          /* cap at the auth card height… */
+                overflow-y: auto;          /* …and scroll inside when the window is short */
             }
             .cc-totp-card h3 {
                 margin: 0 0 8px 0;

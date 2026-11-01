@@ -248,8 +248,16 @@ async function totpSetupSubmit(e){
     if(!result || result.ok !== true)
         return showCloudError(errBox, (result && result.error) || "Could not verify the authentication code. Please try again.");
     cloudState = result.data;
-    showToastNotification("Verification complete — your JWT is stored on this device.", ["animation-common","move-left","blue-toast-box"], "app-banner");
-    showTotpSetup(document.getElementById("cloud-div"), true);
+    if(cloudState && cloudState.signedIn){
+        // the JWT exchange succeeded — jump straight to the signed-in view
+        showToastNotification("Verification complete — you're signed in to BBS Cloud.", ["animation-common","move-left","blue-toast-box"], "app-banner");
+        renderCloudView(document.getElementById("cloud-div"));
+    } else {
+        // exchange unavailable (older server) — the JWT is stored and the
+        // signed-in state arrives on the next Connect
+        showToastNotification("Verification complete — your JWT is stored on this device.", ["animation-common","move-left","blue-toast-box"], "app-banner");
+        showTotpSetup(document.getElementById("cloud-div"), true);
+    }
 }
 
 function showCloudError(errBox, msg){
