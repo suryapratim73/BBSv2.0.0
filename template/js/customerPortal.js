@@ -1,4 +1,4 @@
-const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper, fuzzySearchHandler, setNGramIndex } = require("../js/common");
+const { toggleDevTool, closeModal:_closeModal, dataModal , retractHandler , createModal , showDeleteBTN ,validateInput, validateInput2 , printModal, drawSpinner, renderPieChart, scrollSymSet, removeAllElem, appendToDL, roundOffTo2DecimalPlace, drawLineGraph, applyTheme, appendToHost, textRollAnnimation, traverseParent, contextMenuFunction, showToastNotification, scrollHelper, fuzzySearchHandler, setNGramIndex, gstChecksum, upperCaseInput } = require("../js/common");
 const { ipcRenderer, net } = require("electron");
 const uuid = require("uuid");
 const { getsaleConfigPolicyPath } = require("../js/common");
@@ -30,10 +30,10 @@ const monthNames = ["January", "February", "March", "April", "May", "June",
 async function initPage(){
     // Inject the pre-built n-gram index from the main process so appendToDL
     // skips the expensive trigram-calculation loop.
-    var preBuiltIndex = await ipcRenderer.invoke("get-ngram-index");
-    if (preBuiltIndex) setNGramIndex(preBuiltIndex);
-    stockList = await appendToDL.call({tableName:"stock"},"get-stocks",document.getElementById("stock-names"));
-    await appendToDL.call({tableName:"customer"},"get-customers",document.getElementById("customer-names"));
+    // var preBuiltIndex = await ipcRenderer.invoke("get-ngram-index");
+    // if (preBuiltIndex) setNGramIndex(preBuiltIndex);
+    // stockList = await appendToDL.call({tableName:"stock"},"get-stocks",document.getElementById("stock-names"));
+    // await appendToDL.call({tableName:"customer"},"get-customers",document.getElementById("customer-names"));
     unitMap.forEach(obj=>{
         let key = Object.keys(obj)[0];
         let option = document.createElement("option");
@@ -224,6 +224,26 @@ async function loadLedgerTable(_name){
     //Implement realtime Ledger update logic
 
     let tbody = ledgerDiv.querySelector("#tbody");
+    // Opening balance row: the stored value, ignored when not set. A legacy
+    // "opening-balance" entry already carries it, so no row is added then and
+    // running balances are not shifted. Entries stay newest-first below it.
+    const rawOb = selectedCustomer.moreInfo?.openingBalance;
+    const storedOpening = Number(rawOb);
+    const hasStoredOpening = rawOb !== undefined && rawOb !== null && rawOb !== "" && !Number.isNaN(storedOpening);
+    const hasTypedOpening = ledgerEntries.some(obj=>obj.type==="opening-balance");
+    const openingShift = (hasStoredOpening && !hasTypedOpening) ? storedOpening : 0;
+    if(hasStoredOpening && !hasTypedOpening){
+        let row = document.createElement("div");
+        row.innerHTML = `
+            <p class="col eq-space"></p>
+            <p class="col eq-space">Opening balance</p>
+            <p class="col eq-space">—</p>
+            <p class="col eq-space">${roundOffTo2DecimalPlace(openingShift)}</p>
+        `;
+        row.classList.add("row");
+        row.classList.add("body");
+        tbody.appendChild(row);
+    }
     ledgerEntries.forEach(obj=>{
         let {date,billNo,billAmt,type,payments,balance,itemList,entryNo} = obj;
         let row = document.createElement("div");
@@ -231,6 +251,10 @@ async function loadLedgerTable(_name){
         if(type==="sale"){
             particular = `Sale: Bill Number:${billNo}`;
             drcr = `${Math.round(billAmt-payments)} Dr`;
+        }
+        else if(type==="opening-balance"){
+            particular = "Opening balance";
+            drcr = "—";
         }
         else{
             particular = `Payment: Rs.${payments}`;
@@ -240,7 +264,7 @@ async function loadLedgerTable(_name){
             <p class="col eq-space">${new Date(date).toLocaleDateString("en-GB")}</p>
             <p class="col eq-space">${particular}</p>
             <p class="col eq-space">${drcr}</p>
-            <p class="col eq-space">${roundOffTo2DecimalPlace(balance)}</p>
+            <p class="col eq-space">${roundOffTo2DecimalPlace(balance + openingShift)}</p>
         `;
         row.classList.add("row");
         row.classList.add("body");
@@ -253,6 +277,14 @@ async function loadLedgerTable(_name){
     if(tbody.scrollHeight>tbody.clientHeight)
         scrollSymSet(tbody);
     sideDiv.appendChild(customerDiv);
+    // Credit-limit warning from the customer's saved policy
+    const custPolicy = await ipcRenderer.invoke("get-customer-policy",selectedCustomer.id);
+    if(custPolicy && custPolicy.creditLimit > 0 && Number(selectedCustomer.balance) > custPolicy.creditLimit){
+        let warn = document.createElement("p");
+        warn.className = "cust-policy-warn";
+        warn.textContent = `Over credit limit — outstanding Rs. ${Math.round(selectedCustomer.balance)}, limit Rs. ${custPolicy.creditLimit}`;
+        customerDiv.appendChild(warn);
+    }
     await drawGraphs(selectedCustomer.id);
     [...document.querySelectorAll("#btn-container>button")]
     .forEach(btn=>{
@@ -434,6 +466,40 @@ page2BTNS.addEventListener("click",async function(e){
         modal.querySelector("form").dataset.id = custId;
     }
     else
+    if(e.target.dataset.cmd==="cust-policy"){
+        let custId = traverseParent(e.target,"btn-container").dataset.id;
+        let _cust = customerList.find(obj=>obj.id===custId);
+        if(!_cust) return;
+        removeAllElem("#cust-policy-modal");
+        let modal = createModal("cust-policy-modal",false);
+        let form = document.getElementById("cust-policy-template").content.cloneNode(true).querySelector("form");
+        form.dataset.id = custId;
+        form.querySelector(".cust-policy-name").textContent = _cust.name;
+        const policy = await ipcRenderer.invoke("get-customer-policy",custId);
+        if(policy){
+            form.querySelector("input[name='dueDays']").value = policy.dueDays;
+            form.querySelector("input[name='creditLimit']").value = policy.creditLimit;
+            form.querySelector("input[name='epPercent']").value = policy.earlyPayDiscount.percent;
+            form.querySelector("input[name='epWithinDays']").value = policy.earlyPayDiscount.withinDays;
+            form.querySelector("input[name='saleDiscount']").value = policy.saleDiscount;
+            const rem = policy.reminder || {};
+            form.querySelector("input[name='reminderEnabled']").checked = !!rem.enabled;
+            form.querySelector("input[name='onDueDate']").checked = !!rem.onDueDate;
+            form.querySelector("select[name='repeatFreq']").value = rem.repeat?.enabled ? rem.repeat.frequency : "none";
+            form.querySelector("input[name='remindTime']").value = rem.repeat?.time || "10:00";
+            (rem.repeat?.days || []).forEach(day=>{
+                const cb = form.querySelector(`input[name='remindDay'][value='${day}']`);
+                if(cb) cb.checked = true;
+            });
+            const tpl = policy.template || {};
+            form.querySelector("textarea[name='message']").value = tpl.message || "";
+            form.querySelector("input[name='includePDF']").checked = !!tpl.includePDF;
+            form.querySelector("input[name='includePaymentLink']").checked = !!tpl.includePaymentLink;
+            form.querySelector("input[name='includeLedgerBalance']").checked = !!tpl.includeLedgerBalance;
+        }
+        modal.appendChild(form);
+    }
+    else
     if(e.target.dataset.cmd==="new-bill")
         ipcRenderer.send("new-bill",selectedCustomer);
     else
@@ -447,6 +513,22 @@ page2BTNS.addEventListener("click",async function(e){
         let cashSegment = document.getElementById("cash-feild-template").content.cloneNode(true).querySelector("div");
         addPaymentForm.querySelector("#first-section").appendChild(cashSegment);
         document.body.appendChild(modal);
+        // Early-pay hint from the customer's saved policy
+        const custPolicy = await ipcRenderer.invoke("get-customer-policy",id);
+        const ep = custPolicy && custPolicy.earlyPayDiscount;
+        if(ep && ep.percent > 0 && ep.withinDays > 0 && Array.isArray(ledgerEntries)){
+            const within = ledgerEntries.filter(obj=>{
+                const daysOld = (Date.now() - new Date(obj.date).getTime()) / 86400000;
+                return obj.type === "sale" && (Number(obj.billAmt) - Number(obj.payments)) > 0 && daysOld <= ep.withinDays;
+            });
+            if(within.length){
+                const due = within.reduce((a,obj)=>a + (Number(obj.billAmt) - Number(obj.payments)),0);
+                let hint = document.createElement("p");
+                hint.className = "cust-policy-note cust-policy-hint";
+                hint.textContent = `Early-pay discount ${ep.percent}% applies on Rs. ${Math.round(due)} (bills within ${ep.withinDays} days) — pay Rs. ${Math.round(due * (1 - ep.percent/100))}.`;
+                addPaymentForm.querySelector("#first-section").appendChild(hint);
+            }
+        }
     }
     else{
         [...document.getElementById("filter-option").children].forEach(div=>div.classList.remove("selected"));
@@ -468,6 +550,9 @@ page2BTNS.addEventListener("click",async function(e){
 async function updateProfile(e){
     e.preventDefault();
     let custData = Object.fromEntries(new FormData(e.target).entries());
+    // GST validation — warn only (same checksum used on salePage)
+    if(custData.gst && !gstChecksum(custData.gst))
+        showToastNotification("GST number may be not valid. You may consider a recheck.",["animation-common","move-left","red-toast-box"],document.body);
     custData.phones = custData.phones.split(",").map(str=>str.trim());
     selectedCustomer = {
         ...selectedCustomer,
@@ -650,6 +735,44 @@ function setPayFeilds(e){
     removeAllElem(".removable-section");
     let paySegment = document.getElementById(`${payMode}-feild-template`).content.cloneNode(true).querySelector("div");
     document.getElementById("first-section").appendChild(paySegment);
+}
+
+async function saveCustomerPolicy(e){
+    e.preventDefault();
+    let form = e.target;
+    let custId = form.dataset.id;
+    let f = new FormData(form);
+    let days = [...form.querySelectorAll("input[name='remindDay']:checked")].map(cb=>Number(cb.value));
+    let repeatFreq = f.get("repeatFreq");
+    let policy = {
+        dueDays: Number(f.get("dueDays")) || 0,
+        creditLimit: Number(f.get("creditLimit")) || 0,
+        earlyPayDiscount: { percent: Number(f.get("epPercent")) || 0, withinDays: Number(f.get("epWithinDays")) || 0 },
+        saleDiscount: Number(f.get("saleDiscount")) || 0,
+        reminder: {
+            enabled: !!f.get("reminderEnabled"),
+            onDueDate: !!f.get("onDueDate"),
+            repeat: {
+                enabled: repeatFreq !== "none",
+                frequency: repeatFreq === "none" ? "daily" : repeatFreq,
+                days,
+                time: f.get("remindTime") || "10:00"
+            }
+        },
+        template: {
+            message: f.get("message"),
+            includePDF: !!f.get("includePDF"),
+            includePaymentLink: !!f.get("includePaymentLink"),
+            includeLedgerBalance: !!f.get("includeLedgerBalance")
+        }
+    };
+    let res = await ipcRenderer.invoke("set-customer-policy",custId,policy);
+    if(res && res.ok){
+        showToastNotification("Customer policy saved.",["animation-common","move-left","blue-toast-box"],document.body);
+        closeModal();
+    }
+    else
+        showToastNotification((res && res.error) ? res.error : "Could not save the policy.",["animation-common","move-left","red-toast-box"],document.body);
 }
 
 function updateLedger(e){

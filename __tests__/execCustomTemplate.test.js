@@ -92,6 +92,13 @@ function FakeDoc(overrides = {}) {
         underline(x, y, w, h) { doc._underline = [x, y, w, h]; return this; },
         currentLineHeight() { return 14; },
         widthOfString(s) { return String(s).length * 7; },
+        heightOfString(s, opts) {
+            // Same 7px/char model as widthOfString: wrapped height for a
+            // given box width, in whole line-heights.
+            const w = opts?.width;
+            if (!w) return 0;
+            return Math.ceil((String(s).length * 7) / w) * 14;
+        },
         addPage() { doc._pages = (doc._pages || 1) + 1; return this; },
         image() { doc._images = (doc._images || 0) + 1; return this; },
         save() { doc._saved = true; return this; },
@@ -299,6 +306,60 @@ describe("createFeilds — biller-bank legacy branch", () => {
         const doc = FakeDoc();
         await createFeilds(doc, baseTemplate([feild("biller-bank")]), billObj);
         expect(printedTexts(doc)).toEqual([""]);
+    });
+});
+
+describe("createFeilds — align and flow", () => {
+    test("space-between prints label and value as two calls, value right-aligned", async () => {
+        const doc = FakeDoc();
+        await createFeilds(doc, baseTemplate([feild("billNo", "Bill No", { align: "space-between" })]), billObj);
+        const printed = doc._texts.filter((t) => t.x !== undefined);
+        expect(printed.map((t) => t.text)).toEqual(["Bill No: ", "101"]);
+        const w = Math.ceil(50 * 595.28 * 0.01); // 298
+        expect(printed[1].x).toBe(w - 21); // box edge minus widthOfString("101")
+        expect(printed[1].y).toBe(0);
+    });
+
+    test("a wrapped string feild pushes the next feild below itself", async () => {
+        const doc = FakeDoc();
+        const template = baseTemplate([
+            feild("", "A".repeat(30), { type: "string", fWidth: 10 }),
+            feild("", "Next", { type: "string", y: 20 }),
+        ]);
+        await createFeilds(doc, template, billObj);
+        const printed = doc._texts.filter((t) => t.x !== undefined);
+        expect(printed.map((t) => t.text)).toEqual(["A".repeat(30), "Next"]);
+        expect(printed[1].y).toBe(56); // 4 wrapped lines of 14
+    });
+
+    test("same-baseline siblings are never pushed", async () => {
+        const doc = FakeDoc();
+        const template = baseTemplate([
+            feild("", "A".repeat(30), { type: "string", fWidth: 10, x: 0 }),
+            feild("", "Sibling", { type: "string", y: 0, x: 100 }),
+        ]);
+        await createFeilds(doc, template, billObj);
+        const printed = doc._texts.filter((t) => t.x !== undefined);
+        expect(printed[1].y).toBe(0);
+    });
+
+    test("flow is scoped per host section", async () => {
+        const doc = FakeDoc();
+        const template = baseTemplate(
+            [
+                feild("", "A".repeat(30), { type: "string", fWidth: 10, x: 5, y: 0 }),
+                feild("", "Other", { type: "string", x: 310, y: 20 }),
+            ],
+            {
+                sections: [
+                    { role: "section", x: 0, y: 0, width: 300, height: 100, applyBorder: false, border: 1, partitions: [], plan: {} },
+                    { role: "section", x: 300, y: 0, width: 300, height: 100, applyBorder: false, border: 1, partitions: [], plan: {} },
+                ],
+            }
+        );
+        await createFeilds(doc, template, billObj);
+        const printed = doc._texts.filter((t) => t.x !== undefined);
+        expect(printed[1].y).toBe(20); // the wrap in section 1 doesn't reach section 2
     });
 });
 

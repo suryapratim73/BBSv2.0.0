@@ -1,0 +1,378 @@
+/* ============================================================
+   Cloud Connect — remote dashboard page
+   Reuses the common.css design tokens (--theme-primary,
+   --theme-secondary, --theme-text-color, --theme-shadow-color)
+   and adapts automatically to light/dark themes.
+   ============================================================ */
+
+#cloud-div{
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* ---------- Signed-out view ---------- */
+
+.cc-auth{
+    flex: 1;
+    display: flex;
+    gap: 1.5rem;
+    align-items: stretch;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.cc-auth-info{
+    flex: 1;
+    background: var(--theme-primary);
+    border-radius: 12px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 1px 2px 4px var(--theme-shadow-color);
+}
+.cc-auth-info h1,
+.cc-auth-info p,
+.cc-auth-info li,
+.cc-auth-info i{
+    background: transparent;
+    color: var(--theme-secondary);
+}
+.cc-info-head{
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.cc-info-head i{
+    font-size: 2.2rem;
+}
+.cc-info-head h1{
+    font-size: 2rem;
+    font-weight: 100;
+    letter-spacing: 0.05rem;
+}
+.cc-tagline{
+    font-size: 0.95rem;
+    line-height: 1.5;
+    opacity: 0.95;
+}
+.cc-benefits{
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.cc-benefits li{
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+.cc-benefits li i{
+    margin-top: 0.15rem;
+    font-size: 0.9rem;
+}
+.cc-note{
+    margin-top: auto;
+    font-size: 0.8rem;
+    opacity: 0.9;
+    line-height: 1.5;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 1rem;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+.cc-note i{
+    margin-top: 0.1rem;
+}
+
+.cc-auth-card{
+    flex: 1.4;
+    background: var(--theme-secondary);
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    box-shadow: 1px 2px 4px var(--theme-shadow-color);
+    min-width: 0;
+}
+
+.cc-tabs{
+    display: flex;
+    gap: 0.25rem;
+    background: rgba(128,128,128,0.15);
+    padding: 0.25rem;
+    border-radius: 8px;
+}
+.cc-tabs button{
+    flex: 1;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--theme-text-color);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.cc-tabs button.selected{
+    background: var(--theme-secondary);
+}
+
+#cloud-auth-form{
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    overflow-y: auto;
+}
+.cc-field{
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.cc-field>div{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.cc-field>div>div{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.cc-field>div>div>div{
+    margin-right:0.5rem;
+    display: flex;
+    align-items: center;
+}
+.cc-field input[type="radio"]{
+    width: fit-content;
+    margin-left: 0.5rem;
+}
+.cc-field label{
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--theme-text-color);
+    opacity: 0.75;
+}
+.cc-required{
+    color: #c62828;
+}
+.cc-field input{
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: var(--theme-secondary);
+    color: var(--theme-text-color);
+}
+.cc-field input:focus{
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 0;
+}
+.cc-form-actions{
+    margin-top: 0.25rem;
+}
+.cc-form-actions .main-ui-btn{
+    width: 100%;
+    padding: 0.65rem;
+    font-size: 1rem;
+}
+.cc-error{
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    background: rgba(198,40,40,0.12);
+    color: #c62828;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+.cc-legal{
+    font-size: 0.75rem;
+    opacity: 0.7;
+    line-height: 1.5;
+    border-top: 1px dashed rgba(128,128,128,0.35);
+    padding-top: 0.9rem;
+}
+
+/* ---------- Signed-in view (remote dashboard) ---------- */
+
+.cc-dashboard{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.cc-dash-header{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.cc-dash-header h2{
+    font-size: 1.8rem;
+    font-weight: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.cc-dash-header h2 i{
+    color: var(--theme-primary);
+}
+.cc-sub{
+    font-size: 0.9rem;
+    opacity: 0.75;
+    margin-top: 0.25rem;
+}
+.cc-dash-status{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+.cc-last{
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.cc-chip{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
+}
+.cc-chip.connected{
+    background: #1e7e34;
+    color: #ffffff;
+}
+.cc-chip.connected::before{
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 3px rgba(30,126,52,0.25);
+}
+.cc-chip.cc-beta{
+    background: goldenrod;
+    color: #ffffff;
+}
+
+.cc-cards{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+.cc-card{
+    background: var(--theme-secondary);
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    box-shadow: 1px 2px 4px var(--theme-shadow-color);
+    min-width: 0;
+}
+.cc-card h3{
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--theme-primary);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+.cc-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed rgba(128,128,128,0.3);
+    font-size: 0.9rem;
+    min-width: 0;
+}
+.cc-row:last-child{
+    border-bottom: none;
+}
+.cc-row>span{
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+.cc-row>b{
+    text-align: right;
+    word-break: break-word;
+}
+.cc-row-col{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+.cc-mono{
+    font-family: "Courier New", monospace;
+    font-size: 0.78rem;
+    word-break: break-all;
+    opacity: 0.85;
+}
+.cc-card.cc-muted{
+    border-style: dashed;
+    opacity: 0.9;
+}
+.cc-card.cc-muted p{
+    font-size: 0.9rem;
+    line-height: 1.5;
+    opacity: 0.75;
+}
+
+.cc-dash-actions{
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.cc-btn-ghost{
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--theme-text-color);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.cc-btn-ghost.cc-danger{
+    border-color: #c62828;
+    color: #c62828;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 950px){
+    .cc-auth{
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .cc-note{
+        margin-top: 0.5rem;
+    }
+    .cc-dash-status{
+        align-items: flex-start;
+    }
+}

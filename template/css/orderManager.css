@@ -4,6 +4,30 @@ body{
     position: relative;
 }
 
+/* ── Tabs (Orders | Proforma Bills) ── */
+#tab-bar{
+    grid-row: 2;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+    border-bottom: 2px solid var(--theme-primary);
+}
+.tab-btn{
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    background: transparent;
+    color: var(--theme-text-color);
+    font-size: 1rem;
+    cursor: pointer;
+}
+.tab-btn.active{
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
+    font-weight: 600;
+}
+
 /* ── Searchbar ── */
 #searchbar{
     display: flex;
@@ -11,7 +35,7 @@ body{
     align-items: center;
     padding: 0 0.5rem;
     margin: 0.25rem 0;
-    grid-row: 3;
+    grid-row: 4;
 }
 #searchbar #form{
     width: 100%;
@@ -48,22 +72,38 @@ body{
     display: grid;
     grid-template: repeat(12,1fr)/repeat(1,1fr);
 }
-#page-1>div:nth-child(2){
+#page-1-header{
+    grid-row: 3;
     display: flex;
     justify-content: space-between;
     margin: 0.5rem 0;
     align-items: center;
 }
-#page-1>div:nth-child(2) h2{
+#page-1-header h2{
     font-weight: lighter;
 }
-#page-1>div:nth-child(2) button{
+#page-1-header button{
     padding: 0.5rem 0.75rem;
     border-radius: 5px;
     font-size: 1rem;
 }
-#page-1>div:last-child{
-    grid-row: 4/-1;
+#page-1>.table{
+    grid-row: 5/-1;
+}
+/* Proforma row action buttons */
+.proforma-actions{
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+}
+.proforma-actions button{
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    border: none;
+    font-size: 0.85rem;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
+    cursor: pointer;
 }
 #page-2,#page-4,#page-5{
     display: grid;

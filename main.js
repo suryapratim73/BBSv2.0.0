@@ -74,10 +74,11 @@ const {
   getBillsDir,
   getLocalDateStr,
   getTodaysLogDate,
-  attempt
+  attempt,
+  delay
 } = require("./common");
 // const { getBillsDir } = require("./paths");
-const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getSchedulerPath, roundOffTo2DecimalPlace } = require("./template/js/common");
+const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getProformaPath, roundOffTo2DecimalPlace } = require("./template/js/common");
 const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
@@ -89,7 +90,19 @@ let {
   getTargetWindow,
   getMainWindow,
 } = require("./createModal");
-const { getTemplatePath, initializeThemeAndBanners, reapplyTheme, storeUserThemeObj, clearWeatherInterval, registerIPC: registerThemeIPC } = require("./viewManager");
+const { getTemplatePath, initializeThemeAndBanners, reapplyTheme, storeUserThemeObj, clearWeatherInterval, isBannerDismissed, saveDismissedBanner, registerIPC: registerThemeIPC } = require("./viewManager");
+const { shouldShowBetaPrompt, BETA_PROMPT_ID } = require("./lib/betaPrompt");
+const { registerCloudIPC } = require("./lib/cloudConnect");
+const { registerEulaIPC } = require("./lib/eula");
+const scheduler = require("./lib/scheduler");
+const { registerOverviewRecipeIPC } = require("./lib/overviewRecipe");
+const { registerCustomerPolicyIPC } = require("./lib/customerPolicy");
+const { startReminderEngine, registerCustomerReminderIPC, flushPendingReminders } = require("./lib/customerReminders");
+registerCloudIPC();
+registerEulaIPC();
+registerOverviewRecipeIPC();
+registerCustomerPolicyIPC();
+registerCustomerReminderIPC();
 let {
   attendances,
   people,
@@ -158,7 +171,7 @@ windowOptions = {
   linuxThemeWatchTimer,
   firstBoot = false,
   dbInitialized = false,
-  unsavedUsers = [],jobs = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
+  unsavedUsers = [], orderStages = ["queued","ready-to-dispatch","dispatched","delivered"],
   idleLockTimer,appLocked = true,
   appIcon = nativeImage.createFromPath(path.resolve(__dirname,"./logo256.png")),
   fileMonitor = null, appHeartBeatTimer;
@@ -188,38 +201,6 @@ function bootCommon(mainWindow){
   });
   imposeRestriction();
   return mainWindow;
-}
-
-class Job{
-  constructor(id,intr,args,func,time){
-    this.id = id;
-    this.intr = intr;
-    this.args = args;
-    this.func = func;
-    this.time = time;
-    this.status = "created";
-    if(time){
-      this.timer = setInterval(()=>{
-        this.act(this.intr);
-      },this.time)
-    }
-  }
-  act(intr){
-    if(this.intr===intr){
-      this.func(...this.args,this);
-    }
-  }
-  updateStatus(status){
-    this.status = status;
-    if(status==="OK")
-      clearInterval(this.timer);
-  }
-  updateArgs(...args){
-    this.args = [
-      ...this.args,
-      ...args
-    ];
-  }
 }
 
 // Handle protocol URLs from external launches (e.g., updator.vbs using bbs://update-complete)
@@ -438,7 +419,7 @@ async function createWindow() {
         func:"createWindow"
       });
     }
-
+    firstBoot = false;
     return mainWindow;
   }
   catch(err){
@@ -736,7 +717,7 @@ app.on("ready", async () => {
       // Adding tab switcher - global shortcuts
       let mainWindow = await createWindow();
 
-      createNotifications();
+      scheduler.init(); // arms pending scheduler events (one timer per event)
       let focussedWindow = BrowserWindow.getFocusedWindow();
       globalShortcut.register("CommandOrControl+Up", () => {
         if (mainWindow) {
@@ -772,7 +753,7 @@ app.on("ready", async () => {
           process.lastMinimizedWin = undefined;
         }
       });
-      if(firstBoot || !dbInitialized) return;
+      if(firstBoot && !dbInitialized) return;
       // Taking attendance
       let todaysAttendance = (
         await attendances.findOne({
@@ -806,11 +787,11 @@ app.on("ready", async () => {
       }
       // Initiating theme
       if (process.platform === "linux") setLinuxThemeObserver();
-      await initTheme();
+      await attempt(()=>initTheme(),console.log);
       // Start file monitor for unprinted bills (async to avoid blocking)
       try {
         fileMonitor = getFileMonitor();
-        await fileMonitor.start();
+        await fileMonitor.start(mainWindow);
       } catch (err) {
         appLogger({
           title: "File Monitor Error",
@@ -818,6 +799,8 @@ app.on("ready", async () => {
           func: "app ready - fileMonitor start"
         });
       }
+      // Start per-customer payment reminder engine (first check after 30s)
+      startReminderEngine();
     } catch (err) {
       // console.log(err)
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
@@ -839,22 +822,118 @@ app.on("ready", async () => {
 
   encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
 
-  appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins
+  // appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins
+  appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins — re-enabled for reminder 429 retries (see heartBeatFn)
+  startPythonProcess();
 });
 
 async function heartBeatFn(){
-  checkDeviceStatus();
-
+  initTheme();
+  const isOnline = await checkForInternet();
+  checkDeviceStatus(isOnline);
+  // Retry reminder emails the cloud rate-limited earlier (see lib/customerReminders)
+  attempt(()=>flushPendingReminders(),{});
+  // Will do Syncing job if isOnline==true
+  //Monitor app metrics using this API app.getAppMetrics() and take decision
 }
 
-async function checkDeviceStatus(){
+async function checkDeviceStatus(isOnline){
+  if(typeof process.presets.isDev=="undefined"){
+    process.presets.isAllowed = true;
+    process.presets.isDev = false;
+    return enforceAppUSage();
+  }
   let baseURL = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
-  let statusObj = await attempt(()=>{
+  let statusObj = isOnline ? await attempt(()=>{
     if(typeof global.deviceUUID=="undefined") return;
     return axios.get(baseURL+"device/status?id="+global.deviceUUID)
-  },{});
+  },{}) : {};
+  if(typeof statusObj.data==="undefined" || typeof statusObj.data!="object") return;
+  const { isDev = false, isAllowed=true } = statusObj.data;
+  process.presets.isAllowed = isAllowed;
+  process.presets.isDev = isDev;
+  maybeShowBetaPrompt(isDev);
+  return enforceAppUSage();
+}
 
-  console.log("[main.js]: statusObj:",statusObj.data);
+// ---- Beta Program prompt ----
+let betaPromptShownThisSession = false;
+
+/** Fresh beta-status check against the server — returns true only when the
+ *  server confirms the user is a beta tester. The update flow must never
+ *  trust process.presets.isDev (the heartbeat may not have fetched it yet,
+ *  and the user could have joined beta mid-session). */
+async function getDevStatusFromServer(baseURL){
+  if(typeof global.deviceUUID==="undefined") return false;
+  let status = await attempt(()=>axios.get(baseURL+"device/status?id="+global.deviceUUID,{timeout:5000}),{});
+  return status?.data?.isDev===true;
+}
+
+/** Ask the user (once per launch) to join the Beta Program. Only when the
+ *  device status check says they are not a beta tester yet. */
+function maybeShowBetaPrompt(isDev){
+  if(betaPromptShownThisSession) return;
+  let verdict = shouldShowBetaPrompt({
+    isDev,
+    hasDeviceId: typeof global.deviceUUID!=="undefined",
+    hasGst: typeof process.presets.gst!=="undefined" && process.presets.gst!=="",
+    dismissedForever: isBannerDismissed(BETA_PROMPT_ID),
+    shownThisSession: betaPromptShownThisSession
+  });
+  if(!verdict.show) return;
+  let mainWin = getMainWindow();
+  if(!mainWin) return; // main window not ready yet — try on the next heartbeat
+  betaPromptShownThisSession = true;
+  mainWin.webContents.send("show-beta-prompt");
+}
+
+ipcMain.on("beta-prompt-response", async (event,payload={})=>{
+  let { action="cancel", dontAskAgain=false } = typeof payload==="object" ? payload : {};
+  if(action!=="join"){
+    // "Not Now" — re-prompt on next launch, unless asked not to
+    if(dontAskAgain)
+      saveDismissedBanner(BETA_PROMPT_ID);
+    return;
+  }
+  if(typeof global.deviceUUID=="undefined"){
+    event.sender.send("beta-prompt-result",{ok:false,error:"Your app is not registered yet. Please restart the app and try again."});
+    return;
+  }
+  let baseURL = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
+  try{
+    let resp = await axios.post(baseURL+"device/beta-register",{deviceId:global.deviceUUID},{timeout:8000});
+    if(resp?.data?.isDev===true)
+      process.presets.isDev = true;
+    event.sender.send("beta-prompt-result",{ok:true});
+  }
+  catch(err){
+    appLogger({
+      title:"Beta Registration Error",
+      message:String(err),
+      func:"beta-prompt-response"
+    });
+    event.sender.send("beta-prompt-result",{ok:false,error:"Could not join the Beta Program right now. Please check your internet connection and try again."});
+  }
+});
+// Danger function
+async function enforceAppUSage(){
+  if(typeof process.presets.isDev==="undefined") return;
+  if(process.presets.isAllowed==false){
+    const choice = await dialog.showMessageBox({
+      title:"You are banned",
+      message:"Your activity violated our policy and thereby banned from using our app/services. Please write and appeal and wait for a day.",
+      noLink:true,
+      buttons:["OK","Write an appeal to support"]
+    });
+    if(choice.response===0){
+      appLogger({
+        title:"User banned",
+        message:"This user is banned for now",
+        func:"enforceAppUSage"
+      })
+      app.quit();
+    }
+  }
 }
 
 async function encryptAndUploadS3(keepLocal=false){
@@ -878,7 +957,7 @@ async function encryptAndUploadS3(keepLocal=false){
         }
         return true;
     });
-    console.log({logFiles});
+    // console.log({logFiles});
     const secret = await getSecret(); // Retrieve the secret from secure storage
     const { motherboardSerial,diskSerial } = await getDeviceSerials();
     if(!motherboardSerial || !diskSerial || !process.presets.gst) return; // Skip if hardware IDs are not available
@@ -1060,7 +1139,6 @@ async function appRegistrationHandler(silent=true){
   const salt = generateSecureSalt(encryptionKey ,`${diskSerial}-${motherboardSerial}`);
   const deviceId = uuid.v5(`${diskSerial}-${motherboardSerial}`, salt);
   global.deviceUUID = deviceId;
-  console.log("[main.js] Setting global.deviceUUID",global.deviceUUID);
   let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
   if(typeof process.presets.gst === "undefined" || process.presets.gst===""){
     appLogger({
@@ -1075,12 +1153,9 @@ async function appRegistrationHandler(silent=true){
       gstNumber
     },{timeout:5000})
   .then(({data})=>{
-    console.log("silent route hit")
     global.userId = data.id;
-    console.log({userId:data.id})
   })
   .catch(err=>{
-    console.log("silent route miss",err)
     global.userId = null;
     let title = "App Registration Info Error";
     if(silent)
@@ -1113,7 +1188,7 @@ async function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat","useWeatherTheme","useFuzzySearch"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat","useWeatherTheme","useFuzzySearch","default2","templatePreviews","billTemplate","discVal"]
   .forEach(key=>{
     let value = policy2[key] ?? policy[key] ?? policy3[key];
     if(typeof value === "undefined" || value===null) return;
@@ -1210,7 +1285,8 @@ async function overviewContentDBQuery(year){
   let stocks = typeof global.stocks!="undefined" ? global.stocks : await queryStock(stock,undefined,appLogger,getFivePercentOfMemory);
   stocks = stocks.filter(({ quantity }) => quantity <= minStock);
   let unPaidBills = await getAllSales(sale,year,appLogger,getFivePercentOfMemory);
-  unPaidBills = unPaidBills.filter(({ billDate }) => {
+  unPaidBills = unPaidBills.filter(({ billType, billDate }) => {
+                      if(billType === "proforma") return false; // proformas live in proformas.json, not the dashboard
                       let dueDt = new Date(billDate);
                       dueDt = dueDt.getTime() + creditLimitDays * 24 * 60 * 60 * 1000;
                       return dueDt <= new Date();
@@ -1218,11 +1294,63 @@ async function overviewContentDBQuery(year){
   return { unPaidBills, stocks };
 }
 
-ipcMain.handle("get-overview-content", async (e,year) => {
+ipcMain.handle("get-overview-content", async (e,year, usePagination=false,startIndex=0,stopIndex=10) => {
   let { unPaidBills = [], stocks = [] } = (typeof global.overViewContentResult!="undefined" && typeof global.overViewContentResult[year]!="undefined") ? global.overViewContentResult[year] : await overviewContentDBQuery(year);
   global.overViewContentResult = { ...global.overViewContentResult, [year]:{unPaidBills, stocks} };
   checkNLogMemoryUsage("overViewContentResult",appLogger,getFivePercentOfMemory);
-  return { unPaidBills, stocks };
+  if(!usePagination)
+    return { unPaidBills, stocks };
+  else
+    return { unPaidBills:unPaidBills.slice(startIndex,stopIndex), stocks, len:unPaidBills.length,len2:stocks.length }
+});
+
+/**
+ * One batched payload for the Overview card + graph widgets (sale/purchase
+ * sums and chart series). Reuses the same caches as the old pages so the
+ * merged page costs exactly one IPC round-trip. Cards:
+ *   monthly-sale  — current calendar month sales
+ *   yearly-sale   — current financial year sales
+ *   net-turnover  — FY sales − FY purchases
+ *   net-purchase  — current financial year purchases
+ */
+ipcMain.handle("get-overview-widget-data", async () => {
+  if(!dbInitialized) return { ok:false, error:"Database not ready." };
+  let salesArr = typeof global.sales!=="undefined" ? global.sales : await getAllSales(sale,0,appLogger,getFivePercentOfMemory);
+  let purchasesArr = typeof global.purchases!=="undefined" ? global.purchases : await getPurchases(purchase,appLogger,getFivePercentOfMemory);
+  salesArr = Array.isArray(salesArr) ? salesArr.filter(bill=>bill.billType!=="proforma") : [];
+  purchasesArr = Array.isArray(purchasesArr) ? purchasesArr : [];
+  const amtOf = row => Number(row.billAmt) || 0;
+  // Current financial year window (policy financialYearStartDate, DD-MM)
+  let fyStart;
+  try{
+    let [dt, mnth] = (process.presets?.financialYearStartDate || "01-03").split(/[-\/]/).map(Number);
+    let now = new Date();
+    fyStart = new Date(now.getMonth()+1>=mnth ? now.getFullYear() : now.getFullYear()-1, mnth-1, dt||1);
+  }
+  catch(_){
+    fyStart = new Date(new Date().getFullYear(),3,1);
+  }
+  const now = new Date();
+  const inMonth = d => d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  const inFY = d => d>=fyStart;
+  const sum = (arr, test) => Math.round(arr.reduce((acc,bill)=>{
+    let d = bill.billDate instanceof Date ? bill.billDate : new Date(bill.billDate);
+    return test(d) ? acc+amtOf(bill) : acc;
+  },0));
+  const series = arr => arr.map(bill=>({
+    date: bill.billDate instanceof Date ? bill.billDate : new Date(bill.billDate),
+    amt: amtOf(bill)
+  }));
+  return {
+    ok:true,
+    monthSale: sum(salesArr,inMonth),
+    yearSale: sum(salesArr,inFY),
+    netTurnover: sum(salesArr,inFY) - sum(purchasesArr,inFY),
+    netPurchase: sum(purchasesArr,inFY),
+    fyStart: fyStart.toISOString(),
+    saleObjs: series(salesArr),
+    purchaseObjs: series(purchasesArr)
+  };
 });
 
 ipcMain.handle("get-orders",async ()=>{
@@ -1236,6 +1364,19 @@ ipcMain.handle("get-orders",async ()=>{
     orders = [];
   }
   return orders;
+});
+
+ipcMain.handle("get-proformas",async ()=>{
+  let proformasPath = getProformaPath();
+  let proformas;
+  try{
+    proformas = JSON.parse(fs.readFileSync(proformasPath)?.toString());
+    if(!Array.isArray(proformas)) proformas = [];
+  }
+  catch(_){
+    proformas = [];
+  }
+  return proformas;
 });
 
 function readOrders(orderPath){
@@ -1265,35 +1406,14 @@ ipcMain.handle("get-sale-content", async (e,allYear=false) => {
   if(!dbInitialized) return;
   let bills = typeof global.sales!="undefined" ? global.sales : await getAllSales(sale,year,appLogger,getFivePercentOfMemory);
   bills = typeof global.bills!="undefined" ? global.bills : bills.filter(bill=>(bill.billDate.getTime()>(new Date().setMonth(new Date().getMonth()-2,1))));
+  bills = bills.filter(bill=>bill.billType!=="proforma"); // proformas live in proformas.json, not the dashboard
   let preset;
-  if(typeof process.presets.appPreset.saleOverviewMain==="undefined")
+  if(typeof process.presets.appPreset?.saleOverviewMain==="undefined")
     preset = "monthly1x";
   else
     preset = process.presets.appPreset.saleOverviewMain;
   global.bills = bills;
   return { bills, preset, allBills:global.sales };
-});
-
-ipcMain.on("update-preference",(e,{preset,currentMode,sec})=>{
-  let policy = JSON.parse(fs.readFileSync(getUserPolicyPath()).toString());
-  if(currentMode==="sale"){
-    // Sale overview page preference
-    if(!("appPreset" in policy))
-      policy.appPreset = { saleOverviewMain:"monthly1x" };
-    if(sec==="main")
-      policy.appPreset.saleOverviewMain = preset;
-  }
-  // Updating policy
-  fs.writeFile(getUserPolicyPath(),JSON.stringify(policy),(err)=>{
-    if(err)
-      appLogger({
-        title:"Error",
-        message:String(err),
-        func:"IPC call 'update-preference'"
-      });
-    else
-      e.sender.send("msg-from-backend","Preference saved");
-  })
 });
 
 ipcMain.handle("get-purchase-content", async () => {
@@ -1972,7 +2092,7 @@ ipcMain.handle("preview-bill-template", async (_e, template) => {
 });
 
 //Company profile IPCs
-ipcMain.on("company-profile-info", async (e, data) => {
+ipcMain.on("company-profile-info", async (e, data,txtObj) => {
   let win = BrowserWindow.fromId(e.frameId);
   let companyObj = await new Promise((res, rej) => {
     fs.readFile(getsaleConfigPolicyPath(), (err, data) => {
@@ -1998,6 +2118,9 @@ ipcMain.on("company-profile-info", async (e, data) => {
     ...companyObj,
     ...data,
   };
+  let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+  appPolicy.default2 = txtObj;
+  fs.writeFileSync(getAppPolicyPath(),JSON.stringify(appPolicy,null,2));
   fs.writeFile(
     getsaleConfigPolicyPath(),
     JSON.stringify(companyObj),
@@ -2088,6 +2211,7 @@ ipcMain.handle("manage-company-bank",async (e,obj,flag)=>{
   try{
     if(flag==="a"){
       fs.writeFileSync(getsaleConfigPolicyPath(),JSON.stringify(obj));
+      setAppPresets();
       return true;
     }
     else
@@ -2334,6 +2458,46 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
         },
       ];
     }
+    else
+    if(mode==="proformaObj"){
+      let proformasPath = getProformaPath();
+      contextMenuObj = [
+        {
+          label: "View Details",
+          click: () => {
+            errIdentifier = "View Proforma Details";
+            getTargetWindow(targetWin).webContents.send("view-proforma", obj.proformaId);
+          },
+        },
+        {
+          label: "Convert to Sale",
+          click: () => {
+            errIdentifier = "Convert Proforma";
+            saleWindow()("salePage", "new-from-proforma", {
+              customer: obj.customer,
+              billMeta: obj.billMeta,
+              orderItems: obj.orderItems,
+              currentStep: 1,
+              proformaId: obj.proformaId,
+            });
+          },
+        },
+        {
+          label: "Delete Proforma",
+          click: () => {
+            errIdentifier = "Delete Proforma";
+            try {
+              let proformaJSON = JSON.parse(fs.readFileSync(proformasPath).toString());
+              proformaJSON = Array.isArray(proformaJSON) ? proformaJSON.filter(o => o.proformaId !== obj.proformaId) : [];
+              fs.writeFileSync(proformasPath, JSON.stringify(proformaJSON));
+              window.webContents.send("refresh-orders");
+            } catch(err) {
+              appLogger({ title:"Error", message:String(err), func:"Delete Proforma (orderManager)" });
+            }
+          },
+        },
+      ];
+    }
     //
     // else
     // if(mode===""){//
@@ -2471,7 +2635,7 @@ function setLinuxThemeObserver() {
   else clearInterval(linuxThemeWatchTimer);
 }
 
-async function initTheme({ shouldUpdate = false } = {}, e = {}) {
+async function initTheme(e = {}) {
   let appPolicy = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
   let win =
     "frameId" in e ? BrowserWindow?.fromId(e?.frameId) : getMainWindow();
@@ -2483,11 +2647,9 @@ async function initTheme({ shouldUpdate = false } = {}, e = {}) {
   };
   await storeUserThemeObj(themeObj); // cache for weather theme revert (merged with existing cookie)
   win?.webContents.send("apply-theme", themeObj);
-  if (shouldUpdate) {
-    BrowserWindow.getAllWindows().forEach((_win) => {
-      if (_win !== win) _win.webContents.send("apply-theme", themeObj);
-    });
-  }
+  BrowserWindow.getAllWindows().forEach((_win) => {
+    if (_win !== win) _win.webContents.send("apply-theme", themeObj);
+  });
   let mainWin = getMainWindow();
   if(await checkForInternet()===true)
     initializeThemeAndBanners(mainWin);
@@ -2496,7 +2658,7 @@ async function initTheme({ shouldUpdate = false } = {}, e = {}) {
 
 nativeTheme.addListener(
   "updated",
-  initTheme.bind(null, { shouldUpdate: true })
+  initTheme
 );
 
 ipcMain.handle("get-svg", (e, filePath) => {
@@ -2736,7 +2898,7 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
 }
 
 // NEW downloadUpdate function with pause/resume support + file integrity verification + file repair
-function downloadUpdate(appVersion, resumeState = null, hashInfo) {
+async function downloadUpdate(appVersion, resumeState = null, hashInfo) {
   /**
    * Date: 11/04/2026
    * Task remains:(Postponed for now - will be implemented in future updates)
@@ -2775,20 +2937,24 @@ function downloadUpdate(appVersion, resumeState = null, hashInfo) {
     });
   }// Block multiple download attempts - this can happen if user clicks "Download update" multiple times from settings before the first download starts (due to async nature of download start)
 
+  // Same fresh server check as checkForUpdates — the download is gated by the
+  // server on the channel + device id pair, so both must agree.
+  let downloadChannel = await getDevStatusFromServer(process.env.UPDATE_REST) ? "dev" : "production";
+
   // Platform-specific file setup
   if (process.platform === "linux") {
     fileName = `bbs_${appVersion}_amd64.deb`;
     filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
-    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=linux&id=${global.userId}`;
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=${downloadChannel}&platform=linux&id=${global.deviceUUID}`;
   } else if (process.platform === "win32") {
     fileName = `bbs_${appVersion}_setup.exe`;
     filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
-    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=win&id=${global.userId}`;
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=${downloadChannel}&platform=win&id=${global.deviceUUID}`;
   } else if (process.platform === "darwin") {
     // Mac case
     fileName = `bbs_${appVersion}.dmg`;
     filePath = path.resolve(app.getPath("appData"), `BBS/${fileName}`);
-    downloadURL = process.env.UPDATE_REST + `download/update?channel=production&platform=mac&id=${global.userId}`;
+    downloadURL = process.env.UPDATE_REST + `download/update?channel=${downloadChannel}&platform=mac&id=${global.deviceUUID}`;
   }
 
   // If resuming, verify partial file
@@ -3340,8 +3506,13 @@ async function checkForUpdates(flag="auto") {
   appLogger({title:"Update Check", message:"Checking for update", func:"checkForUpdates", appendToLog: false, allowConsole: true});
   let isOnline = await checkForInternet();
   try{
-    let updateURL = process.env.APP_ENV==="DEV" ? "http://localhost:3030/" : UPDATE_REST;
-    let resp = await axios.get(updateURL+"version?channel=production&platform=win&id="+global.userId,{timeout:5000});
+    let updateURL = process.env.APP_ENV==="DEV" ? "http://192.168.0.110:3030/" : UPDATE_REST;
+    // Verify beta status with the server before choosing a channel — never rely
+    // on process.presets.isDev here (the heartbeat may not have fetched it yet,
+    // and the user could have joined beta mid-session).
+    let channel = await getDevStatusFromServer(updateURL) ? "dev" : "production";
+    let platform = process.platform==="linux" ? "linux" : "win";
+    let resp = await axios.get(updateURL+"version?channel="+channel+"&platform="+platform+"&id="+global.deviceUUID,{timeout:5000});
     if(resp.status===200){
       let data = resp.data;
       let appVersion = data.version;
@@ -3473,7 +3644,7 @@ async function checkForUpdates(flag="auto") {
   }
 }
 
-ipcMain.on("start-update",(e,appVersion)=>{
+ipcMain.on("start-update",async (e,appVersion)=>{
   downloadUpdate(appVersion);
 });
 
@@ -3528,6 +3699,7 @@ async function saveInitData(pageNo,data){
         fs.writeFileSync(getUserPolicyPath(),JSON.stringify(_policyConfig));
         ipcMain.emit("first-load");
     }
+    setAppPresets();
     return true;
   }
   catch(err){
@@ -3644,12 +3816,37 @@ ipcMain.on("print-ledger",async (e,id,period,mode)=>{
           endDate
         ]
       }
-    }
+    },
+    order:[["entryNo","ASC"]]
   })).map(({dataValues})=>dataValues);
-  let prevClose = entryArr[0].balance - entryArr[0].billAmt;
-  let ledgerBalance = entryArr.at(-1).balance;
   let peopleObj = (mode==1?await supplier.findOne({where:{id}}):await customer.findOne({where:{id}})).dataValues;
-  let path2pdf = ledgerPDF(entryArr,peopleObj,startDate,endDate,prevClose,ledgerBalance);
+  // Opening balance: the stored value wins for the current year (ignored when
+  // not set), otherwise the previous year's closing balance carries in as this
+  // year's opening balance. The stored value is NOT part of the running
+  // balances (the pre-app gap), so it shifts them; a derived carry-in already
+  // sits inside the running balances, so it only adds the opening row. Legacy
+  // "opening-balance" typed entries carry it too, so nothing extra is injected.
+  let openingBalance = null, balanceShift = 0;
+  if(!entryArr.some(entry=>entry.type==="opening-balance")){
+    if(Number(period)===0){
+      const rawOb = peopleObj.moreInfo?.openingBalance;
+      const ob = Number(rawOb);
+      if(rawOb !== undefined && rawOb !== null && rawOb !== "" && !Number.isNaN(ob)){
+        openingBalance = ob;
+        balanceShift = ob;
+      }
+    }
+    if(openingBalance === null){
+      const prior = await ledger.findOne({
+        where:{ date:{ [Op.lt]:startDate } },
+        order:[["entryNo","DESC"]],
+        attributes:["balance"]
+      });
+      if(prior)
+        openingBalance = Number(prior.dataValues.balance) || 0;
+    }
+  }
+  let path2pdf = ledgerPDF(entryArr,peopleObj,startDate,endDate,openingBalance,balanceShift);
   console.log("Generated PDF at path:", path2pdf);
   // ipcMain.emit("show-print-modal",path2pdf);
 });
@@ -3691,200 +3888,9 @@ function lockOnIdle(){
     ipcMain.emit("lock");
 }
 
-// Scheduler IPCs
-ipcMain.on("call-scheduler",()=>{
-  let pathToHTML = getTemplatePath("scheduler");
-  let windowOptions = {
-    parent:getMainWindow(),
-    movable:true
-  }
-  createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Scheduler-Dialog",show:true});
-});
+// Scheduler lives in lib/scheduler.js (engine + IPC) with the page in
+// template/js/schedulerPage.js. The old modal windows were folded into it.
 
-ipcMain.on("manage-schedule",async (e,data,flag,showMsg=true,updateKey)=>{
-  let path2scheduler = getSchedulerPath();
-  if(!fs.existsSync(path2scheduler)){
-    dialog.showErrorBox({
-      title:"Error saving event schedule",
-      message:"scheduler.json file missing"
-    });
-    appLogger({
-      title:"Error saving event schedule",
-      message:"scheduler.json file missing",
-      func:"manage-schedule"
-    });
-    return BrowserWindow.fromId(e.sender.id).close();
-  }
-  try{
-    let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
-    let schedules = jsData.schedules;
-    if(!("expiredSchedules" in jsData))
-      jsData.expiredSchedules = [];
-    if(!("schedules" in jsData))
-      jsData.schedules = [];
-    if(flag==="a"){
-      data.user = currentUser;
-      data.id = uuid.v4();
-      jsData.schedules.push(data);
-    }
-    else
-    if(flag==="r")
-      schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
-    else
-    if(flag==="e"){
-      schedules = schedules.map(evObj=>{
-        if(evObj.id===data.id)
-          evObj = {
-          ...evObj,
-          ...data
-          }
-        return evObj;
-      });
-      jsData.schedules = schedules;
-    }
-    else
-    if(flag==="exp"){
-      jsData.expiredSchedules.push(schedules.find(obj=>obj.id===data));
-      schedules.splice(schedules.findIndex(evObj=>evObj.id===data),1);
-    }
-    else
-    if(flag==="exp-a")
-      jsData.expiredSchedules.push(data);
-    else
-    if(flag==="exp-all")
-      jsData.expiredSchedules = jsData.expiredSchedules.filter(evObj=>evObj.tag!==data);
-    else
-    if(flag==="exp-r")
-      jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data),1);
-    else
-    if(flag==="exp-u"){
-      let evObj = jsData.expiredSchedules.find(obj=>obj.id===data.id);
-      evObj[updateKey] = data[updateKey];
-      if(updateKey==="time"){
-        jsData.expiredSchedules.splice(jsData.expiredSchedules.findIndex(evObj=>evObj.id===data.id),1);
-        jsData.schedules.push(evObj);
-      }
-    }
-    else
-    if(flag==="exp-echo"){
-      ipcMain.emit("echo-exp-event",null,jsData.expiredSchedules);
-      return;
-    }
-    fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
-    createNotifications();
-    if(flag==="exp-u" && updateKey==="time")
-      getMainWindow().webContents.send("notification",jsData.expiredSchedules,true);
-  }
-  catch(err){
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"manage-schedule ipc"
-    })
-  }
-  finally{
-    if((flag==="a" || flag==="e") && showMsg===true){
-      dialog.showMessageBox({
-        title:"Event saved",
-        message:"Notification and action scheduled at the event time.",
-        icon:appIcon
-      });
-      flag==="a" && BrowserWindow.fromId(e.sender.id).close();
-    }
-    else
-    if(flag==="r" && showMsg===true)
-      dialog.showMessageBox({
-        title:"Event removed",
-        message:"Event removed.",
-        icon:appIcon
-      });
-    if(showMsg===true)
-      BrowserWindow.fromId(e.frameId).webContents.send("update-content");
-  }
-});
-
-ipcMain.handle("get-chedules",()=>{
-  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
-  if(!("schedules" in jsData)) return [];
-  else return jsData.schedules;
-});
-
-exports.scheduleManager = main=>{
-  return ()=>{
-    windowOptions.parent = main;
-    windowOptions.width = 800;
-    windowOptions.height = 600;
-    return createModal(windowOptions,getTemplatePath("scheduleManager"),{label:"scheduler",cb:function(){
-      this.on("close",(e)=>{
-        getMainWindow().webContents.send("update-content");
-      });
-    }});
-  };
-}
-
-function sendIPCNotification(evObj,job){
-  ipcMain.emit("manage-schedule",null,evObj.id,"exp",false);
-  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
-  getMainWindow().webContents.send("notification",jsData.expiredSchedules,true);
-  let notification = new Notification({
-    title:evObj.type,
-    body:evObj.title
-  });
-  notification.show();
-  shell.beep();
-  notification.on("click",()=>app.focus());
-  job.updateStatus("OK");
-}
-
-function createNotifications(){
-  let jsData = JSON.parse(fs.readFileSync(getSchedulerPath()).toString());
-  if("schedules" in jsData){
-    jsData.schedules
-    .forEach(evObj=>{
-      let { id,time } = evObj;
-      if(Math.sign(new Date(time)-Date.now())>0){
-        let timeDiff = new Date(time)-Date.now();
-        // timeDiff = 1;
-        if(timeDiff>2147483647) return;
-        jobs.push(new Job(id,"notify",[evObj],sendIPCNotification,timeDiff));
-      }
-      else
-        ipcMain.emit("manage-schedule",null,id,"exp",false);
-    });
-  }
-}
-
-ipcMain.on("get-notification",e=>{
-  try{
-    let path2scheduler = getSchedulerPath();
-    let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
-    if(!("expiredSchedules" in jsData))
-      jsData.expiredSchedules = [];
-    if(jsData.expiredSchedules.find(obj=>obj==="null")==null){
-      jsData.expiredSchedules = jsData.expiredSchedules.filter(obj=>obj!==null);
-      fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
-    }
-    BrowserWindow.fromId(e.frameId).webContents.send("notification",jsData.expiredSchedules);
-  }
-  catch(err){
-    appLogger({
-      title:"Error",
-      message:String(err),
-      func:"get-notification ipc"
-    });
-    BrowserWindow.fromId(e.frameId).webContents.send("notification",[]);
-  }
-});
-
-ipcMain.on("open-event",(e,evObj)=>{
-  if(evObj.user.id===currentUser.id || ["admin","all"].includes(currentUser.role)){
-    let mainWin = getMainWindow();
-    let scheduler = this.scheduleManager(mainWin)();
-    scheduler.on("ready-to-show",()=>{
-      scheduler.webContents.send("open-event-scheduler",evObj);
-    });
-  }
-});
 
 async function schemaDownloader(){
   const { extractVersion } = require("./model/schemaLoader");
@@ -4412,6 +4418,82 @@ ipcMain.on("set-app-status",(_,status)=>{
   process.appStatus = status;
 })
 
+// ---- Internet connectivity (app status bar) ----
+// Uses the app's own checkForInternet() probe (common.js) — no Electron net module.
+ipcMain.handle("get-connectivity-status", async () => (await checkForInternet()) === true);
+async function broadcastConnectivity(){
+  const mainWin = getMainWindow();
+  if (mainWin && !mainWin.isDestroyed())
+    mainWin.webContents.send("connectivity-update", (await checkForInternet()) === true);
+}
+
+ipcMain.handle("get-file-monitor-status",()=>{
+  if(fileMonitor){
+    return fileMonitor.status();
+  }
+  return false;
+});
+
+ipcMain.handle("toggle-file-monitor",()=>{
+  if(fileMonitor){
+    let mainWin = getMainWindow();
+    let status = fileMonitor.status();
+    if(status)
+      fileMonitor.stop();
+    else
+      fileMonitor.start(mainWin);
+    return !status;
+  }
+  return false;
+});
+
+// ---- Overview file-monitor widget ----
+
+ipcMain.handle("get-file-monitor-queue",()=>{
+  if(fileMonitor)
+    return fileMonitor.getQueue();
+  return [];
+});
+
+ipcMain.handle("file-monitor-remove-invoice",(e,filePath)=>{
+  if(!fileMonitor) return { ok:false, error:"File monitor is not running." };
+  try{
+    if(typeof filePath!=="string" || !filePath.startsWith(path.resolve(getBillsDir())+path.sep))
+      return { ok:false, error:"Invalid invoice file." };
+    return fileMonitor.removeFromQueue(filePath);
+  }
+  catch(err){
+    return { ok:false, error:String(err) };
+  }
+});
+
+ipcMain.handle("file-monitor-print-invoice", async (e,filePath)=>{
+  if(!fileMonitor) return { ok:false, error:"File monitor is not running." };
+  if(typeof filePath!=="string" || !filePath.startsWith(path.resolve(getBillsDir())+path.sep) || !fs.existsSync(filePath))
+    return { ok:false, error:"Invalid invoice file." };
+  // Default printer → silent print; otherwise open the app's print dialog
+  // (the existing printPDF flow marks the invoice printed once printed).
+  let printer;
+  try{
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const printers = await (win && !win.isDestroyed()
+      ? win.webContents.getPrintersAsync()
+      : BrowserWindow.getAllWindows()[0]?.webContents.getPrintersAsync() || []);
+    printer = (printers.find(p=>p.isDefault) || printers[0])?.name;
+  }
+  catch(_){ printer = null; }
+  if(!printer){
+    ipcMain.emit("show-print-modal", filePath);
+    return { ok:true, viaDialog:true };
+  }
+  const { printSilent } = require("./printHandler");
+  const err = await new Promise(res => printSilent(filePath,printer,1,"A4",e2=>res(e2)));
+  if(err)
+    return { ok:false, error:String(err && err.message || err) };
+  fileMonitor.markAsPrinted(filePath);
+  return { ok:true };
+});
+
 ipcMain.on("log",(e,msg)=>{
   appLogger(typeof msg === 'object' && msg !== null ? msg : {title:"Log", message:msg, func:"log"});
 });
@@ -4442,11 +4524,18 @@ ipcMain.on("edit-bill",async (e,customerId,itemList,entryNo)=>{
     }
   }))?.dataValues;
   // Menu.getApplicationMenu().items[1].submenu.items[0].click(); 
+  let netQty = itemList.reduce((acc,itemObj)=>{
+    if(itemObj.unit==="Kg")
+      acc+=itemObj.qty;
+    return acc;
+  },0);
   saleWindow()("salePage","edit-bill",{
     customer:customerObj,
     billMeta:{
       ...saleObj,
-      netTax:saleObj.tax
+      netTax:saleObj.tax,
+      netAmtTax:saleObj.billAmt,
+      netQty
     },
     orderItems:itemList,
     currentStep:3,
@@ -4516,6 +4605,7 @@ ipcMain.on("close-help-window", (e) => {
 
 // ---- Kiosk Mode ----
 const { start: kioskStart, stop: kioskStop, getStatus: kioskStatus, ENABLED: KIOSK_ENABLED } = require("./kioskServer");
+const { startPythonProcess } = require("./pythonHandler");
 
 /**
  * Resolves the path to the kiosk configuration file (kioskConf.json).
@@ -5120,3 +5210,293 @@ ipcMain.on("init-ngram-index",(e,nGramIndex)=>{
 // Serve the pre-built n-gram index to renderer windows so they can skip
 // the expensive trigram-calculation loop in appendToDL.
 ipcMain.handle("get-ngram-index",()=> global.nGramIndex || {});
+
+/**
+ * Detects if a Base64 data URL image is completely blank (transparent or solid color).
+ * @param {string} base64DataURL - The full string (e.g., "data:image/png;base64,...")
+ * @param {'transparent' | 'white' | 'black'} mode - The type of blankness to check for.
+ * @returns {boolean} True if the image is blank.
+ */
+
+
+function isMainProcessImageBlank(base64DataURL, mode = 'transparent') {
+  try {
+    // 1. Convert the Base64 Data URL into an Electron nativeImage instance
+    const img = nativeImage.createFromDataURL(base64DataURL);
+    
+    if (img.isEmpty()) {
+      return true; // Catches broken or completely empty strings
+    }
+
+    // 2. Extract raw RGBA pixel data as a Node.js Buffer
+    const buffer = img.toBitmap(); 
+    
+    // 3. Scan the buffer based on your criteria
+    if (mode === 'transparent') {
+      // Check the Alpha channel of every pixel (RGBA format, Alpha is the 4th byte)
+      for (let i = 3; i < buffer.length; i += 4) {
+        if (buffer[i] !== 0) {
+          return false; // Found a pixel that is NOT fully transparent
+        }
+      }
+      return true; // All pixels are completely transparent
+    } 
+    
+    if (mode === 'white') {
+      // Check if Red, Green, and Blue are all 255
+      for (let i = 0; i < buffer.length; i += 4) {
+        if (buffer[i] !== 255 || buffer[i + 1] !== 255 || buffer[i + 2] !== 255) {
+          return false; // Found a non-white pixel
+        }
+      }
+      return true; // All pixels are solid white
+    }
+
+    if (mode === 'black') {
+      // Check if Red, Green, and Blue are all 255
+      for (let i = 0; i < buffer.length; i += 4) {
+        if (buffer[i] !== 0 || buffer[i + 1] !== 0 || buffer[i + 2] !== 0) {
+          return false; // Found a non-black pixel
+        }
+      }
+      return true; // All pixels are solid white
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Failed to process image buffer:", error);
+    return false;
+  }
+}
+
+function generateImage(mode=0,mainWin,progress,path2pdf,path2pdf2){
+  return new Promise(async (res,rej)=>{
+    let winOpts = {
+      // width:600,
+      height:850
+    }
+    let invisibelModal = (mode==0 || mode==1) && createModal(winOpts,path2pdf,{
+      loadFile:true,
+      show:false
+    });
+    path2pdf2 = mode==0 ? path2pdf2 : path2pdf;
+    let invisibelModal2 = (mode==0 || mode==2) && createModal(winOpts,path2pdf2,{
+      loadFile:true,
+      show:false
+    });
+    let d1Img,d2Img;
+    setTimeout(()=>{
+      if(!invisibelModal?.isDestroyed?.() && (mode==0 || mode==1))
+        invisibelModal?.close();
+      if((mode==0 || mode==2) && !invisibelModal2?.isDestroyed?.())
+        invisibelModal2?.close();
+      if(!d1Img || !d2Img){
+        if(mode==0){
+          mainWin.setProgressBar(-1)
+          mainWin.webContents.send("remove-progressbar");
+        }
+        if(mode==0)
+          rej({d1Img:null,d2Img:null});
+        else
+        if(mode==1 || mode==2)
+          rej({img:null});
+      }
+    },60000);
+    async function intervalFn(){
+      while(true){
+        let _dImg = (await this.win.webContents.capturePage()).toDataURL();
+        let isBlack = isMainProcessImageBlank(_dImg,"black");
+        let isTransparent = isMainProcessImageBlank(_dImg,"transparent");
+        let isWhite = isMainProcessImageBlank(_dImg,"white");
+        if(this.dImg==_dImg && !isWhite && !isTransparent && !isBlack){
+          mode==0 && updateProgressbar(mainWin,++progress,6,"Generating template preview","Mock pdf1 captured",{});
+          return this.dImg
+        }
+        else
+          this.dImg = _dImg;
+        await delay(1000);
+      }
+    }
+    if(mode==1 || mode==0)
+      invisibelModal.webContents.on("did-finish-load",()=>{
+        if(mode===0)
+          updateProgressbar(mainWin,++progress,6,"Generating template preview","Mock pdf1 being loaded",{});
+        if(mode==0 || mode==1)
+          setTimeout(async ()=>{
+            d1Img = await attempt(()=>intervalFn.bind({win:invisibelModal,dImg:d1Img})(),console.log);
+          },5000);
+      });
+    if(mode==2 || mode==0)
+      invisibelModal2.webContents.on("did-finish-load", ()=>{
+        if(mode==0)
+          updateProgressbar(mainWin,++progress,6,"Generating template preview","Mock pdf2 being loaded",{});
+        if(mode==0 || mode==2)
+          setTimeout(async ()=>{
+            d2Img = await attempt(()=>intervalFn.bind({win:invisibelModal2,dImg:d2Img})(),console.log)
+          },5000);  
+      });
+    timer = setInterval(()=>{
+      if(((mode==0 && d1Img && d2Img) || (mode==1 && d1Img)) && !invisibelModal.isDestroyed())
+        invisibelModal?.close();
+      if(((mode==0 && d1Img && d1Img) || (mode==2 && d2Img)) && !invisibelModal2.isDestroyed())
+        invisibelModal2?.close();
+      if(d1Img && d2Img && mode==0 )
+        res({d1Img,d2Img});
+      else
+      if(mode==1 && d1Img)
+        res({img:d1Img});  
+      else
+      if(mode==2 && d2Img)
+        res({img:d2Img});
+    },1000);
+  })
+}
+
+let seedObj = {
+  customer: {
+    id: '5a85064f-6888-57a0-80bc-0c5a6c1d90f5',
+    name: 'Customer 1',
+    address: 'Customer Address',
+    phones: '["9xxxxxxxxx"]',
+    gst: '22AAAAA0000A1Z5',
+    score: 0,
+    moreInfo: { email: '', shipInfos: [Array] }
+  },
+  billMeta: {
+    entryNo: 5,
+    billStatus: 'close',
+    customerId: '',
+    name: 'Customer 1',
+    billNo: 1,
+    billDate: openFormatForDate(new Date("2023-09-25T00:00:00.000Z")),
+    billType: 'regular',
+    billAmt: 118,
+    netAmt: 100,
+    tax: 18,
+    payment: 0,
+    paymentStatus: false,
+    netDue: 118,
+    billItemTable: '',
+    deliveryStatus: 'queued',
+    autoBill: false,
+    orderRef: '',
+    delivery: 'hand',
+    billformonth: null,
+    shipTo: "Customer 1",
+    shipAddr: "Address 1/2",
+    shipGST: "22AAAAA0000A1Z5",
+    shipPh: "9xxxxxxxxx",
+    ewayBill: null,
+    placeOfSupply: null,
+    stateNcode: null,
+    moreInfo: {},
+    netTax: 18,
+    netAmtTax:118,
+    netQty:1,
+    discVal:0
+  },
+  orderItems: [
+    {
+      itemNo: 1,
+      name: 'item details',
+      type: null,
+      hsn: "hsn",
+      quantity: 1,
+      unit: 'Kg',
+      rate: 100,
+      tax: null,
+      sgst: 0,
+      cgst: 0,
+      igst: 18,
+      itemReturned: false,
+      desc: '',
+      isGrouped: false,
+      grpId: null,
+      grpName: null
+    }
+  ]
+}
+
+ipcMain.handle("generate-template-previews", async (e)=>{
+  let appPolicy = process.presets;
+  const mainWin = getMainWindow();
+  let progress = 0;
+  mainWin.setProgressBar(progress);
+  if(typeof appPolicy.templatePreviews=="object"){
+    // Skipped image generation
+    const { d1Img,d2Img } = appPolicy.templatePreviews;
+    mainWin.setProgressBar(-1);
+    mainWin.webContents.send("remove-progressbar")
+    return { d1Img,d2Img }
+  }
+  let path2pdf = await attempt(()=> billPDF(seedObj,true),console.log);
+  seedObj.customer.name = "Customer 2";
+  updateProgressbar(mainWin,++progress,6,"Generating template preview","Mock pdf1 created",{});
+  let path2pdf2 = await attempt(()=>billPDF(seedObj,true,"D2"));
+  updateProgressbar(mainWin,++progress,6,"Generating template preview","Mock pdf2 created",{});
+  let timer;
+  if(!path2pdf || !path2pdf2){
+    mainWin.setProgressBar(-1);
+    mainWin.webContents.send("remove-progressbar");
+    e.sender.send("PDF generation failed, try again later","error");
+    return { d1Img:null,d2Img:null }
+  }
+  e.sender.send("msg-from-backend","Generating preview for first time may take upto a minute, please wait.")
+  let { d1Img,d2Img } = await attempt(()=>generateImage(0,mainWin,progress,path2pdf,path2pdf2),(err)=>{
+    return err;
+  });
+  if(timer)
+    clearInterval(timer);
+  if(!d1Img)
+    console.log("No preview")
+  else
+  if(d1Img!=d2Img){
+    // Cache previews id not cached already
+    setTimeout(async ()=>{
+      while(true){
+        try{
+          fs.existsSync(path2pdf) && fs.rmSync(path2pdf);
+          fs.existsSync(path2pdf2) && fs.rmSync(path2pdf2);
+          break;
+        }
+        catch(err){}
+        await delay(100);
+      }
+    },100);
+    // Adding a image cropping logic
+    const { cropImg } = require("./common");
+    d1Img = cropImg(nativeImage.createFromDataURL(d1Img))
+    d2Img = cropImg(nativeImage.createFromDataURL(d2Img))
+
+    appPolicy.templatePreviews = { d1Img, d2Img };
+    fs.writeFileSync(getAppPolicyPath(),JSON.stringify(appPolicy,null,2));
+    setAppPresets();
+  }
+  return {d1Img,d2Img}
+});
+
+ipcMain.handle("generate-selected-template-preview", async (e,temId,txtObj,invObj)=>{
+  let appPolicy = process.presets;
+  let _txtObj = appPolicy.default2 || {};
+  process.presets.default2 = txtObj;
+  let path2pdf = await attempt(()=>billPDF((invObj || seedObj),true,temId==2 && "D2"));
+  let { img } = await attempt(()=>generateImage(temId,null,null,path2pdf),(err)=>{console.log(err);return null});
+  if(img){
+    // Cache previews id not cached already
+    setTimeout(async ()=>{
+      while(true){
+        try{
+          fs.existsSync(path2pdf) && fs.rmSync(path2pdf);
+          break;
+        }
+        catch(err){}
+        await delay(100);
+      }
+    },100);
+    // Adding a image cropping logic
+    const { cropImg } = require("./common");
+    img = cropImg(nativeImage.createFromDataURL(img));
+    process.presets.default2 = _txtObj;
+    return img;
+  }
+});

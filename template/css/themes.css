@@ -3,64 +3,8 @@
    Classes applied to <body> by viewManager.js (main process)
    ============================================================ */
 
-/* ---- Kiosk Status Button ---- */
-#kiosk-status-btn {
-    font-size: 0.7rem;
-    opacity: 0.85;
-    cursor: pointer;
-    text-align: center;
-    transition: opacity 0.2s, color 0.3s;
-}
-#kiosk-status-btn[data-status="online"]  { color: #4caf50; }
-#kiosk-status-btn[data-status="offline"] { opacity: 0.4; }
-
-/* ---- Weather Theme Toggle ---- */
-#reset-weather-btn {
-    display: none;
-    font-size: 0.7rem;
-    opacity: 0.5;
-    cursor: pointer;
-    text-align: center;
-    transition: opacity 0.2s;
-}
-/* Show toggle when useWeatherTheme flag is enabled */
-body[data-use-weather-theme="true"] #reset-weather-btn {
-    display: block;
-}
-/* Active state — weather theme is live */
-body.weather-theme-active #reset-weather-btn {
-    opacity: 0.85;
-    background: var(--theme-secondary);
-    color: var(--theme-primary);
-    position: relative;
-    z-index: 1;
-    border-radius: 15px;
-    margin: 4px;
-}
-body.weather-theme-active #reset-weather-btn::after,body[data-weather-reset="true"] #reset-weather-btn::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    z-index: 2;
-    width: 15px;
-    height: 15px;
-    background: var(--theme-primary);
-    top: 30%;
-    left: 10%;
-}
-/* Inactive state — weather theme was reset */
-body[data-weather-reset="true"] #reset-weather-btn {
-    opacity: 0.35;
-    background: var(--theme-secondary);
-    color: var(--theme-primary);
-    position: relative;
-    z-index: 1;
-    border-radius: 15px;
-    margin: 4px;
-}
-#reset-weather-btn:hover {
-    opacity: 1;
-}
+/* Kiosk status & weather-theme toggle moved from the sidebar to the
+   #app-status-bar (mainPage.css) — their old sidebar rules were removed. */
 
 /* ---- Logo, Scheduler, Notification & Lock Screen Weather Background ---- */
 #nav-div > div:first-child,

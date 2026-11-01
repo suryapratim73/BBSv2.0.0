@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme, getAppPolicyPath, roundOffTo2DecimalPlace } = require("../js/common");
+const { toggleDevTool,validateInput,validateInput2, removeAllElem,throttle, applyTheme, getAppPolicyPath, roundOffTo2DecimalPlace, getsaleConfigPolicyPath } = require("../js/common");
 const { Section, Field, Page, buildStarter, mainSectionBand } = require("../../lib/billElementClasses");
 const { VARIABLE_GROUPS, ALL_VARIABLE_KEYS } = require("../../lib/billVariableRegistry");
 const fs = require("fs");
@@ -7,6 +7,8 @@ const uuid = require("uuid");
 
 // console.log({remote})
 const appDefault = JSON.parse(fs.readFileSync(getAppPolicyPath()).toString());
+const saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
+
 toggleDevTool(document);
 
 let mainDiv = document.querySelector("main"),selectedElem;
@@ -33,9 +35,9 @@ function init(){
     ipcRenderer.send("set-app-status","block-non-sp-key");
     page = initPageObj();
     undoStack = []; redoStack = []; dragSnap = null; // fresh document — fresh history
-    let {width,height} = appDefault[page.size];
-    mainDiv.style.width = width + "px";
-    mainDiv.style.height = height + "px";
+    let {width,height} = appDefault.a4;
+    mainDiv.style.width = width*1.25 + "px";
+    mainDiv.style.height = height*2 + "px";
     removeAllElem(".new-elem,canvas,.selector,#adv-options *,#adv-options-2 *");
     [...document.querySelectorAll(".selected-btn")]
     .forEach(btn=>btn.classList.remove("selected-btn"));
@@ -82,6 +84,9 @@ function init(){
             document.documentElement.style.setProperty("--display",`flex`);
     });
     ipcRenderer.invoke("init-theme");
+    // Temporary lines for dev purpose
+    page = buildStarter("default1",{...appDefault,...saleConfig});// initPageObj();
+    restorePage(page);
 }
 init();
 
@@ -367,6 +372,9 @@ function zoomFunc(width_mainDiv,height_mainDiv,zoomIn=true){
         zoomHelper(elem,width,height,zoomFactor);
         let initLeft = Number(elem.dataset.left);
         let initTop = Number(elem.dataset.top);
+        // Feilds may carry a display-only flowShift (logical pt) when a
+        // wrapped sibling pushed them down; keep it applied across zooms.
+        initTop += Number(elem.dataset.flowShift)||0;
         elem.style.left = initLeft*zoomFactor + "px";
         elem.style.top = initTop*zoomFactor + "px";
     });
@@ -1084,6 +1092,7 @@ function drawHelperLine(mode,posObj){
 }
 
 function move(e){
+    // debugger
     if(e.target!==selectedElem)
         lastFocus = selectedElem;
     if(e.target.nodeName==="CANVAS" && 
@@ -1490,7 +1499,7 @@ function redrawSectionCanvas(extraPartition){
     ctx.clearRect(0,0,selectedElem.width,selectedElem.height);
     // One class-driven pass: border shape + partitions + table (the class
     // recipes mirror the legacy drawPartition/drawTable paint order).
-    let section = new Section(actPointer);
+    let section = actPointer instanceof Section ? actPointer : new Section(actPointer);
     ctx.lineWidth = section.border || 1;
     ctx.strokeStyle = section.applyBorder ? "black" : "gray";
     section.drawShapePath(ctx);
@@ -1641,13 +1650,52 @@ function drawFeilds(x,y){
     else{
         let { left:left_mainDiv,top:top_mainDiv } = mainDiv.getBoundingClientRect();
         let { left,top } = selectedElem.getBoundingClientRect();
+        // The canvas top carries the display-only flowShift offset (screen
+        // px); strip it out so the stored coordinate stays the feild's TRUE
+        // y — the shift is recomputed from the layout on every redraw.
         feildObj.x = left - left_mainDiv;
-        feildObj.y = top - top_mainDiv;
+        feildObj.y = top - top_mainDiv - (Number(selectedElem.dataset.flowShift)||0)*zoomFactor;
     }
     page.feilds
     .forEach((feildObj)=>{
         drawFeildText(feildObj);
     });
+    let flow = new Map();
+    page.feilds
+    .forEach((feildObj)=>{
+        flowFeild(feildObj,flow);
+    });
+}
+
+function feildHost(_feildObj){
+    // Designer-side host lookup mirroring the engine's searchSectionScope:
+    // live instances keep a `parent` back-reference; re-opened templates
+    // don't (toJSON omits it), so fall back to point-in-box on the sections.
+    if(_feildObj.parent) return _feildObj.parent;
+    let { x, y } = _feildObj;
+    return ["head","body","footer"].map(key=>page[key]).concat(page.sections ?? [])
+        .find(sec=>sec && x >= sec.x && x <= sec.x + sec.width && y >= sec.y && y <= sec.y + sec.height) ?? null;
+}
+
+function flowFeild(_feildObj,flow){
+    // Display-only overflow flow, mirroring the engine's createFeilds rule:
+    // a WRAPPED feild (dataset.lines > 1) pushes the next feild in the same
+    // host section below it — but only when that next feild starts inside
+    // the wrapped block's vertical span, so same-baseline siblings stay
+    // put. The shift is visual only: dataset.top keeps the true coordinate
+    // and the saved y is never touched.
+    let elem = _feildObj.elem;
+    if(!elem) return;
+    let host = feildHost(_feildObj);
+    let prev = flow.get(host);
+    let lines = Number(elem.dataset.lines)||1;
+    let height = Number(elem.dataset.height_100)||0;
+    let shift = 0;
+    if(prev && prev.lines > 1 && _feildObj.y > prev.top + 2 && _feildObj.y < prev.bottom)
+        shift = prev.bottom - _feildObj.y;
+    elem.dataset.flowShift = shift;
+    elem.style.top = (_feildObj.y + shift)*zoomFactor + "px";
+    flow.set(host,{ top: _feildObj.y + shift, bottom: _feildObj.y + shift + height, lines });
 }
 
 function assignFeildOptions(e){
@@ -1678,6 +1726,7 @@ function assignFeildOptions(e){
         feildObj.fFamily = page.fFamily;
         feildObj.text = "";
         feildObj.fWidth = 50;
+        feildObj.align = "space-between";
     }
     if(value==="variable" && cmd==="type"){
         varOptDiv.classList.remove("hide");
@@ -1731,7 +1780,7 @@ function drawFeildText(feildObj){
     // The Field class paints its own canvas (legacy drawFeildText recipe).
     if(!(feildObj instanceof Field))
         feildObj = new Field(feildObj);
-    feildObj.draw(mainDiv, page);
+    feildObj.draw(mainDiv, page, zoomFactor);
 }
 
 function createFeildCanvas(){
@@ -1831,6 +1880,16 @@ function restorePage(_page){
         feildObj.id = elem.dataset.id;
         drawFeildText(feildObj);
     });
+    // Legacy templates predate the align property: their label/value pairs
+    // were built as TWO feilds, so a missing align must keep the flowing
+    // "alongside" output — the same default the engine applies on print.
+    page.feilds.forEach(f=>{
+        if(f.type!=="image" && !("align" in f)) f.align = "alongside";
+    });
+    let flow = new Map();
+    page.feilds.forEach(_feildObj=>{
+        flowFeild(_feildObj,flow);
+    });
     selectedElem = null;
     actPointer = {};
     feildObj = {};
@@ -1840,7 +1899,7 @@ function restorePage(_page){
 /** Match main's size to the page's paper size at the current zoom, keeping
     the zoomHelper caches consistent (width_100 / aspectRatio / per-zoom). */
 function syncMainSize(){
-    let { width,height } = appDefault[page.size] || appDefault.a4;
+    let { width,height } = appDefault.a4;
     mainDiv.dataset.width_100 = width;
     mainDiv.dataset.height_100 = height;
     mainDiv.dataset.aspectRatio = Math.round((width/height)*100)/100;

@@ -13,6 +13,18 @@ h1{
     grid-row: 1;
     grid-column: 1/-1;
 }
+.zen-badge{
+    display: inline-block;
+    margin-left: 1rem;
+    padding: 0.15rem 0.8rem;
+    border-radius: 20px;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.03rem;
+    vertical-align: middle;
+}
 form{
     grid-row: 2/-1;
     grid-column: 1/-1;
@@ -111,10 +123,18 @@ input,select{
 #payment-div>div{
     width: 100%;
 }
-#summary-div{
-    flex-direction: column;
+#right-section{
     flex: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+#summary-div{
+    display: flex;
+    flex-direction: column;
     height: min-content;
+    width: 100%;
 }
 #summary-div>div{
     display: flex;
@@ -122,6 +142,9 @@ input,select{
     align-items: center;
     width: 100%;
     margin: 0.5rem 0;
+}
+#preview-action-container{
+    flex: unset;
 }
 #page-3{
     display: flex;
@@ -292,13 +315,14 @@ option{
     width: 100%;
     flex: unset;
 }
-#discount-div{
-    height: min-content;
-    flex: unset;
-    margin-top:0.5rem;
+#invoice-preview-div{
+    width: 50%;
+    display: block;
+    height: fit-content;
+    top: 0.5rem;
 }
-#discount-div input{
-    border: 1px solid gray;
+#invoice-preview-div img{
+    width: 100%;
 }
 #grp-btn-div{
     margin-top: auto;
@@ -427,10 +451,6 @@ option{
   100% {
     transform: translateX(-100%);
   }
-}
-#add-item button.hover.bottom.right::before{
-    margin-right: -100px;
-    transform: translateX(10px);
 }
 
 /* ---- Scrap Sale Page 3 ---- */

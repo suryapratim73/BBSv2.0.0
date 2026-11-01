@@ -11,16 +11,21 @@
 <body>
     <template id="page-1-template">
         <div class="page" id="page-1">
-            <h2>Select a order to view/edit</h2>
-            <div>
-                <h2>Unbilled orders</h2>
-                <button tabindex="0" onclick="ipcRenderer.send('new-sale-purchase',3)" data-msg="Create new order" class="hover bottom">+</button>
+            <h2>Orders &amp; Proforma Bills</h2>
+            <div id="tab-bar" role="tablist" aria-label="Order manager sections">
+                <button id="tab-orders" class="tab-btn active" role="tab" aria-selected="true" data-tab="orders" tabindex="0">Orders</button>
+                <button id="tab-proformas" class="tab-btn" role="tab" aria-selected="false" data-tab="proformas" tabindex="0">Proforma Bills</button>
+            </div>
+            <div id="page-1-header">
+                <h2 id="list-title">Unbilled orders</h2>
+                <button tabindex="0" id="new-entry-btn" data-msg="Create new order" class="hover bottom">+</button>
             </div>
             <div id="searchbar">
                 <div id="form">
                     <div>
                         <input
                             type="text"
+                            id="search-input"
                             placeholder="Search orders by customer name..."
                             tabindex="0"
                             data-usefuzzysearch="true"
@@ -35,10 +40,10 @@
                 </div>
             </div>
             <datalist id="order-names"></datalist>
-            <div class="table" role="table" aria-label="Unbilled orders table">
+            <div class="table" id="orders-table" role="table" aria-label="Unbilled orders table">
                 <div class="row head" role="row">
                     <div class="col eq-space" role="columnheader"><p data-col="slNo">Sl No</p></div>
-                    <div class="col eq-space" role="columnheader"><p data-col="billDate">Date</p></div>                        
+                    <div class="col eq-space" role="columnheader"><p data-col="billDate">Date</p></div>
                     <div class="col eq-space"><p data-col="name">Customer Name</p></div>
                     <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
                     <div class="col eq-space"><p data-col="paymentStatus">Payment Status</p></div>
@@ -46,12 +51,23 @@
                 </div>
                 <div class="tbody hide-scrollbar" onclick="clickHandler(event)" data-cmd="open-order" role="rowgroup"></div>
             </div>
+            <div class="table hide" id="proformas-table" role="table" aria-label="Proforma bills table">
+                <div class="row head" role="row">
+                    <div class="col eq-space" role="columnheader"><p data-col="slNo">Sl No</p></div>
+                    <div class="col eq-space" role="columnheader"><p data-col="billDate">Date</p></div>
+                    <div class="col eq-space"><p data-col="name">Customer Name</p></div>
+                    <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
+                    <div class="col eq-space"><p data-col="status">Status</p></div>
+                    <div class="col eq-space" role="columnheader"><p>Actions</p></div>
+                </div>
+                <div class="tbody hide-scrollbar" onclick="clickHandler(event)" data-cmd="open-proforma" role="rowgroup"></div>
+            </div>
         </div>
     </template>
     <template id="page-2-template">
         <div class="page" id="page-2">
             <div>
-                <h2>Order Details</h2>
+                <h2 id="details-title">Order Details</h2>
                 <div id="meta">
                     <div>
                         <p class="bold">Customer</p>
@@ -91,8 +107,9 @@
             </div>
             <div class="btn-container" onclick="clickHandler(event)">
                 <button tabindex="0" data-cmd="edit" data-msg="Edit order items" class="hover bottom">Edit order</button>
-                <button tabindex="0" data-cmd="delete-order" data-msg="Delete this order permanently" class="hover bottom">Delete</button>
-                <button tabindex="0" data-cmd="back-page1" data-msg="Go back to orders list" class="hover bottom">Back</button>
+                <button tabindex="0" data-cmd="convert" data-msg="Convert this proforma bill to a real invoice" class="hover bottom hide">Convert to Sale</button>
+                <button tabindex="0" data-cmd="delete-order" data-msg="Delete this permanently" class="hover bottom">Delete</button>
+                <button tabindex="0" data-cmd="back-page1" data-msg="Go back to the list" class="hover bottom">Back</button>
             </div>
         </div>
     </template>

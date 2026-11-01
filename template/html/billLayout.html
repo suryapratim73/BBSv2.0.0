@@ -9,7 +9,10 @@
     <link rel="stylesheet" href="../css/billLayout.css">
     <script src="../js/billLayout.js" defer></script>
 </head>
-<body>
+<body data-hover-tooltip="off">
+    <!-- data-hover-tooltip="off": the designer keeps its tuned CSS ::before
+         tooltips (this also scopes the legacy popup rules in common.css);
+         the shared JS tooltip in common.js skips this window. -->
     <!-- Left pane — elements to add. The classic designer's data-cmd buttons,
          restyled in the modern shell. -->
     <aside id="palette" class="pane" onclick="btnCtrls(event)">
@@ -241,6 +244,15 @@
                 <div>
                     <input tabindex="0" type="range" class="hover top left" max="100" min="10" value="50" data-msg="50%" data-cmd="fWidth">
                     <i tabindex="0" class="hover top right" data-cmd="change-input" data-msg="Change input"><i class="fa-solid fa-arrows-rotate"></i></i>
+                </div>
+            </div>
+            <div>
+                <div><label>Align</label></div>
+                <div>
+                    <select tabindex="0" data-cmd="align" title="How the label and value share the feild box. Space between: label left, value right-aligned at the box edge (one feild replaces the legacy label/value pair). Alongside: label and value flow together on one line.">
+                        <option value="space-between" selected>Space between</option>
+                        <option value="alongside">Alongside</option>
+                    </select>
                 </div>
             </div>
             <div>

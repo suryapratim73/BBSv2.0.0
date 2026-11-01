@@ -6,11 +6,12 @@ const path = require("path");
 const { Op,DataTypes } = require("sequelize");
 const { getLedgerModel, initCustomerList, print, getBillModel, getBillManager, appLogger, openFormatForDate, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, checkNLogMemoryUsage, getPDF_FileName, getBillsDir } = require("./common");
 const { stockList,queryStock } = require("./handleStock");
-const { roundOffTo2DecimalPlace,getSchedulerPath, getsaleConfigPolicyPath } = require("./template/js/common");
+const { roundOffTo2DecimalPlace, getsaleConfigPolicyPath } = require("./template/js/common");
 const { printDialog } = require("./printHandler");
 const fs = require("fs");
 const { billPDF } = require("./scripts/makePDF.default");
 const { deserializeSchema } = require("./model/schemaLoader");
+const scheduler = require("./lib/scheduler");
 const { title } = require("process");
 
 // Fix Bill updation issue.
@@ -75,6 +76,29 @@ async function getCustomerList(){
 ipcMain.on("refresh-customer-list",async ()=>{
     global.customerList = undefined;
     global.customerList = await getCustomerList();
+});
+
+// Latest ledger balance for one customer (opening-balance rows ignored) — used
+// by salePage to warn when a customer's credit limit is crossed.
+ipcMain.handle("get-customer-outstanding",async (e,customerId)=>{
+    try{
+        let customerLedger = await getLedgerModel(customerId,customerLedgerSchema);
+        let {balance=0} = (await customerLedger.findOne({
+            attributes:["balance"],
+            order:[
+                ["entryNo","DESC"]
+            ],
+            where:{
+                type:{
+                    [Op.ne]:"opening-balance"
+                }
+            }
+        }))?.dataValues ?? {};
+        return {balance};
+    }
+    catch(err){
+        return {balance:0};
+    }
 });
 
 ipcMain.on("get-customer",async e=>{
@@ -164,9 +188,11 @@ ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
     let { customerId,delivery,tax,billAmt } = saleObj;
     let billItemModel = await getBillModel(customerId,billNo,billDate,billItemSchema)
     let orderItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
+    debugger
     let _orderItems = [...orderItems];
     orderItems.forEach(itemObj=>{
-        if(itemObj.isGrouped){
+        let _isGrouped = _orderItems.filter(obj=>obj.id===itemObj.grpId)
+        if(itemObj.isGrouped==true && _isGrouped.length>1){
             let grpObj = _orderItems.find(obj=>obj.id===itemObj.grpId)
             if(grpObj?.items?.length>0){
                 grpObj.items.push(itemObj);
@@ -181,7 +207,7 @@ ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
                     hsn:itemObj.hsn,
                     id:itemObj.grpId,
                     items:[itemObj],
-                    name:itemObj.grpName,
+                    name:itemObj.grpName || itemObj.name,
                     qty:itemObj.quantity,
                     rate:itemObj.rate,
                     sellUnit:itemObj.unit,
@@ -205,18 +231,18 @@ ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
             return acc;
         },0);
         let billMeta = {
-        ...saleObj,
-        netTax:tax,
-        netAmtTax:billAmt,
-        printObj,
-        billDate,
-        shipGST:customerObj.gst,
-        shipPh:JSON.parse(customerObj.phones)[0],
-        shipAddr:customerObj.address,
-        shipTo:saleObj.name,
-        netQty,
-        discVal:0,
-        transportName:saleObj.delivery?.transportName ?? "Hand"
+            ...saleObj,
+            netTax:tax,
+            netAmtTax:billAmt,
+            printObj,
+            billDate,
+            shipGST:customerObj.gst,
+            shipPh:JSON.parse(customerObj.phones)[0],
+            shipAddr:customerObj.address,
+            shipTo:saleObj.name,
+            netQty,
+            discVal:0,
+            transportName:saleObj.delivery?.transportName ?? "Hand"
         };
         billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
         let path2pdf = await billPDF({billMeta,customer:customerObj,orderItems:_orderItems},true);
@@ -746,16 +772,8 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
         })
     ])
     .then(async ()=>{
-        // Remove associated event
-        let path2scheduler = getSchedulerPath();
-        let jsData = JSON.parse(fs.readFileSync(path2scheduler).toString());
-        let schedules = jsData.schedules;
-        let i = schedules.findIndex(({billObj:{billNo:_billNo,id:_id,billDate:_billDate}})=>{
-            if(_id===id && _billNo===billNo && _billDate===billDate)
-                return true;
-            else
-                return false;
-        });
+        // Remove scheduler events attached to this bill (payment reminders etc.)
+        scheduler.removeBillEvents({ billNo, billDate, customerId: id });
         appLogger({
             title:"Bill cancelled",
             message:JSON.stringify({
@@ -766,34 +784,27 @@ ipcMain.handle("cancel-bill",async (e,id,billNo,billDate,billAmt,entryNo)=>{
             func:"cancel-bill",
             user:"user"
         });
-        if(i){
-            schedules.splice(i,1);
-            jsData.schedules = schedules;
-            fs.writeFileSync(path2scheduler,JSON.stringify(jsData));
-            // getMainWindow().webContents.send("update-content");
-            let path2config = getsaleConfigPolicyPath();
-            let saleConfig = JSON.parse(fs.readFileSync(path2config).toString());
-            if(!("availableBillNo" in saleConfig))
-                saleConfig.availableBillNo = [billNo];
-            else
-                saleConfig.availableBillNo.push(billNo);
-            fs.writeFileSync(path2config, JSON.stringify(saleConfig));
-            e.sender.send("close-modal");
-            ipcMain.emit("refresh-stocklist");
-            let entries = await customerLedger.findAll({
-                where:{
-                    date:{
-                        [Op.gte]:new Date(billDate)
-                    }
-                }
-            });
-            entries.forEach(entry=>{
-                entry.updateBalance = -Math.round(Number(billAmt));
-                entry.save()
-            })
-        }
+        // Restore the bill number for reuse
+        let path2config = getsaleConfigPolicyPath();
+        let saleConfig = JSON.parse(fs.readFileSync(path2config).toString());
+        if(!("availableBillNo" in saleConfig))
+            saleConfig.availableBillNo = [billNo];
         else
-            appLogger({title:"Error removing event", message:"Event not found", func:"cancel-bill"})
+            saleConfig.availableBillNo.push(billNo);
+        fs.writeFileSync(path2config, JSON.stringify(saleConfig));
+        e.sender.send("close-modal");
+        ipcMain.emit("refresh-stocklist");
+        let entries = await customerLedger.findAll({
+            where:{
+                date:{
+                    [Op.gte]:new Date(billDate)
+                }
+            }
+        });
+        entries.forEach(entry=>{
+            entry.updateBalance = -Math.round(Number(billAmt));
+            entry.save()
+        })
     })
     .catch(err => {
         console.error("Error in cancel-bill:", err);
@@ -839,13 +850,9 @@ async function markBillAsPaid(obj,targetWin){
     })))?.dataValues.balance ?? 0;
     let mainWin = getMainWindow();
     mainWin.webContents.send("remove-row");
-    ipcMain.once("echo-exp-event",(e,expiredSchedules)=>{
-        let selectedEv = expiredSchedules.find((evObj)=>(evObj?.billObj?.id===billObj.customerId && Number(evObj?.billObj?.billNo)===billObj.billNo));
-        if(selectedEv)
-            ipcMain.emit("manage-schedule",null,selectedEv.id,"exp-r",false);
-        mainWin.webContents.send("check-notification");
-    });
-    ipcMain.emit("manage-schedule",null,null,"exp-echo",false);
+    // Drop any expired payment-reminder event for this bill (it is paid now)
+    scheduler.removeExpiredBillEvents({ billNo: billObj.billNo, customerId: billObj.customerId });
+    mainWin.webContents.send("check-notification");
     Promise.all([
       sale.update({
         paymentStatus:true

@@ -718,8 +718,20 @@ function _colorToRgba(color, alpha) {
 //       carries its own).  The returned object gains .allReduced and .seriesResults;
 //       .reducedObjs still points to the first series' reduced data for backward compat.
 //
+//   total — grand total of the plotted data (sum of all amounts in the period).
+//           It previously drove percentage-based Y scaling —
+//               yPos = 8 + (canvas.height - 24) * (1 - amt / total)
+//           — but the multi-series rework rescales against the data's own maximum
+//           (highestNum) instead, so total is currently unused. Kept in the signature
+//           on purpose (percentage plotting may return) — do not remove.
+//
 //   New options (all opt-in, defaults keep existing behaviour):
 //     shadow      — draw a soft fading gradient fill below each line (default: true)
+//     useGradient — fill the area under each line with a linear gradient from the
+//                   series fillColor down to the theme's --theme-secondary color
+//                   (default: false; when true it replaces the shadow's rgba fade)
+//     gradientStart — overrides the gradient's start color (default: "" = series fillColor)
+//     gradientStop  — overrides the gradient's stop color (default: "" = --theme-secondary)
 //     height      — canvas height in px (default: 200)
 //     pointRadius — dot radius (default: 3)
 //
@@ -728,6 +740,9 @@ exports.drawLineGraph = function (total, objs, selector, lineColor, fillColor, {
     yLegend = "", yLegColor = "Black", yLegOffset = 0.75, yLegFont = "12px Arial",
     xLegend = "", xLegColor = "Black", xLegOffset = 10, xLegFont = "12px Arial",
     shadow = true,
+    useGradient = false,
+    gradientStart = "",
+    gradientStop = "",
     height = 200,
     pointRadius = 3,
 } = {}, axisColor = "black", bgColor = "white") {
@@ -753,6 +768,9 @@ exports.drawLineGraph = function (total, objs, selector, lineColor, fillColor, {
     // background
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // theme background color for the useGradient fill (set on documentElement by applyTheme)
+    const themeSecondary = (getComputedStyle(document.documentElement).getPropertyValue("--theme-secondary") || "white").trim();
 
     // --------------- axes ---------------
     ctx.beginPath();
@@ -830,15 +848,22 @@ exports.drawLineGraph = function (total, objs, selector, lineColor, fillColor, {
 
         if (points.length === 0) return { reduced: reduced, points: [] };
 
-        // ----- soft fading shadow below the line -----
+        // ----- area fill below the line -----
+        // rgba fade by default; with useGradient the fill runs from the series
+        // fillColor down into the theme's background color (--theme-secondary)
         if (shadow) {
-            // Anchor the gradient to the line's own peak so the shadow is always
+            // Anchor the gradient to the line's own peak so the fill is always
             // visible regardless of where the data sits vertically on the chart.
             const peakY = points.reduce(function (minY, p) { return p.y < minY ? p.y : minY; }, Infinity);
             const grad = ctx.createLinearGradient(0, peakY, 0, canvas.height - bOffset);
-            grad.addColorStop(0, _colorToRgba(sFillColor, 0.45));
-            grad.addColorStop(0.5, _colorToRgba(sFillColor, 0.10));
-            grad.addColorStop(1, _colorToRgba(sFillColor, 0.0));
+            if (useGradient) {
+                grad.addColorStop(0, gradientStart || sFillColor);
+                grad.addColorStop(1, gradientStop || themeSecondary);
+            } else {
+                grad.addColorStop(0, _colorToRgba(sFillColor, 0.45));
+                grad.addColorStop(0.5, _colorToRgba(sFillColor, 0.10));
+                grad.addColorStop(1, _colorToRgba(sFillColor, 0.0));
+            }
 
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
@@ -932,6 +957,60 @@ exports.drawLineGraph = function (total, objs, selector, lineColor, fillColor, {
     };
 }
 
+// attachChartTooltip — hover tooltip over drawLineGraph points (viewport-fixed).
+// Reuses #data-modal-template where it exists (mainPage, portals); builds the
+// same .data-modal structure on pages that lack the template (salePage).
+exports.attachChartTooltip = function (res, canvas, key = "Amt") {
+    if (!res || !res.seriesResults) return;
+    canvas._ovRes = res; // callers re-call this with fresh points — always read the latest
+    if (canvas._ovTooltipBound) return; // one listener per canvas (redraws must not stack listeners)
+    canvas._ovTooltipBound = true;
+
+    let modal = null;
+    const hide = () => { if (modal) { modal.remove(); modal = null; } };
+    const makeModal = () => {
+        const tpl = document.getElementById("data-modal-template");
+        if (tpl) {
+            modal = tpl.content.cloneNode(true).querySelector("div");
+        } else {
+            modal = document.createElement("div");
+            modal.className = "data-modal";
+            modal.appendChild(document.createElement("p"));
+        }
+        modal.style.position = "fixed"; // viewport coords below — immune to ancestor offsets/scroll
+        modal.style.zIndex = "999";
+        document.body.appendChild(modal);
+        modal.addEventListener("mousemove", function () {
+            this.removeEventListener("mousemove", arguments.callee);
+            hide();
+        });
+    };
+
+    canvas.addEventListener("mouseleave", hide);
+    canvas.addEventListener("mousemove", e => {
+        const cur = canvas._ovRes;
+        const allPoints = (cur && cur.seriesResults ? cur.seriesResults : []).flatMap(sr => sr.points || []);
+        const rect = canvas.getBoundingClientRect();
+        // canvas may be CSS-stretched beyond its bitmap size — map mouse to bitmap coords
+        const scaleX = canvas.width / (rect.width || 1);
+        const scaleY = canvas.height / (rect.height || 1);
+        const cx = (e.clientX - rect.left) * scaleX, cy = (e.clientY - rect.top) * scaleY;
+        const hit = allPoints.find(p => Math.abs(p.x - cx) <= 20 && Math.abs(p.y - cy) <= 20);
+        if (!hit) return hide();
+        if (!modal) makeModal();
+        modal.querySelector("p").textContent = `Date: ${hit.label}, ${key}: ${hit.amt}`;
+        const px = rect.left + hit.x / scaleX; // point in viewport coords
+        const py = rect.top + hit.y / scaleY;
+        const mw = modal.offsetWidth || 150;
+        const mh = modal.offsetHeight || 40;
+        let top = py - mh - 10 > 0 ? py - mh - 10 : py + 12; // above the point, below if no room
+        let left = px + 10;
+        if (left + mw > window.innerWidth - 8) left = px - mw - 10; // keep inside the viewport
+        modal.style.left = left + "px";
+        modal.style.top = top + "px";
+    });
+};
+
 exports.createModal = function(id,makeRetractable=false){
     let modal = document.createElement("div");
     modal.className = "modal";
@@ -939,6 +1018,7 @@ exports.createModal = function(id,makeRetractable=false){
     cover.className = "cover";
     document.body.appendChild(modal);        
     document.body.appendChild(cover);
+    cover.addEventListener("click",exports.closeModal);
     removeAllElem(`#${id}`);
     modal.id = id;
     if(makeRetractable){
@@ -1044,6 +1124,23 @@ exports.capitalize = function capitalize(str,camelcase=false){
         },"")
 }
 
+exports.formatDateShort = function formatDateShort(dateStr){
+    let d = new Date(dateStr + "T00:00:00.000Z");
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("en-IN", {day: "2-digit", month: "short", year: "numeric"});
+}
+
+exports.formatTimeLeft = function formatTimeLeft(ms){
+    if (!(ms > 0)) return "0m";
+    let totalMin = Math.round(ms / 60000),
+        d = Math.floor(totalMin / 1440),
+        h = Math.floor((totalMin % 1440) / 60),
+        m = totalMin % 60;
+    if (d > 0) return d + "d " + h + "h left";
+    if (h > 0) return h + "h " + m + "m left";
+    return m + "m left";
+}
+
 exports.makeKey = function(key){
     key = key.split(" ").reduce((acc,word,index)=>{
         if(index>0)
@@ -1059,6 +1156,7 @@ exports.appendToDL = async function (eventName,datalist,appendToBody,paths,textF
     if (appendToBody === void 0) appendToBody = true;
     if (textFormat === void 0) textFormat = [];
     var tableName = this.tableName;
+    var sameNameSuffix = this.sameNameSuffix === true; // salePage opts in for customers
     var alreadyIndexed = tableName && ngramIndex[tableName];
     // Use cached data if available (avoids IPC round-trip on re-init)
     var list;
@@ -1103,7 +1201,26 @@ exports.appendToDL = async function (eventName,datalist,appendToBody,paths,textF
             }).filter(Boolean).map(function(_b){return _b.word;});
         }
     }
+    // salePage opts in (sameNameSuffix) so same-name customers get a readable
+    // unique suffix ("Name · GST …"). The datalist popup merges options that
+    // share a value, which made same-name customers unselectable in the
+    // dropdown and indistinguishable from each other.
+    var dupNames = {};
+    if(tableName === "customer" && sameNameSuffix){
+        list?.forEach(function(obj){
+            var n = obj.name;
+            if(typeof n === "string" && n !== "") dupNames[n] = (dupNames[n] || 0) + 1;
+        });
+    }
     list?.forEach(function(obj){
+        if(tableName === "customer" && sameNameSuffix && !obj.superkey && dupNames[obj.name] > 1){
+            var phonesArr = [];
+            try { phonesArr = JSON.parse(obj.phones || "[]"); } catch(_) {}
+            var suffix = (obj.gst && obj.gst !== "undefined") ? "GST " + obj.gst
+                : phonesArr[0] ? "Ph " + phonesArr[0]
+                : String(obj.address || "").slice(0, 15) || "2";
+            obj.superkey = obj.name + " · " + suffix;
+        }
         var option = document.createElement("option");
         for(var key in obj){
             if(key==="name" || key==="superkey"){
@@ -1312,6 +1429,10 @@ exports.getOrderPath = function(relPath="../../"){
     return policyPathCommmon(relPath,"./orders.json");
 };
 
+exports.getProformaPath = function(relPath="../../"){
+    return policyPathCommmon(relPath,"./proformas.json");
+};
+
 exports.getSchedulerPath = function(relPath="../../"){
     return policyPathCommmon(relPath,"./scheduler.json");
 };
@@ -1458,6 +1579,11 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
         let {address,phones="[]",gst,moreInfo="{}"} = (match ?? {});
         customer = {address,phones,gst,moreInfo,...match};
         customer.moreInfo = JSON.parse(customer.moreInfo);
+        // The picked option's value may be a superkey ("Name · GST …") for
+        // same-name customers — put the real name back into the field so the
+        // suffix is never saved or printed on the bill.
+        if(match?.name && match.name !== e.target.value)
+            e.target.value = match.name;
         let dl = document.createElement("datalist");
         document.body.appendChild(dl)
         dl.id = "customer-phones";
@@ -1492,6 +1618,27 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
             return {...info,superkey:info.name};
         });
         appendToDL("",shipInfoDatalist,true,null,[],shipInfos);// Test Successful - ✅
+        // Per-customer policy: auto-apply the customer's sale discount (Zen Mode wins).
+        try{
+            const custPolicy = await ipcRenderer.invoke("get-customer-policy",match.id);
+            const saleDisc = Number(custPolicy && custPolicy.saleDiscount) || 0;
+            if(saleDisc > 0 && !(typeof zenModeState !== "undefined" && zenModeState && (zenModeState.discVal || 0) > 0)){
+                preset.discVal = saleDisc;
+                billMeta.discVal = saleDisc;
+                if(typeof showToastNotification === "function")
+                    showToastNotification(`Customer policy: ${saleDisc}% discount applied automatically.`,["animation-common","move-left","blue-toast-box"],document.body);
+            }
+        }catch(_){}
+        // Per-customer policy: credit-limit warning — warn only, never block the sale.
+        try{
+            const custPolicy = await ipcRenderer.invoke("get-customer-policy",match.id);
+            const creditLimit = Number(custPolicy && custPolicy.creditLimit) || 0;
+            if(creditLimit > 0){
+                const { balance = 0 } = await ipcRenderer.invoke("get-customer-outstanding",match.id);
+                if(Number(balance) > creditLimit && typeof showToastNotification === "function")
+                    showToastNotification(`${customer.name} is over the credit limit — outstanding Rs. ${Math.round(Number(balance))}, limit Rs. ${creditLimit}. Sale not blocked.`,["animation-common","move-left","red-toast-box"],document.body);
+            }
+        }catch(_){}
     }
     else
     if(e.target.dataset.name==="transportName"){// Done
@@ -1716,7 +1863,7 @@ exports.reassignSummaryDivFeilds = function(){
 }
 
 exports.applyDiscount = function(e){
-    let discVal = Number(e.target.value);
+    let discVal = preset.discVal || 0;
     document.getElementById("discount-feild")?.remove();
     billMeta.discVal = 0;
     let netAmt = reduceOrder().netAmt;
@@ -1734,8 +1881,6 @@ exports.applyDiscount = function(e){
     billMeta.netAmt = reducedOrder.netAmt;
     billMeta.netAmtTax = reducedOrder.netAmtTax;
     billMeta.netTax = billMeta.netAmtTax - billMeta.netAmt;
-    if(typeof page4Init==="function")
-        page4Init();
 }
 
 exports.reduceOrder = function(){
@@ -2021,9 +2166,20 @@ exports.carosel = function(elems,i=0){
 }
 
 exports.upperCaseInput = function(e){
-    if(/\w/.test(e.key) && e.key.length===1)
-        e.target.value = (e.target.value + e.key).toUpperCase();
-    if(e.key!=="Enter")
+    if(e.key==="Enter")
+        return;
+    if(/\w/.test(e.key) && e.key.length===1){
+        // Insert at the caret (replacing any selection), then uppercase the
+        // whole value — inserting at the end made middle letters uneditable.
+        e.preventDefault();
+        const input = e.target;
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? input.value.length;
+        input.value = (input.value.slice(0,start) + e.key + input.value.slice(end)).toUpperCase();
+        const pos = start + 1;
+        input.setSelectionRange(pos,pos);
+    }
+    else
         e.preventDefault();
 }
 
@@ -2208,6 +2364,81 @@ exports.gstChecksum = function(gst) {
 }
 
 // ============================================================
+//  Shared hover tooltip — one fixed, body-level element driven
+//  by delegated mouseover/mouseout. Replaces the old CSS
+//  .hover::before popups everywhere EXCEPT the Bill Layout
+//  designer, whose <body data-hover-tooltip="off"> keeps the
+//  tuned ::before popups (that attribute also scopes the legacy
+//  CSS rules in common.css).
+//
+//  Why JS: a ::before popup lives inside its trigger's box tree,
+//  so every ancestor with overflow != visible clips it and the
+//  nearest ancestor stacking context traps it — z-index cannot
+//  fix either ("partially visible" / "behind some element").
+//  A fixed child of <body> has no clipping ancestor and sits
+//  above every modal/overlay. Positioning honours the trigger's
+//  .top/.bottom/.left/.right classes and clamps to the viewport.
+// ============================================================
+let hoverTooltip = null;
+let hoverTooltipReady = false;
+
+function initHoverTooltip() {
+    if (hoverTooltipReady || typeof document === "undefined") return;
+    hoverTooltipReady = true;
+    if (!document.body || document.body.dataset.hoverTooltip === "off") return; // designer keeps its popups
+    hoverTooltip = document.createElement("div");
+    hoverTooltip.id = "hover-tooltip";
+    document.body.appendChild(hoverTooltip);
+    document.addEventListener("mouseover", showHoverTooltip);
+    document.addEventListener("mouseout", hideHoverTooltip);
+    window.addEventListener("blur", hideHoverTooltip);
+    document.addEventListener("scroll", hideHoverTooltip, true); // scrolling any pane hides it
+}
+
+function showHoverTooltip(e) {
+    if (!hoverTooltip) return;
+    let trigger = e.target && e.target.closest ? e.target.closest(".hover[data-msg]") : null;
+    if (!trigger) return;
+    let msg = (trigger.getAttribute("data-msg") || "").trim();
+    if (!msg) return;
+    hoverTooltip.textContent = msg;
+    hoverTooltip.classList.add("visible");
+    let rect = trigger.getBoundingClientRect();
+    let box = hoverTooltip.getBoundingClientRect();
+    let cls = (trigger.className || "").split(/\s+/);
+    // vertical: .bottom → below the trigger, otherwise above it
+    let top = cls.includes("bottom") ? rect.bottom + 8 : rect.top - box.height - 8;
+    // horizontal: .left → align left edges, .right → align right edges, else centre
+    let left = cls.includes("left") ? rect.left
+        : cls.includes("right") ? rect.right - box.width
+        : rect.left + rect.width / 2 - box.width / 2;
+    // keep fully inside the window (the old popups hung off edges and got clipped)
+    left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
+    hoverTooltip.style.left = left + "px";
+    hoverTooltip.style.top = top + "px";
+}
+
+function hideHoverTooltip(e) {
+    if (!hoverTooltip) return;
+    // moving between a trigger and its children fires mouseout on the parent —
+    // stay visible as long as the pointer is still inside the same trigger
+    if (e && e.target && e.relatedTarget) {
+        let trigger = e.target.closest && e.target.closest(".hover[data-msg]");
+        if (trigger && trigger.contains(e.relatedTarget)) return;
+    }
+    hoverTooltip.classList.remove("visible");
+}
+
+if (typeof document !== "undefined") {
+    if (document.readyState === "loading")
+        document.addEventListener("DOMContentLoaded", initHoverTooltip);
+    else
+        initHoverTooltip();
+}
+
+
+// ============================================================
 //  Feature Tour — guided walkthrough of [isUpdated] elements
 //  Runs automatically on every renderer page after DOM is ready.
 //  Skips silently if no elements have the "isUpdated" attribute.
@@ -2321,17 +2552,34 @@ function showUpdatePrompt(data) {
 }
 
 exports.showUpdatePrompt = showUpdatePrompt;
-
-/** Fetch update content from update.md via IPC. Shows welcome modal
- *  if new version detected, then optionally starts the feature tour. */
+/** Fetch update content from update.md via IPC. On the main page the App
+ *  EULA (one OK) gates the update presenter: only after acceptance are the
+ *  update highlights shown, then optionally the feature tour. Other pages
+ *  skip the EULA and show the welcome/tour directly — the tour is fine on
+ *  every page, the EULA is not. Nothing is marked seen until the presenter
+ *  is finished or skipped, so closing the window just re-presents it. */
 async function checkForUpdate() {
     var content;
     try { content = await ipcRenderer.invoke("get-update-content"); }
     catch (_) { return; }
-
+    
     if (!content || !content.version || !content.welcome) return;
     _updateTourStops = content.tourStops || [];
-    showWelcomeModal(content.welcome, content.version);
+
+    var showWelcome = function() { showWelcomeModal(content.welcome, content.version); };
+
+    // EULA gate only on the main page — every other page goes straight to the welcome/tour
+    if (!/mainPage\.html([?#]|$)/.test(location.href)) { showWelcome(); return; }
+
+    var eulas = null;
+    try { eulas = await ipcRenderer.invoke("get-eula-content"); } catch (_) {}
+    var appMd = eulas && eulas.app ? eulas.app : "";
+    if (!appMd) return; // fail closed — presenter re-offered next launch
+    exports.showEulaPage({
+        title: "BBSv2 End User License Agreement",
+        markdown: appMd,
+        onOk: showWelcome
+    });
 }
 
 /** Dynamically build and show the welcome modal. */
@@ -2352,7 +2600,7 @@ function showWelcomeModal(welcomeText, version) {
     modal.innerHTML =
         '<div class="welcome-body">' +
             '<h1 class="welcome-version">v' + (version || "") + '</h1>' +
-            '<div class="welcome-text">' + welcomeText.replace(/\n/g, "<br>") + '</div>' +
+            '<div class="welcome-text">' + exports.renderMarkdown(welcomeText) + '</div>' +
             '<div class="welcome-actions">' +
                 (hasTour ? '<button class="welcome-btn-start" tabindex="0">Start Tour</button>' : '') +
                 '<button class="welcome-btn-skip" tabindex="0">' + (hasTour ? 'Skip' : 'Got it') + '</button>' +
@@ -2488,12 +2736,13 @@ function endTour() {
     try { ipcRenderer.send("set-update-seen"); } catch (_) {}
 }
 
-exports.startUpdateTour = function() { APP_ENV !== "DEV" && checkForUpdate(); };
+exports.startUpdateTour = function() { checkForUpdate(); }; // runs in DEV too (for review)
+exports.checkForUpdate = checkForUpdate; // direct hook (tests + manual invoke)
 
-// Auto-start on page load. Disabled in DEV mode.
+// Auto-start on page load. Runs in DEV too so the tour can be reviewed;
+// re-trigger by clearing updateSeenVersion in updtConf.json.
 (function autoStartTour() {
     if (typeof document === "undefined") return;
-    if (APP_ENV === "DEV") return;
     function ready() { setTimeout(checkForUpdate, 200); }
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", ready);
@@ -2748,6 +2997,11 @@ function cacheDatalistState(dl, tableName) {
 exports.getNGramIndex = function(){
     return ngramIndex;
 }
+// Full option list for a table regardless of live fuzzy filtering — used by
+// salePage's same-name/GST check at bill submit.
+exports.getDatalistSnapshot = function(tableName){
+    return optionSnapshot[tableName] || [];
+}
 // Allow pages to inject a pre-built n-gram index received from the main
 // process, skipping the expensive trigram-calculation loop in appendToDL.
 exports.setNGramIndex = function(idx) {
@@ -2760,6 +3014,29 @@ exports.reInitFuzzyIndexWithOptions = function(tableName,dl){
     Object.keys(ngramMap_table).forEach(key=>{
         gramArr.push(key);
         ngramMap_table[key] = ngramMap_table[key].map((optStr)=>optionLookup[tableName].get(optStr));
+    });
+}
+
+/** Rebuild one table's n-gram index from the CURRENT datalist options.
+ *  salePage uses this after suffixing same-name customer option values, so
+ *  the pre-built index cached by the main process (plain values, built by
+ *  mainPage) can't leave same-name customers unresolvable. */
+exports.rebuildFuzzyIndexFromDatalist = function(tableName,dl){
+    if(!tableName || !dl) return;
+    ngramIndex[tableName] = {};
+    [...dl.options].forEach(function(opt){
+        n_gram(opt.value, tableName, opt);
+    });
+    // keep the searchable customer fields indexed too (same keys appendToDL uses)
+    ["address","phones","gst","email"].forEach(function(key){
+        [...dl.options].forEach(function(opt){
+            var v = opt.dataset[key];
+            if(v && v !== "undefined" && v !== "{}" && v !== "[]")
+                n_gram(String(v), tableName, opt);
+        });
+    });
+    Object.keys(ngramIndex[tableName]).forEach(function(gram){
+        if(!gramArr.includes(gram)) gramArr.push(gram);
     });
 }
 
@@ -2780,4 +3057,172 @@ exports.reInitFuzzyIndexWithOrderID = function(orderIds=[],dl){
 
 exports.getOrderIds = function(name){
     return name_orderId_map[name];
+}
+
+/** Render a markdown string to HTML (used by the help viewer and EULA pages). */
+exports.renderMarkdown = function renderMarkdown(md) {
+    // Skip the HELP-META comment block
+    md = md.replace(/<!-- HELP-META[\s\S]*?HELP-META -->/, "");
+
+    let html = md;
+
+    // EULA content quirks (renderer-side so re-downloaded files still work):
+    // a stray "* " prefix on some headings, then escaped dots in numbered
+    // headings ("### 1\.") — strip first so both apply to the same line
+    html = html.replace(/^\* (#{1,4} )/gm, "$1");
+    html = html.replace(/^(#{1,4} .+)$/gm, function(line){ return line.replace(/\\\./g, "."); });
+
+    // Code blocks (```)
+
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Headers
+    html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Horizontal rules
+    html = html.replace(/^---$/gm, '<hr>');
+
+    // Blockquotes — the API EULA marks its bullets with "* " inside quotes;
+    // swap that for a bullet glyph so it doesn't render as a literal asterisk
+    html = html.replace(/^> \* /gm, "> • ");
+    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    // Merge consecutive blockquotes
+    html = html.replace(/<\/blockquote>\n<blockquote>/g, '\n');
+
+    // Bold and italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+    // Images
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">');
+
+    // Unordered lists — "-" or "*" markers, two-space indents nest a sub-list
+    // (both EULAs use "* " bullets; app EULA §4 nests them)
+    html = html.replace(/(?:^[ ]{0,2}[-*] [^\n]*(?:\n|$))+/gm, function(match) {
+        const lines = match.trim().split("\n");
+        let out = "", stack = [];
+        lines.forEach(function(line) {
+            const indent = (line.match(/^[ ]*/) || [""])[0].length;
+            const item = line.replace(/^[ ]*[-*] /, "");
+            while (stack.length && stack[stack.length - 1] >= indent) { out += "</ul>"; stack.pop(); }
+            if (!stack.length || stack[stack.length - 1] < indent) { out += "<ul>"; stack.push(indent); }
+            out += "<li>" + item + "</li>";
+        });
+        while (stack.length) { out += "</ul>"; stack.pop(); }
+        return out;
+    });
+
+    // Ordered lists
+    html = html.replace(/(?:^\d+\. .+\n?)+/gm, function(match) {
+        const items = match.trim().split('\n').map(line =>
+            '<li>' + line.replace(/^\d+\. /, '') + '</li>'
+        ).join('');
+        return '<ol>' + items + '</ol>';
+    });
+
+    // Tables — basic support
+    html = html.replace(/(?:(?:\|.+\|[\s\S]*?)(?=\n\n|\n$|$))/gm, function(match) {
+        const lines = match.trim().split('\n').filter(l => l.includes('|') && !l.match(/^\|[-:| ]+\|$/));
+        if (lines.length === 0) return match;
+        const rows = lines.map(line => {
+            const cells = line.split('|').filter(c => c.trim() !== '');
+            const tag = line === lines[0] ? 'th' : 'td';
+            return '<tr>' + cells.map(c => '<' + tag + '>' + c.trim() + '</' + tag + '>').join('') + '</tr>';
+        }).join('');
+        // Skip the header separator row
+        const cleanLines = lines.filter(l => !l.match(/^\|[-:| ]+\|$/));
+        const headerRow = cleanLines[0];
+        const bodyRows = cleanLines.slice(1);
+        const thead = '<thead><tr>' + headerRow.split('|').filter(c => c.trim() !== '').map(c => '<th>' + c.trim() + '</th>').join('') + '</tr></thead>';
+        const tbody = '<tbody>' + bodyRows.map(line => {
+            const cells = line.split('|').filter(c => c.trim() !== '');
+            return '<tr>' + cells.map(c => '<td>' + c.trim() + '</td>').join('') + '</tr>';
+        }).join('') + '</tbody>';
+        return '<table>' + thead + tbody + '</table>';
+    });
+
+    // Paragraphs — any remaining text blocks
+    // Split by double newlines and wrap in <p>
+    const blocks = html.split(/\n\n+/);
+    html = blocks.map(block => {
+        block = block.trim();
+        if (!block) return '';
+        // Skip blocks that are already HTML tags
+        if (/^<(h[1-4]|ul|ol|pre|table|blockquote|hr|div|code)/.test(block)) return block;
+        // Replace single newlines with <br> inside paragraphs
+        block = block.replace(/\n/g, '<br>');
+        return '<p>' + block + '</p>';
+    }).join('\n');
+
+    // Clean up empty paragraphs
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>\s*<\/p>/g, '');
+
+    return html;
+}
+
+/** Shared EULA page — a full-window overlay with a scrollable markdown body
+ *  and exactly ONE button (OK). Used by the update presenter (app EULA) and
+ *  the Cloud Connect signup (API EULA). OK is the only way out; onOk runs
+ *  after the overlay is removed. */
+exports.showEulaPage = function showEulaPage({ title, markdown, onOk }) {
+    // one EULA at a time
+    let existing = document.getElementById("eula-overlay");
+    if (existing) existing.remove();
+
+    let overlay = document.createElement("div");
+    overlay.id = "eula-overlay";
+    let card = document.createElement("div");
+    card.className = "eula-card";
+    card.innerHTML =
+        '<div class="eula-header"><i class="fa-solid fa-file-contract"></i><h2 class="eula-title"></h2></div>' +
+        '<div class="eula-body"></div>' +
+        '<div class="eula-footer"><button type="button" class="main-ui-btn" id="eula-ok" tabindex="0">OK</button></div>';
+    card.querySelector(".eula-title").textContent = title || "License Agreement";
+    card.querySelector(".eula-body").innerHTML = exports.renderMarkdown(markdown || "");
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    card.querySelector("#eula-ok").addEventListener("click", function() {
+        overlay.remove();
+        if (typeof onOk === "function") onOk();
+    });
+};
+
+exports.smoothMoveUpDownAnimation = function(arr,posMap){
+    arr.forEach(el => {
+        const firstRect = posMap.get(el);
+        const lastRect = el.getBoundingClientRect();
+        const deltaY = firstRect.top - lastRect.top;
+
+        if (deltaY !== 0) {
+        // Temporarily invert to old position without transition
+        el.style.transition = 'none';
+        el.style.transform = `translateY(${deltaY}px)`;
+
+        // Force layout reflow
+        el.offsetHeight;
+
+        // Enable smooth transition back to 0
+        requestAnimationFrame(() => {
+            el.style.transition = 'transform 300ms cubic-bezier(0.2, 0, 0.2, 1)';
+            el.style.transform = '';
+        });
+
+        // Cleanup inline styles after animation finishes
+        setTimeout(() => {
+            el.style.transition = '';
+        }, 300);
+        }
+    });
 }

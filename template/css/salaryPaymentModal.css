@@ -51,9 +51,3 @@ button:hover,button:focus{
     top: -10%;
     border-radius: 50%;
 }
-.hover:hover.hover::before{
-    color: black;
-    left: 400% !important;
-    font-style: normal;
-    font-size: 0.8rem;
-}

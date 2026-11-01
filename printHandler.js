@@ -11,7 +11,7 @@ const uuid = require("uuid");
 let modal,pageFit;
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
-    if(!path2pdf && fs.existsSync(path2pdf)) return;
+    if(!path2pdf || !fs.existsSync(path2pdf)) return;
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let cmd = `lp -d ${printer} -n ${copies} ${pageFit && pageFit!==""?pageFit:""} -o ${paperSize} -o orientation-requested=${printOrientation} "${path2pdf}" `;
@@ -19,13 +19,34 @@ exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,p
 }
 
 exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSize){
-    if(!path2pdf && fs.existsSync(path2pdf)) return;
+    if(!path2pdf || !fs.existsSync(path2pdf)) return;
     if(!/\.pdf$/.test(path2pdf))
         path2pdf+=".pdf";
     let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
     let cmd = `"${path2SumatraPDF}" -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
     execCMD.call(printOnWindows,cmd,path2pdf,printer,copies,paperSize);
 }
+
+/** Fire-and-forget silent print for the scheduler — no dialogs, no retry loop.
+ *  cb(err) is called once when the print process exits. */
+exports.printSilent = function printSilent(path2pdf,printer,copies,paperSize,cb){
+    if(!path2pdf || !fs.existsSync(path2pdf))
+        return typeof cb==="function" && cb(new Error(`PDF not found: ${path2pdf}`));
+    if(!/\.pdf$/.test(path2pdf))
+        path2pdf+=".pdf";
+    let cmd;
+    if(process.platform==="win32"){
+        let path2SumatraPDF = path.resolve(__dirname,"scripts/SumatraPDF.exe");
+        cmd = `"${path2SumatraPDF}" -print-to "${printer}" -print-settings "${copies}x,paper=${paperSize}" "${path2pdf}" -silent`;
+    } else {
+        cmd = `lp -d ${printer} -n ${copies} -o ${paperSize} "${path2pdf}"`;
+    }
+    exec(cmd,(err,stdout,stderr)=>{
+        if(err)
+            err.message = (stderr || err.message || "print failed");
+        typeof cb==="function" && cb(err || null,stdout);
+    });
+};
 
 function checkPrintersOnLinuxOrMac(os){
     return new Promise((resolve,reject)=>{

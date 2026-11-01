@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { DataTypes, Op } = require("sequelize");
 const { deserializeSchema } = require("./model/schemaLoader");
+const scheduler = require("./lib/scheduler");
 
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -274,7 +275,7 @@ ipcMain.on("purchase-data",async (e,{supplier:suppObj,billMeta,itemList,payObj})
                             ...suppObj
                         }
                     }
-                    ipcMain.emit("manage-schedule",null,evObj,"a",false);
+                    scheduler.addEvent(evObj);
                     getPurchases(purchase,appLogger,getFivePercentOfMemory);// Refreshing purchase cache - no need to wait
                     BrowserWindow.fromId(e.frameId).webContents.send("update-content");
                 }

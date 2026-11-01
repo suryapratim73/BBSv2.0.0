@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Mode</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <style>
+        /* Zen-specific layout; shared look comes from common.css tokens/classes */
+        body{
+            display: block;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        /* Tooltip trigger — anchor the ::before popup to the element itself
+           (the shared rules in common.css rely on a positioned ancestor). */
+        .hover {
+            position: relative;
+        }
+        .zen-wrap{
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+        .zen-head h1{
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--theme-primary);
+        }
+        .zen-head p{
+            font-size: 0.78rem;
+            color: var(--theme-text-color);
+            opacity: 0.7;
+            margin-top: 0.2rem;
+            line-height: 1.35;
+        }
+        .zen-state-banner{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid var(--theme-primary);
+            border-radius: 10px;
+            padding: 0.6rem 0.75rem;
+            background: var(--theme-secondary);
+        }
+        .zen-state-banner .state-text{
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--theme-primary);
+            line-height: 1.35;
+        }
+        .zen-form{
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+        .field-label{
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .zen-form input[type="date"],
+        .zen-form input[type="number"],
+        .zen-form select, .zen-form input[type="text"]{
+            width: 100%;
+            padding: 0.45rem 0.6rem;
+            border: 1px solid gray;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 1px 0px black;
+        }
+        .zen-form input:focus{
+            outline-color: var(--theme-primary);
+        }
+        .radio-row{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            padding: 0.18rem 0;
+            cursor: pointer;
+        }
+        .radio-row input{
+            accent-color: var(--theme-primary);
+        }
+        .bill-panel{
+            border: 1px solid var(--theme-shadow-color);
+            border-radius: 10px;
+            padding: 0.6rem;
+            margin-top: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 190px;
+            overflow-y: auto;
+        }
+        .bill-panel .hint{
+            font-size: 0.72rem;
+            color: var(--theme-text-color);
+            opacity: 0.7;
+            line-height: 1.35;
+        }
+        .bill-list{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .bill-chip{
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid var(--theme-shadow-color);
+            border-radius: 14px;
+            padding: 0.15rem 0.5rem;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+        .bill-chip.checked{
+            background: var(--theme-primary);
+            color: var(--theme-secondary);
+            border-color: var(--theme-primary);
+        }
+        .bill-chip.used,
+        .bill-chip.reserved{
+            background: var(--theme-secondary);
+            color: var(--theme-text-color);
+            opacity: 0.5;
+            border-style: dashed;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        .extend-row{
+            display: flex;
+            gap: 0.4rem;
+        }
+        .extend-row input{
+            flex: 1;
+        }
+        #duration-panel{
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.35rem;
+        }
+        #duration-panel input{
+            flex: 2;
+        }
+        #duration-panel select{
+            flex: 1;
+        }
+        .zen-actions{
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.2rem;
+        }
+        .zen-actions .main-ui-btn{
+            flex: 1;
+        }
+        .zen-btn-danger{
+            padding: 0.4rem 0.8rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #c62828;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div class="zen-wrap">
+        <div class="zen-head">
+            <h1>&#9775; Zen Mode</h1>
+            <p>While active, every invoice gets the same bill date & discount until the stop condition triggers or you stop it manually.</p>
+        </div>
+
+        <div id="zen-state-banner" class="zen-state-banner hide">
+            <span id="zen-state-text" class="state-text"></span>
+            <button id="zen-stop-btn" class="zen-btn-danger hover top right" type="button" data-msg="Stop Zen Mode now">Stop</button>
+        </div>
+
+        <form id="zen-form" class="zen-form">
+            <div>
+                <label class="field-label" for="zen-date">Target bill date</label>
+                <input type="date" id="zen-date" required>
+            </div
+            >
+            <div>
+                <label class="field-label" for="zen-disc">Applicable discount (optional)</label>
+                <input type="text" id="zen-disc" placeholder="discount in %" oninput="validateInput(event)" data-type="Number" data-subtype="price">
+            </div>
+
+            <div>
+                <label class="field-label">Stop condition</label>
+                <label class="radio-row"><input type="radio" name="stop-type" value="manual" checked> Manual stop only</label>
+                <label class="radio-row"><input type="radio" name="stop-type" value="bill-numbers"> Stop after these bill numbers</label>
+                <div id="bill-panel" class="bill-panel hide">
+                    <p class="hint">Tick the bill numbers for this run. Already used numbers can't be picked. Extend the run anytime by adding more numbers (e.g. 251, 252).</p>
+                    <div id="bill-list" class="bill-list"></div>
+                    <div class="extend-row">
+                        <input type="number" id="bill-add-no" min="1" placeholder="Add bill number, e.g. 251">
+                        <button type="button" id="bill-add-btn" class="main-ui-btn">Add</button>
+                    </div>
+                </div>
+                <label class="radio-row"><input type="radio" name="stop-type" value="duration"> Stop after a duration</label>
+                <div id="duration-panel" class="hide">
+                    <input type="number" id="zen-duration" min="0.5" step="0.5" placeholder="e.g. 8">
+                    <select id="zen-duration-unit">
+                        <option value="hours">hours</option>
+                        <option value="days">days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="zen-actions">
+                <button type="submit" id="zen-activate-btn" class="main-ui-btn hover top right" data-msg="Start or update Zen Mode">Activate Zen Mode</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require("electron");
+        const { applyTheme, showToastNotification, formatDateShort, formatTimeLeft,validateInput,toggleDevTool } = require("../js/common");
+
+        toggleDevTool(document);
+        let currentState = null,
+            poolEntries = [],
+            selectedBillNos = new Set();
+
+        function $(id){ return document.getElementById(id); }
+
+        function showMsg(text, isErr){
+            showToastNotification(text, ["animation-common", "move-left", isErr ? "red-toast-box" : "blue-toast-box"], document.body);
+        }
+
+        function stopTypeValue(){
+            let checked = document.querySelector('input[name="stop-type"]:checked');
+            return checked ? checked.value : "manual";
+        }
+
+        function refreshPanels(){
+            let type = stopTypeValue();
+            $("bill-panel").classList.toggle("hide", type !== "bill-numbers");
+            $("duration-panel").classList.toggle("hide", type !== "duration");
+        }
+
+        async function loadPool(){
+            try {
+                poolEntries = await ipcRenderer.invoke("get-available-bill-numbers") || [];
+            } catch(err) {
+                poolEntries = [];
+            }
+            renderBillChips();
+        }
+
+        function renderBillChips(){
+            let host = $("bill-list");
+            host.innerHTML = "";
+            poolEntries.forEach(function(entry){
+                let chip = document.createElement("label");
+                chip.className = "bill-chip";
+                if (entry.isConsumed) {
+                    chip.classList.add("used");
+                    chip.textContent = entry.billNo + " (used)";
+                } else if (entry.reserved) {
+                    chip.classList.add("reserved");
+                    chip.textContent = entry.billNo + " (reserved)";
+                } else {
+                    chip.classList.toggle("checked", selectedBillNos.has(entry.billNo));
+                    chip.textContent = entry.billNo;
+                    chip.addEventListener("click", function(){
+                        if (selectedBillNos.has(entry.billNo))
+                            selectedBillNos.delete(entry.billNo);
+                        else
+                            selectedBillNos.add(entry.billNo);
+                        renderBillChips();
+                    });
+                }
+                host.appendChild(chip);
+            });
+        }
+
+        function stateSummary(state){
+            let parts = ["Bill date fixed to " + formatDateShort(state.targetDate)];
+            if (state.stopType === "bill-numbers") {
+                let total = (state.progress && state.progress.totalBills) || state.billNos.length,
+                    consumed = (state.progress && state.progress.consumedBills) || 0;
+                parts.push((total - consumed) + " of " + total + " bill numbers left");
+            } else if (state.stopType === "duration") {
+                parts.push(formatTimeLeft(state.progress && state.progress.timeLeftMs));
+            } else {
+                parts.push("manual stop");
+            }
+            return parts.join(" · ");
+        }
+
+        function render(state){
+            currentState = state || null;
+            let active = !!currentState;
+            $("zen-state-banner").classList.toggle("hide", !active);
+            if (active) {
+                $("zen-state-text").textContent = "Active — " + stateSummary(currentState);
+                $("zen-activate-btn").textContent = "Update Zen Mode";
+                $("zen-date").value = currentState.targetDate;
+                document.querySelector('input[name="stop-type"][value="' + currentState.stopType + '"]').checked = true;
+                if (currentState.stopType === "bill-numbers") {
+                    selectedBillNos = new Set(currentState.billNos || []);
+                    renderBillChips();
+                }
+                if (currentState.stopType === "duration") {
+                    $("zen-duration").value = currentState.stopValue;
+                    $("zen-duration-unit").value = "hours";
+                }
+            } else {
+                $("zen-activate-btn").textContent = "Activate Zen Mode";
+            }
+            refreshPanels();
+        }
+
+        async function refresh(){
+            let state = await ipcRenderer.invoke("get-zen-mode-state");
+            render(state);
+        }
+
+        // --- Add extra bill numbers (extend the run with N+1, N+2, ...) ---
+        $("bill-add-btn").addEventListener("click", function(){
+            let input = $("bill-add-no"),
+                no = Math.trunc(Number(input.value));
+            if (!(no > 0)) return;
+            let entry = poolEntries.find(function(e){ return e.billNo === no; });
+            if (entry && entry.isConsumed) {
+                showMsg("Bill number " + no + " is already used.", true);
+                return;
+            }
+            selectedBillNos.add(no);
+            input.value = "";
+            renderBillChips();
+            showMsg("Bill number " + no + " added.", false);
+        });
+
+        // --- Activate / Update ---
+        $("zen-form").addEventListener("submit", async function(e){
+            e.preventDefault();
+            let targetDate = $("zen-date").value;
+            if (!targetDate) {
+                showMsg("Please pick the target bill date.", true);
+                return;
+            }
+            let discVal = $("zen-disc").value;
+            let stopType = stopTypeValue(),
+                payload = { targetDate: targetDate, stopType: stopType, stopValue: null, billNos: [],discVal };
+            if (stopType === "bill-numbers") {
+                payload.billNos = Array.from(selectedBillNos).sort(function(a, b){ return a - b; });
+                if (!payload.billNos.length) {
+                    showMsg("Select at least one bill number.", true);
+                    return;
+                }
+            }
+            if (stopType === "duration") {
+                let value = Number($("zen-duration").value);
+                if (!(value > 0)) {
+                    showMsg("Enter a valid duration.", true);
+                    return;
+                }
+                if ($("zen-duration-unit").value === "days") value = value * 24;
+                payload.stopValue = value;
+            }
+            let result = await ipcRenderer.invoke("activate-zen-mode", payload);
+            showMsg(result.message, !result.ok);
+            if (result.ok) render(result.state);
+        });
+
+        // --- Manual stop ---
+        $("zen-stop-btn").addEventListener("click", async function(){
+            await ipcRenderer.invoke("stop-zen-mode");
+            showMsg("Zen Mode stopped.", false);
+            await refresh();
+        });
+
+        document.querySelectorAll('input[name="stop-type"]').forEach(function(radio){
+            radio.addEventListener("change", refreshPanels);
+        });
+
+        // --- Live updates (auto-stop or activation from elsewhere) ---
+        ipcRenderer.on("zen-mode-update", function(e, state){
+            render(state);
+        });
+
+        // --- User theme, same as the other pages ---
+        (async function(){
+            try {
+                let themeObj = await ipcRenderer.invoke("init-theme");
+                applyTheme.call(document, null, themeObj);
+            } catch(_) {}
+        })();
+
+        loadPool();
+        refresh();
+    </script>
+</body>
+</html>

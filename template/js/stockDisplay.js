@@ -240,7 +240,22 @@ function showUpdater(){
                 input.dataset.feildname = key;
                 input.value = pInfo[key];
                 input.dataset.feildtype = "pInfo";
-            })
+                if(key==="discount"){
+                    input.setAttribute("onkeypress","validateInput(event)");
+                    input.dataset.type = "Number";
+                }
+            });
+            // Item-wise discount lives in pInfo too, but always offer the field
+            // even when unset so the user can add one (salePage shows the discounted rate)
+            if(!("discount" in pInfo)){
+                let {df,input} = appendFeildCommon(newRowTemp,modalPage2,"#feild-container");
+                df.querySelector("[data-colname='feild']").textContent = capitalize("discount");
+                input.dataset.feildname = "discount";
+                input.value = "";
+                input.dataset.feildtype = "pInfo";
+                input.setAttribute("onkeypress","validateInput(event)");
+                input.dataset.type = "Number";
+            }
         }
     });
 }

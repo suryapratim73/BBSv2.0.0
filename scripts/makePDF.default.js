@@ -2,7 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require("fs");
 const {app, dialog} = require("electron");
 const path = require("path");
-const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody, createHeader2, createFooter2, createBody2 } = require('../lib/buildPage.default');
+const { createHeader, createBody, createFooter, createLedgerHead, createLedgerBody, createLedgerSummary, fillLedgerEntry, roadChallanHeader, roadChallanFooter, roadChallanBody, voucherDoc, payReceiptDoc, genReqSlipDocHeader, genReqSlipDocFooter, genReqSlipDocBody, createHeader2, createFooter2, createBody2 } = require('../lib/buildPage.default');
 const { getsaleConfigPolicyPath, capitalize } = require("../template/js/common");
 const { EventEmitter } = require("events");
 const { emblemMaker } = require('../lib/common');
@@ -42,9 +42,10 @@ function initBillPDF({customer:{name},billMeta:{billDate,billNo},margin},templat
     if(!fs.existsSync(pdfPath))
         fs.mkdirSync(pdfPath, { recursive: true });
     let pdfFileName = getPDF_FileName(name,billDate,billNo,temp);
-    doc.pipe(fs.createWriteStream(path.join(pdfPath,pdfFileName)));
+    let fileStrem = fs.createWriteStream(path.join(pdfPath,pdfFileName));
+    doc.pipe(fileStrem);
     pdfPath = path.join(pdfPath,pdfFileName);
-    return {doc,pdfPath};
+    return {doc,pdfPath,fileStrem};
 }
 
 async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
@@ -58,7 +59,7 @@ async function applyEmblem(imgWidth=100, imgOpacity=50,saleConfig,doc,x,y){
     doc.image(imgDataURL, x, y,{height:imgWidth});
 }
 
-exports.billPDF = async function(billObj,temp=false){
+exports.billPDF = async function(billObj,temp=false,templateID){
     const { openFormatForDate } = require('../common');
     const {billMeta,customer,orderItems} = billObj;
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
@@ -67,10 +68,11 @@ exports.billPDF = async function(billObj,temp=false){
         let { main } = require("../lib/execCustomTemplate");
         let data = fs.readFileSync(saleConfig.billTemplate.file);
         let template = JSON.parse(data.toString());
-        const {doc,pdfPath} = initBillPDF(billObj,template,true,temp,paperSize);
+        const {doc,pdfPath,fileStrem} = initBillPDF(billObj,template,true,temp,paperSize);
+        // Add code for fs stream closure in custom template.
         return main(doc,pdfPath,billObj,template);
     }
-    const {doc,pdfPath} = initBillPDF({...billObj,margin},null,false,temp,paperSize);
+    const {doc,pdfPath,fileStrem} = initBillPDF({...billObj,margin},null,false,temp,paperSize);
     const {printObj:{captions}={captions:["Original Buyer's Copy"]}} = billMeta;
     let topY,bottomY,factor,myEmitter = new EventEmitter();
     myEmitter.on("pageAdded",async caption=>{
@@ -102,7 +104,7 @@ exports.billPDF = async function(billObj,temp=false){
         let {defaultFontFamily,defaultFontSize } = saleConfig;
         doc.font(defaultFontFamily).fontSize(defaultFontSize).moveDown();
     });
-    if("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===false && saleConfig.billTemplate.file==="default2"){// For Krishna Da
+    if(("billTemplate" in saleConfig && saleConfig.billTemplate.applyTemplate===false && saleConfig.billTemplate.file==="default2") || templateID==="D2"){// For Krishna Da
         // Default 2 template
         for(let x=0;x<captions.length;x++){
             let caption = captions[x];
@@ -119,7 +121,14 @@ exports.billPDF = async function(billObj,temp=false){
             }
         }
         doc.save().end();
-        return pdfPath;
+        return new Promise((res,rej)=>{
+            fileStrem.on("close",()=>{
+                res(pdfPath);
+            });
+            fileStrem.on("error",(err)=>{
+                rej(err);
+            });
+        });
     }
     // Default 1 template
     doc.addPage();
@@ -155,7 +164,14 @@ exports.billPDF = async function(billObj,temp=false){
         }
     }
     doc.save().end();
-    return pdfPath;
+    return new Promise((res,rej)=>{
+        fileStrem.on("close",()=>{
+            res(pdfPath);
+        });
+        fileStrem.on("error",(err)=>{
+            rej(err);
+        });
+    });
 }
 
 /**
@@ -165,11 +181,13 @@ function processSalePurchaseEntry(entry) {
     const { date, billNo, billAmt, type, payments } = entry;
     const amount = billAmt - payments;
     const debitCredit = type === "sale" ? "Dr" : "Cr";
-    
+
     return {
         date: date,
         particular: `${capitalize(type)}: Bill Number:${billNo}`,
-        amount: `${amount} ${debitCredit}`
+        amount: `${amount} ${debitCredit}`,
+        dr: type === "sale" ? amount : 0,
+        cr: type === "sale" ? 0 : amount
     };
 }
 
@@ -180,8 +198,7 @@ function processPaymentEntry(entry) {
     try {
         const { itemList, payments } = entry;
         const payObj = JSON.parse(`${itemList}`);
-        const payDate = new Date(payObj.paymode === "cash" ? new Date() : payObj["pay-dt"]);
-        
+
         let particular;
         if (payObj.paymode === "cash") {
             particular = "Payment received by cash";
@@ -189,11 +206,13 @@ function processPaymentEntry(entry) {
             const trnsRef = payObj.paymode === "cheque" ? payObj.chkNo : payObj.bankTrnRef;
             particular = `Payment received by ${payObj.paymode}: ${trnsRef}`;
         }
-        
+
         return {
-            date: payDate,
+            date: entry.date,
             particular: particular,
-            amount: `${payments} Cr`
+            amount: `${payments} Cr`,
+            dr: 0,
+            cr: payments
         };
     } catch (err) {
         console.error("Error processing payment entry:", err);
@@ -208,16 +227,17 @@ function processOutPaymentEntry(entry) {
     try {
         const { itemList, payments } = entry;
         const payObj = JSON.parse(`${itemList}`);
-        const payDate = new Date(payObj.payDate);
-        
-        const particular = payObj.ref === "cash" 
-            ? "Payment made by cash" 
+
+        const particular = payObj.ref === "cash"
+            ? "Payment made by cash"
             : `Payment reference: ${payObj.ref}`;
-        
+
         return {
-            date: payDate,
+            date: entry.date,
             particular: particular,
-            amount: `${payments} Dr`
+            amount: `${payments} Dr`,
+            dr: payments,
+            cr: 0
         };
     } catch (err) {
         console.error("Error processing out-payment entry:", err);
@@ -230,37 +250,59 @@ function processOutPaymentEntry(entry) {
  */
 function prepareEntryRows(entryArr) {
     const rows = [];
-    
+
     for (const entry of entryArr) {
         const { type, balance } = entry;
         let processedEntry = null;
-        
+
         if (["sale", "purchase"].includes(type)) {
             processedEntry = processSalePurchaseEntry(entry);
         } else if (type === "payment") {
             processedEntry = processPaymentEntry(entry);
         } else if (type === "out-payment") {
             processedEntry = processOutPaymentEntry(entry);
+        } else if (type === "opening-balance") {
+            processedEntry = {
+                date: entry.date,
+                particular: "Opening balance",
+                amount: "—",
+                dr: 0,
+                cr: 0
+            };
         }
-        
+
         if (processedEntry) {
             rows.push({
                 date: processedEntry.date,
                 particular: processedEntry.particular,
                 amount: processedEntry.amount,
-                balance: balance
+                balance: balance,
+                dr: processedEntry.dr || 0,
+                cr: processedEntry.cr || 0
             });
         }
     }
-    
-    // Sort by date
+
+    // Sort by the entry's own date
     return rows.sort((a, b) => a.date - b.date);
 }
 
+exports.processSalePurchaseEntry = processSalePurchaseEntry;
+exports.processPaymentEntry = processPaymentEntry;
+exports.processOutPaymentEntry = processOutPaymentEntry;
+exports.prepareEntryRows = prepareEntryRows;
+
 /**
- * Generate a PDF document for ledger entries
+ * Generate a PDF document for ledger entries.
+ * openingBalance: the balance carried into this period (stored value for the
+ * current year, otherwise the previous year's closing balance); null = none.
+ * When set, it is rendered as the FIRST entry row. balanceShift is added to
+ * every stored running balance — only for the stored opening balance (the
+ * pre-app gap), never for a derived carry-in (the running balances already
+ * include it). A legacy "opening-balance" typed entry also already carries
+ * it, so no extra row is injected then.
  */
-exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, endDate, prevClose, ledgerBalance) {
+exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, endDate, openingBalance, balanceShift) {
     let pdfPath = app.getPath("documents");
     const saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     const { margin } = saleConfig;
@@ -279,16 +321,41 @@ exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, 
         size: "A4",
         autoFirstPage: false
     });
-    startDate = openFormatForDate(new Date(startDate));
+    const startDateObj = new Date(startDate);
+    startDate = openFormatForDate(startDateObj);
     endDate = openFormatForDate(new Date(endDate));
     const pdfFilePath = path.join(pdfPath, `${name}_${startDate}_to_${endDate}_ledger.pdf`);
     doc.pipe(fs.createWriteStream(pdfFilePath));
     doc.fontSize(12).font(saleConfig.titleFontFamily);
-    
+
+    const hasOpeningRow = openingBalance != null && !entryArr.some(entry => entry.type === "opening-balance");
+    const shift = Number(balanceShift) || 0;
+    const sortedRows = prepareEntryRows(entryArr);
+    if (hasOpeningRow) {
+        // Opening balance is the first entry; its balance cell renders as
+        // (balance + shift) = openingBalance for every row.
+        sortedRows.unshift({
+            date: startDateObj,
+            particular: "Opening balance",
+            amount: "—",
+            balance: (Number(openingBalance) || 0) - shift,
+            dr: 0,
+            cr: 0
+        });
+    }
+    // Closing / outstanding = last rendered row's balance (shift included).
+    const lastRow = sortedRows.at(-1);
+    const ledgerBalance = lastRow ? Number(lastRow.balance) + shift : 0;
+    const totals = { bills: 0, payments: 0 };
+    sortedRows.forEach(row => {
+        totals.bills += Number(row.dr) || 0;
+        totals.payments += Number(row.cr) || 0;
+    });
+
     // Setup page header event
     pageAddedEvent.addListener("pageAdded", () => {
-        createLedgerHead(doc, {name, address, phones, gst, startDate, endDate}, margin, prevClose, ledgerBalance);
-        
+        createLedgerHead(doc, {name, address, phones, gst, startDate, endDate}, margin, ledgerBalance);
+
         const headerRow = {
             col1: "Sl. No.",
             col2: "Date",
@@ -298,14 +365,15 @@ exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, 
         };
         createLedgerBody(doc, headerRow);
     });
-    
+
     // Add first page
     doc.addPage();
     pageAddedEvent.emit("pageAdded");
-    
+
     const { height } = doc.page;
-    const sortedRows = prepareEntryRows(entryArr);
-    
+    // Balance column rendered in the same en-IN style as the header and summary
+    const fmtBal = n => Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     // Render each entry row
     sortedRows.forEach((row, index) => {
         const rowData = {
@@ -313,23 +381,31 @@ exports.ledgerPDF = function(entryArr, {name, address, phones, gst}, startDate, 
             col2: row.date.toLocaleDateString("en-IN"),
             col3: row.particular,
             col4: row.amount,
-            col5: row.balance
+            col5: fmtBal(row.balance + shift)
         };
-        
+
         createLedgerBody(doc, rowData);
         doc.stroke();
-        
+
         // Add new page if needed
         if (doc.y + doc.currentLineHeight() > height - 2 * margin) {
             doc.addPage();
             pageAddedEvent.emit("pageAdded");
         }
     });
-    
+
+    // Summary box after the ledger table ends: bills vs payments matched,
+    // outstanding balance emphasised.
+    if (doc.y + 100 > height - 2 * margin) {
+        doc.addPage();
+        pageAddedEvent.emit("pageAdded");
+    }
+    createLedgerSummary(doc, {bills: totals.bills, payments: totals.payments, outstanding: ledgerBalance}, margin);
+
     // Finalize PDF
     doc.save().end();
     pageAddedEvent.removeAllListeners("pageAdded");
-    
+
     return pdfFilePath;
 }
 

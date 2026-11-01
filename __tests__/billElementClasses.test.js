@@ -117,6 +117,7 @@ describe("Page — legacy template contract", () => {
             fFamily: "Times-Roman",
             text: "Bill No: ",
             fWidth: 50,
+            align: "space-between",
             bold: false,
             italic: false,
             underline: false,
@@ -165,6 +166,7 @@ describe("Field subclasses", () => {
             fFamily: "Times-Roman",
             text: "Total in words",
             fWidth: 50,
+            align: "space-between",
             bold: false,
             italic: true,
             underline: false,
@@ -249,7 +251,7 @@ describe("fromJSON — legacy files round-trip, v2 files rejected", () => {
             body: {},
             footer: {},
             feilds: [
-                { type: "variable", x: 305, y: 37, zIndex: 100, fSize: 14, fFamily: "Times-Roman", text: "Invoice No: ", fWidth: 30, bold: true, italic: false, underline: false, fType: "billNo", elem: null, id: "f1" },
+                { type: "variable", x: 305, y: 37, zIndex: 100, fSize: 14, fFamily: "Times-Roman", text: "Invoice No: ", fWidth: 30, align: "space-between", bold: true, italic: false, underline: false, fType: "billNo", elem: null, id: "f1" },
             ],
             sections: [],
             applyBorder: false,
@@ -495,8 +497,16 @@ describe("buildStarter — the four templates", () => {
         expect(fTypes).toContain("biller-bank");
         expect(fTypes).toContain("payment");
         expect(fTypes).toContain("place-of-jurisdiction");
-        expect(json.feilds).toContainEqual(expect.objectContaining({ text: "GRAND TOTAL: ", fType: "grand-total", x: 361.17, y: 822, bold: true }));
-        expect(json.feilds).toContainEqual(expect.objectContaining({ fType: "grand-total", x: 438.96, y: 822 }));
+        // Summary pairs resolve through page range coordinates — a
+        // fraction of a pt from the legacy absolutes (2-decimal rounding).
+        const gtLabel = json.feilds.find((f) => f.fType === "grand-total" && f.text === "GRAND TOTAL: ");
+        expect(gtLabel.bold).toBe(true);
+        expect(gtLabel.align).toBe("alongside"); // pairs keep the legacy flow
+        expect(gtLabel.x).toBeCloseTo(361.17, 1);
+        expect(gtLabel.y).toBeCloseTo(822, 1);
+        const gtValue = json.feilds.find((f) => f.fType === "grand-total" && f.text !== "GRAND TOTAL: ");
+        expect(gtValue.x).toBeCloseTo(438.96, 1);
+        expect(gtValue.y).toBeCloseTo(822, 1);
     });
 
     test("unknown starter name throws", () => {

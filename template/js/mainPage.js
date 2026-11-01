@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, drawLineGraph, dataModal, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, noDataPlaceholder, bodyRow, hexTohsl, lightenHSL, hslComponents, carosel, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, tableFillupHelper, startUpdateTour,appendToDL,getNGramIndex,showUpdatePrompt } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, hexTohsl, lightenHSL, hslComponents, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, startUpdateTour,appendToDL,getNGramIndex,showUpdatePrompt,showEulaPage, formatDateShort, formatTimeLeft } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -17,8 +17,8 @@ let themeObj = {
     darkText:"#556b2f",
     file:""
 };
-let currentMode = "overview",reducedBills = [],reducedPurchases = [];
-let mode = 1,loggedinUser,compInfo,hiddenSection,caroselTimer,tags;
+let currentMode = "overview";
+let loggedinUser,compInfo,hiddenSection,tags;
 let selectedRow;
 let nameDatalist = document.createElement("datalist"),
     customerNameDatalist = document.createElement("datalist"),
@@ -60,48 +60,142 @@ async function initPage(){
     let themeObj = await ipcRenderer.invoke("init-theme");
     applyTheme.call(document,null,themeObj);
     spinner.remove(window);
-    // Check kiosk status on startup
-    ipcRenderer.invoke("get-kiosk-status").then(updateKioskButton);
-    ipcRenderer.on("kiosk-status-update", function(e, status) { updateKioskButton(status); });
+    // App status bar (zen mode, weather theme, kiosk, connectivity)
+    initStatusBar();
     startUpdateTour();
     ipcRenderer.send("booted")
 }
 initPage();
 
-function updateKioskButton(status) {
-    var btn = document.getElementById("kiosk-status-btn");
-    if (!btn) return;
-    btn.classList.remove("hide");
-    if (status && status.running) {
-        btn.textContent = "Kiosk: On :" + (status.port || "");
-        btn.dataset.status = "online";
-    } else {
-        btn.textContent = "Kiosk: Off";
-        btn.dataset.status = "offline";
+// ---------- App status bar ----------
+
+function setStatusText(id, text){
+    var el = document.getElementById(id);
+    if (!el) return;
+    var label = el.querySelector(".status-label");
+    if (label) label.textContent = text;
+}
+
+function updateZenStatus(state){
+    var el = document.getElementById("zen-status");
+    if (!el) return;
+    if (!state || !state.targetDate) {
+        setStatusText("zen-status", "Zen Mode: Off");
+        el.dataset.status = "off";
+        el.dataset.msg = "Start Zen Mode";
+        return;
     }
+    var text = "Zen Mode: " + formatDateShort(state.targetDate);
+    if (state.stopType === "bill-numbers") {
+        var total = state.progress ? state.progress.totalBills : state.billNos.length,
+            consumed = state.progress ? state.progress.consumedBills : 0,
+            left = Math.max(0, total - consumed);
+        text += " · " + left + " bill no" + (left === 1 ? "" : "s") + " left";
+    } else if (state.stopType === "duration") {
+        text += " · " + formatTimeLeft(state.progress ? state.progress.timeLeftMs : 0);
+    } else {
+        text += " · manual stop";
+    }
+    setStatusText("zen-status", text);
+    el.dataset.status = "on";
+    el.dataset.msg = "Zen Mode is active — manage it";
+}
+
+function weatherThemeName(){
+    var match = String(document.body.className).match(/theme-(summer|monsoon|winter|cloudy|haze|thunderstorm|festive|night)/);
+    return match ? capitalize(match[1]) : "";
+}
+
+function updateWeatherStatus(){
+    var el = document.getElementById("weather-status");
+    if (!el) return;
+    var active = document.body.classList.contains("weather-theme-active"),
+        name = weatherThemeName();
+    if (active) {
+        setStatusText("weather-status", "Weather Theme: " + (name || "On"));
+        el.dataset.status = "on";
+        el.dataset.msg = "Revert to default theme";
+    } else {
+        setStatusText("weather-status", "Weather Theme: Off");
+        el.dataset.status = "off";
+        el.dataset.msg = "Apply weather theme";
+    }
+}
+
+function toggleWeatherTheme(){
+    if (document.body.classList.contains("weather-theme-active"))
+        ipcRenderer.send("reset-weather-theme"); // turn off
+    else
+        ipcRenderer.send("refresh-weather-theme"); // turn on
+    // Turning on fetches the theme from the server — poll until it lands
+    var tries = 0;
+    var poll = setInterval(function(){
+        updateWeatherStatus();
+        if (++tries >= 8) clearInterval(poll);
+    }, 800);
+}
+
+function updateKioskStatus(status) {
+    var el = document.getElementById("kiosk-status");
+    if (!el) return;
+    if (status && status.running) {
+        setStatusText("kiosk-status", "Kiosk: On" + (status.port ? " :" + status.port : ""));
+        el.dataset.status = "on";
+        el.dataset.msg = "Stop kiosk server";
+    } else {
+        setStatusText("kiosk-status", "Kiosk: Off");
+        el.dataset.status = "off";
+        el.dataset.msg = "Start kiosk server";
+    }
+}
+
+function updateConnectivityStatus(online){
+    var el = document.getElementById("connectivity-status");
+    if (!el) return;
+    setStatusText("connectivity-status", online ? "Internet: Online" : "Internet: Offline");
+    el.dataset.status = online ? "on" : "off";
+}
+
+function updateFileMonitorStatus(status,txt=""){
+    let el = document.getElementById("file-monitor-status");
+    setStatusText("file-monitor-status",status ? "FileMonitor: On"+txt : "FileMonitor: off"+txt);
+    el.dataset.status = status ? "on" : "off";
+}
+
+function initStatusBar(){
+    ipcRenderer.on("zen-mode-update", function(e, state) { updateZenStatus(state); });
+    ipcRenderer.invoke("get-zen-mode-state").then(updateZenStatus);
+    ipcRenderer.on("kiosk-status-update", function(e, status) { updateKioskStatus(status); });
+    ipcRenderer.invoke("get-kiosk-status").then(updateKioskStatus);
+    ipcRenderer.on("connectivity-update", function(e, online) { updateConnectivityStatus(online); });
+    ipcRenderer.invoke("get-connectivity-status").then(updateConnectivityStatus);
+    ipcRenderer.invoke("get-file-monitor-status").then(updateFileMonitorStatus);
+    ipcRenderer.on("get-file-monitor-update",(e,status,txt)=>{ updateFileMonitorStatus(status,txt); });
+    updateWeatherStatus();
+    document.getElementById("zen-status").addEventListener("click", function() {
+        ipcRenderer.send("open-zen-mode");
+    });
+    document.getElementById("weather-status").addEventListener("click", toggleWeatherTheme);
+    document.getElementById("kiosk-status").addEventListener("click", function() {
+        ipcRenderer.invoke("toggle-kiosk-server").then(updateKioskStatus);
+    });
+    document.getElementById("file-monitor-status").addEventListener("click",async function(){
+        let status = await ipcRenderer.invoke("toggle-file-monitor");
+        updateFileMonitorStatus(status);
+    });
+    // Periodic refresh — catches duration-based zen stops and settings-driven
+    // theme changes without a dedicated event. Connectivity is polled here too
+    // (checkForInternet probe in main) so the dot tracks real reachability.
+    setInterval(function(){
+        ipcRenderer.invoke("get-zen-mode-state").then(updateZenStatus);
+        updateWeatherStatus();
+        ipcRenderer.invoke("get-connectivity-status").then(updateConnectivityStatus);
+    }, 30000);
 }
 
 async function modeSwitcher(e){
     if(e.target.nodeName!=="P") return;
     let cmd = e.target.dataset.cmd;
-
-    // Weather theme toggle
-    if(cmd === "reset-weather"){
-        if(document.body.classList.contains("weather-theme-active")){
-            ipcRenderer.send("reset-weather-theme"); // turn off
-        } else {
-            ipcRenderer.send("refresh-weather-theme"); // turn on
-        }
-        return;
-    }
-
-    // Kiosk server toggle
-    if(cmd === "kiosk-status"){
-        ipcRenderer.invoke("toggle-kiosk-server").then(function(status) {
-            updateKioskButton(status);
-        });
-        return;
-    }
 
     currentMode = cmd;
     if(currentMode){
@@ -121,153 +215,6 @@ async function modeSwitcher(e){
         document.querySelector(`#nav-div [data-cmd='${currentMode}']`).classList.add("selected");
 
     }
-}
-
-function reducedArr(arr,id){
-    return arr.reduce((acc,{billDate,billAmt})=>{
-        acc[0][0] += billAmt;
-        acc[0][1].push({date:billDate,amt:billAmt});
-        return acc;
-    },[[ 0, [] ]])
-    .map(([total,objs])=>{
-        const { canvas,reducedObjs } = drawLineGraph(total,objs,id,"green","red");
-        canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
-        return [total,objs];
-    });
-}
-
-async function initScheduleDiv(){
-    let schedules = await ipcRenderer.invoke("get-chedules");
-    removeAllElem(".event-page.removable");
-    clearInterval(caroselTimer);
-    if(schedules.length===0) 
-        return document.querySelector(".event-page.first-page").classList.add("card-in");
-    let schedulerDiv = document.getElementById("scheduler-div");
-    let schedulesPage = document.getElementById("schedules-page-template").content.cloneNode(true).querySelector("div");
-    schedulerDiv.appendChild(schedulesPage);
-    let pHost = schedulesPage.querySelector("#event-host");
-    schedules.forEach(evObj=>{
-        let p = document.createElement("p");
-        p.style.setProperty("--color",evObj.color);
-        let [h,s,l] = hslComponents(evObj.color);
-        p.style.setProperty("--lighter-shade",lightenHSL(h,s,l,0.3));
-        p.dataset.obj = JSON.stringify(evObj);
-        let span = document.createElement("span");
-        span.textContent = evObj.label;
-        p.appendChild(span);
-        span = document.createElement("span");
-        span.textContent = new Date(evObj.time).toLocaleDateString("en-IN",{
-            day:"2-digit",
-            month:"2-digit",
-            year:"2-digit",
-            hour:"2-digit",
-            minute:"2-digit"
-        });
-        p.appendChild(span);
-        pHost.appendChild(p);
-    });
-    document.querySelector(".event-page.first-page").classList.add("card-in");
-    carosel([...document.querySelectorAll(".event-page")],0);
-}
-
-async function overviewPageInit(){
-    let year = document.getElementById("fin-year").value
-    let {stocks=[],unPaidBills=[]} = await ipcRenderer.invoke("get-overview-content",Number(year));
-    let [dt,mnth,yr] = new Date().toLocaleDateString("en-GB",{dateStyle:"long"}).split(" ");
-    let dtEventDiv = document.querySelector("#scheduler-div .event-div>#dt-div");
-    dtEventDiv.querySelector("h1").textContent = dt;
-    dtEventDiv.querySelector("p").textContent = `${mnth}, ${yr}`;
-    removeAllElem(".no-data,#expired-bill-table-div .tbody>.body.row");
-    let billTbody = document.querySelector("#expired-bill-table-div .tbody");
-    let cols = [...document.querySelectorAll("#expired-bill-table-div .row.head .col>p")].map(p=>p.dataset.col);
-    if(unPaidBills.length>0)
-        unPaidBills.forEach((obj,index)=>billTbody.appendChild(bodyRow({key:"billObj",obj,cols,index})));
-    else
-        noDataPlaceholder(billTbody);
-    let stockTbody = document.querySelector("#stock-div .tbody");
-    cols = [...document.querySelectorAll("#stock-div .row.head .col>p")].map(p=>p.dataset.col);
-    if(stocks.length>0)
-        stocks.forEach((obj,index)=>stockTbody.appendChild(bodyRow({key:"stock",obj,cols,index})));
-    else
-        noDataPlaceholder(stockTbody);
-    let orders = await ipcRenderer.invoke("get-orders");
-    let orderTbody = document.querySelector("#order-table-div .tbody");
-    if(!Array.isArray(orders) || orders.length===0)
-        noDataPlaceholder(orderTbody);
-    else{
-        document.getElementById("order-table-div").classList.remove("hide");
-        cols = [...document.querySelectorAll("#order-table-div .row.head .col>p")].map(p=>p.dataset.col);
-        orders.forEach((obj,index)=>orderTbody.appendChild(bodyRow({key:"orderObj",obj,cols,index})));
-    }
-    initScheduleDiv();
-}
-
-function saleOverviewContext(){
-    document.getElementById("overview-context").classList.remove("hide");
-
-}
-
-function showContextOptions(){
-    let ctxOptDiv = document.getElementById("context-options");
-    ctxOptDiv.classList.remove("hide");
-}
-
-async function updateSaleOverviewPreference(e){
-    let opt = e.target.dataset.name;
-    document.getElementById("context-options").classList.add("hide");
-    let {bills=[]} = await ipcRenderer.invoke("get-sale-content");
-    ipcRenderer.send("update-preference",{preset:opt,currentMode,sec:"main"});
-    removeAllElem("#sale-div-content .widget");
-    if(opt==="monthly1x"){
-        overviewSaleTable(1,bills);
-    }
-    else
-    if(opt==="monthly3x"){
-        overviewSaleTable(3,bills);
-    }
-}
-
-function overviewSaleTable(mode,bills){
-    let saleDivContent = document.getElementById("sale-div-content");
-    appendToHost("#sale-table-template",saleDivContent,"DIV");
-    let currentMonth = new Date().getMonth(),currentYear = new Date().getFullYear();
-    if(mode===1)
-        bills = bills.filter(obj=>obj.billDate.getMonth()===currentMonth && obj.billDate.getFullYear()===currentYear);
-    tableFillupHelper(bills,".head.row p",".tbody",bodyRow,"billObj");
-}
-
-async function salePageInit(){
-    let {bills=[],preset,allBills} = await ipcRenderer.invoke("get-sale-content") ?? {};
-    // Show sale display widgets
-    if(preset==="monthly1x")
-        overviewSaleTable(1,bills);
-    else
-    if(preset==="monthly3x")
-        overviewSaleTable(3,bills);
-    // For drawing graph
-    reducedBills = reducedArr(allBills,"#sale-graph");
-}
-
-async function purchasePageInit(){
-    let allPurchases = await ipcRenderer.invoke("get-purchase-content");
-    let tbody = document.querySelector("#current-purchase .tbody");
-    let res= allPurchases
-    .filter((billObj)=>(billObj.billDate.toDateString()===new Date().toDateString()))// Today's purchases only
-    .forEach(({billNo,billDate,supplierName,billAmt})=>{
-        let div = document.createElement("div");
-        div.className = "body row";
-        div.innerHTML = `
-            <p class="col eq-space">${billNo}</p>
-            <p class="col eq-space">${billDate.toLocaleDateString("en-GB")}</p>
-            <p class="col eq-space">${supplierName}</p>
-            <p class="col eq-space">${billAmt}</p>
-        `;
-        tbody.appendChild(div);
-    });
-    reducedPurchases = reducedArr(allPurchases,"#purchase-graph");
-    let canvas = document.querySelector("#purchase-graph");
-    if(canvas.width!==Math.round(0.95*canvas.parentNode.clientWidth))
-        correctChart();
 }
 
 async function settingsPageInit(modeContent){
@@ -293,11 +240,6 @@ async function applyMode(){
     let modeContent;
     if(!currentMode)
         currentMode = "overview";
-    if(currentMode==="logout")
-        return ipcRenderer.send("logout");
-    else
-    if(currentMode==="lock")
-        return ipcRenderer.send("lock");
     [...document.querySelectorAll("#main-div>div:first-child>*")]
     .forEach(elem=>{
         elem.classList.remove("hide")
@@ -309,21 +251,20 @@ async function applyMode(){
         .forEach(elem=>elem.classList.add("hide"));
     removeAllElem("#mode-host *");
     modeContent = document.getElementById(`${currentMode}-page-template`).content.cloneNode(true).querySelector("div");
-    if(["overview","sale","purchase"].includes(currentMode))
+    if(["overview","cloud","scheduler"].includes(currentMode))
         document.getElementById("mode-host").appendChild(modeContent);
     if(!modeContent) return;
     if(currentMode==="overview")
-        overviewPageInit();
+        await renderOverviewPage();
     else
-    if(currentMode==="sale")
-        salePageInit();
+    if(currentMode==="cloud")
+        cloudPageInit();
     else
-    if(currentMode==="purchase")
-        purchasePageInit();
+    if(currentMode==="scheduler")
+        schedulerPageInit();
     else
     if(currentMode==="settings")
         settingsPageInit(modeContent);
-    correctChart();
 }
 
 function expandOrCollapsePanel(){
@@ -343,36 +284,6 @@ function controlAnimation(div,mode="opacity",val1="1",val2="0",unit=""){
         })
     });
 }
-
-async function updateChart(e,canvasId){
-    if(e){
-        let option = e.target.querySelector(`[value="${e.target.value}"]`);
-        mode = Number(option.dataset.mode);
-        if(mode===3)
-            reducedBills = reducedArr((await ipcRenderer.invoke("get-sale-content",true)).allBills,"#sale-graph");
-        else    
-            reducedBills = reducedArr((await ipcRenderer.invoke("get-sale-content")).allBills,"#sale-graph");
-    }
-    let arr = canvasId==="#sale-graph" ? reducedBills : reducedPurchases;
-    arr.forEach(([total,objs])=>{
-        const { canvas,reducedObjs } = drawLineGraph(total,objs,canvasId,"green","red",{mode});
-        canvas.addEventListener("mousemove",dataModal.bind(canvas,[reducedObjs]));
-        if(canvas.width!==Math.round(0.95*canvas.parentNode.clientWidth))
-            correctChart();
-    });
-}
-
-function correctChart(){
-    if(["sale","purchase"].includes(currentMode)){
-        let id = currentMode==="sale" ? "#sale-graph" : "#purchase-graph";
-        updateChart(null,id);
-        let canvas = document.querySelector(id);
-        if(canvas.width!==Math.round(0.95*canvas.parentNode.clientWidth))
-            updateChart(null,id);
-    }
-}
-
-window.addEventListener("resize",correctChart);
 
 function switchSettingsNav(e){
     let settingsMode = e.target.dataset.mode;
@@ -529,10 +440,12 @@ async function showForm(e,cmd,show,prevData={}){
                 document.querySelector(`#${show} #${form.id}`).classList.remove("hide");
             form.querySelector("input")?.focus();
             if(cmd==="bill-no"){
-                let fileNameFormat = (await ipcRenderer.invoke("get-presets")).fileNameFormat;
+                let presets = await ipcRenderer.invoke("get-presets");
+                let fileNameFormat = presets.fileNameFormat;
                 if(fileNameFormat)
                     form.querySelector(`#fileNameFormat>option[value="${fileNameFormat}"]`)
                     .setAttribute("selected",true);
+                form.discVal.value = presets.discVal;
             }
             else
             if(cmd==="session-management"){
@@ -604,6 +517,26 @@ async function showForm(e,cmd,show,prevData={}){
                     form.querySelector(`[name="paperSize"] option[value="${paperSize}"]`)
                     .setAttribute("selected",true);
                 form.querySelector(`input[name="margin"]`).value = margin;
+                let option1 = form.querySelector(`[name="applyTemplate"] option[value="default1"]`);
+                let option2 = form.querySelector(`[name="applyTemplate"] option[value="default2"]`); 
+                let { d1Img,d2Img } = await ipcRenderer.invoke("generate-template-previews");
+                if(d1Img){
+                    option1.dataset.img = d1Img;
+                    option2.dataset.img = d2Img;
+                    document.querySelector("#default1-template-preview img").src = d1Img;
+                    document.querySelector("#default1-template-preview button").dataset.img = d1Img;
+                    document.querySelector("#default2-template-preview img").src = d2Img;
+                    document.querySelector("#default2-template-preview button").dataset.img = d2Img;
+                    let appPolicy = await ipcRenderer.invoke("get-app-policy");
+                    let txtObj = appPolicy.default2 || {txt1:"txt1",txt2:"txt2",txt3:"txt3",txt4:"txt4"};
+                    [...document.querySelectorAll("#d2-txts input")]
+                    .forEach(inp=>{
+                        inp.value = txtObj[inp.dataset.col];
+                    });
+                    showOrHideDiv({target:file==="default2" ? option2 : option1});
+                }
+                else
+                    showToastNotification("Preview generation failed, try agin later",["animation-common","move-left","red-toast-box"])
             }
             else
             if(cmd==="company-profile"){
@@ -801,7 +734,17 @@ function appendElem(e){
 }
 
 function showOrHideDiv(e){
-    let form = e.target.parentNode.parentNode.parentNode;
+    let form = e.target.closest("Form");
+    let imgURL = e.target.dataset?.img || e.target.options[e.target.selectedIndex].dataset.img;
+    let selectedOption = e.target.value;
+    [...document.querySelectorAll(".img-div")]
+    .forEach(div=>{
+        div.classList.add("hide");
+    });
+    if(imgURL){
+        document.getElementById(`${selectedOption}-template-preview`).classList.remove("hide");
+    }
+    [...document.querySelectorAll(".hiden-divs")].forEach(elem=>elem.classList.add("hide"));
     let hideableDiv = form.querySelector(`[data-show="${e.target.value}"],[data-show="${e.target.dataset.target}"]`);
     if(!hideableDiv) return;
     hideableDiv.classList.toggle("hide");
@@ -883,7 +826,20 @@ async function saveSettings(e){
         data.applySeal = data.applySeal=="choosefile-3";
         data.captions = ["first","second","third"].map(key=>({[key]:data[key]}));
         ["first","second","third"].forEach(key=>Reflect.deleteProperty(data,key));
-        ipcRenderer.send("company-profile-info",{billTemplate:data});
+        let txtObj = {};
+        if(data.file==="default2"){
+            txtObj = {
+                txt1:data["d2-txt1"],
+                txt2:data["d2-txt2"],
+                txt3:data["d2-txt3"],
+                txt4:data["d2-txt4"],
+            }
+            delete data["d2-txt1"];
+            delete data["d2-txt2"];
+            delete data["d2-txt3"];
+            delete data["d2-txt4"];
+        }
+        ipcRenderer.send("company-profile-info",{billTemplate:data},txtObj);
     }
     else
     if(cmd==="company-profile"){
@@ -999,6 +955,63 @@ ipcRenderer.on("show-update-prompt", function(event, data) {
     showUpdatePrompt(data);
 });
 
+// ---- Beta Program prompt ----
+
+ipcRenderer.on("show-beta-prompt", function() {
+    showBetaPrompt();
+});
+
+ipcRenderer.on("beta-prompt-result", function(e, result) {
+    showBetaPromptResult(result || {});
+});
+
+/** In-page modal asking the user to join the Beta Program. Built with
+ *  createModal + the #beta-prompt-template clone (see product-info-fillup-modal). */
+function showBetaPrompt(){
+    if(document.getElementById("beta-program-modal")) return; // already open
+    let modal = createModal("beta-program-modal");
+    let content = appendToHost("#beta-prompt-template", modal, "div");
+    content.querySelector("#bp-btn-join").addEventListener("click", function(){
+        content.querySelector("#bp-btn-join").disabled = true;
+        content.querySelector("#bp-btn-later").disabled = true;
+        let err = content.querySelector("#bp-error");
+        err.textContent = "";
+        err.classList.add("hide");
+        ipcRenderer.send("beta-prompt-response", {action:"join"});
+    });
+    content.querySelector("#bp-btn-later").addEventListener("click", function(){
+        let dontAskAgain = content.querySelector("#bp-dont-ask-again").checked;
+        ipcRenderer.send("beta-prompt-response", {action:"cancel", dontAskAgain});
+        closeModal();
+    });
+}
+
+/** Handle the main-process reply to "join" (beta-register call). */
+function showBetaPromptResult({ok=false, error=""}={}){
+    let modal = document.getElementById("beta-program-modal");
+    if(!modal) return;
+    let content = modal.querySelector(".beta-prompt-content");
+    let joinBtn = content.querySelector("#bp-btn-join");
+    let laterBtn = content.querySelector("#bp-btn-later");
+    if(!ok){
+        joinBtn.disabled = false;
+        laterBtn.disabled = false;
+        let err = content.querySelector("#bp-error");
+        err.textContent = error || "Something went wrong. Please try again.";
+        err.classList.remove("hide");
+        return;
+    }
+    content.innerHTML = `
+        <div class="bp-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <h2>You're in! Welcome to the Beta Program.</h2>
+            <p>You now get early access to new updates and cheaper API pricing once billing starts.</p>
+            <button type="button" class="main-ui-btn" id="bp-btn-close" tabindex="0">Close</button>
+        </div>
+    `;
+    content.querySelector("#bp-btn-close").addEventListener("click", closeModal);
+}
+
 // Context Menu
 function showContextMenu(e){
     let elem = e.target;
@@ -1090,7 +1103,7 @@ document.addEventListener("click",(e)=>{
     if(e.target.classList.contains("drop-down-btn")) return;
     document.querySelector(".drop-down")?.classList.add("hide");
     if(e.target.dataset.cmd==="call-scheduler")
-        ipcRenderer.send("call-scheduler");
+        document.querySelector('#nav-div [data-cmd="scheduler"]').click();
 });
 
 ipcRenderer.on("update-content",async ()=>{
@@ -1128,8 +1141,8 @@ function changeHandler(e){
 function openScheduleManager(e){
     let selectedP = traverseParent(e.target,null,"P");
     if(!selectedP) return;
-    let evObj = JSON.parse(selectedP.dataset.obj);
-    ipcRenderer.send("open-event",evObj);
+    // The old event-modal was folded into the Scheduler page
+    document.querySelector('#nav-div [data-cmd="scheduler"]').click();
 }
 
 function collateUpdator(tagGrp,arr,i,evObj){
@@ -1169,9 +1182,17 @@ ipcRenderer.on("check-notification",()=>{
     ipcRenderer.send("get-notification");
 });
 
+// F6 / Tools menu → open the Scheduler page
+ipcRenderer.on("open-scheduler-page",()=>{
+    document.querySelector('#nav-div [data-cmd="scheduler"]').click();
+});
+
 ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
-    removeAllElem(".notification-group");
+    // The notification panel lives on the Overview dashboard; when the user
+    // is on another page (e.g. Scheduler) the host does not exist.
     let notificationHost = document.getElementById("notification-div");
+    if(!notificationHost) return;
+    removeAllElem(".notification-group");
     if(notifyJobs.length===0)
         return appendToHost("#no-notification-template",notificationHost,"P");
     notifyJobs = notifyJobs.sort((obj1,obj2)=>new Date(obj2.time)-new Date(obj1.time));
@@ -1216,6 +1237,10 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
                     description = `${job.billObj.name} Bill No: ${job.billObj.billNo} Amount Rs.${Math.round(job.billObj.total)} is due for payment.`;
             }
             else
+            if(job.type==="mail"){
+                description = `Email due: ${(job.billObj && job.billObj.name) || job.label} Bill No ${(job.billObj && job.billObj.billNo) || ""} — sending the bill PDF to ${(job.mail && job.mail.to) || "the customer's email on record"}.`;
+            }
+            else
             if(job.type==="Error"){
                 description = "An Error occured performing last operation. Contact developer to show your error."+job.error;
                 showToastNotification("Error occoured, check notification",["animation-common","move-left","red-toast-box"]);
@@ -1255,7 +1280,8 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
         .forEach(elem=>elem.classList.toggle("hide"));
         tagGrp.querySelector(".collate-content").classList.toggle("hide");
     });
-    initScheduleDiv();
+    if(window.refreshSchedulerWidget)
+        window.refreshSchedulerWidget();
 });
 
 function execRetractHandler(e){
@@ -1526,11 +1552,8 @@ async function prodFormAction(e){
 }
 
 ipcRenderer.on("remove-row",()=>{
-    if(!selectedRow) return;
-    if(currentMode==="overview")
-        selectedRow.remove();
-    if(currentMode==="sale")
-        selectedRow.querySelector(".col:last-child").textContent = "Paid";
+    if(!selectedRow || currentMode!=="overview") return;
+    selectedRow.remove();
 });
 
 ipcRenderer.on("msg-from-backend",(e,msg,type)=>{
@@ -1545,3 +1568,37 @@ async function assignPlaceOfJurisdiction(event){
     let placeOfJurisdiction = await ipcRenderer.invoke("get-place-of-jurisdiction",address);
     document.getElementById("placeOfJurisdiction").value = placeOfJurisdiction;
 }
+
+function previewImage(e){
+    let img = e.target.dataset.img || e.target.src;
+    let modal = createModal("image-previewer");
+    modal.innerHTML = `
+        <img src="${img}" />
+    `;
+    document.querySelector(".cover").addEventListener("click",closeModal);
+    document.querySelector(".cover").innerHTML = `
+        <h2>Click to close</h2>
+    `;
+
+}
+
+function debounceFn(){
+    let timer;
+    return function(){
+        if(timer)
+            clearTimeout(timer);
+        timer = setTimeout(async ()=>{
+            let txtObj = [...document.querySelectorAll("#d2-txts input")].reduce((acc,inp)=>{
+                return {
+                    ...acc,
+                    [inp.dataset.col]:inp.value
+                }
+            },{});
+            let imgURL = await ipcRenderer.invoke("generate-selected-template-preview",2,txtObj);
+            document.querySelector("#default2-template-preview img").src = imgURL;
+            document.querySelector("#default2-template-preview button").dataset.img = imgURL;
+        },1000);
+    }
+}
+
+const generatePreview = debounceFn();

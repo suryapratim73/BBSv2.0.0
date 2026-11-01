@@ -13,6 +13,7 @@ dist/
 build.js
 nodemonConfig.json
 orders.json
+proformas.json
 scheduler.json
 nodemon.json
 config/
@@ -28,8 +29,15 @@ views/
 !HELP.md
 !update.md
 download-state.json
+zenMode.json
 .claude/
 # Test artifacts
 coverage/
 test-results/
 playwright-report/
+python-env/
+__pycache__/
+*.pyc
+!template/data/*.md
+!README.md
+!CONTRIBUTING.md

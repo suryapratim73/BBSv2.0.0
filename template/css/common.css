@@ -553,7 +553,34 @@ button.selected{
 #more-feild-div p{
     color: inherit;
 }
-.hover:hover.hover::before{
+/* Shared hover tooltip (JS-driven): one fixed body-level element shown by
+   common.js. The legacy ::before popups below are scoped to the Bill Layout
+   designer only (its <body data-hover-tooltip="off"> opts out of the JS
+   tooltip) — everywhere else the ::before mechanism was clipped by overflow
+   containers and trapped in stacking contexts, which z-index cannot fix. */
+#hover-tooltip{
+    position: fixed;
+    z-index: 100002;
+    max-width: 250px;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    background: var(--theme-primary);
+    color: var(--theme-secondary);
+    font-size: 0.9rem;
+    box-shadow: 2px 2px 6px 0 var(--theme-shadow-color);
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s linear;
+}
+#hover-tooltip.visible{
+    opacity: 1;
+    visibility: visible;
+}
+body[data-hover-tooltip="off"] .hover:hover.hover::before{
     content: attr(data-msg);
     z-index: 10;
     position: absolute;
@@ -571,32 +598,32 @@ button.selected{
     word-break: break-word;
     overflow-wrap: break-word;
 }
-.hover.left:hover.hover.left::before{
+body[data-hover-tooltip="off"] .hover.left:hover.hover.left::before{
     right: unset !important;
     left: 0;
     margin-left: -80px;
     transform: translateX(-50%);
 }
-.hover.right:hover.hover.right::before{
+body[data-hover-tooltip="off"] .hover.right:hover.hover.right::before{
     left: unset !important;
     right: 0;
     margin-right: -40px;
     transform: translateX(-50%)
 }
-.hover.top:hover.hover.top::before{
+body[data-hover-tooltip="off"] .hover.top:hover.hover.top::before{
     bottom: unset;
     top: 0;
     margin-top: -80px;
     left: 0;
 }
-.hover.bottom:hover.hover.bottom::before{
+body[data-hover-tooltip="off"] .hover.bottom:hover.hover.bottom::before{
     top: 100%;
     margin-top: 8px;
     bottom: unset;
     left: 0;
 }
 /* Top-right tooltip: consistent gap above parent */
-.hover.top.right:hover.hover.top.right::before {
+body[data-hover-tooltip="off"] .hover.top.right:hover.hover.top.right::before {
     top: auto;
     bottom: 100%;
     right: 0;
@@ -607,7 +634,7 @@ button.selected{
 /* Top-left tooltip: consistent gap above parent. Without this, .top + .left
    fall through to their individual rules and stack two hardcoded -80px
    offsets, floating the popup far above the element. */
-.hover.top.left:hover.hover.top.left::before {
+body[data-hover-tooltip="off"] .hover.top.left:hover.hover.top.left::before {
     top: auto;
     bottom: 100%;
     left: 0;
@@ -1000,6 +1027,14 @@ button:disabled{
 #welcome-modal .welcome-text b {
     color: var(--theme-primary, rebeccapurple);
 }
+#welcome-modal .welcome-text h3 {
+    font-size: 0.95rem;
+    color: var(--theme-primary, rebeccapurple);
+    margin: 0 0 10px;
+    background-color: transparent;
+}
+#welcome-modal .welcome-text ul { margin: 0 0 0 1.1rem; padding: 0; }
+#welcome-modal .welcome-text li { margin: 0 0 6px; }
 #welcome-modal .welcome-actions {
     display: flex;
     gap: 12px;

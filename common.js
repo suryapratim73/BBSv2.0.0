@@ -27,6 +27,15 @@ exports.attempt = function(fn, fallback) {
     }
 };
 
+/** Resolves after `time` ms. */
+exports.delay = function(time){
+    return new Promise((res)=>{
+        setTimeout(()=>{
+            res();
+        },time);
+    });
+};
+
 function getPythonExecutablePath() {
   // Runtime layout: fetch_python.js extracts to python-env/<platform>/ in DEV;
   // electron-builder extraResources ships the matching runtime at
@@ -1538,4 +1547,55 @@ async function getSecret() {
 exports.deleteSecret = deleteSecret;
 async function deleteSecret() {
   await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
+}
+
+exports.cropImg = function(fullSnapshot){
+    const buffer = fullSnapshot.getBitmap(); // Raw RGBA byte array
+    const { width, height } = fullSnapshot.getSize();
+    const TOPBAR_HEIGHT = 56;
+
+    let detectedInvoiceHeight = height - TOPBAR_HEIGHT;
+    
+    // SCAN TARGET 1: Dark Theme Background Colors
+    // Chromium Dark Mode typically ranges between rgb(30, 30, 30) and rgb(45, 45, 45)
+    const isDarkThemeBG = (r, g, b) => r >= 25 && r <= 45 && g >= 25 && g <= 45 && b >= 25 && b <= 45;
+
+    // SCAN TARGET 2: Light Theme Background Colors
+    // Chromium Light Mode typically uses a silver/gray canvas around rgb(215, 218, 220) to rgb(240, 240, 240)
+    const isLightThemeBG = (r, g, b) => r >= 210 && r <= 242 && g >= 215 && g <= 242 && b >= 218 && b <= 245;
+
+    // The very bottom-left corner pixel (x=0, y=height-1) is guaranteed to be the background color
+    const cornerOffset = ((height - 1) * width + 0) * 4;
+    const bgR = buffer[cornerOffset];
+    const bgG = buffer[cornerOffset + 1];
+    const bgB = buffer[cornerOffset + 2];
+
+    // Scan backwards from the very bottom row to look for non-gray pixels
+    let invoiceRow = false;
+    for (let y = height - 1; y >= TOPBAR_HEIGHT; y--) {
+    const midX = Math.floor(width / 2); // Sample from the horizontal middle
+    const samplePoints = [ midX-50,midX-20,midX+20,midX+50 ];
+    for(const x of samplePoints){
+        const offset = (y * width + x) * 4;
+        const r = buffer[offset];
+        const g = buffer[offset+1];
+        const b = buffer[offset+2];
+
+        if(r!=bgR && g!=bgG && b!=bgB){
+        detectedInvoiceHeight = y;
+        invoiceRow = true;
+        }
+    }
+    if(invoiceRow)
+        break;
+    }
+
+    const cleanInvoiceImage = fullSnapshot.crop({
+    x: 0,
+    y: TOPBAR_HEIGHT,
+    width: width,
+    height: detectedInvoiceHeight
+    });
+    
+    return cleanInvoiceImage.toDataURL();
 }

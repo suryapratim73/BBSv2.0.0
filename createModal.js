@@ -65,7 +65,8 @@ exports.createModal = (windowOptions={},pathToHTML,{
     if(show && modal===windowList.find(win=>win.label==="Main").modal && "applyTheme" in appPolicy && appPolicy.applyTheme)
       modal.webContents.send("apply-theme",appPolicy.selectedTheme);
     if(loadFile){
-      modal.loadFile(path.join(__dirname,pathToHTML));
+      if(fs.existsSync(path.resolve(__dirname,pathToHTML)))
+        modal.loadFile(path.resolve(__dirname,pathToHTML));
       // Apply cached weather theme + inject themes.css into every new window
       modal.webContents.once("did-finish-load", () => {
         try {

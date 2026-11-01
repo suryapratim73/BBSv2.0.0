@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../js/overviewPage.js" defer></script>
     <script src="../js/mainPage.js" defer></script>
+    <script src="../js/cloudPage.js" defer></script>
+    <script src="../js/schedulerPage.js" defer></script>
     <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
     <link rel="stylesheet" href="../css/mainPage.css">
+    <link rel="stylesheet" href="../css/cloudPage.css">
+    <link rel="stylesheet" href="../css/schedulerPage.css">
     <link rel="stylesheet" href="../css/themes.css">
 </head>
 <body>
@@ -16,17 +21,12 @@
             <h1 data-ui="app-logo">BBS</h1>
         </div>
         <div role="menu" data-ui="nav-menu-primary">
-            <p data-cmd="overview" data-ui="nav-overview" role="menuitem">Overview</p>
-            <p data-cmd="sale" data-ui="nav-sale" role="menuitem">Sale</p>
-            <p data-cmd="purchase" data-ui="nav-purchase" role="menuitem">Purchase</p>
+            <p data-cmd="overview" data-ui="nav-overview" role="menuitem"><i class="fa-solid fa-table-cells-large"></i> Overview</p>
+            <p data-cmd="cloud" data-ui="nav-cloud" role="menuitem"><i class="fa-solid fa-cloud"></i> BBS Cloud</p>
+            <p data-cmd="scheduler" data-ui="nav-scheduler" role="menuitem"><i class="fa-solid fa-clock-rotate-left"></i> Scheduler</p>
         </div>
         <div role="menu" data-ui="nav-menu-secondary">
-            <p data-cmd="settings" data-ui="nav-settings">Settings</p>
-            <!-- <p data-cmd="help">Help</p> -->
-            <p data-cmd="logout" data-ui="nav-logout">Logout</p>
-            <p data-cmd="lock" data-ui="nav-lock">Lock</p>
-            <p id="reset-weather-btn" data-cmd="reset-weather" data-msg="Revert to default theme" class="hover top">Weather Theme</p>
-            <p id="kiosk-status-btn" data-cmd="kiosk-status" data-msg="Kiosk server status" class="hover top">Kiosk: Off</p>
+            <p data-cmd="settings" data-ui="nav-settings"><i class="fa-solid fa-gear"></i> Settings</p>
         </div>
     </div>
     <div id="main-div" data-ui="main-content" role="main">
@@ -37,13 +37,13 @@
                     <h2>Overview</h2>
                     <div id="sale-purchase-btn-div">
                         <div>
-                            <button onclick="ipcRenderer.send('open-bills-folder')" data-msg="Open bills folder" class="hover bottom" tabindex="0">Bills </button>
-                            <button onclick="ipcRenderer.send('new-sale-purchase',1)" data-msg="Create a new sale" class="hover bottom">Create Sale</button>
+                            <button onclick="ipcRenderer.send('open-bills-folder')" data-msg="Open bills folder" class="hover bottom" tabindex="0"><i class="fa-solid fa-folder"></i> Bills </button>
+                            <button onclick="ipcRenderer.send('new-sale-purchase',1)" data-msg="Create a new sale" class="hover bottom"><i class="fa-solid fa-file-invoice"></i> Create Sale</button>
                             <button class="fa-sharp fa-solid fa-caret-down drop-down-btn" onclick="document.querySelector('.drop-down').classList.toggle('hide');" aria-label="Show more sale options" aria-expanded="false" aria-controls="sale-dropdown"></button>
                             <div>
                                 <div class="drop-down hide" id="sale-dropdown" role="menu">
                                     <div>
-                                        <a href="#" onclick="ipcRenderer.send('new-sale-purchase',3)">Start Kiosk Server</a>
+                                        <a href="#" onclick="document.getElementById('kiosk-status').click()">Start Kiosk Server</a>
                                     </div>
                                     <div>
                                         <a href="#" onclick="ipcRenderer.send('new-sale-purchase',4)">Update order</a>
@@ -54,7 +54,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button onclick="ipcRenderer.send('new-sale-purchase',2)" data-msg="Register a new purchase" class="hover bottom" tabindex="0">Register Purchase</button>
+                        <button onclick="ipcRenderer.send('new-sale-purchase',2)" data-msg="Register a new purchase" class="hover bottom" tabindex="0"><i class="fa-solid fa-file-contract"></i> Register Purchase</button>
                     </div>
                 </div>
                 <div id="mode-host" oncontextmenu="showContextMenu(event)">
@@ -75,65 +75,31 @@
             </div>
         </div>
     </div>
+    <div id="app-status-bar" data-ui="app-status-bar" role="status" aria-label="App status">
+        <div class="status-item hover top right" id="zen-status" data-status="off" data-msg="Start Zen Mode">
+            <span class="status-dot"></span>
+            <span class="status-label">Zen Mode: Off</span>
+        </div>
+        <div class="status-item hover top right" id="weather-status" data-status="off" data-msg="Apply weather theme">
+            <span class="status-dot"></span>
+            <span class="status-label">Weather Theme: Off</span>
+        </div>
+        <div class="status-item hover top right" id="kiosk-status" data-status="off" data-msg="Start kiosk server">
+            <span class="status-dot"></span>
+            <span class="status-label">Kiosk: Off</span>
+        </div>
+        <div class="status-item" id="connectivity-status" data-status="off">
+            <span class="status-dot"></span>
+            <span class="status-label">Internet: &hellip;</span>
+        </div>
+        <div class="status-item" id="file-monitor-status" data-status="off">
+            <span class="status-dot"></span>
+            <span class="status-label">File Monitor</span>
+        </div>
+    </div>
     <template id="overview-page-template">
-        <div id="overview-div" class="mode-content">
-            <div ondblclick="dblClickHandler(event)">
-                <div class="table hide" id="order-table-div" role="table" aria-label="Unbilled orders overview table">
-                    <h3>Unbilled orders</h3>
-                    <div class="row head">
-                        <div class="col eq-space"><p data-col="slNo">Sl No</p></div>
-                        <div class="col eq-space"><p data-col="billDate">Date</p></div>                        
-                        <div class="col eq-space"><p data-col="name">Customer Name</p></div>
-                        <div class="col eq-space"><p data-col="netAmtTax">Amount</p></div>
-                        <div class="col eq-space"><p data-col="paymentStatus">Payment Status</p></div>
-                        <div class="col eq-space"><p data-col="status">Order Status</p></div>
-                    </div>
-                    <div class="tbody hide-scrollbar"></div>
-                </div>
-                <div class="table" id="expired-bill-table-div">
-                    <div>
-                        <h3>Expired Bills</h3>
-                        <select name="finYear" id="fin-year" onchange="overviewPageInit()" tabindex="0">
-                            <option value="0" selected>Current Financial Year</option>
-                            <option value="1">Last Financial Year</option>
-                            <option value="2">All Financial Year</option>
-                        </select>
-                    </div>
-                    <div class="row head">
-                        <div class="col eq-space"><p data-col="billNo">Bill Number</p></div>
-                        <div class="col eq-space"><p data-col="billDate">Bill Date</p></div>
-                        <div class="col eq-space"><p data-col="name">Customer Name</p></div>
-                        <div class="col eq-space"><p data-col="billAmt">Bill Amount</p></div>
-                    </div>
-                    <div class="tbody hide-scrollbar"></div>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <div id="stock-div" class="table">
-                        <h3>Stocks running low</h3>
-                        <div class="row head">
-                            <div class="col eq-space"><p data-col="name">Name</p></div>
-                            <div class="col eq-space"><p data-col="quantity">Quantity</p></div>
-                        </div>
-                        <div class="tbody hide-scrollbar">
-                        </div>
-                    </div>
-                </div>
-                <div id="scheduler-div" data-ui="scheduler" onclick="openScheduleManager(event)" onmouseenter="clearInterval(caroselTimer)" onmouseleave="carosel([...document.querySelectorAll('.event-page')],0)">
-                    <div class="event-page first-page">
-                        <div class="event-div">
-                            <div id="dt-div">
-                                <h1></h1>
-                                <p></p>
-                            </div>
-                        </div>
-                        <div class="btn-container">
-                            <button data-cmd="call-scheduler" data-msg="Add New Event" class="hover right top" tabindex="0">+</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div id="overview-div" class="mode-content" ondblclick="dblClickHandler(event)">
+            <!-- filled by template/js/overviewPage.js from the overview recipe -->
         </div>
     </template>
     <template id="quick-host-template">
@@ -164,82 +130,6 @@
             <div>
                 <div id="bil-meta" class="side-divs"></div>
                 <div id="customer-meta" class="side-divs"></div>
-            </div>
-        </div>
-    </template>
-    <template id="sale-page-template">
-        <div class="mode-content" id="sale-div">
-            <div id="sale-div-content" onmouseenter="saleOverviewContext()" onmouseleave='document.getElementById("overview-context").classList.add("hide");document.getElementById("context-options").classList.add("hide")'>
-                <div id="overview-context" class="hide">
-                    <div class="icon-container" onclick="showContextOptions()">
-                        <i data-msg="Change widget" class="hover">&#8635;</i>
-                    </div>
-                    <div class="hide" id="context-options" onclick="updateSaleOverviewPreference(event)">
-                        <p data-name="monthly1x">Monthly Sale - Current Month</p>
-                        <p data-name="monthly3x">Monthly Sale - Last 3 Months</p>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <div id="sale-graph-div">
-                    <div>
-                        <h3>Sale chart</h3>
-                        <canvas id="sale-graph"></canvas>
-                    </div>
-                    <div>
-                        <label>Change chart period</label>
-                        <select onchange="updateChart(event,'#sale-graph')" tabindex="0">
-                            <option value="year" data-mode="3">Year</option>
-                            <option value="month" data-mode="2">Month</option>
-                            <option value="day" data-mode="1" selected>Day</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
-    <template id="sale-table-template">
-        <div id="sale-table" class="widget">
-            <div class="table">
-                <div class="row head">
-                    <p class="col eq-space" data-col="billDate">Date</p>
-                    <p class="col eq-space" data-col="name">Name</p>
-                    <p class="col eq-space" data-col="netAmt">Bill Amount</p>
-                    <p class="col eq-space" data-col="paymentStatus">Paid / Unpaid</p>
-                </div>
-                <div class="tbody hide-scrollbar"></div>
-            </div>
-        </div>
-    </template>
-    <template id="purchase-page-template">
-        <div id="purchase-div" class="mode-content">
-            <div id="current-purchase">
-                <div class="table">
-                    <h3>Today's purchases'</h3>
-                    <div class="row head">
-                        <div class="col eq-space"><p>Bill Number</p></div>
-                        <div class="col eq-space"><p>Bill Date</p></div>
-                        <div class="col eq-space"><p>Supplier Name</p></div>
-                        <div class="col eq-space"><p>Bill Amount</p></div>
-                    </div>
-                    <div class="tbody hide-scrollbar">
-                    </div>
-                </div>
-            </div>
-            <div>
-                <div id="purchase-graph-div">
-                    <div>
-                        <h3>Purchase Chart</h3>
-                        <canvas id="purchase-graph"></canvas>
-                    </div>
-                    <div><label>Change chart period</label>
-                        <select onchange="updateChart(event,'#purchase-graph')" tabindex="0">
-                            <option value="year" data-mode="3">Year</option>
-                            <option value="month" data-mode="2">Month</option>
-                            <option value="day" data-mode="1" selected>Day</option>
-                        </select>
-                    </div>
-                </div>
             </div>
         </div>
     </template>
@@ -279,7 +169,7 @@
                         <div class="settings-div">
                             <p data-cmd="company-profile" data-show="billing-settings" data-msg="Edit company profile.">Company profile</p>
                             <p data-cmd="bill-template" data-show="billing-settings" data-msg="Setting related to Bill PDF customization.">Bill template</p>
-                            <p data-cmd="bill-no" data-show="billing-settings" data-msg="Define bill number format and set bill no">Invoice numbering</p>
+                            <p data-cmd="bill-no" data-show="billing-settings" data-msg="Define bill number format, set bill no and discount">Invoice settings</p>
                             <p data-cmd="gst-setting" data-show="billing-settings" data-msg="Define filing GST Intervals,financial year and other relevant Informations">GST Settings</p>
                             <p data-cmd="company-setting" data-show="billing-settings" data-msg="Define company policies and holidays">Company Settings</p>
                         </div>
@@ -721,25 +611,57 @@
     </template>
     <template id="bill-template-template">
         <form onsubmit="saveSettings(event)" id="bill-template" data-cmd="select-bill-template" data-show="billing-settings">
-            <div>
+            <div id="template-selector">
                 <div>
-                    <label for="applyTemplate">Choose template</label>
+                    <div>
+                        <label for="applyTemplate">Choose template</label>
+                    </div>
+                    <div>
+                        <select name="applyTemplate" data-cmd="applyTemplate" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template" tabindex="0">
+                            <option value="default1" selected>Default 1</option>
+                            <option value="default2">Default 2</option>
+                            <option value="choosefile">Choose a file</option>
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <select name="applyTemplate" data-cmd="applyTemplate" oninput="showOrHideDiv(event)" onclick="event.stopPropagation()" id="template" tabindex="0">
-                        <option value="default1" selected>Default 1</option>
-                        <option value="default2">Default 2</option>
-                        <option value="choosefile">Choose a file</option>
-                    </select>
+                <div id="template-preview">
+                    <div id="default1-template-preview" class="img-div hide">
+                        <img onclick="previewImage(event)">
+                        <button onclick="previewImage(event)" type="button">Click to zoom</button>
+                    </div>
+                    <div id="default2-template-preview" class="img-div hide">
+                        <img onclick="previewImage(event)">
+                        <button onclick="previewImage(event)" type="button">Click to zoom</button>
+                    </div>
                 </div>
             </div>
-            <div class="hide" data-show="choosefile">
+            <div class="hiden-divs hide" data-show="choosefile">
                 <div>
                     <label for="file">Select a file</label>
                 </div>
                 <div>
                     <input type="text" name="file" id="file" tabindex="0">
                     <button class="main-ui-btn hover right" type="button" onclick="chooseFile(event,{name: 'JSON File',extensions:['json']})" data-msg="Select template file" tabindex="0">Choose</button>
+                </div>
+            </div>
+            <div class="hiden-divs hide" id="d2-txts" data-show="default2" oninput="generatePreview()">
+                <div>
+                    <div>
+                        <div><label for="d2-txt1">Text 1</label></div>
+                        <div><input type="text" id="d2-txt1" name="d2-txt1" data-col="txt1"></div>
+                    </div>
+                    <div>
+                        <div><label for="d2-txt2">Text 2</label></div>
+                        <div><input type="text" id="d2-txt2" name="d2-txt2" data-col="txt2"></div>
+                    </div>
+                    <div>
+                        <div><label for="d2-txt3">Text 3</label></div>
+                        <div><input type="text" id="d2-txt3" name="d2-txt3" data-col="txt3"></div>
+                    </div>
+                    <div>
+                        <div><label for="d2-txt4">Text 4</label></div>
+                        <div><input type="text" id="d2-txt4" name="d2-txt4" data-col="txt4"></div>
+                    </div>
                 </div>
             </div>
             <div>
@@ -936,7 +858,7 @@
             </div>
             <div>
                 <div>
-                    <label for="billNo">Set invoice number</label>
+                    <label for="billNo">Last used invoice number</label>
                 </div>
                 <div>
                     <input type="text" name="billNo" id="billNo" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
@@ -954,6 +876,8 @@
                     </select>
                 </div>
             </div>
+            <div><label for="discVal">Discount in %</label></div>
+            <div><input type="text" name="discVal" id="discVal" data-type="Number" data-subtype="price" oninput="validateInput2(event)"></div>
             <div>
                 <button class="main-ui-btn page1 hover bottom" type="submit" data-msg="Save invoice number" tabindex="0">Save</button>
                 <button type="button" data-cmd="back" data-show="billing-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
@@ -1020,6 +944,21 @@
     <template id="data-modal-template">
         <div class="data-modal">
             <p></p>
+        </div>
+    </template>
+    <template id="scheduler-widget-template">
+        <div id="scheduler-div" data-ui="scheduler" onclick="openScheduleManager(event)">
+            <div class="event-page first-page">
+                <div class="event-div">
+                    <div id="dt-div">
+                        <h1></h1>
+                        <p></p>
+                    </div>
+                </div>
+                <div class="btn-container">
+                    <button data-cmd="call-scheduler" data-msg="Add New Event" class="hover right top" tabindex="0">+</button>
+                </div>
+            </div>
         </div>
     </template>
     <template id="schedules-page-template">
@@ -1266,6 +1205,168 @@
     <template id="dot-loader-template">
         <div class="dot-loader">
             <span></span><span></span><span></span>
+        </div>
+    </template>
+    <template id="cloud-page-template">
+        <div id="cloud-div" class="mode-content">
+            <!-- filled by template/js/cloudPage.js -->
+        </div>
+    </template>
+    <template id="scheduler-page-template">
+        <div id="scheduler-page-div" class="mode-content">
+            <!-- filled by template/js/schedulerPage.js -->
+        </div>
+    </template>
+    <template id="cloud-auth-template">
+        <div class="cc-auth">
+            <aside class="cc-auth-info">
+                <div class="cc-info-head">
+                    <i class="fa-solid fa-cloud"></i>
+                    <h1>BBS Cloud</h1>
+                </div>
+                <p class="cc-tagline">Connect this device to your BBS Cloud account to unlock cloud services for your business.</p>
+                <ul class="cc-benefits">
+                    <li><i class="fa-solid fa-circle-check"></i>Buy Annual Premium Pack to unlock APIs</li>
+                    <li><i class="fa-solid fa-circle-check"></i>Buy/manage Credits for API usage</li>
+                    <li><i class="fa-solid fa-circle-check"></i>Cross device syncing</li>
+                    <li><i class="fa-solid fa-circle-check"></i>Manage devices</li>
+                    <li><i class="fa-solid fa-circle-check"></i>Secure cloud backup of app logs for tax compliance</li>
+                </ul>
+                <p class="cc-note"><i class="fa-solid fa-shield-halved"></i>One account per business email — your account is matched by Email. Sign in from any device with the same Email.</p>
+            </aside>
+            <section class="cc-auth-card">
+                <div class="cc-tabs">
+                    <button type="button" data-tab="connect" class="selected" tabindex="0">Reguster this device</button>
+                    <button type="button" data-tab="signin" tabindex="0">Sign in</button>
+                </div>
+                <form id="cloud-auth-form" novalidate>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-gst">GST Number <span class="cc-required">*</span></label>
+                        <input type="text" id="cc-gst" name="gstNumber" placeholder="e.g. 27AAPFU0939F1ZV" maxlength="15" required tabindex="0">
+                    </div>
+                    <div class="cc-field">
+                        <label for="cc-email">Business email <span class="cc-required">*</span></label>
+                        <input type="email" id="cc-email" name="email" placeholder="accounts@example.com" required tabindex="0">
+                    </div>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-name">Contact name</label>
+                        <input type="text" id="cc-name" name="name" placeholder="Owner or accountant name" tabindex="0">
+                    </div>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-phone">Phone</label>
+                        <input type="text" id="cc-phone" name="phone" maxlength="20" placeholder="+91-98765-43210" tabindex="0">
+                    </div>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-company">Company name</label>
+                        <input type="text" id="cc-company" name="company_name" placeholder="Your business name" tabindex="0">
+                    </div>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-address">Company address</label>
+                        <input type="text" id="cc-address" name="company_address" placeholder="Street, city, state" tabindex="0">
+                    </div>
+                    <div class="cc-field cc-signup-only">
+                        <label for="cc-device">Device name</label>
+                        <input type="text" id="cc-device" name="device_name" maxlength="255" placeholder="e.g. Office Desktop" tabindex="0">
+                    </div>
+                    <div class="cc-field">
+                        <label for="cc-passwd">Password/Auth Code <span class="cc-required">*</span></label>
+                        <input type="password" id="cc-passwd" name="password" required tabindex="0">
+                    </div>
+                    <div class="cc-field">
+                        <div>
+                            <div><label for="cc-auth-type">Auth Type <span class="cc-required">*</span></label></div>
+                            <div>
+                                <div><label for="auth-password">Password</label><input type="radio" id="auth-password" name="auth-type" value="password" required tabindex="0"></div>
+                                <div><label for="auth-code">Auth Code</label><input type="radio" id="auth-code" name="auth-type" value="authcode" checked required tabindex="0"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cc-form-actions">
+                        <button type="submit" class="main-ui-btn" id="cc-submit" tabindex="0">Connect to Cloud</button>
+                    </div>
+                    <p class="cc-error hide" id="cc-error"></p>
+                </form>
+                <p class="cc-legal">By connecting, you agree to the BBS Cloud terms of service. Your credentials are stored securely in the operating system keychain.</p>
+                <p class="cc-legal">Your app auto refresh you cloud access unless app fails to connect for 15 days.</p>
+            </section>
+        </div>
+    </template>
+    <template id="cloud-dashboard-template">
+        <div class="cc-dashboard">
+            <div class="cc-dash-header">
+                <div>
+                    <h2><i class="fa-solid fa-cloud"></i>Cloud Dashboard</h2>
+                    <p class="cc-sub">Your BBS Cloud account and this device, at a glance.</p>
+                </div>
+                <div class="cc-dash-status">
+                    <span class="cc-chip connected">Connected</span>
+                    <span class="cc-last" id="cc-last-connected"></span>
+                </div>
+            </div>
+            <div class="cc-cards">
+                <section class="cc-card">
+                    <h3><i class="fa-solid fa-building"></i>Business</h3>
+                    <div class="cc-row"><span>Company</span><b id="cc-val-company"></b></div>
+                    <div class="cc-row"><span>GSTIN</span><b id="cc-val-gst"></b></div>
+                    <div class="cc-row"><span>Email</span><b id="cc-val-email"></b></div>
+                    <div class="cc-row"><span>Contact</span><b id="cc-val-contact"></b></div>
+                    <div class="cc-row"><span>Address</span><b id="cc-val-address"></b></div>
+                </section>
+                <section class="cc-card">
+                    <h3><i class="fa-solid fa-desktop"></i>This device</h3>
+                    <div class="cc-row"><span>Name</span><b id="cc-val-device-name"></b></div>
+                    <div class="cc-row"><span>Platform</span><b id="cc-val-platform"></b></div>
+                    <div class="cc-row cc-row-col"><span>Device ID</span><code id="cc-val-device-id" class="cc-mono"></code></div>
+                </section>
+                <section class="cc-card">
+                    <h3><i class="fa-solid fa-circle-check"></i>Account</h3>
+                    <div class="cc-row"><span>Program</span><b><span class="cc-chip" id="cc-val-beta"></span></b></div>
+                    <div class="cc-row"><span>Account ID</span><code id="cc-val-user-id" class="cc-mono"></code></div>
+                    <div class="cc-row"><span>Last connected</span><b id="cc-val-last"></b></div>
+                </section>
+            </div>
+            <section class="cc-card cc-muted">
+                <h3><i class="fa-solid fa-rotate"></i>Cloud sync</h3>
+                <p>Automatic cloud sync of your business data is not available yet. It is being rolled out in an upcoming release — live figures will appear here once it is enabled.</p>
+            </section>
+            <div class="cc-dash-actions">
+                <button type="button" class="cc-btn-ghost" id="cc-btn-signout" tabindex="0"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+                <button type="button" class="main-ui-btn" id="cc-btn-refresh" tabindex="0"><i class="fa-solid fa-rotate"></i> Refresh connection</button>
+            </div>
+        </div>
+    </template>
+    <template id="beta-prompt-template">
+        <div class="beta-prompt-content">
+            <div class="bp-header">
+                <div class="bp-title-row">
+                    <h1>Join the BBS Beta Program</h1>
+                    <span class="bp-badge">BETA</span>
+                </div>
+                <p class="bp-tagline">BBS has not officially launched yet — you are using a pre-release build.</p>
+            </div>
+            <div class="bp-body">
+                <h2 class="bp-section-title bp-warn-title"><i class="fa-solid fa-triangle-exclamation"></i>What this means</h2>
+                <ul class="bp-list bp-risk-list">
+                    <li>Your data might be at risk — please keep regular backups.</li>
+                    <li>You may encounter unexpected issues or breaking changes.</li>
+                </ul>
+                <h2 class="bp-section-title"><i class="fa-solid fa-gift"></i>Why join the Beta Program?</h2>
+                <ul class="bp-list bp-benefit-list">
+                    <li>Early access to updates — try new features before everyone else.</li>
+                    <li>APIs will cost less — beta members get cheaper pricing once billing starts.</li>
+                </ul>
+            </div>
+            <div class="bp-footer">
+                <label class="bp-dontask">
+                    <input type="checkbox" id="bp-dont-ask-again">
+                    Don't ask me again
+                </label>
+                <div class="bp-buttons">
+                    <button type="button" class="bp-btn-later" id="bp-btn-later" tabindex="0">Not Now</button>
+                    <button type="button" class="main-ui-btn" id="bp-btn-join" tabindex="0">Join Beta Program</button>
+                </div>
+            </div>
+            <p class="bp-error hide" id="bp-error"></p>
         </div>
     </template>
 </body>

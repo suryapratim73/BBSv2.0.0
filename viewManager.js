@@ -95,7 +95,6 @@ async function fetchWeatherTheme(serverUrl, city) {
         if(resp.status === 200)
             lastThemeChkTime = new Date();
         if (theme && theme !== "none") {
-            console.log("ViewManager: fetched weather theme from server:", { ...lastUserThemeObj, weatherColors: getWeatherColors(theme),themeFromServer:theme });
             lastTheme = theme;
             lastThemeChkTime = new Date();
             await storeUserThemeObj({ ...lastUserThemeObj, weatherColors: getWeatherColors(theme),themeFromServer:theme,lastThemeChkTime }); // persist for restoration after weather clear
@@ -462,18 +461,23 @@ async function initializeThemeAndBanners(win) {
 
     const serverUrl = process.env.APP_ENV === "DEV" ? "http://192.168.0.110:3030/" : process.env.UPDATE_REST;//
     if (!serverUrl) return;
-    const { appLogger } = require("./common");
+    const { appLogger,attempt } = require("./common");
 
     // Store the promise so reapplyTheme can await it (fixes race with booted event)
     inflightFetch = (async () => {
         const city = process.presets?.placeOfJurisdiction;
         const deviceId = global.deviceUUID;
         const gst = process.presets?.gst;
-        const [theme, banner, customCSS] = await Promise.all([
-            fetchWeatherTheme(serverUrl, city),
-            fetchAnnouncement(serverUrl, deviceId, gst),
-            fetchCustomTheme(serverUrl, deviceId, gst)
-        ]);
+        const [theme=null, banner=null, customCSS=null] = await attempt(()=>{
+            return Promise.all([
+                fetchWeatherTheme(serverUrl, city).catch(err=>({err})),
+                fetchAnnouncement(serverUrl, deviceId, gst).catch(err=>({err})),
+                fetchCustomTheme(serverUrl, deviceId, gst).catch(err=>({err}))
+            ]);
+        },(err)=>{
+            console.log(err);
+            return {};
+        })
         return { theme, banner, customCSS };
     })();
 
@@ -580,6 +584,8 @@ module.exports = {
     buildThemeClass,
     getWeatherColors,
     clearWeatherInterval,
+    isBannerDismissed,
+    saveDismissedBanner,
     get lastTheme() { return lastTheme; }, // exposed for IPC state handler
     registerIPC
 };

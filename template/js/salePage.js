@@ -37,6 +37,10 @@ const {
     reInitFuzzyIndexWithOptions,
     setNGramIndex,
     attempt,
+    drawSpinner,
+    attachChartTooltip,
+    getDatalistSnapshot,
+    rebuildFuzzyIndexFromDatalist,
 } = require("../js/common");
 
 const uuid = require("uuid");
@@ -66,7 +70,8 @@ let nameDatalist = document.createElement("datalist"),
     igstFlag,
     preset,
     nocFlag = true,
-    timer;
+    timer,
+    zenModeState = null;
 
 nameDatalist.id = "stock-names";
 customerNameDatalist.id = "customer-names";
@@ -90,11 +95,15 @@ async function init() {
     if (preBuiltIndex) setNGramIndex(preBuiltIndex);
     await appendToDL.call({tableName:"stock"},"get-stocks", nameDatalist);
     await appendToDL.call({tableName:"stock"},"get-services", nameDatalist);
-    await appendToDL.call({tableName:"customer"},"get-customers", customerNameDatalist);
+    await appendToDL.call({tableName:"customer",sameNameSuffix:true},"get-customers", customerNameDatalist);
     await appendToDL.call({tableName:"transporter"},"get-transporter", transporterDatalist);
     reInitFuzzyIndexWithOptions("stock",nameDatalist);
     reInitFuzzyIndexWithOptions("customer",customerNameDatalist);
     reInitFuzzyIndexWithOptions("transporter",transporterDatalist);
+    // Rebuild the customer index from the suffixed same-name option values —
+    // the pre-built index cached by the main process holds plain values and
+    // would leave same-name customers unresolvable in fuzzy search.
+    rebuildFuzzyIndexFromDatalist("customer",customerNameDatalist);
     let billNos = Array.from(new Set(availableBillNo));
     billNos = billNos.map((no) => {
         return {
@@ -112,7 +121,7 @@ async function init() {
     preset = await ipcRenderer.invoke("get-presets");
     billMeta.mode = "new-sale";
     billMeta.target = "salePage";
-    if (preset.mode === "edit-bill" || preset.mode==="edit-order") {
+    if (preset.mode === "edit-bill" || preset.mode==="edit-order" || preset.mode==="new-from-proforma") {
         customer = preset.customer;
         if ("billMeta" in preset) {
             billMeta = { ...preset.billMeta };
@@ -136,12 +145,35 @@ async function init() {
                 };
             });
         billMeta.mode = preset.mode;
-        if(preset.mode==="edit-order"){
-            delete billMeta.billNo;
-            delete billMeta.billDate;
+        if(preset.mode==="edit-order" || preset.mode==="new-from-proforma"){
+            delete billMeta.billNo;   // fresh bill number for the new invoice
+            delete billMeta.billDate; // fresh date too
         }
+        if(preset.mode==="new-from-proforma")
+            delete billMeta.printObj; // a real invoice must not carry the "Proforma Invoice" caption
         document.title = document.title + " - " + capitalize(preset.mode) + " mode";
     }
+    // Zen Mode: display it like order/edit mode, and keep the badge live
+    zenModeState = ["edit-bill", "edit-order"].includes(preset.mode) ? null : await ipcRenderer.invoke("get-zen-mode-state");
+    ipcRenderer.on("zen-mode-update", function(e, state){
+        if(preset.mode==="edit-bill" || preset.mode==="edit-order") return;
+        zenModeState = state || null;
+        billMeta.discVal = zenModeState?.discVal || 0;
+        preset.discVal = zenModeState?.discVal || 0;
+        document.title = document.title.replace(/\s+-\s+Zen mode$/, "");
+        if (zenModeState && billMeta.mode !== "edit-bill")
+            document.title = document.title + " - Zen mode";
+        document.getElementById("page-header").innerHTML = stepDetail();
+        // Keep the date input locked/unlocked in sync with the live state
+        let zenDateInput = document.querySelector(`[data-name="billDate"]`);
+        if (zenDateInput) {
+            zenDateInput.disabled = !!(zenModeState && billMeta.mode !== "edit-bill");
+            zenDateInput.title = zenModeState && billMeta.mode!=="edit-bill" ? "Bill date is fixed by Zen Mode" : "";
+        }
+    });
+    preset.discVal = zenModeState?.discVal || preset.discVal || 0;
+    if (zenModeState && billMeta.mode !== "edit-bill")
+        document.title = document.title + " - Zen mode";
     document.getElementById("page-header").innerHTML = stepDetail();
     mainForm();
     if (preset.mode === "edit-bill")
@@ -158,14 +190,17 @@ init().catch((err) => {
 ipcRenderer.on("apply-theme", applyTheme.bind(document));
 
 function stepDetail() {
+    let zenBadge = zenModeState
+        ? `<span class="zen-badge" title="Zen Mode: every invoice gets the bill date ${zenModeState.targetDate} & discount ${zenModeState.discVal}% until its stop condition triggers">&#9775; Zen Mode · ${zenModeState.targetDate} & ${zenModeState.discVal}%</span>`
+        : "";
     if (currentStep === 1)
-        return `Add <span class="highlight">customer</span> detail`;
+        return `Add <span class="highlight">customer</span> detail${zenBadge}`;
     if (currentStep === 2)
-        return `Add <span class="highlight">bill</span> detail`;
+        return `Add <span class="highlight">bill</span> detail${zenBadge}`;
     if (currentStep === 3)
-        return `Add <span class="highlight">item</span> detail`;
+        return `Add <span class="highlight">item</span> detail${zenBadge}`;
     if (currentStep === 4)
-        return `Add <span class="highlight">payment</span> detail`;
+        return `Add <span class="highlight">payment</span> detail${zenBadge}`;
 }
 
 function setFooter() {
@@ -185,7 +220,7 @@ function setFooter() {
     else {
         if (billMeta.billType === "regular" || billMeta.billType === "scrap" || billMeta.billType === "proforma")
             footer.querySelector(`[data-type="print"]`).classList.remove("hide");
-        if (billMeta.billType !== "proforma")
+        if (billMeta.billType !== "proforma" && preset.mode !== "new-from-proforma")
             footer.querySelector(`[data-type="save-order"]`).classList.remove("hide");
         footer.querySelector(`[data-type="save"]`).classList.remove("hide");
     }
@@ -469,7 +504,15 @@ async function mainForm() {
             // Normalize billDate to midnight UTC of the IST date (prevents drift on subsequent edits)
             billMeta.billDate = new Date(dateStr + 'T00:00:00.000Z');
             
-            document.querySelector(`[data-name="billDate"]`).value = dateStr; 
+            document.querySelector(`[data-name="billDate"]`).value = dateStr;
+            // Zen Mode: the bill date is fixed by the zen target date
+            if (zenModeState && billMeta.mode !== "edit-bill") {
+                let zenDateInput = document.querySelector(`[data-name="billDate"]`);
+                if (zenDateInput) {
+                    zenDateInput.disabled = true;
+                    zenDateInput.title = "Bill date is fixed by Zen Mode";
+                }
+            }
             // Bill Date mismatch bug - fixed
             if (!page2initialized) {
                 currentBillNo =
@@ -487,7 +530,7 @@ async function mainForm() {
                     if(proformaRadio) proformaRadio.checked = true;
                     // Force bill-status to open and disable
                     setTimeout(function(){
-                        var statusInputs = document.querySelectorAll("form input[name='bill-status']");
+                        var statusInputs = document.querySelectorAll("form input[name='billStatus']");
                         statusInputs.forEach(function(input){
                             if(input.id === "bill-status-open") input.checked = true;
                             input.setAttribute("disabled", true);
@@ -558,7 +601,7 @@ function advanceSet(target, newValue) {
     return Array.from(new Set(target));
 }
 
-function page4Init() {
+async function page4Init() {
     try {
         let netAmtTax = Math.round(billMeta.netAmtTax);
         document.querySelector("#summary-div .highlight").textContent =
@@ -587,6 +630,9 @@ function page4Init() {
                 .querySelector('button[data-cmd="grp-item"]')
                 .setAttribute("disabled", true);
         updatePayStatus();
+        applyDiscount();
+        // Create invoice preview
+        
     } catch (err) {
         console.error("Error in page4Init:", err);
         showToastNotification(
@@ -594,6 +640,35 @@ function page4Init() {
             ["animation-common", "move-left", "red-toast-box"],
             document.body,
         );
+    }
+}
+
+async function gerneratPreview(){
+    let spinner = drawSpinner(document);
+    let modal = createModal("invoice-preview-div");
+    modal.innerHTML = `
+        <img />
+    `;
+    showToastNotification(
+        "Generating Image for preview",
+        ["animation-common", "move-left", "blue-toast-box"],
+        "page-4",
+        32);
+    if(!preset.billTemplate.applyTemplate){
+        let temId = preset.billTemplate.file == "default2" ? 2 : 1;
+        let txtObj = preset.default2;
+        let invObj = {
+            customer,
+            billMeta,
+            orderItems
+        }
+        let imgURL = await ipcRenderer.invoke("generate-selected-template-preview",temId,txtObj,invObj);
+        modal.querySelector("img").src = imgURL;
+
+        spinner.remove(window);
+    }
+    else{
+        // For custom template - pending
     }
 }
 
@@ -622,10 +697,41 @@ function proceedOrFinishHandler(e) {
                     igstFlag =
                         gst != "" &&
                         Number(gst.match(/\d\d/)?.[0]) != Number(_gst.match(/\d\d/)?.[0]);
+                    // ---- Same-name customers: allowed when the GST differs ----
+                    // If the name matches an existing customer but the GST
+                    // doesn't, treat this as a NEW customer instead of silently
+                    // billing the old row. Covers both picked (datalist) and
+                    // freehand-typed names; the snapshot sees the full list even
+                    // while the live datalist is fuzzy-filtered.
+                    let sameNameNewGST = false;
+                    const pickedGST = (customer.gst && customer.gst !== "undefined") ? customer.gst : "";
+                    const typedGST = (formObjs.gst || "").toUpperCase();
+                    const sameNameOpts = getDatalistSnapshot("customer").filter(o => o.dataset.name === formObjs.name);
+                    if (sameNameOpts.length) {
+                        if (!("id" in customer) && typedGST) {
+                            // freehand name whose GST matches an existing row → adopt it
+                            const adopt = sameNameOpts.find(o => ((o.dataset.gst || "").toUpperCase()) === typedGST);
+                            if (adopt) customer = { ...customer, id: adopt.dataset.id };
+                        }
+                        if ("id" in customer && typedGST && typedGST !== pickedGST.toUpperCase()) {
+                            // different GST → new customer; drop the picked
+                            // customer's carried-over fields (policies live in
+                            // moreInfo and must not leak into the new row)
+                            if ((billMeta?.mode === "edit-bill" || billMeta?.mode === "edit-order") && typeof showToastNotification === "function")
+                                showToastNotification("GST changed while editing — a NEW customer will be created with the same name, address and phone numbers.",["animation-common","move-left","red-toast-box"],document.body);
+                            delete customer.id;
+                            customer.phones = [];
+                            customer.moreInfo = {};
+                            sameNameNewGST = true;
+                        } else if (!("id" in customer) && typedGST) {
+                            // no same-name row carries this GST → new customer
+                            sameNameNewGST = true;
+                        }
+                    }
                     customer = { ...customer, ...formObjs, phones: customer.phones };
                     if (!("id" in customer))
                         customer.id = uuid.v5(
-                            customer.name + "_customer",
+                            customer.name + "_customer" + (sameNameNewGST && typedGST ? "_" + typedGST : ""),
                             "6ba7b814-9dad-11d1-80b4-00c04fd430c8",
                         );
                     customer.phones = advanceSet(customer.phones, formObjs.phones);
@@ -640,7 +746,7 @@ function proceedOrFinishHandler(e) {
                             billMeta.transportName,
                             "6ba7b814-9dad-11d1-80b4-00c04fd430c8",
                         );
-                    if (!("discVal" in billMeta)) billMeta.discVal = 0;
+                    if (!("discVal" in billMeta)) billMeta.discVal = zenModeState?.discVal || 0;
                     // Convert billDate string from form to Date object at midnight UTC to prevent timezone drift
                     if (formObjs.billDate && typeof formObjs.billDate === 'string') {
                         formObjs.billDate = new Date(formObjs.billDate + 'T00:00:00.000Z');
@@ -1073,15 +1179,46 @@ function displaySection(show=true) {
             else
                 h2.textContent = key=="name" ? itemObj[key] : roundOffTo2DecimalPlace(itemObj[key]);
         });
+        // Item-wise discount (pInfo.discount): summary rates show the discounted value
+        const itemDiscount = Number(attempt(()=>{
+            const pInfo = typeof itemObj?.pInfo === "string" ? JSON.parse(itemObj.pInfo) : (itemObj?.pInfo || {});
+            return pInfo?.discount ?? 0;
+        },0));
+        if(itemDiscount > 0){
+            ["standardSellPrice","lastSellPrice","specialPrice"]
+            .forEach(key=>{
+                const el = document.querySelector(`#product-summary .blue[data-name="${key}"]`);
+                if(!el) return;
+                const rate = Number(el.textContent) || 0;
+                el.textContent = roundOffTo2DecimalPlace(Math.max(0, rate - itemDiscount));
+            });
+        }
+        // Clicking a summary rate copies it into the selected row's rate field
+        [...document.querySelectorAll(`#product-summary .blue[data-name="standardSellPrice"], #product-summary .blue[data-name="lastSellPrice"], #product-summary .blue[data-name="specialPrice"]`)]
+        .forEach(el=>{
+            el.style.cursor = "pointer";
+            el.title = "Click to set this rate";
+            el.addEventListener("click",()=>{
+                if(!selectedItem || !selectedItem.sellId) return;
+                const rateInput = document.querySelector(`.body.row[data-sell-id="${selectedItem.sellId}"] input[data-name="standardSellPrice"]`);
+                if(!rateInput) return;
+                rateInput.value = Number(el.textContent) || 0;
+                calculateAmounts();
+            });
+        });
         // ---- 6-month sell-rate line graph ----
         const graphContainer = document.querySelector("#graph-container");
         if (graphContainer) {
             // removeAllElem("#graph-container");
             if (pHistory.length >= 3) {
-                const canvas = document.createElement("canvas");
-                canvas.classList.add("pHistory-graph");
-                canvas.setAttribute("aria-label", "6-month sell rate history");
-                graphContainer.appendChild(canvas);
+                // create the canvas once — repeated displaySection calls (Ctrl+S) reuse it
+                let canvas = graphContainer.querySelector(".pHistory-graph");
+                if (!canvas) {
+                    canvas = document.createElement("canvas");
+                    canvas.classList.add("pHistory-graph");
+                    canvas.setAttribute("aria-label", "6-month sell rate history");
+                    graphContainer.appendChild(canvas);
+                }
                 pHistory = pHistory.reduce((acc,obj)=>{
                     acc.push({
                         amt : obj.rate,
@@ -1090,25 +1227,39 @@ function displaySection(show=true) {
                     });
                     return acc;
                 },[]);
-                drawLineGraph(null, pHistory, "#graph-container canvas", "#2196F3", "#64B5F6", {
-                    height: 160,
-                    bOffset: 28,
-                    tOffset: 12,
-                    lOffset: 8,
-                    rOffset: 8,
-                    shadow: true,
-                    pointRadius: 3,
-                    yLegend: "Rate",
-                    yLegColor: "#888",
-                    yLegOffset: 0.5,
-                    yLegFont: "10px Arial",
-                    xLegend: "Date",
-                    xLegColor: "#888",
-                    xLegOffset: 6,
-                    xLegFont: "10px Arial",
-                    axisColor: "#ccc",
-                    bgColor: "#fafafa",
-                });
+                // real total of the plotted period (percentage-scaling denominator, kept for later)
+                const rateTotal = pHistory.reduce((acc, obj) => acc + (obj.amt || 0), 0);
+                const drawRateGraph = () => {
+                    const rateRes = drawLineGraph(rateTotal, pHistory, "#graph-container canvas", "#2196F3", "#64B5F6", {
+                        height: 160,
+                        bOffset: 28,
+                        tOffset: 12,
+                        lOffset: 8,
+                        rOffset: 8,
+                        shadow: true,
+                        pointRadius: 3,
+                        yLegend: "Rate",
+                        yLegColor: "#888",
+                        yLegOffset: 0.5,
+                        yLegFont: "10px Arial",
+                        xLegend: "Date",
+                        xLegColor: "#888",
+                        xLegOffset: 6,
+                        xLegFont: "10px Arial",
+                        axisColor: "#ccc",
+                        bgColor: "#fafafa",
+                    });
+                    attachChartTooltip(rateRes, canvas, "Rate"); // guarded — refreshes points only
+                    // canvas may lag behind its CSS width while the layout settles — retry
+                    if (canvas.width !== Math.round(0.95 * canvas.parentNode.clientWidth))
+                        setTimeout(drawRateGraph, 0);
+                };
+                drawRateGraph();
+                // follow the window size (same contract as overviewPage's mountedCharts) —
+                // keep exactly one handler; displaySection may run again (Ctrl+S)
+                if (window._rateGraphResize) window.removeEventListener("resize", window._rateGraphResize);
+                window._rateGraphResize = drawRateGraph;
+                window.addEventListener("resize", drawRateGraph);
             } else {
                 const placeholder = document.createElement("div");
                 placeholder.classList.add("no-data");
@@ -1262,7 +1413,7 @@ function saveExit() {
                 currentStep
             );
         }
-        if (preset.target === "salePage" && (preset.mode === "new-sale" || preset.mode === "edit-order"))
+        if (preset.target === "salePage" && (preset.mode === "new-sale" || preset.mode === "edit-order" || preset.mode === "new-from-proforma"))
             ipcRenderer.send("save-exit-sale-bill", {
                 billMeta,
                 customer,

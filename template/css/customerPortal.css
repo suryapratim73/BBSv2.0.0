@@ -466,3 +466,82 @@ option{
     top: 50%;
     transform: translate(-50%, -50%);
 }
+/* Per-customer policy modal (Customer Policy button) */
+#cust-policy-modal{
+    display: block;
+    overflow: scroll;
+}
+.cust-policy-form {
+    max-width: 100%;
+    gap: 0.6rem;
+}
+.cust-policy-name {
+    font-weight: bold;
+    color: var(--theme-primary);
+}
+.cust-policy-section {
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.cust-policy-section h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--theme-text-color);
+}
+.cust-policy-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.cust-policy-row label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+.cust-policy-row input[type="number"] {
+    width: 5.2rem;
+}
+.cust-policy-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    user-select: none;
+}
+.cust-policy-days {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+.cust-policy-includes {
+    gap: 0.9rem;
+}
+.cust-policy-form textarea {
+    width: 100%;
+    resize: vertical;
+    font: inherit;
+    color: var(--theme-text-color);
+    background: transparent;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 6px;
+    padding: 0.4rem;
+}
+.cust-policy-note {
+    font-size: 0.72rem;
+    opacity: 0.75;
+    margin: 0;
+}
+.cust-policy-hint {
+    color: var(--theme-primary);
+    font-weight: bold;
+}
+.cust-policy-warn {
+    color: #d9534f;
+    font-weight: bold;
+    margin: 0.5rem 0 0;
+}

@@ -5,12 +5,14 @@ const { getTemplatePath } = require("./viewManager");
 const { customer, stock, freight, inPayments, sale, people, sequelize } = require("./model/dbConfig");
 const { getLedgerModel, customerList, initCustomerList, getBillModel, getBillManager, appLogger, People, getBaseDir, priceInspector, captionReducer, getFinYearStrtEndDt, getFivePercentOfMemory, getAllSales, openFormatForDate, attempt } = require("./common");
 const { printOnLinuxOrMac, printOnWindows, printDialog } = require("./printHandler");
-const { getsaleConfigPolicyPath, getOrderPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
+const { getsaleConfigPolicyPath, getOrderPath, getProformaPath, roundOffTo2DecimalPlace, getUserPolicyPath } = require("./template/js/common");
+const { loadProformas, upsertProforma, removeProforma } = require("./lib/proformaStore");
 const fs = require("fs");
 const path = require("path");
 const { billPDF } = require("./scripts/makePDF.default");
+const scheduler = require("./lib/scheduler");
 const uuid = require("uuid");
-const { DataTypes, Op, where } = require("sequelize");
+const { DataTypes, Op, } = require("sequelize");
 const { deserializeSchema } = require("./model/schemaLoader");
 
 let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
@@ -21,6 +23,113 @@ if(!(fs.existsSync(dynamicSchemaPath))){
 }
 const dynamicSchemaJson = fs.existsSync(dynamicSchemaPath) ? fs.readFileSync(dynamicSchemaPath, 'utf8') : null;
 const { customerLedgerSchema, billItemSchema } = fs.existsSync(dynamicSchemaPath) ? deserializeSchema(dynamicSchemaJson, DataTypes) : {};
+
+// ============================================================
+//  Zen Mode — while active, every invoice carries the same
+//  target bill date until its stop condition triggers or the
+//  user stops it manually. State persists across restarts.
+//  State shape: { targetDate, stopType, stopValue, billNos,
+//                 activatedAt }  stopType: manual | bill-numbers | duration
+// ============================================================
+const zenModePath = path.resolve(appPath, "zenMode.json");
+
+function loadZenStateFromDisk() {
+    try {
+        if (!fs.existsSync(zenModePath)) return null;
+        const state = JSON.parse(fs.readFileSync(zenModePath, "utf8"));
+        if (!state || !state.targetDate || !["manual", "bill-numbers", "duration"].includes(state.stopType))
+            return null;
+        return state;
+    } catch (_) {
+        return null;
+    }
+}
+
+function saveZenStateToDisk() {
+    try {
+        if (zenState)
+            fs.writeFileSync(zenModePath, JSON.stringify(zenState, null, 2));
+        else if (fs.existsSync(zenModePath))
+            fs.unlinkSync(zenModePath);
+    } catch (err) {
+        appLogger({ title: "Zen Mode", message: String(err), func: "saveZenStateToDisk" });
+    }
+}
+
+let zenState = loadZenStateFromDisk();
+
+/** Number of currently selected zen bill numbers that are already consumed. */
+function zenConsumedBillNos() {
+    try {
+        const pool = getBillManager().getState().pool;
+        return zenState.billNos.filter(no => {
+            const entry = pool.find(e => Number(e.billNo) === Number(no));
+            return entry && entry.isConsumed;
+        }).length;
+    } catch (_) {
+        return 0;
+    }
+}
+
+function stopZenMode(auto = false) {
+    const stopped = zenState;
+    zenState = null;
+    saveZenStateToDisk();
+    broadcastZenState();
+    appLogger({
+        title: "Zen Mode",
+        message: auto
+            ? "Zen Mode auto-stopped — stop condition met (" + (stopped?.stopType || "") + ")."
+            : "Zen Mode stopped by user.",
+        func: auto ? "stopZenMode - auto" : "stopZenMode - manual"
+    });
+    return stopped;
+}
+
+/**
+ * Live zen state, or null. Lazily evaluates the stop conditions
+ * (duration expiry / all selected bill numbers consumed) and
+ * auto-stops when one has been met.
+ */
+function getZenState() {
+    if (!zenState) return null;
+    if (zenState.stopType === "duration" &&
+        Date.now() >= zenState.activatedAt + zenState.stopValue * 3600000) {
+        stopZenMode(true);
+        return null;
+    }
+    if (zenState.stopType === "bill-numbers" &&
+        zenState.billNos.length > 0 &&
+        zenConsumedBillNos() === zenState.billNos.length) {
+        stopZenMode(true);
+        return null;
+    }
+    return zenState;
+}
+
+function zenStateSnapshot() {
+    const state = getZenState();
+    if (!state) return null;
+    let progress = {};
+    if (state.stopType === "bill-numbers") {
+        progress.totalBills = state.billNos.length;
+        progress.consumedBills = zenConsumedBillNos();
+    }
+    if (state.stopType === "duration") {
+        progress.timeLeftMs = Math.max(0, state.activatedAt + state.stopValue * 3600000 - Date.now());
+    }
+    return { ...state, billNos: state.billNos.slice(), progress };
+}
+
+function broadcastZenState() {
+    // Send the snapshot (with progress) — renderers display timeLeft/bill count from it.
+    const snapshot = zenStateSnapshot();
+    BrowserWindow.getAllWindows().forEach(win => {
+        try {
+            if (!win.isDestroyed()) win.webContents.send("zen-mode-update", snapshot);
+        } catch (_) {}
+    });
+}
 
 
 let closeFlag = false,
@@ -85,6 +194,98 @@ exports.orderManager = (main,cb)=>{
     }
 }
 
+exports.zenMode = (main)=>{
+    return ()=>{
+        let _windowOptions = { ...windowOptions }
+        _windowOptions.parent = main;
+        _windowOptions.width = 420;
+        _windowOptions.height = 560;
+        createModal(_windowOptions,getTemplatePath("zenMode"),{maxWinCount:1,label:"zen-mode"});
+    };
+}
+
+// ============================================================
+//  Zen Mode IPC
+// ============================================================
+
+ipcMain.on("open-zen-mode", ()=>{
+    exports.zenMode(getMainWindow())();
+});
+
+ipcMain.handle("get-zen-mode-state", ()=>{
+    try {
+        return zenStateSnapshot();
+    } catch(err) {
+        console.error("Error in get-zen-mode-state:", err);
+        return null;
+    }
+});
+
+ipcMain.handle("get-available-bill-numbers", ()=>{
+    try {
+        return getBillManager().getState().pool
+            .slice()
+            .sort((a,b)=>a.billNo-b.billNo)
+            .map(entry=>({
+                billNo: entry.billNo,
+                isConsumed: entry.isConsumed,
+                reserved: !!entry.windowId
+            }));
+    } catch(err) {
+        console.error("Error in get-available-bill-numbers:", err);
+        return [];
+    }
+});
+
+ipcMain.handle("activate-zen-mode", (e,payload)=>{
+    try {
+        payload = payload || {};
+        const targetDate = String(payload.targetDate || "").trim();
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) || isNaN(new Date(targetDate + "T00:00:00.000Z").getTime()))
+            return { ok:false, message:"Please pick a valid target date." };
+        const stopType = ["manual","bill-numbers","duration"].includes(payload.stopType) ? payload.stopType : "manual";
+        let stopValue = null, billNos = [];
+        if(stopType==="duration"){
+            stopValue = Number(payload.stopValue);
+            if(!(stopValue>0))
+                return { ok:false, message:"Please enter a valid duration." };
+        }
+        if(stopType==="bill-numbers"){
+            billNos = [...new Set((payload.billNos||[]).map(n=>Math.trunc(Number(n))).filter(n=>n>0))]
+                .sort((a,b)=>a-b);
+            if(!billNos.length)
+                return { ok:false, message:"Select at least one bill number." };
+            // Already consumed bill numbers are not allowed
+            const consumed = billNos.filter(no=>{
+                const entry = getBillManager().getState().pool.find(e=>Number(e.billNo)===Number(no));
+                return entry && entry.isConsumed;
+            });
+            if(consumed.length)
+                return { ok:false, message:"Bill number(s) already used: " + consumed.join(", ") };
+        }
+        zenState = {
+            targetDate,
+            discVal:payload.discVal || 0,
+            stopType,
+            stopValue,
+            billNos,
+            activatedAt: (zenState && zenState.activatedAt) || Date.now() // keep original start when updating an active run
+        };
+        saveZenStateToDisk();
+        broadcastZenState();
+        appLogger({ title:"Zen Mode", message:JSON.stringify({action:"activate", ...zenState}), func:"activate-zen-mode" });
+        return { ok:true, message:"Zen Mode is active.", state: zenStateSnapshot() };
+    } catch(err) {
+        console.error("Error in activate-zen-mode:", err);
+        return { ok:false, message:String(err) };
+    }
+});
+
+ipcMain.handle("stop-zen-mode", ()=>{
+    stopZenMode(false);
+    return { ok:true };
+});
+
 ipcMain.on("open-sale-in-order-mode",async (e,{billMeta,orderItems,customer})=>{
     exports.saleWindow()("salePage","edit-order",{
         customer,
@@ -122,7 +323,7 @@ ipcMain.on("cancel-sale-bill",(e,currentStep)=>{
             getBillManager().release(sessionId);
         closeFlag = true;
         BrowserWindow.getFocusedWindow().close();
-        ["billMeta","orderItems","customer","target","mode"]
+        ["billMeta","orderItems","customer","target","mode","proformaId"]
         .forEach(key=>{
             if(typeof process.presets[key]!="undefined")
                 delete process.presets[key];
@@ -266,7 +467,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     const { cityListWithCodes } = require("./common");
     closeFlag = true;
     saleWindow = BrowserWindow.fromId(e.sender.id) || BrowserWindow.getFocusedWindow();
-    if(flag==="regular")
+    if(flag==="regular" || flag==="print")
         saleWindow.close();
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
@@ -278,10 +479,17 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             manageOrder(null,billMeta,"order-billed");
             try { getTargetWindow("manage-order")?.webContents?.send("billing-complete"); } catch (_) {}
         }
-        if(["edit-order","edit-bill"].includes(billMeta.mode)){
+        if(billMeta.mode==="new-from-proforma"){
+            // A proforma converted to a real invoice — remove the quote record.
+            if(process.presets.proformaId)
+                manageProforma(process.presets.proformaId,"proforma-billed");
+            try { getTargetWindow("manage-order")?.webContents?.send("billing-complete"); } catch (_) {}
+        }
+        if(["edit-order","edit-bill","new-from-proforma"].includes(billMeta.mode)){
             delete process.presets.orderItems;
             delete process.presets.customer;
             delete process.presets.billMeta;
+            delete process.presets.proformaId;
         }
         Reflect.deleteProperty(process.presets,"target");
         Reflect.deleteProperty(process.presets,"mode");
@@ -313,9 +521,16 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
     billMeta.netAmt = netAmt;
     billMeta.netAmtTax = netAmtTax;
     billMeta.netTax = netTax;
+    // Zen Mode: every invoice saved while zen is active carries the target date.
+    // Editing an old bill (edit-bill) keeps its original date.
+    const zenAtSave = getZenState();
+    if (zenAtSave && !["edit-bill"].includes(billMeta.mode)) {
+        billDate = new Date(zenAtSave.targetDate + "T00:00:00.000Z");
+        billMeta.billDate = billDate;
+    }
     let saleConfig = JSON.parse(fs.readFileSync(getsaleConfigPolicyPath()).toString());
     if(billType === "proforma" && (!billMeta.printObj.captions || !billMeta.printObj.captions.length))
-        billMeta.printObj = { ...billMeta.printObj, captions: ["Proforma Invoice"] };
+        billMeta.printObj = { ...billMeta.printObj, captions: [{first:"Proforma Invoice"}] };
     billMeta.printObj.captions = captionReducer(billMeta.printObj.captions);
 
     // Consume the reserved bill number (no-op for edit-bill, kiosk, or already-consumed)
@@ -327,6 +542,11 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         else
             getBillManager().release(sessionId);
     }
+    // Proforma bills are quotes, not invoices: persist them to proformas.json
+    // (same convention as orders.json) instead of the sale/ledger/stock tables,
+    // so they stay out of the dashboard and can be converted from Order Manager.
+    if(billType === "proforma" && billMeta.mode !== "edit-bill")
+        return await saveProforma(e,{billMeta,customer:customerObj,orderItems},flag);
     // return billPDF({billMeta,customer:customerObj,orderItems});// Temporary blocking
     let netPayment = Math.round(payment?.reduce((acc,obj)=>acc+obj.payment,0) ?? 0);
     if(!netDue && paymentStatus===false)
@@ -540,6 +760,15 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             message: "Bill added to your sale and stocks and/or ledger updated."
         };
         dialog.showMessageBox(BrowserWindow.getFocusedWindow(),msg);
+        // Zen Mode: re-evaluate the stop condition after this invoice saved.
+        // If it just auto-stopped, tell the user so the next bills don't
+        // surprise them with the current date.
+        if (zenAtSave && !["edit-bill"].includes(billMeta.mode) && !getZenState())
+            dialog.showMessageBox(BrowserWindow.getFocusedWindow(),{
+                type: "info",
+                title: "Zen Mode ended",
+                message: "Zen Mode has stopped — its stop condition was met. New invoices will use the current date again."
+            });
         let concatenatedObj = {
             ...billMeta,
             orderItems,
@@ -565,8 +794,12 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
                     ...customerObj
                 }
             }
-            ipcMain.emit("manage-schedule",null,evObj,"a",false);
+            scheduler.addEvent(evObj);
         }
+        // Burst automation: the scheduler notices a run of bill saves and
+        // offers to print them (printable snapshot captured here while the
+        // full bill data is in scope).
+        scheduler.noteBillSaved({billMeta, customer:customerObj, orderItems}, billNo);
         // Notify main window to refresh (fallback for kiosk/null sender)
         var notifyWin = BrowserWindow.fromId(e.frameId) || getMainWindow();
         if (notifyWin) notifyWin.webContents.send("update-content");
@@ -594,7 +827,7 @@ ipcMain.handle("get-customers",async ()=>{
 
 ipcMain.on("salepage-print-doc",async (e,billObj,flag="regular")=>{
     try {
-        let path2pdf = await save_exit(e,billObj,flag);
+        let path2pdf = await save_exit(e,billObj,"print");
     if(!path2pdf) return;
     // return path2pdf; // Temporary blocking
     let {billMeta:{billStatus,printObj:{ printer,copies=1,paperSize,printOrientation } } } = billObj;
@@ -636,6 +869,7 @@ ipcMain.handle("get-transporter",async ()=>{
 ipcMain.on("get-sales",async e=>{
     try{
         let sales = typeof global.sales!=="undefined" ? global.sales : await getAllSales(sale,appLogger,getFivePercentOfMemory);
+        sales = sales.filter(bill=>bill.billType!=="proforma"); // proformas live in proformas.json, not the dashboard
         e.sender.send("get-sales-response",sales);
     }
     catch(err){
@@ -646,7 +880,14 @@ ipcMain.on("get-sales",async e=>{
 
 ipcMain.handle("get-sales",async e=>{
     try {
-        return (await (await sale.sync()).findAll({order:[["entryNo","DESC"]]})).map(({dataValues})=>dataValues);
+        return (await (await sale.sync()).findAll({
+            where:{
+                billType:{
+                    [Op.ne]:"proforma" // proformas live in proformas.json, not the dashboard
+                }
+            },
+            order:[["entryNo","DESC"]]
+        })).map(({dataValues})=>dataValues);
     } catch(err) {
         console.error("Error in get-sales (handle):", err);
         return [];
@@ -781,6 +1022,110 @@ async function manageOrder(e,billMeta,flag){
 
 ipcMain.handle("manage-order",manageOrder);
 
+/**
+ * Persist a proforma bill to proformas.json — quotes are never written to the
+ * sale/ledger/stock tables, so they never appear on the dashboard. Returns the
+ * generated PDF path for the print flow.
+ */
+async function saveProforma(e,{billMeta,customer:customerObj,orderItems},flag="regular"){
+    // A proforma is a quote — its caption must say so. The record stores the
+    // reduced caption shape (same as a regular bill); on conversion the
+    // printObj is dropped entirely, so the real invoice gets fresh captions.
+    billMeta.printObj = billMeta.printObj || {};
+    billMeta.printObj.captions = ["Proforma Invoice"];
+    const { netAmt, netAmtTax, netTax } = recalculateAmounts(orderItems);
+    billMeta.netAmt = netAmt;
+    billMeta.netAmtTax = netAmtTax;
+    billMeta.netTax = netTax;
+    billMeta.netDue = Math.round(netAmtTax);
+    billMeta.payment = billMeta.payment || [];
+    billMeta.paymentStatus = false;
+    const proformaId = billMeta.proformaId || uuid.v4();
+    const entry = {
+        proformaId,
+        status: "pending",
+        paymentStatus: false,
+        name: (customerObj && customerObj.name) || billMeta.name || "",
+        netAmtTax: Math.round(netAmtTax),
+        netDue: Math.round(netAmtTax),
+        billDate: openFormatForDate(billMeta.billDate),
+        createdAt: new Date().toISOString(),
+        billMeta,
+        customer: customerObj,
+        orderItems
+    };
+    let proformasPath = getProformaPath();
+    let data = loadProformas(proformasPath, fs);
+    data = upsertProforma(data, entry);
+    try {
+        fs.writeFileSync(proformasPath, JSON.stringify(data));
+    } catch(err) {
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"saveProforma — write proformas.json"
+        });
+    }
+    appLogger({
+        title:"Proforma",
+        message:JSON.stringify({action:"save", proformaId, name:entry.name, netAmtTax:entry.netAmtTax}),
+        func:"saveProforma"
+    });
+    // Order Manager (if open) should show the new quote
+    try { getTargetWindow("manage-order")?.webContents?.send("refresh-orders"); } catch (_) {}
+    if(flag!=="print" && process.env.APP_ENV!=="DEV")
+        dialog.showMessageBox(getMainWindow(),{
+            title:"Proforma saved",
+            message:`Proforma saved for ${entry.name} (₹${entry.netAmtTax}).`,
+            detail:"It is available under Order Manager → Proforma Bills and can be converted to a real invoice anytime."
+        });
+    return billPDF({billMeta,customer:customerObj,orderItems});
+}
+
+async function manageProforma(proformaId,flag){
+    let proformasPath = getProformaPath();
+    try{
+        if(flag==="proforma-billed" || flag==="proforma-deleted"){
+            let data = loadProformas(proformasPath, fs);
+            data = removeProforma(data, proformaId);
+            fs.writeFileSync(proformasPath, JSON.stringify(data));
+        }
+    }
+    catch(err){
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"manageProforma"
+        });
+    }
+}
+
+ipcMain.handle("manage-proforma",(e,{proformaId},flag)=>manageProforma(proformaId,flag));
+
+ipcMain.handle("get-proforma",(e,proformaId)=>{
+    try {
+        let data = loadProformas(getProformaPath(), fs);
+        return data.find(function(o){ return o.proformaId === proformaId; }) || null;
+    } catch(err) {
+        appLogger({
+            title:"Error",
+            message:String(err),
+            func:"get-proforma"
+        });
+        return null;
+    }
+});
+
+ipcMain.on("open-sale-from-proforma",(e,{customer,billMeta,orderItems,proformaId})=>{
+    exports.saleWindow()("salePage","new-from-proforma",{
+        customer,
+        billMeta,
+        orderItems,
+        currentStep:1,
+        proformaId,
+    });
+});
+
 ipcMain.on("set-listener-order-manager",(e)=>{
     ipcMain.once("print-obj",(ev,printObj)=>{
         getTargetWindow("Custom-Print-Dialog").close();
@@ -814,6 +1159,10 @@ function traverseDate(date,annualHolidays,weeklyHolidays){
 }
 
 ipcMain.handle("get-date", ()=>{
+    // Zen Mode: while active, every new invoice starts with the target date
+    const zen = getZenState();
+    if(zen)
+        return new Date(zen.targetDate + "T00:00:00.000Z");
     let date = new Date();
     let dayArray = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     let annualHolidays = (process.presets.annualHolidays?.split(",").map(dt=>dt.trim())

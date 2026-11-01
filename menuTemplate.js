@@ -3,7 +3,7 @@ const { BrowserWindow, ipcMain, dialog, app } = require("electron");
 const { addPurchase,showPurchase } = require("./handlePurchase");
 const { displayStock,handleReturn } = require("./handleStock");
 const { getSuplierPortal,checkOutPayments } = require("./supplierHandler");
-const { saleWindow, showSales, orderManager } = require("./saleHandler");
+const { saleWindow, showSales, orderManager, zenMode } = require("./saleHandler");
 const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
@@ -74,6 +74,11 @@ module.exports = mainWindow=>{
                     label:"Add Sale",
                     accelerator:"CommandOrControl+Return",
                     click: ()=>appStateComplianceEnforcement(saleWindow())
+                },
+                {
+                    label:"Zen Mode",
+                    accelerator:"CommandOrControl+Alt+z",
+                    click: ()=>appStateComplianceEnforcement(zenMode(mainWindow))
                 },
                 {
                     label:"Customer Portal",
@@ -181,10 +186,7 @@ module.exports = mainWindow=>{
                 },
                 {
                     label: "Scheduler",
-                    click: ()=>{
-                        const { scheduleManager } = require("./main");
-                        appStateComplianceEnforcement(scheduleManager(mainWindow))
-                    },
+                    click: ()=>mainWindow.webContents.send("open-scheduler-page"),
                     accelerator: "F6"
                 },
                 // {type:"separator"},

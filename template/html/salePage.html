@@ -355,37 +355,39 @@
                         </div>
                     </div>
                 </div>
-                <div id="discount-div">
-                    <input type="text" oninput="applyDiscount(event)" placeholder="Type discount if any in %" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
-                </div>
                 <div id="grp-btn-div">
                     <button data-cmd="grp-item" disabled onclick="showItemMergeOpts()" type="button" tabindex="0">Show Item Grouping Options</button>
                 </div>
             </div>
-            <div id="summary-div" role="region" aria-labelledby="bill-summary-label">
-                <div>
-                    <p id="bill-summary-label">Bill Amount</p>
-                    <p data-name="netAmtTax" class="highlight">0</p>
+            <div id="right-section">
+                <div id="summary-div" role="region" aria-labelledby="bill-summary-label">
+                    <div>
+                        <p id="bill-summary-label">Bill Amount</p>
+                        <p data-name="netAmtTax" class="highlight">0</p>
+                    </div>
+                    <div>
+                        <p>Delivery Charge</p>
+                        <p data-name="delCharge" class="highlight">0</p>
+                    </div>
+                    <div id="netAmtTaxDel-div">
+                        <p>Net Amount</p>
+                        <p data-name="netAmtTaxDel" class="highlight">0</p>
+                    </div>
+                    <div>
+                        <p>Net Payment</p>
+                        <p data-name="paymentAmt" class="highlight">0</p>
+                    </div>
+                    <div>
+                        <p>Net Due</p>
+                        <p data-name="dueAmt" class="highlight">0</p>
+                    </div>
+                    <div>
+                        <p>Net Return</p>
+                        <p data-name="return" class="highlight">0</p>
+                    </div>
                 </div>
-                <div>
-                    <p>Delivery Charge</p>
-                    <p data-name="delCharge" class="highlight">0</p>
-                </div>
-                <div id="netAmtTaxDel-div">
-                    <p>Net Amount</p>
-                    <p data-name="netAmtTaxDel" class="highlight">0</p>
-                </div>
-                <div>
-                    <p>Net Payment</p>
-                    <p data-name="paymentAmt" class="highlight">0</p>
-                </div>
-                <div>
-                    <p>Net Due</p>
-                    <p data-name="dueAmt" class="highlight">0</p>
-                </div>
-                <div>
-                    <p>Net Return</p>
-                    <p data-name="return" class="highlight">0</p>
+                <div id="preview-action-container">
+                    <button type="button" onclick="gerneratPreview()">Generate Preview</button>
                 </div>
             </div>
         </div>

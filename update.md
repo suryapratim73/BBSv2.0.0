@@ -1,17 +1,25 @@
-# version: 2.22.4
+# version: 2.23.0
 
 ## welcome
-### Welcome to BBS v2.22.4
+### Welcome to BBS v2.23.0
 
-This is a stability release fixing critical bugs in billing and logging. Note: View Logs will show logs from 1st, August. Log backup/download functionality is not available before app launch.
-
-- **Duplicate bill number fixed** — A type mismatch between the BillManager pool (always Numbers) and IPC renderer values (could arrive as Strings) caused `===` comparisons to silently fail, releasing every bill number instead of consuming it. Fixed with explicit `Number()` casts at all trust boundaries.
-- **Update download fixed** — The download button in the pre-update prompt was non-functional due to IPC and script loading issues. Replaced with a reliable native dialog.
-- **appLogger backpressure fixed** — Node's stream `write()` returning false doesn't mean data was lost — it means data IS buffered internally. The previous fix was re-writing queued entries on drain, silently duplicating every log line that hit backpressure. The drain handler now only confirms writes without re-writing.
-- **Transparent background fixed** — UI background rendering issue resolved.
-- **Theme & Auth cookie change** — Dev and Prod environments now use separate auth cookies.
-
-If you missed v2.22.2 features: **Kiosk Mode** lets customers browse and order from their phone on your LAN, and the new **Order Manager** (Shift+F5) lets you manage partial bills with search, edit, and delete support.
+- **Customer Policy** — Give every customer their own payment terms. To use: open a customer's Ledger or Bills in the customer portal and press **Customer Policy** (or Ctrl+Y). Set due days, credit limit, early-pay discount and an automatic sale-page discount, plus automated email reminders — on the due date, then repeating daily, weekly or on chosen weekdays — with your own message and optional bill PDF, payment link and ledger balance. Over-limit customers show a credit-limit warning on their card, the payment modal shows the early-pay amount, and reminders send through BBS Cloud and survive app restarts.
+- **Modifiable Dashboard** — Overview, Sale and Purchase are now one page. To activate: open Overview and press **Customize** in its toolbar. Pick from 15 widgets (sale/purchase charts and tables, monthly-yearly cards, order table, scheduler, cloud usage, file monitor and more), stack cards, and add or remove row bands (minimum 1 band). Your layout is saved and restored on every launch.
+- **Proforma Bills** — Quotes are saved now. To use: open **Order Manager** (Shift+F5) and go to the **Proforma Bills** tab to create a quote; it stays out of your dashboard until you convert it to a real invoice in one click, with a fresh bill number and all items and customer prefilled.
+- **Bill Layout Designer** — To activate: press **Ctrl+B**. Modify the default layouts or create your own invoice layout with live preview, drag-move, zoom, resize dots, section shapes, a table editor, starter templates (Blank / Three Sections / Default 1 / Default 2) and full undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y). When you pick Default 1 or Default 2 in Bill Settings, a preview image is shown before you apply it.
+- **Zen Mode** — Bill every invoice with the same date. To activate: click **Zen Mode: Off** on the status bar at the bottom of the main page, set the target bill date, an optional discount %, and a stop condition (manual, after selected bill numbers, or after a duration), then press **Activate Zen Mode**. Every invoice gets that date and discount until the stop condition triggers — stop it any time from the same modal. The discount field now lives in Zen Mode and Bill Settings.
+- **Scheduler** — To activate: open **Scheduler** from the left sidebar (or F6). Check upcoming events, assign actions and automate tasks — burst print automation, self-filled tasks, one action per event, and an email action sent through BBS Cloud. The Overview scheduler widget's **+** button opens the same page.
+- **Beta Program** — A prompt appears once per launch if you haven't joined yet. Press **Join** for early access to updates and discounts. "Not Now" asks again next launch; "Don't ask again" stops the prompt.
+- **Unprinted Bills Reminder** — Runs automatically: the app watches your Bills folder. Invoices older than 5 minutes that were never printed trigger a reminder dialog (every 30 minutes) with **Print Now** (prints silently to your default printer), **Print Later** or **Mark as Printed**. Printed bills are remembered across restarts; bills older than 3 days are skipped.
+- **Same-Name Customers** — You can now add a customer whose name already exists, as long as their GST number is different. To use: on the Sale page pick or type the existing name and enter the new GST — the bill is billed to a brand-new customer row (your policies never leak into it). The customer dropdown now shows a GST (or phone) suffix next to repeated names so you can tell them apart, and the field always saves the clean name. If you change a GST while editing an existing bill, a warning explains that a new customer will be created.
+- **Item-wise Discount** — Set a discount on the item itself. To use: open **View Stock**, edit an item and fill the **discount** field. On the Sale page, the page-3 summary now shows each rate minus that discount, and clicking any summary rate fills the selected row's rate field (with automatic recalculation).
+- **Credit-Limit Warning** — Picking a customer on the Sale page who is over their policy credit limit raises a warning toast with the outstanding balance and the limit. Sales are never blocked — the warning is informational.
+- **Chart Fill Colors & Tooltips** — To use: open **Overview → Customize** and tick **Chart fill colors** to pick the gradient start and stop colors for dashboard charts (saved with your layout). Dashboard charts and the Sale page's 6-month rate graph now also show a hover tooltip with the date and value.
+- Plus: secure invoice PDFs — bill PDFs are locked against modification (owner password; no editing, annotating or reassembling, printing stays allowed) — a re-added Bill Summary section on the Sale page, more editable meta fields in Bill Settings, automatic repair of log-file hash chains broken by an app bug, fixes for uncancelable bills, NaN tax fields after Edit, and sale page crashes when Zen Mode is stopped, GST fields that auto-capitalize while staying fully editable (middle letters included) with GST validation in the customer portal profile modal, and payment-reminder emails that retry automatically when the server rate-limits them.
 
 ## tour
-(no tour for this release)
+#scheduler-div :: New Scheduler — check upcoming events, assign actions and automate tasks.
+#app-status-bar :: New status bar — Zen Mode, weather theme, kiosk and internet status at a glance.
+#zen-status :: Click here to start Zen Mode and bill every invoice with the same date until the stop condition.
+#sale-purchase-btn-div :: Proforma Bills are saved now — open Sale → View Orders (Shift+F5) to manage quotes and convert them to real invoices.
+#overview-div .ov-toolbar :: New modifiable dashboard — click Customize to pick widgets, stack cards, and add or remove row bands on your Overview page.
