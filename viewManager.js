@@ -69,13 +69,13 @@ function getTemplatePath(viewName) {
 }
 
 // ---- Fetch weather theme from server ----
-async function fetchWeatherTheme(serverUrl, city) {
+async function fetchWeatherTheme(serverUrl, city, force=false) {
     if (!city) return null;
     const { appLogger } = require("./common");
     appLogger({ title: "Log", message: `Fetching weather theme from server: ${serverUrl}api/weather-theme?city=${encodeURIComponent(city)}`, func: "viewManager.fetchWeatherTheme", appendToLog: true });
     try {
-        if (lastThemeChkTime && (new Date() - lastThemeChkTime) < 3600000 && lastTheme) {
-            appLogger("Weather theme fetch skipped (last checked < 1 hour ago)");
+        if ((lastThemeChkTime && (new Date() - lastThemeChkTime) < 3600000 && lastTheme) && !force) {
+            appLogger("Weather theme fetch skipped (last checked < 1 hour ago) && not forced");
             return lastTheme; // avoid excessive server calls // 1 call per hour is enough, since weather doesn't change that fast
         }
         if(!lastTheme){
@@ -449,7 +449,7 @@ function clearWeatherTheme(win, permanent = false) {
 }
 
 // ---- Main entry point — called after mainPage loads ----
-async function initializeThemeAndBanners(win) {
+async function initializeThemeAndBanners(win,force=false) {
     if (!win || win.isDestroyed()) return;
 
     // Gate: user must explicitly enable weather themes
@@ -470,7 +470,7 @@ async function initializeThemeAndBanners(win) {
         const gst = process.presets?.gst;
         const [theme=null, banner=null, customCSS=null] = await attempt(()=>{
             return Promise.all([
-                fetchWeatherTheme(serverUrl, city).catch(err=>({err})),
+                fetchWeatherTheme(serverUrl, city, force).catch(err=>({err})),
                 fetchAnnouncement(serverUrl, deviceId, gst).catch(err=>({err})),
                 fetchCustomTheme(serverUrl, deviceId, gst).catch(err=>({err}))
             ]);

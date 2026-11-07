@@ -580,7 +580,8 @@ button.selected{
     opacity: 1;
     visibility: visible;
 }
-body[data-hover-tooltip="off"] .hover:hover.hover::before{
+/* remove the following commented styles if not require */
+/* body[data-hover-tooltip="off"] .hover:hover.hover::before{
     content: attr(data-msg);
     z-index: 10;
     position: absolute;
@@ -621,20 +622,20 @@ body[data-hover-tooltip="off"] .hover.bottom:hover.hover.bottom::before{
     margin-top: 8px;
     bottom: unset;
     left: 0;
-}
+} */
 /* Top-right tooltip: consistent gap above parent */
-body[data-hover-tooltip="off"] .hover.top.right:hover.hover.top.right::before {
+/* body[data-hover-tooltip="off"] .hover.top.right:hover.hover.top.right::before {
     top: auto;
     bottom: 100%;
     right: 0;
     left: unset;
     margin-bottom: 8px;
     margin-top: 0;
-}
+} */
 /* Top-left tooltip: consistent gap above parent. Without this, .top + .left
    fall through to their individual rules and stack two hardcoded -80px
    offsets, floating the popup far above the element. */
-body[data-hover-tooltip="off"] .hover.top.left:hover.hover.top.left::before {
+/* body[data-hover-tooltip="off"] .hover.top.left:hover.hover.top.left::before {
     top: auto;
     bottom: 100%;
     left: 0;
@@ -643,7 +644,7 @@ body[data-hover-tooltip="off"] .hover.top.left:hover.hover.top.left::before {
     margin-top: 0;
     margin-left: 0;
     transform: none;
-}
+} */
 .appear>div{
     transform: scale(0);
     animation: appear 0.3s linear 0s 1 forwards;

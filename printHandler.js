@@ -9,6 +9,16 @@ const uuid = require("uuid");
 
 
 let modal,pageFit;
+let windowOptions = {
+        width: 400,
+        height: 450,
+        resizable:false,
+        contextIsolation:true,
+        movable:false,
+        frame:false,
+        titleBarStyle:"hidden"
+    };
+
 
 exports.printOnLinuxOrMac = function printOnLinuxOrMac(path2pdf,printer,copies,paperSize,printOrientation){
     if(!path2pdf || !fs.existsSync(path2pdf)) return;
@@ -91,16 +101,7 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
         pageFit = arg.find(obj=>"pageFit" in obj).pageFit;
     let pathToHTML = getTemplatePath("printDialog");
     let parentWindow = typeof e!="string" ? BrowserWindow.fromId((e.sender.id)) : BrowserWindow.getFocusedWindow();
-    let windowOptions = {
-        width: 400,
-        height: 450,
-        resizable:false,
-        parent:parentWindow,
-        contextIsolation:true,
-        movable:false,
-        frame:false,
-        titleBarStyle:"hidden"
-    }
+    windowOptions.parent = parentWindow;
     let uid = uuid.v4();
     createModal(windowOptions,pathToHTML,{
         label:"Custom-Print-Dialog"+uid,// Trying to distinguish listeners from similar modal
@@ -124,6 +125,26 @@ ipcMain?.on("show-print-modal",(e,...arg)=>{
     }
 });
 
+ipcMain.handle("show-custom-print-modal",async (e,modalOpts)=>{
+    windowOptions.parent = BrowserWindow.fromId(e.sender.id) || getMainWindow();
+    let pathToHTML = getTemplatePath("printDialog");
+    return new Promise((res,rej)=>{
+        createModal(windowOptions,pathToHTML,{
+            label:"Custom-Print-Dialog",// Trying to distinguish listeners from similar modal
+            maxWinCount:1,
+            cb:function(){
+                this.addListener("show",()=>{
+                })
+                this.webContents.send("custom-opts",modalOpts);
+                ipcMain.once("print-obj",(e,printObj)=>{
+                    this.close();
+                    res(printObj);
+                });
+            }
+        });
+    });
+});
+
 ipcMain?.on("forward-printObj",(e,printObj,path2pdf)=>{
     modal.close();
     getMainWindow().webContents.send("printObj",printObj);
@@ -132,15 +153,6 @@ ipcMain?.on("forward-printObj",(e,printObj,path2pdf)=>{
 
 exports.printDialog = function(cb){
     let pathToHTML = getTemplatePath("printDialog");
-    let windowOptions = {
-        width: 400,
-        height: 450,
-        resizable:false,
-        parent:BrowserWindow.getFocusedWindow(),
-        contextIsolation:true,
-        movable:false,
-        frame:false,
-        titleBarStyle:"hidden"
-    }
+    windowOptions.parent = BrowserWindow.getFocusedWindow();
     return createModal(windowOptions,pathToHTML,{maxWinCount:1,label:"Custom-Print-Dialog",cb});
 }

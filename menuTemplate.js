@@ -91,7 +91,7 @@ module.exports = mainWindow=>{
                     click: ()=>ipcMain.emit("open-kiosk")
                 },
                 {
-                    label: "View Orders",
+                    label: "Order Manager",
                     click:()=>appStateComplianceEnforcement(orderManager(mainWindow)),
                     accelerator:"Shift+F5"
                 }

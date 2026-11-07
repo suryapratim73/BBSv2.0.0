@@ -68,8 +68,10 @@ const {
   getFinYearStrtEndDt,
   generateSecureSalt,
   getDeviceSerials,
+  getOrCreateDeviceId,
   saveSecret,
   getSecret,
+  ensureSecret,
   deleteSecret,
   getBillsDir,
   getLocalDateStr,
@@ -128,7 +130,6 @@ const { orderManager, saleWindow } = require("./saleHandler");
 const AdmZip = require("adm-zip");
 const { markBillAsPaid } = require("./customerHandler");
 const { recordDownloadedVersion, showUpdateSuccessMsg } = require("./versionManager");
-const { getFileMonitor } = require("./fileMonitor");
 const { openCatalogueCreator } = require("./catalogueHandler");
 
 
@@ -712,6 +713,8 @@ app.on("ready", async () => {
     "useDarkTheme": false
   };
   //Initialize BBS..
+  // Initialize app presets
+  setAppPresets();
   //Initialize logger file
   //Check for required files and directories
   let fileList = [];
@@ -847,8 +850,10 @@ app.on("ready", async () => {
       // Initiating theme
       if (process.platform === "linux") setLinuxThemeObserver();
       await attempt(()=>initTheme(),console.log);
+            
       // Start file monitor for unprinted bills (async to avoid blocking)
       try {
+        const { getFileMonitor } = require("./fileMonitor");
         fileMonitor = getFileMonitor();
         await fileMonitor.start(mainWindow);
       } catch (err) {
@@ -865,19 +870,15 @@ app.on("ready", async () => {
       appLogger({ title: "Error", message: String(err), func:"filelist read error" });
     }
   });
-  // Initialize app presets
-  setAppPresets();
   // App registration check
   appRegistrationHandler();
 
 
-  let secret = await getSecret();
-
-  if(!secret) {
-    // Generate a new secret and save it - first launch logic
-    secret = crypto.randomBytes(64).toString('hex');
-    await saveSecret(secret);
-  }
+  // Retrieve (or create + persist) the master secret. ensureSecret falls back
+  // to the identity file (config/secret.json) if the OS keychain ever loses it,
+  // so a keychain reset can no longer re-key the app (which would change the
+  // deviceId and make older encrypted logs undecryptable).
+  let secret = await ensureSecret();
 
   encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
 
@@ -1017,9 +1018,9 @@ async function encryptAndUploadS3(keepLocal=false){
         return true;
     });
     // console.log({logFiles});
-    const secret = await getSecret(); // Retrieve the secret from secure storage
+    const secret = await ensureSecret(); // Retrieve the secret from secure storage
     const { motherboardSerial,diskSerial } = await getDeviceSerials();
-    if(!motherboardSerial || !diskSerial || !process.presets.gst) return; // Skip if hardware IDs are not available
+    if(!motherboardSerial || !diskSerial || !process.presets.gst) return appLogger({title:"Error",message:"Device credential missing,skipping log encryption",func:"encryptAndUploadS3",user:"App",role:"App"}); // Skip if hardware IDs are not available
     const rootData = process.presets.gst + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
     const kek = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
     if (kek.length !== 32) throw new Error("KEK must be 256 bits!");
@@ -1192,12 +1193,24 @@ async function appRegistrationHandler(silent=true){
   let { diskSerial,motherboardSerial } = await getDeviceSerials();
   if(!diskSerial || !motherboardSerial || !gstNumber || !(await checkForInternet()))
     return;
-  const secret = await getSecret(); // Returns the random string
-  const rootData = gstNumber + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
-  const encryptionKey = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
-  const salt = generateSecureSalt(encryptionKey ,`${diskSerial}-${motherboardSerial}`);
-  const deviceId = uuid.v5(`${diskSerial}-${motherboardSerial}`, salt);
+  const secret = await ensureSecret(); // Returns the random string
+  // Frozen id for (machine, GST): reuses the stored deviceId whenever GST +
+  // serials are unchanged (immune even to a regenerated secret); a GST change
+  // derives a new id and archives the previous identity in gstHistory so the
+  // log-decryption path can still derive the old KEK.
+  const deviceId = getOrCreateDeviceId({ secret, diskSerial, motherboardSerial, gstNumber });
   global.deviceUUID = deviceId;
+  // initTheme may have raced this handler (execSync + WMI cold start can take
+  // seconds) and fetched announcement/help with an undefined deviceId — the
+  // server 400s those. Re-run the themed fetch now that the id exists.
+  try {
+    const mainWin = getMainWindow();
+    if (mainWin && !mainWin.isDestroyed()) {
+      initializeThemeAndBanners(mainWin, true);
+    }
+  } catch (err) {
+    appLogger({ title: "Log", message: `Theme re-init after device registration failed: ${String(err)}`, func: "appRegistrationHandler" });
+  }
   let serverUrl = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
   if(typeof process.presets.gst === "undefined" || process.presets.gst===""){
     appLogger({
@@ -1247,12 +1260,12 @@ async function setAppPresets(){
   .forEach(win=>{
     win.webContents.send("refresh-data");
   });
-  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat","useWeatherTheme","useFuzzySearch","default2","templatePreviews","billTemplate","discVal"]
+  ["noReturn","creditLimitDays","annualHolidays","weeklyHolidays","default_gst","appPreset","placeOfJurisdiction","biller","gst","fileNameFormat","useWeatherTheme","useFuzzySearch","default2","templatePreviews","billTemplate","discVal","invoiceMinAge","invoiceMaxAge","reminderInterval","defaultPrintObj"]
   .forEach(key=>{
     let value = policy2[key] ?? policy[key] ?? policy3[key];
     if(typeof value === "undefined" || value===null) return;
     if(key !="placeOfJurisdiction" && (key in policy2 || key in policy || key in policy3))
-      process.presets[key] = /^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value;
+      process.presets[key] = Number.isInteger(value) ? value : (/^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value);
     else
     if(key==="placeOfJurisdiction")
       process.presets[key] = placeOfJurisdiction(policy3);
@@ -2510,6 +2523,7 @@ ipcMain.on("show-context-menu", (e, { mode, obj, targetWin }) => {
               orderJSON = orderJSON.filter(o => o.orderId !== obj.orderId);
               fs.writeFileSync(orderPath, JSON.stringify(orderJSON));
               window.webContents.send("refresh-orders");
+              getTargetWindow("manage-order").webContents.send("refresh-orders");
             } catch(err) {
               appLogger({ title:"Error", message:String(err), func:"Delete Order (orderManager)" });
             }
@@ -2639,7 +2653,8 @@ ipcMain.handle("get-general-app-settings",()=>{
   let kioskConf = loadKioskConfig()
   return {
     useFuzzySearch: process.presets.useFuzzySearch,
-    ...kioskConf
+    ...kioskConf,
+    ...["invoiceMinAge","invoiceMaxAge","reminderInterval","defaultPrintObj"].reduce((acc,key)=>{acc[key]=process.presets[key];return acc;},{})
   };
 });
 
@@ -2822,7 +2837,7 @@ ipcMain.handle("app-backup", async (e, { mode,items,createZip=false }) => {
   return true;
 }); // Not complete - cloud sync left
 
-// App registration
+// App registration - deprecated - moved to BBS Cloud section 
 ipcMain.handle("app-registration-info", (e) => {
   let saleConfig = JSON.parse(
     fs.readFileSync(getsaleConfigPolicyPath()).toString()
@@ -5080,7 +5095,7 @@ ipcMain.on("kiosk-create-sale", async (e, saleData) => {
 
   // Synthetic event object for ipcMain.emit — save_exit uses e.sender.id for window lookup
   // With flag="order-billed", window.close() is skipped, so a null sender ID is safe
-  const syntheticEvent = { sender: { id: null } };
+  const syntheticEvent = { sender: { id: null },type:"synthetic" };
 
   try {
     if (config && config.dbMode === "auto-bill") {
@@ -5119,7 +5134,8 @@ ipcMain.on("kiosk-create-sale", async (e, saleData) => {
 
       ipcMain.emit("new-order", syntheticEvent, {
         billMeta: orderBillMeta,
-        mode: "regular"
+        customer:customerObj,
+        orderItems
       });
 
       // Consume the reserved bill number

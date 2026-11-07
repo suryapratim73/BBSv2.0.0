@@ -701,7 +701,7 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="general"){
                 let settings = await ipcRenderer.invoke("get-general-app-settings");
-                ({ useFuzzySearch, pin="", port="", includeCustomerSelector, productLayout, dbMode, generateReceipt } = settings);
+                ({ useFuzzySearch, pin="", port="", includeCustomerSelector, productLayout, dbMode, generateReceipt,invoiceMinAge=5,invoiceMaxAge=3,reminderInterval=30,defaultPrintObj } = settings);
                 if(useFuzzySearch)
                     form.useFuzzySearch.setAttribute("checked",useFuzzySearch);
                 form.pin.value = pin;
@@ -714,6 +714,10 @@ async function showForm(e,cmd,show,prevData={}){
                     form.dbMode.value = dbMode;
                 if (generateReceipt)
                     form.generateReceipt.setAttribute("checked", generateReceipt);
+                form.invoiceMinAge.value = invoiceMinAge;
+                form.invoiceMaxAge.value = invoiceMaxAge;
+                form.reminderInterval.value = reminderInterval; 
+                renderPrintPref(defaultPrintObj);
             }
         }
     }
@@ -909,7 +913,7 @@ async function saveSettings(e){
     else
     if(cmd==="general"){
         let useFuzzySearch = form.useFuzzySearch.checked;
-        ({ pin=1234, port=3030, includeCustomerSelector="true", productLayout="uncategorized", dbMode="order-only" } = data);
+        ({ pin=1234, port=3030, includeCustomerSelector="true", productLayout="uncategorized", dbMode="order-only",invoiceMinAge,invoiceMaxAge,reminderInterval,defaultPrintObj={} } = data);
         pin = Number(pin);
         port = Number(port);
         let generateReceipt = form.generateReceipt.checked;
@@ -921,7 +925,13 @@ async function saveSettings(e){
             dbMode,
             generateReceipt
         };
-        ipcRenderer.send("general-app-settings",{useFuzzySearch},kioskSetting);
+        let fileMonitorSettings = {
+            invoiceMinAge: parseInt(invoiceMinAge) || 5,
+            invoiceMaxAge: parseInt(invoiceMaxAge) || 3,
+            reminderInterval: parseInt(reminderInterval) || 30,
+            defaultPrintObj:JSON.parse(document.getElementById("print-pref").dataset.printObj || "{}")
+        }
+        ipcRenderer.send("general-app-settings",{useFuzzySearch,...fileMonitorSettings},kioskSetting);
         showToastNotification("General App Settings saved.",["animation-common","move-left","blue-toast-box"],"main");
     }
     showForm(null,"back",show);
@@ -1602,3 +1612,30 @@ function debounceFn(){
 }
 
 const generatePreview = debounceFn();
+
+async function showPrinterSelector(){
+    let printObj = await ipcRenderer.invoke("show-custom-print-modal", { btnText:["Select","Cancel"],hideLabel:true });
+    delete printObj.captions;
+    renderPrintPref(printObj);
+}
+
+function renderPrintPref(printObj){
+    if(Object.keys(printObj).length==0) return;
+    let container = document.getElementById("print-pref");
+    container.classList.remove("hide");
+    container.dataset.printObj = JSON.stringify(printObj);
+    container.innerHTML = `
+        <div>
+            <p>Printer:</p><p> ${printObj.printer}</p>
+        </div>
+        <div>
+            <p>Paper size:</p><p> ${printObj.paperSize}</p>
+        </div>
+        <div>
+            <p>Copy count:</p><p> ${printObj.copies}</p>
+        </div>
+        <div>
+            <p>Print orientation:</p><p> ${printObj.printOrientation}</p>
+        </div>
+    `;
+}

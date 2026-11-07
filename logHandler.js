@@ -7,7 +7,8 @@ const fs = require('fs');
 const axios = require("axios");
 
 const {
-    getSecret,
+    ensureSecret,
+    getKekRootCandidates,
     getDeviceSerials,
     appLogger,
     attempt,
@@ -119,14 +120,20 @@ ipcMain.on("get-logs", async (event)=>{
     const baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
     const encDir = path.resolve(baseLogDir, "upload"); // Match encryption output directory
     const encFiles = fs.existsSync(encDir) ? fs.readdirSync(encDir).filter(file=>file.endsWith(".enc")) : [];
-    const secret = await getSecret();
+    const secret = await ensureSecret();
     const { motherboardSerial,diskSerial } = await getDeviceSerials();
     if(!motherboardSerial || !diskSerial || !process.presets.gst){
         safeSend(event, "log-entries", [], false); // Renderer must not hang with no response
         return;
     }
-    const rootData = process.presets.gst + motherboardSerial + diskSerial; // Combine GST number and hardware IDs
-    const kek = crypto.pbkdf2Sync(secret, rootData, 100000, 32, 'sha256');
+    // Multi-KEK decryption: derive a KEK for every (gst, serials) combination
+    // that could have encrypted a log — live values first, then the frozen
+    // identity, then identities archived when GST changed. Only the matching
+    // KEK authenticates the file header; the rest fail the DEK unwrap and
+    // decryptLogFile returns "".
+    const kekCandidates = getKekRootCandidates(process.presets.gst, diskSerial, motherboardSerial)
+        .map(({gst, diskSerial: d, motherboardSerial: m}) =>
+            crypto.pbkdf2Sync(secret, gst + m + d, 100000, 32, 'sha256'));
     const decryptedLogs = [];
     let anyTampered = false;
     for (const file of encFiles) {
@@ -135,7 +142,11 @@ ipcMain.on("get-logs", async (event)=>{
         const filePath = path.join(encDir, file);
         // console.log(`Decrypting log file: ${filePath}`);
         let shouldContinue = await attempt(async ()=>{
-            const decryptedLog = await decryptLogFile(filePath, kek);
+            let decryptedLog = "";
+            for (const candidateKek of kekCandidates) {
+                decryptedLog = await decryptLogFile(filePath, candidateKek);
+                if (decryptedLog !== "") break;
+            }
             let lines = decryptedLog.split('\n');
             // Calculate hash of each line and append to the line for integrity check.
             // Filter out truly empty lines (trailing newline artifact) so they don't

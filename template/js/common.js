@@ -1352,6 +1352,7 @@ exports.applyTheme = async function(e,theme){
         this.documentElement.style.setProperty("--theme-secondary",secondary);
         this.documentElement.style.setProperty("--theme-text-color",text);
         this.documentElement.style.setProperty("--theme-shadow-color",shadow);
+        this.documentElement.style.setProperty("--theme-light-shadow-color",lightenHSL(...hslComponents(shadow)));
     }
     if(!applyBackgroundImage){
         // Remove Background image
@@ -2113,6 +2114,7 @@ exports.deleteKey = function(arr,obj){
 
 exports.hexTohsl = function(hex){
     let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if(!Array.isArray(result)) return "";
     var r = parseInt(result[1], 16);
     var g = parseInt(result[2], 16);
     var b = parseInt(result[3], 16);

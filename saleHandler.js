@@ -466,9 +466,10 @@ function recalculateAmounts(orderedItems){
 async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""},flag="regular"){
     const { cityListWithCodes } = require("./common");
     closeFlag = true;
-    saleWindow = BrowserWindow.fromId(e.sender.id) || BrowserWindow.getFocusedWindow();
-    if(flag==="regular" || flag==="print")
+    if(flag==="regular" || flag==="print" && e.type!="synthetic"){
+        saleWindow = BrowserWindow.fromId(e.sender.id) || BrowserWindow.getFocusedWindow();
         saleWindow.close();
+    }
     if(!Object.keys(billMeta).includes("printObj"))
         billMeta.printObj = {captions:[{first:"Original Buyer's Copy"},{third:"Book Copy"}]};    
     const { name, address, phones, gst, email, id:custId } = customerObj;
@@ -801,7 +802,7 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
         // full bill data is in scope).
         scheduler.noteBillSaved({billMeta, customer:customerObj, orderItems}, billNo);
         // Notify main window to refresh (fallback for kiosk/null sender)
-        var notifyWin = BrowserWindow.fromId(e.frameId) || getMainWindow();
+        var notifyWin = getMainWindow();
         if (notifyWin) notifyWin.webContents.send("update-content");
     })
     .catch(console.log);
@@ -962,6 +963,7 @@ ipcMain.on("new-order",async (e,{billMeta,customer,orderItems})=>{
             func:"new-order — write orders.json"
         });
     }
+    if(!mode) return
     if(mode==="proforma"){
         billMeta.printObj = {
             captions:["Proforma Invoice"]
@@ -991,12 +993,12 @@ ipcMain.on("new-order",async (e,{billMeta,customer,orderItems})=>{
             ipcMain.once("print-obj",_print);
         }
         else {
-            const win = BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
+            const win = e.sender.id || BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
             if (win) win.close();
         }
     }
     if(mode!=="proforma"){
-        const win = BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
+        const win = e.sender.id && BrowserWindow.fromId(e.sender?.id) || BrowserWindow.getFocusedWindow();
         if (win) win.close();
     }
 });

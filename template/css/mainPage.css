@@ -891,6 +891,32 @@ select,option{
     padding: 0.5rem;
     background: var(--theme-secondary);
 }
+#general > fieldset{
+    padding: 0.5rem;
+}
+#general > fieldset > div{
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+#print-pref{
+    flex-direction: column;
+    width: 50%;
+    background: var(--theme-light-shadow-color);
+    padding: 0.5rem;
+    border-radius: 10px;
+}
+#print-pref>div{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0.25rem;
+}
+#print-pref>div>p{
+    background-color: transparent;
+}
 #settings-container form>div{
     margin: 0.5rem 0;
 }

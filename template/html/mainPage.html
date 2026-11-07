@@ -521,53 +521,76 @@
                     <input type="checkbox" class="item" name="useFuzzySearch" id="fuzzy" tabindex="0">
                 </div>
             </div>
-            <h3>Kiosk Settings</h3>
-            <div>
-                <div><label for="pin">Set Kiosk Pin</label></div>
+            <fieldset>
+                <legend>Kiosk Settings</legend>
+                <h3>Kiosk Settings</h3>
                 <div>
-                    <input type="text" name="pin" id="pin" title="4 digit number - default value is 1234" pattern="\d{4}" onkeypress="validateInput2(event)">
+                    <div><label for="pin">Set Kiosk Pin</label></div>
+                    <div>
+                        <input type="text" name="pin" id="pin" title="4 digit number - default value is 1234" pattern="\d{4}" onkeypress="validateInput2(event)">
+                    </div>
                 </div>
-            </div>
-            <div>
-                <div><label for="port">Set Kiosk Port</label></div>
                 <div>
-                    <input type="text" name="port" id="port" placeholder="3030" title="4-5 digit port number - default value is 3030" pattern="\d{4,5}" onkeypress="validateInput2(event)">
+                    <div><label for="port">Set Kiosk Port</label></div>
+                    <div>
+                        <input type="text" name="port" id="port" placeholder="3030" title="4-5 digit port number - default value is 3030" pattern="\d{4,5}" onkeypress="validateInput2(event)">
+                    </div>
                 </div>
-            </div>
-            <div>
-                <div><label for="includeCustomerSelector">Customer Selector on Kiosk</label></div>
                 <div>
-                    <select name="includeCustomerSelector" id="includeCustomerSelector">
-                        <option value="true">Yes — show customer search</option>
-                        <option value="false">No — walk-in only</option>
-                    </select>
+                    <div><label for="includeCustomerSelector">Customer Selector on Kiosk</label></div>
+                    <div>
+                        <select name="includeCustomerSelector" id="includeCustomerSelector">
+                            <option value="true">Yes — show customer search</option>
+                            <option value="false">No — walk-in only</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <div><label for="productLayout">Product Layout</label></div>
                 <div>
-                    <select name="productLayout" id="productLayout">
-                        <option value="uncategorized">Uncategorized</option>
-                        <option value="auto">Auto — by category</option>
-                        <option value="manual">Manual — custom catalogue</option>
-                    </select>
+                    <div><label for="productLayout">Product Layout</label></div>
+                    <div>
+                        <select name="productLayout" id="productLayout">
+                            <option value="uncategorized">Uncategorized</option>
+                            <option value="auto">Auto — by category</option>
+                            <option value="manual">Manual — custom catalogue</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <div><label for="dbMode">Kiosk Sale Mode</label></div>
                 <div>
-                    <select name="dbMode" id="dbMode">
-                        <option value="order-only">Order Only</option>
-                        <option value="auto-bill">Auto Bill</option>
-                    </select>
+                    <div><label for="dbMode">Kiosk Sale Mode</label></div>
+                    <div>
+                        <select name="dbMode" id="dbMode">
+                            <option value="order-only">Order Only</option>
+                            <option value="auto-bill">Auto Bill</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div>
                 <div>
-                    <label for="generateReceipt">Generate Receipt (auto-bill mode)</label>
-                    <input type="checkbox" class="item" name="generateReceipt" id="generateReceipt" tabindex="0">
+                    <div>
+                        <label for="generateReceipt">Generate Receipt (auto-bill mode)</label>
+                        <input type="checkbox" class="item" name="generateReceipt" id="generateReceipt" tabindex="0">
+                    </div>
                 </div>
-            </div>
+            </fieldset>
+            <fieldset>
+                <legend>File Monitor Settings</legend>
+                <div>
+                    <div><label for="invoiceMinAge">Youngest Invoice To Track in mins</label></div>
+                    <div><input type="number" name="invoiceMinAge"></div>
+                </div>
+                <div>
+                    <div><label for="invoiceMaxAge">Oldest Invoice To Track in days</label></div>
+                    <div><input type="number" name="invoiceMaxAge"></div>
+                </div>
+                <div>
+                    <div><label for="reminderInterval">Reminder Interval in mins</label></div>
+                    <div><input type="number" name="reminderInterval"></div>
+                </div>
+                <div>
+                    <div><label for="printer">Default Printer</label></div>
+                    <div><button type="button" onclick="showPrinterSelector()">Choose Printer & Print Preferences</button></div>
+                </div>
+                <div id="print-pref" class="hide"></div>
+            </fieldset>
             <div>
                 <button class="main-ui-btn hover bottom" type="submit" data-msg="Submit General App Settings" tabindex="0">Save</button>
                 <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>

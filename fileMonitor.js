@@ -4,10 +4,11 @@ const { app, dialog, BrowserWindow } = require('electron');
 const { getBillsDir, getPDF_FileName } = require('./common');
 
 // Bills younger than this are left alone (user may be mid-print).
-const REMINDER_GRACE_MINUTES = 5;
+const REMINDER_GRACE_MINUTES = process.presets?.invoiceMinAge || 5;
 // Bills older than this are never reminded about (too old to matter).
-const REMINDER_MAX_AGE_DAYS = 3;
-const DEFAULT_REMINDER_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const REMINDER_MAX_AGE_DAYS = process.presets?.invoiceMaxAge || 3;
+const DEFAULT_REMINDER_INTERVAL = (process.presets?.reminderInterval || 30) * 60 * 1000; // 30 minutes
+
 
 class FileMonitor {
   constructor(billsPath) {
@@ -358,6 +359,7 @@ class FileMonitor {
         buttons: ['Print Now', 'Print Later', 'Mark as Printed'],
         defaultId: 0,
         cancelId: 1,
+        noLink:true,
         checkboxLabel: "Don't remind me again for these bills",
         checkboxChecked: false
       });
@@ -383,7 +385,7 @@ class FileMonitor {
     try {
       const printers = await mainWindow.webContents.getPrintersAsync();
       printer = (printers.find(p => p.isDefault) || printers[0])?.name;
-      this.defaultPrinter = printer;
+      this.defaultPrinter = process.presets.defaultPrintObj?.printer || printer;
     } catch (_) { /* fall through to the no-printer path */ }
 
     if (!printer) {
@@ -399,7 +401,11 @@ class FileMonitor {
     for (const file of files) {
       if (!fs.existsSync(file.path)) continue;
       this.refWindow.webContents.send("get-file-monitor-update",true," - Printing "+file.name);
-      const err = await new Promise(res => printSilent(file.path, printer, 1, "A4", e => res(e)));
+      setTimeout(()=>{
+        this.refWindow.webContents.send("get-file-monitor-update",true,"");
+      },300);
+      let { copies=1,paperSize="A4" } = process.presets.defaultPrintObj;
+      const err = await new Promise(res => printSilent(file.path, printer, copies, paperSize, e => res(e)));
       if (err) {
         dialog.showErrorBox("Print failed", `${file.name}: ${err.message}`);
         continue; // leave unprinted → reminded again
@@ -421,7 +427,10 @@ class FileMonitor {
 
     // Then check periodically
     this.reminderInterval = setInterval(() => {
-      this.refWindow.webContents.send("get-file-monitor-update",true," - Checking for unprinted files")
+      this.refWindow.webContents.send("get-file-monitor-update",true," - Checking for unprinted files");
+      setTimeout(()=>{
+        this.refWindow.webContents.send("get-file-monitor-update",true,"");
+      },300);
       this.checkAndRemind();
     }, this.reminderIntervalTime);
   }

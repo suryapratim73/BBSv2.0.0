@@ -10,6 +10,7 @@ const { end, file } = require("pdfkit");
 const { default: axios } = require("axios");
 const { logger } = require("sequelize/lib/utils/logger");
 const crypto = require("crypto");
+const { v5: uuidv5 } = require("uuid");
 const keytar = require('keytar');
 const { execSync } = require("child_process");
 
@@ -1492,61 +1493,245 @@ function generateSecureSalt(passphrase, hardwareIds) {
 }
 
 exports.getDeviceSerials = getDeviceSerials;
+exports.getOrCreateDeviceId = getOrCreateDeviceId;
+exports.getKekRootCandidates = getKekRootCandidates;
+
+// ---- Device identity store (config/secret.json) ----
+// One file holds everything the app's device identity derives from:
+//   secret            — master encryption secret (mirror of the OS keychain)
+//   diskSerial / motherboardSerial — frozen at first COMPLETE resolution
+//   gst / deviceId    — the machine+business identity (uuid.v5), frozen
+//   gstHistory        — previous (gst, deviceId, serials) triples, archived on
+//                       GST change so log decryption can still derive KEKs for
+//                       logs encrypted under an older GST
+// The deviceId and the log KEK are pure functions of these values. Freezing
+// them here keeps both stable across boots, WMI source flips, driver updates
+// and even keychain loss (the secret falls back to this file).
+const IDENTITY_FILE = "secret.json";
+
+function getIdentityFilePath() {
+  const base = process.env.APP_ENV === "PROD"
+    ? path.resolve(app.getPath("appData"), "./BBS")
+    : __dirname;
+  return path.resolve(base, "config", IDENTITY_FILE);
+}
+
+function loadIdentityFile() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(getIdentityFilePath(), "utf8"));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (err) {
+    return {}; // first run / unreadable
+  }
+}
+
+function saveIdentityFile(patch) {
+  try {
+    const filePath = getIdentityFilePath();
+    const merged = { ...loadIdentityFile(), ...patch };
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(merged, null, 2));
+    return true;
+  } catch (err) {
+    appLogger({ title: "Log", message: `Could not persist device identity: ${String(err)}`, func: "saveIdentityFile" });
+    return false;
+  }
+}
+
+// Frozen deviceId for (machine, GST). Reuses the stored id whenever GST +
+// serials are unchanged — immune even to a regenerated secret. A GST change
+// derives the new id and archives the previous identity in gstHistory so the
+// decryption path can still try the old KEK.
+function getOrCreateDeviceId({ secret, diskSerial, motherboardSerial, gstNumber }) {
+  const identity = loadIdentityFile();
+  if (
+    identity.deviceId && identity.gst === gstNumber &&
+    identity.diskSerial === diskSerial && identity.motherboardSerial === motherboardSerial
+  ) {
+    return identity.deviceId;
+  }
+  const rootData = gstNumber + motherboardSerial + diskSerial;
+  const encryptionKey = crypto.pbkdf2Sync(secret, rootData, 100000, 32, "sha256");
+  const salt = generateSecureSalt(encryptionKey, `${diskSerial}-${motherboardSerial}`);
+  const deviceId = uuidv5(`${diskSerial}-${motherboardSerial}`, salt);
+
+  const gstHistory = Array.isArray(identity.gstHistory) ? identity.gstHistory.slice() : [];
+  if (identity.gst && identity.deviceId && identity.gst !== gstNumber) {
+    const prev = {
+      gst: identity.gst,
+      deviceId: identity.deviceId,
+      diskSerial: identity.diskSerial || diskSerial,
+      motherboardSerial: identity.motherboardSerial || motherboardSerial
+    };
+    if (!gstHistory.some((h) => h && h.gst === prev.gst && h.deviceId === prev.deviceId)) {
+      gstHistory.push(prev);
+    }
+  }
+  saveIdentityFile({ gst: gstNumber, deviceId, gstHistory });
+  return deviceId;
+}
+
+// Every (gst, serials) combination that could have produced a log KEK:
+// live values, the frozen identity, and identities archived on GST change.
+// Decryption derives a KEK from each candidate and tries them until one
+// authenticates the file header.
+function getKekRootCandidates(gst, diskSerial, motherboardSerial) {
+  const identity = loadIdentityFile();
+  const candidates = [];
+  const seen = new Set();
+  const push = (g, d, m) => {
+    if (!g || !d || !m) return;
+    const key = `${g}\u0000${d}\u0000${m}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ gst: g, diskSerial: d, motherboardSerial: m });
+  };
+  push(gst, diskSerial, motherboardSerial);
+  push(identity.gst, identity.diskSerial, identity.motherboardSerial);
+  (Array.isArray(identity.gstHistory) ? identity.gstHistory : []).forEach((h) => {
+    if (h && typeof h === "object") push(h.gst, h.diskSerial, h.motherboardSerial);
+  });
+  return candidates;
+}
+
 function getDeviceSerials() {
   return new Promise((resolve) => {
-    let platform = process.platform;
-    let diskSerial, motherboardSerial;
-    switch(platform){
-      case "win32":
-        try{
-          const cmd = execSync('powershell -Command "Get-CimInstance Win32_DiskDrive | Select-Object -ExpandProperty SerialNumber"').toString();
-          diskSerial = cmd.trim();
-          const cmd2 = execSync('powershell -Command "Get-CimInstance Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber"').toString();
-          motherboardSerial = cmd2.trim();
-        }
-        catch(err){
-          diskSerial = null;
-          motherboardSerial = null;
-          resolve({ diskSerial, motherboardSerial });
-        }
-      break;
-      case "linux":
-        try{
-          const cmd = execSync('lsblk -o SERIAL -dn $(df / | tail -1 | cut -d" " -f1)').toString();
-          diskSerial = cmd.split('\n')[0].trim();
-          const cmd2 = execSync('cat /sys/devices/virtual/dmi/id/board_serial').toString();
-          motherboardSerial = cmd2.split('\n')[0].trim();
-        }
-        catch(err){
-          diskSerial = null;
-          motherboardSerial = null;
-          resolve({ diskSerial, motherboardSerial });
-        }
-      break;
-      default:
-        diskSerial = null;
-        motherboardSerial = null;
-        resolve({ diskSerial, motherboardSerial });
+    // Stability gate: a frozen pair in the identity file wins unconditionally —
+    // detection never re-runs once a complete pair is stored.
+    const identity = loadIdentityFile();
+    if (
+      typeof identity.diskSerial === "string" && identity.diskSerial.trim().length > 0 &&
+      typeof identity.motherboardSerial === "string" && identity.motherboardSerial.trim().length > 0
+    ) {
+      resolve({ diskSerial: identity.diskSerial, motherboardSerial: identity.motherboardSerial });
+      return;
     }
-    resolve({ diskSerial,motherboardSerial });
+
+    const platform = process.platform;
+    // Always settle: timeout keeps a stalled PowerShell/WMI query from hanging
+    // callers forever (appRegistrationHandler would never set deviceUUID).
+    // windowsHide avoids a console flash; encoding avoids Buffer juggling.
+    const execOpts = { timeout: 8000, windowsHide: true, encoding: "utf8" };
+    let diskSerial = null;
+    let motherboardSerial = null;
+
+    // First non-empty line of output — for fallback queries that may return
+    // several serials (multiple disks / unrelated fields).
+    const firstNonEmptyLine = (out) =>
+      (typeof out === "string" ? out : String(out ?? ""))
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0) || null;
+
+    const runPs = (psCommand) => {
+      try {
+        return execSync(`powershell -Command "${psCommand}"`, execOpts);
+      } catch (err) {
+        return null; // PowerShell blocked/missing, WMI failure, or timeout
+      }
+    };
+    const runSh = (shCommand) => {
+      try {
+        return execSync(shCommand, execOpts);
+      } catch (err) {
+        return null;
+      }
+    };
+
+    switch (platform) {
+      case "win32": {
+        // PRIMARY queries first, kept verbatim (including multi-line multi-disk
+        // output) so existing device IDs / log-encryption KEKs derived from
+        // these strings don't change. Fallbacks fire ONLY when the primary
+        // returns empty — NVMe disks often expose no serial via Win32_DiskDrive,
+        // and many boards return no Win32_BaseBoard serial.
+        const rawDisk = runPs('Get-CimInstance Win32_DiskDrive | Select-Object -ExpandProperty SerialNumber');
+        diskSerial = rawDisk ? rawDisk.trim() || null : null;
+        const rawBoard = runPs('Get-CimInstance Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber');
+        motherboardSerial = rawBoard ? rawBoard.trim() || null : null;
+
+        if (!diskSerial) {
+          const fbDisk = runPs('Get-PhysicalDisk | Where-Object SerialNumber | Select-Object -First 1 -ExpandProperty SerialNumber');
+          diskSerial = firstNonEmptyLine(fbDisk);
+        }
+        if (!motherboardSerial) {
+          const fbBoard = runPs('Get-CimInstance Win32_ComputerSystemProduct | Select-Object -ExpandProperty UUID');
+          motherboardSerial = firstNonEmptyLine(fbBoard);
+        }
+        break;
+      }
+      case "linux": {
+        const rawDisk = runSh('lsblk -o SERIAL -dn $(df / | tail -1 | cut -d" " -f1)');
+        diskSerial = firstNonEmptyLine(rawDisk);
+        const rawBoard = runSh('cat /sys/devices/virtual/dmi/id/board_serial');
+        motherboardSerial = firstNonEmptyLine(rawBoard);
+        break;
+      }
+      default:
+        // darwin/other — leave both null; callers treat null like missing
+        break;
+    }
+    // Freeze this resolution: persist only a COMPLETE pair (both non-null).
+    // A complete pair is the only state that ever produces a deviceId/KEK, so
+    // freezing it keeps those stable forever. An incomplete pair is retried
+    // each run until complete — otherwise a one-off WMI failure on the very
+    // first run would block registration permanently.
+    if (diskSerial && motherboardSerial) {
+      saveIdentityFile({ diskSerial, motherboardSerial });
+    }
+    resolve({ diskSerial, motherboardSerial });
   });
 }
 
 // --- SAVE THE SECRET ---
 exports.saveSecret = saveSecret;
 async function saveSecret(secret) {
-  await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, secret);
+  try {
+    await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, secret);
+  } catch (err) {
+    // keychain unavailable — the identity file below is the durable fallback
+  }
+  saveIdentityFile({ secret });
 }
 // --- RETRIEVE THE SECRET ---
 exports.getSecret = getSecret;
 async function getSecret() {
-  return await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+  // Keychain first; identity file second. A keychain reset must never
+  // silently re-key the app — a regenerated secret would change the deviceId
+  // AND make previously encrypted logs undecryptable.
+  try {
+    const keychainSecret = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+    if (keychainSecret) return keychainSecret;
+  } catch (err) {
+    // keychain unavailable — fall through to the identity file
+  }
+  const identity = loadIdentityFile();
+  return identity && typeof identity.secret === "string" && identity.secret ? identity.secret : null;
+}
+exports.ensureSecret = ensureSecret;
+async function ensureSecret() {
+  const existing = await getSecret();
+  if (existing) {
+    // Backfill the identity file so existing installs (secret only in the
+    // keychain today) gain the fallback without any re-key.
+    const identity = loadIdentityFile();
+    if (!identity.secret) saveIdentityFile({ secret: existing });
+    return existing;
+  }
+  const secret = crypto.randomBytes(64).toString("hex");
+  await saveSecret(secret);
+  return secret;
 }
 
 // --- DELETE (For cleanup or re-keying) ---
 exports.deleteSecret = deleteSecret;
 async function deleteSecret() {
-  await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
+  try {
+    await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
+  } catch (err) {
+    // keychain already clear
+  }
+  saveIdentityFile({ secret: null });
 }
 
 exports.cropImg = function(fullSnapshot){
