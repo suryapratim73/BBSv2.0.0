@@ -247,6 +247,23 @@ class FileMonitor {
   }
 
   /**
+   * Remove every unprinted invoice from the queue (the widget's "remove all"
+   * button). Same semantics as removeFromQueue — PDFs on disk are NOT
+   * deleted, only unqueued and persisted so a rescan doesn't re-queue them.
+   */
+  removeAllFromQueue() {
+    let removed = 0;
+    for (const item of this.getQueue()) {
+      this.removedFiles.add(item.name);
+      this.trackedFiles.delete(item.path);
+      removed++;
+    }
+    this.saveRemovedFiles();
+    this.broadcastQueueUpdate();
+    return { ok: true, removed };
+  }
+
+  /**
    * The unprinted queue for the Overview widget. Unlike the reminder checks
    * there is NO grace period — the widget must show an invoice the moment it
    * lands, so only the 3-day cutoff applies.
@@ -378,7 +395,8 @@ class FileMonitor {
   /**
    * Silently print the given bills to the default printer and mark the
    * successful ones as printed. Failures stay unprinted so the next reminder
-   * re-offers them.
+   * re-offers them. Returns { printed, failed } (error string set when no
+   * printer exists at all).
    */
   async printNow(files, mainWindow) {
     let printer;
@@ -393,10 +411,11 @@ class FileMonitor {
         "No printer found",
         "Could not find a printer. The bills were left unprinted and will be reminded again."
       );
-      return;
+      return { printed: 0, failed: files.length, error: "No printer found — the invoices were left unprinted." };
     }
 
     const { printSilent } = require('./printHandler');
+    let printed = 0, failed = 0;
 
     for (const file of files) {
       if (!fs.existsSync(file.path)) continue;
@@ -408,10 +427,13 @@ class FileMonitor {
       const err = await new Promise(res => printSilent(file.path, printer, copies, paperSize, e => res(e)));
       if (err) {
         dialog.showErrorBox("Print failed", `${file.name}: ${err.message}`);
+        failed++;
         continue; // leave unprinted → reminded again
       }
       this.markAsPrinted(file.path);
+      printed++;
     }
+    return { printed, failed };
   }
 
   /**

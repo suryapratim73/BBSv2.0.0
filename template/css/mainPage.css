@@ -256,6 +256,13 @@ h1{
     align-items: center;
     gap: 0.5rem;
 }
+/* file-monitor widget header actions (print-all / remove-all / sync) */
+.ov-fm-actions{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
 /* cards */
 .ov-widget.ov-card{
     gap: 0.25rem;

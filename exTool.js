@@ -42,6 +42,18 @@ exports.genRequirementSlip = mainWindow =>{
   }
 }
 
+// Legal window — standalone page (like the Sale page) hosting the App EULA
+// and the API Terms of Service in tabs. Opened from the BBS → Legal menu.
+exports.legalWindow = mainWindow =>{
+  createModal({
+    width: 860,
+    height: 680,
+    resizable: true,
+    title: "Legal",
+    parent: mainWindow
+  }, getTemplatePath("legalPage"), {maxWinCount:1, label:"Legal-Page"});
+}
+
 ipcMain.on("generate-road-challan",async (e,roadChallanObj)=>{
   let path2pdf = roadChallanPDF(roadChallanObj);
   ipcMain.emit("show-print-modal",path2pdf,{pageFit:"-o fit-to-page"});

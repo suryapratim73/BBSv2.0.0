@@ -1352,7 +1352,7 @@ exports.applyTheme = async function(e,theme){
         this.documentElement.style.setProperty("--theme-secondary",secondary);
         this.documentElement.style.setProperty("--theme-text-color",text);
         this.documentElement.style.setProperty("--theme-shadow-color",shadow);
-        this.documentElement.style.setProperty("--theme-light-shadow-color",lightenHSL(...hslComponents(shadow)));
+        this.documentElement.style.setProperty("--theme-light-shadow-color",exports.lightenHSL(...exports.hslComponents(shadow)));
     }
     if(!applyBackgroundImage){
         // Remove Background image
@@ -1604,7 +1604,14 @@ exports.selectionHandler = async function(e,_currentStep){// Work needed here
                 option.textContent = ph;
                 dl.appendChild(option)
             });
-        let shipInfos = customer.moreInfo.shipInfos ?? []; // Always an array, if shipInfos is not present in moreInfo, it will be initialized as an empty array
+        let shipInfos = [];
+        // Fresh IPC read: the Customer Portal's Shipping Addresses modal can
+        // edit/remove entries, so the cached moreInfo copy may be stale.
+        try{
+            shipInfos = (await ipcRenderer.invoke("get-ship-infos",match.id)) ?? [];
+        }catch(_){
+            shipInfos = customer.moreInfo.shipInfos ?? [];
+        }
         shipInfos = [
             ...shipInfos,
             // Adding the default shipping info from customer info to shipInfos array to show in datalist options along with other shipping infos if present in moreInfo - Test Successful - ✅
@@ -2168,7 +2175,7 @@ exports.lightenHSL = function(h,s,l,a=0.5,shouldLighten=true,sAdj=10,lAdj=10){
 }
 
 exports.hslComponents = (hexColor)=>{
-    return hexTohsl(hexColor).split(/[\D]/).filter(str=>str!=="").map(str=>+str);
+    return exports.hexTohsl(hexColor).split(/[\D]/).filter(str=>str!=="").map(str=>+str);
 }
 
 exports.carosel = function(elems,i=0){

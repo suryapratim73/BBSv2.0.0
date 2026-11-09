@@ -12,7 +12,7 @@ const { logger } = require("sequelize/lib/utils/logger");
 const crypto = require("crypto");
 const { v5: uuidv5 } = require("uuid");
 const keytar = require('keytar');
-const { execSync } = require("child_process");
+const { execSync,exec } = require("child_process");
 
 
 const SERVICE_NAME = 'BBSv2_ERP';
@@ -1783,4 +1783,65 @@ exports.cropImg = function(fullSnapshot){
     });
     
     return cleanInvoiceImage.toDataURL();
+}
+const util = require('util');
+const execAsync = util.promisify(exec);
+const os = require('os');
+
+/**
+ * Retrieves the battery percentage (0-100).
+ * Returns the numeric level, or null if no battery is present (e.g., desktop PC).
+ */
+
+exports.getBatteryLevel = getBatteryLevel;
+async function getBatteryLevel() {
+  const platform = os.platform();
+
+  try {
+    if (platform === 'win32') {
+      // Windows: Uses PowerShell with Get-CimInstance (modern, replaces deprecated wmic)
+      const { stdout } = await execAsync(
+        'powershell -NoProfile -Command "(Get-CimInstance -ClassName Win32_Battery).EstimatedChargeRemaining"'
+      );
+      const level = parseInt(stdout.trim(), 10);
+      return isNaN(level) ? null : level;
+    } 
+    
+    else if (platform === 'darwin') {
+      // macOS: Parses pmset output
+      const { stdout } = await execAsync('pmset -g batt');
+      // Matches pattern like "78%; discharging"
+      const match = stdout.match(/(\d+)%/);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
+      }
+      return null;
+    } 
+    
+    else if (platform === 'linux') {
+      // Linux: Reads directly from the sysfs virtual file system
+      const powerSupplyDir = '/sys/class/power_supply';
+      if (fs.existsSync(powerSupplyDir)) {
+        const devices = fs.readdirSync(powerSupplyDir);
+        for (const device of devices) {
+          if (device.startsWith('BAT')) {
+            const capacityPath = `${powerSupplyDir}/${device}/capacity`;
+            if (fs.existsSync(capacityPath)) {
+              const val = fs.readFileSync(capacityPath, 'utf8').trim();
+              const level = parseInt(val, 10);
+              if (!isNaN(level)) return level;
+            }
+          }
+        }
+      }
+      return null;
+    } 
+    
+    else {
+      return null;
+    }
+  } catch (error) {
+    // Fails safely (returns null) if executed on a desktop machine or environment without a battery
+    return null;
+  }
 }

@@ -214,6 +214,73 @@
     margin-top: 0.15rem;
 }
 
+/* ---------- collapsible job cards (notification-style retract) ----------
+   Each upcoming card is a .retractable-div-container: the header row
+   (label + time) is always visible, the details body collapses with the
+   same height animation the notification groups use. common.css supplies
+   the .retractable-div mechanics; everything below adapts it to the card. */
+
+.schp-card.retractable-div-container{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+.schp-card.expand{
+    /* mainPage.css .expand caps height at 100% — meaningless here */
+    max-height: none;
+}
+.schp-card.retractable-div-container > .schp-card-head{
+    /* (0,0,3,0) — must beat common.css .retractable-div-container>div:first-child
+       (0,0,2,1), which would right-align the whole row */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+.schp-card-head .schp-label,
+.schp-card-head .schp-time{
+    cursor: pointer;
+}
+.schp-caret{
+    font-size: 0.7rem;
+    opacity: 0.6;
+    transition: transform 0.3s ease-out;
+}
+.schp-card:not(.expand) .schp-caret{
+    transform: rotate(180deg);
+}
+.schp-card .retractable-div{
+    width: 100%;
+}
+/* undo the common.css notification body layout (.retractable-div>div
+   is a spaced flex row there; the card body stacks vertically instead) */
+.schp-card .retractable-div > div{
+    display: flex;
+    flex-direction: column;
+    justify-content: unset;
+    margin: 0;
+}
+.schp-card .retractable-div > div > div{
+    flex: unset;
+}
+.schp-card-body{
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--theme-shadow-color);
+}
+.schp-card-body .schp-sub{
+    margin-top: 0;
+}
+.schp-card-body > .schp-actions{
+    /* spacing comes from the body's gap — margins are unreliable inside
+       the retractable-div (its collapsed/expanded height comes from
+       scrollHeight in retractHandler) */
+    margin-top: 0;
+}
+
 /* ---------- burst offer overlay ---------- */
 
 #schp-burst-overlay{
@@ -226,7 +293,7 @@
     background: rgba(0, 0, 0, 0.45);
 }
 .schp-burst-card{
-    background: var(--theme-primary);
+    background: var(--theme-secondary);
     color: var(--theme-text-color);
     border-radius: 12px;
     padding: 1.5rem;

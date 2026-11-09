@@ -93,6 +93,77 @@ async function main() {
     const created = await waitFor(async () => (await page.locator("#schp-upcoming").textContent()).includes("SCHPV-reminder"), 10000);
     check("create: reminder appears in Upcoming", !!created);
 
+    // ---- job cards collapse like notification groups ----
+    const pattern = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll("#schp-upcoming .schp-card")];
+      return {
+        total: cards.length,
+        retractable: cards.filter(c => c.classList.contains("retractable-div-container") && !!c.querySelector(".retractable-div")).length,
+        heads: cards.filter(c => !!c.querySelector(".schp-card-head")).length
+      };
+    });
+    check("collapse: every upcoming card is a retractable container with a header",
+      pattern.total > 0 && pattern.retractable === pattern.total && pattern.heads === pattern.total,
+      JSON.stringify(pattern));
+
+    // header layout: label hugs the left, time hugs the right (space-between —
+    // a weaker selector would let common.css right-align the whole row)
+    check("collapse: header keeps label left / time right",
+      await page.evaluate(() => {
+        const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+          .find(c => c.textContent.includes("SCHPV-reminder"));
+        const head = card.querySelector(".schp-card-head");
+        const headRect = head.getBoundingClientRect();
+        const labelRect = head.querySelector(".schp-label").getBoundingClientRect();
+        const timeRect = head.querySelector(".schp-time").getBoundingClientRect();
+        return labelRect.left - headRect.left < 40 && headRect.right - timeRect.right < 40;
+      }));
+
+    // click the reminder's header row → body collapses to height 0
+    const headerClicked = await page.evaluate(() => {
+      const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+        .find(c => c.textContent.includes("SCHPV-reminder"));
+      if (!card) return false;
+      card.querySelector(".schp-card-head .schp-label").click();
+      return true;
+    });
+    check("collapse: header click registers", headerClicked === true);
+    const collapsed = await waitFor(async () => page.evaluate(() => {
+      const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+        .find(c => c.textContent.includes("SCHPV-reminder"));
+      if (!card) return null;
+      const body = card.querySelector(".retractable-div");
+      // wait for the 0.3s transition to finish — the bounding box must be 0
+      return body.dataset.collapsed === "true" && body.style.height === "0px"
+          && !card.classList.contains("expand") && body.getBoundingClientRect().height === 0;
+    }), 3000);
+    check("collapse: body collapsed (height 0, expand class off)", collapsed === true);
+    check("collapse: details hidden while collapsed (body box 0, caret flipped)",
+      await page.evaluate(() => {
+        const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+          .find(c => c.textContent.includes("SCHPV-reminder"));
+        const body = card.querySelector(".retractable-div");
+        const caret = card.querySelector(".schp-caret");
+        return body.getBoundingClientRect().height === 0
+          && getComputedStyle(caret).transform !== "none";
+      }));
+    await page.locator("#scheduler-page-div").screenshot({ path: path.join(SHOTS, "1b-job-collapsed.png") });
+
+    // second header click → body expands again
+    await page.evaluate(() => {
+      const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+        .find(c => c.textContent.includes("SCHPV-reminder"));
+      card.querySelector(".schp-card-head .schp-label").click();
+    });
+    const reexpanded = await waitFor(async () => page.evaluate(() => {
+      const card = [...document.querySelectorAll("#schp-upcoming .schp-card")]
+        .find(c => c.textContent.includes("SCHPV-reminder"));
+      const body = card.querySelector(".retractable-div");
+      return body.dataset.collapsed === "false" && card.classList.contains("expand")
+          && body.getBoundingClientRect().height > 0;
+    }), 3000);
+    check("collapse: second header click expands again", reexpanded === true);
+
     // ---- persisted with an id in the store ----
     const stored = await page.evaluate(async () => {
       const state = await ipcRenderer.invoke("scheduler-get-state");

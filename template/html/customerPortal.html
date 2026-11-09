@@ -27,6 +27,7 @@
             <button data-cmd="update-profile" data-keymap="u" class="main-ui-btn hover bottom" data-msg="Update customer profile (Ctrl+U)" tabindex="0">Update Profile</button>
             <button data-cmd="add-balance" data-keymap="o" class="main-ui-btn hover bottom" data-msg="Add opening balance (Ctrl+O)" tabindex="0">Add Opening Balance</button>
             <button data-cmd="cust-policy" data-keymap="y" class="main-ui-btn hover bottom" data-msg="Customer policy — payment terms & email reminders (Ctrl+Y)" tabindex="0">Customer Policy</button>
+            <button data-cmd="ship-info" data-keymap="Y" class="main-ui-btn hover bottom" data-msg="Manage ship-to addresses (Ctrl+Shift+Y)" tabindex="0">Shipping Addresses</button>
             <button data-cmd="pay" data-keymap="p" class="main-ui-btn hover bottom" data-msg="Add payment entry (Ctrl+P)" tabindex="0">Add Payment</button>
             <button data-cmd="back" onclick="resetPortal()" class="main-ui-btn hover bottom" data-msg="Go back to search (Backspace/Esc)" tabindex="0">Back</button>
             <button data-cmd="filter" data-view="ledger" id="filter-btn" class="main-ui-btn hide hover bottom" type="button" data-msg="Filter ledger entries (Ctrl+F)" tabindex="0">Filter</button>
@@ -573,6 +574,33 @@
           <button type="button" onclick="closeModal()" data-msg="Close without saving" class="hover bottom" tabindex="0">Cancel</button>
         </div>
       </form>
+    </template>
+    <template id="ship-info-template">
+      <div class="main-ui-form top-level-form cust-policy-form ship-info-form">
+        <h2>Shipping Addresses</h2>
+        <p class="cust-policy-name ship-info-name"></p>
+        <section class="cust-policy-section">
+          <div class="ship-info-list-head">
+            <h3>Saved ship-to entries</h3>
+            <button type="button" class="main-ui-btn hover bottom" onclick="addShipInfoRow(event)" data-msg="Add a new ship-to address" tabindex="0">+ Add Address</button>
+          </div>
+          <div class="ship-info-list"></div>
+          <p class="cust-policy-note ship-info-empty" hidden>No shipping addresses saved yet — add one below.</p>
+        </section>
+        <section class="cust-policy-section ship-info-editor" hidden>
+          <h3 class="ship-info-editor-title">Add shipping address</h3>
+          <div class="ship-info-fields">
+            <label>Ship to (name) <input name="shipTo" /></label>
+            <label>Address <input name="shipAddr" /></label>
+            <label>Phone <input name="shipPh" /></label>
+            <label>GST <input name="shipGST" /></label>
+          </div>
+          <div class="btn-container ship-info-editor-btns">
+            <button type="button" class="main-ui-btn hover bottom" onclick="saveShipInfoEntry(event)" data-msg="Keep this entry in the list" tabindex="0">Save entry</button>
+            <button type="button" onclick="cancelShipInfoEdit(event)" class="hover bottom" tabindex="0">Cancel</button>
+          </div>
+        </section>
+      </div>
     </template>
     <!-- datalists -->
     <datalist id="stock-names"></datalist>

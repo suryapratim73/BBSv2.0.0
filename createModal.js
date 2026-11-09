@@ -82,7 +82,7 @@ exports.createModal = (windowOptions={},pathToHTML,{
       });
     }
     else
-      modal.loadURL(protocol+pathToHTML);
+      modal.loadURL(protocol+path.resolve(__dirname,pathToHTML));
     return modal;
   }
 }

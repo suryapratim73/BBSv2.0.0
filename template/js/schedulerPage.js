@@ -261,31 +261,39 @@ function schpBillOptionsHTML(billType, ev){
 function schpSchedulesHTML(){
     if(!schpState.schedules.length)
         return `<p class="schp-empty">Nothing scheduled. New events you create and automatic payment reminders for unpaid bills show up here.</p>`;
+    // Each job is a retractable-div-container like a notification group:
+    // clicking the header row (label / time) collapses the details body via
+    // the shared execRetractHandler (declared in mainPage.js, loaded first).
     return schpState.schedules
         .slice()
         .sort((a,b)=>new Date(a.time)-new Date(b.time))
         .map(ev=>`
-        <div class="schp-card" data-id="${esc(ev.id)}" style="--color:${esc(ev.color || "#4B0082")}">
-            <div class="schp-card-main">
-                <p class="schp-label"><span class="schp-type-badge">${esc(schpTypeName(ev))}</span> ${esc(ev.label)}</p>
-                <p class="schp-sub">${esc(schpEventSub(ev))}</p>
-                ${ev.fired ? `<p class="schp-hint"><i class="fa-solid fa-bell"></i> Due-time notice already shown — awaiting your input.</p>` : ""}
+        <div class="retractable-div-container schp-card expand" id="schp-event-${esc(ev.id)}" data-id="${esc(ev.id)}" style="--color:${esc(ev.color || "#4B0082")}">
+            <div class="schp-card-head">
+                <p class="schp-label" onclick="execRetractHandler(event)">
+                    <i class="fa-solid fa-chevron-up schp-caret"></i>
+                    <span class="schp-type-badge">${esc(schpTypeName(ev))}</span> ${esc(ev.label)}
+                </p>
+                <p class="schp-time" onclick="execRetractHandler(event)"><i class="fa-regular fa-clock"></i> ${esc(schpFormatTime(ev.time))}</p>
             </div>
-            <div class="schp-card-side">
-                <p class="schp-time"><i class="fa-regular fa-clock"></i> ${esc(schpFormatTime(ev.time))}</p>
-                ${ev.tag ? `<p class="schp-tag">${esc(ev.tag)}</p>` : ""}
-                <div class="schp-actions">
-                    ${ev.type==="task" ? `
-                    <span class="schp-task-answer">
-                        <input type="text" data-act-src="task-answer" placeholder="Your answer…" aria-label="Task answer">
-                        <button type="button" class="main-ui-btn" data-act="complete-task" data-id="${esc(ev.id)}" tabindex="0">Complete</button>
-                    </span>` : ""}
-                    <button type="button" class="main-ui-btn" data-act="edit-event" data-id="${esc(ev.id)}" tabindex="0">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button type="button" class="main-ui-btn" data-act="remove-event" data-id="${esc(ev.id)}" tabindex="0">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+            <div class="retractable-div" data-collapsed="false">
+                <div class="schp-card-body">
+                    <p class="schp-sub">${esc(schpEventSub(ev))}</p>
+                    ${ev.fired ? `<p class="schp-hint"><i class="fa-solid fa-bell"></i> Due-time notice already shown — awaiting your input.</p>` : ""}
+                    ${ev.tag ? `<p class="schp-tag">${esc(ev.tag)}</p>` : ""}
+                    <div class="schp-actions">
+                        ${ev.type==="task" ? `
+                        <span class="schp-task-answer">
+                            <input type="text" data-act-src="task-answer" placeholder="Your answer…" aria-label="Task answer">
+                            <button type="button" class="main-ui-btn" data-act="complete-task" data-id="${esc(ev.id)}" tabindex="0">Complete</button>
+                        </span>` : ""}
+                        <button type="button" class="main-ui-btn" data-act="edit-event" data-id="${esc(ev.id)}" tabindex="0">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button type="button" class="main-ui-btn" data-act="remove-event" data-id="${esc(ev.id)}" tabindex="0">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>`).join("");

@@ -370,11 +370,17 @@ const widgets = {
             host.innerHTML = `
                 <div class="ov-widget-head">
                     <h3>Unprinted invoices <span class="ov-count-badge"></span></h3>
-                    <button class="main-ui-btn hover" data-cmd="fm-refresh" data-msg="Refresh queue" tabindex="0"><i class="fa-solid fa-rotate"></i></button>
+                    <div class="ov-fm-actions">
+                        <button class="main-ui-btn hover" data-cmd="fm-print-all" data-msg="Print all invoices" tabindex="0" title="Print all"><i class="fa-solid fa-print"></i></button>
+                        <button class="main-ui-btn hover" data-cmd="fm-remove-all" data-msg="Remove all from queue" tabindex="0" title="Remove all"><i class="fa-solid fa-trash-can"></i></button>
+                        <button class="main-ui-btn hover" data-cmd="fm-refresh" data-msg="Refresh queue" tabindex="0" title="Sync"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
                 </div>
                 <p class="ov-fm-note"></p>
                 <div class="ov-fm-list hide-scrollbar" data-ui="fm-list"></div>`;
             host.querySelector("[data-cmd='fm-refresh']").addEventListener("click", () => loadFileMonitorQueue(host));
+            host.querySelector("[data-cmd='fm-print-all']").addEventListener("click", () => printAllInvoices(host));
+            host.querySelector("[data-cmd='fm-remove-all']").addEventListener("click", () => removeAllInvoices(host));
             const list = host.querySelector(".ov-fm-list");
             list.addEventListener("click", e => {
                 const btn = e.target.closest("button");
@@ -631,6 +637,33 @@ async function removeInvoice(filePath, host) {
         toast(res && res.error ? res.error : "Could not remove the invoice.", true);
 }
 
+async function printAllInvoices(host) {
+    const res = await ipcRenderer.invoke("file-monitor-print-all");
+    if (res && res.ok) {
+        const done = Number(res.printed) || 0, failed = Number(res.failed) || 0;
+        if (done)
+            toast(`Printed ${done} invoice${done === 1 ? "" : "s"}${failed ? ` — ${failed} failed` : ""}.`);
+        else if (failed)
+            toast(`${failed} invoice${failed === 1 ? "" : "s"} could not be printed.`, true);
+        else
+            toast("Queue is empty.");
+        await loadFileMonitorQueue(host);
+    } else {
+        toast(res && res.error ? res.error : "Print failed.", true);
+    }
+}
+
+async function removeAllInvoices(host) {
+    const res = await ipcRenderer.invoke("file-monitor-remove-all");
+    if (res && res.ok) {
+        const removed = Number(res.removed) || 0;
+        toast(removed ? `Removed ${removed} invoice${removed === 1 ? "" : "s"} from the queue.` : "Queue is already empty.");
+        await loadFileMonitorQueue(host);
+    } else {
+        toast(res && res.error ? res.error : "Could not remove the invoices.", true);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // renderer
 
@@ -644,10 +677,13 @@ async function collectWidgetData(recipe) {
         widgetData = null;
 }
 
-async function renderOverview() {
+async function renderOverview(seq) {
     const host = document.getElementById("overview-div");
     if (!host) return;
     const { recipe } = await ipcRenderer.invoke("get-overview-recipe");
+    // Superseded by a newer render while awaiting IPC — leave the DOM alone,
+    // the newer render will clear and rebuild it.
+    if (seq && seq !== overviewRenderSeq) return;
     // chart gradient fill colors from the customize section ("" → defaults)
     chartFill = (recipe.chart && recipe.chart.fillStart && recipe.chart.fillStop)
         ? { start: recipe.chart.fillStart, stop: recipe.chart.fillStop }
@@ -685,6 +721,7 @@ async function renderOverview() {
     });
 
     await collectWidgetData(recipe);
+    if (seq && seq !== overviewRenderSeq) return;
     for (const { box, w } of built) {
         if (w.init) await w.init(box);
     }
@@ -972,8 +1009,15 @@ function renderCustomize(recipe) {
 // ---------------------------------------------------------------------------
 // toolbar (normal mode) + entry point
 
+/** Monotonic render token — rapid refreshes (e.g. "update-content" broadcasts
+ *  while the previous render is still awaiting IPC) used to interleave and
+ *  stack a second toolbar/Customize button. Only the latest render may mount
+ *  the toolbar. */
+let overviewRenderSeq = 0;
+
 function mountToolbar() {
     const host = document.getElementById("overview-div");
+    clearHost(host, ".ov-toolbar"); // never stack toolbars on re-render
     const toolbar = document.createElement("div");
     toolbar.className = "ov-toolbar";
     toolbar.innerHTML = `<button class="main-ui-btn hover" data-cmd="ov-customize" data-msg="Customize this page" tabindex="0"><i class="fa-solid fa-pen-to-square"></i> Customize</button>`;
@@ -987,7 +1031,9 @@ function mountToolbar() {
 /** Entry point — called by applyMode() in mainPage.js for the overview mode. */
 async function renderOverviewPage() {
     ensureFileMonitorListeners();
-    await renderOverview();
+    const seq = ++overviewRenderSeq;
+    await renderOverview(seq);
+    if (seq !== overviewRenderSeq) return; // superseded — a newer render mounts the toolbar
     mountToolbar();
 }
 

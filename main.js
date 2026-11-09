@@ -77,7 +77,8 @@ const {
   getLocalDateStr,
   getTodaysLogDate,
   attempt,
-  delay
+  delay,
+  getBatteryLevel
 } = require("./common");
 // const { getBillsDir } = require("./paths");
 const { getAppPolicyPath,getsaleConfigPolicyPath,getUserPolicyPath, getOrderPath, getProformaPath, roundOffTo2DecimalPlace } = require("./template/js/common");
@@ -85,6 +86,7 @@ const fs = require("fs");
 const path = require("path");
 const readLine = require("readline");
 const crypto = require("crypto");
+const os = require("os");
 
 global.needsSchemaBootstrap = false;
 let {
@@ -94,16 +96,18 @@ let {
 } = require("./createModal");
 const { getTemplatePath, initializeThemeAndBanners, reapplyTheme, storeUserThemeObj, clearWeatherInterval, isBannerDismissed, saveDismissedBanner, registerIPC: registerThemeIPC } = require("./viewManager");
 const { shouldShowBetaPrompt, BETA_PROMPT_ID } = require("./lib/betaPrompt");
-const { registerCloudIPC, verifyEmailToken } = require("./lib/cloudConnect");
+const { registerCloudIPC, verifyEmailToken, getCloudSession, setOnSignedIn } = require("./lib/cloudConnect");
 const { registerEulaIPC } = require("./lib/eula");
 const scheduler = require("./lib/scheduler");
 const { registerOverviewRecipeIPC } = require("./lib/overviewRecipe");
 const { registerCustomerPolicyIPC } = require("./lib/customerPolicy");
+const { registerShipInfoIPC } = require("./lib/shipInfoManager");
 const { startReminderEngine, registerCustomerReminderIPC, flushPendingReminders } = require("./lib/customerReminders");
 registerCloudIPC();
 registerEulaIPC();
 registerOverviewRecipeIPC();
 registerCustomerPolicyIPC();
+registerShipInfoIPC();
 registerCustomerReminderIPC();
 let {
   attendances,
@@ -847,9 +851,7 @@ app.on("ready", async () => {
         });
         if (thisMonthPayments.length > 0) paySalary(mainWindow);
       }
-      // Initiating theme
       if (process.platform === "linux") setLinuxThemeObserver();
-      await attempt(()=>initTheme(),console.log);
             
       // Start file monitor for unprinted bills (async to avoid blocking)
       try {
@@ -881,27 +883,48 @@ app.on("ready", async () => {
   let secret = await ensureSecret();
 
   encryptAndUploadS3(); // Call the function to encrypt and upload logs to S3
-
-  // appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins
+  // HeartBeatFn - for batching, syncing, etc.
+  heartBeatFn();
   appHeartBeatTimer = setInterval(heartBeatFn,300000);// Every 5 mins — re-enabled for reminder 429 retries (see heartBeatFn)
   startPythonProcess();
 });
 
+async function systemFitEnough(){
+  const isIdle = powerMonitor.getSystemIdleState(600)=="idle";
+  const appMetrics = app.getAppMetrics();
+  const onBattery = powerMonitor.isOnBatteryPower();
+  const batterylvl = await getBatteryLevel();
+  let memUtilization = os.freemem()/os.totalmem()*100;
+  if(memUtilization<10) return false;
+  if(!isIdle) return false;
+  for(const metric of appMetrics){
+    let cpu_usage = metric.cpu.percentCPUUsage;
+    if(cpu_usage>10.0) return false;
+  }
+  if(onBattery && batterylvl<40) return false;
+  return true;
+}
+
 async function heartBeatFn(){
-  initTheme();
+  const isFit = await systemFitEnough();
+  if(!isFit) return; // System is not fit for background tasks.
   const isOnline = await checkForInternet();
-  checkDeviceStatus(isOnline);
+  // Batch db migration,
+  // check for partial downloads
+   
+  if(!isOnline) return;// All offline tasks above
+  // Write all internet dependent fn calls below
   // Retry reminder emails the cloud rate-limited earlier (see lib/customerReminders)
   attempt(()=>flushPendingReminders(),{});
-  // Will do Syncing job if isOnline==true
-  //Monitor app metrics using this API app.getAppMetrics() and take decision
+  initTheme();
+  checkDeviceStatus(isOnline);
 }
 
 async function checkDeviceStatus(isOnline){
   if(typeof process.presets.isDev=="undefined"){
     process.presets.isAllowed = true;
     process.presets.isDev = false;
-    return enforceAppUSage();
+    // fall through — fetch the real status below on this same heartbeat
   }
   let baseURL = process.env.APP_ENV==="PROD" ? process.env.UPDATE_REST : "http://192.168.0.110:3030/";
   let statusObj = isOnline ? await attempt(()=>{
@@ -919,6 +942,10 @@ async function checkDeviceStatus(isOnline){
 // ---- Beta Program prompt ----
 let betaPromptShownThisSession = false;
 
+// Signing in / signing up to BBS Cloud is the trigger — offer the Beta prompt
+// right away while the server's beta status from the register response is fresh.
+setOnSignedIn((isDev)=>maybeShowBetaPrompt(isDev));
+
 /** Fresh beta-status check against the server — returns true only when the
  *  server confirms the user is a beta tester. The update flow must never
  *  trust process.presets.isDev (the heartbeat may not have fetched it yet,
@@ -929,14 +956,18 @@ async function getDevStatusFromServer(baseURL){
   return status?.data?.isDev===true;
 }
 
-/** Ask the user (once per launch) to join the Beta Program. Only when the
- *  device status check says they are not a beta tester yet. */
-function maybeShowBetaPrompt(isDev){
+/** Offer the Beta Program prompt. Fired when the user signs in/signs up to
+ *  BBS Cloud (setOnSignedIn) and on the status heartbeat while they stay
+ *  signed in. The offer happens ONCE EVER per install: the dismissal is
+ *  persisted BEFORE showing, so re-launches never re-prompt. The manual menu
+ *  item (BBS → Beta Program) opens the same prompt without this gate. */
+async function maybeShowBetaPrompt(isDev){
   if(betaPromptShownThisSession) return;
+  let session = await getCloudSession();
   let verdict = shouldShowBetaPrompt({
     isDev,
     hasDeviceId: typeof global.deviceUUID!=="undefined",
-    hasGst: typeof process.presets.gst!=="undefined" && process.presets.gst!=="",
+    cloudSignedIn: session.signedIn,
     dismissedForever: isBannerDismissed(BETA_PROMPT_ID),
     shownThisSession: betaPromptShownThisSession
   });
@@ -944,6 +975,7 @@ function maybeShowBetaPrompt(isDev){
   let mainWin = getMainWindow();
   if(!mainWin) return; // main window not ready yet — try on the next heartbeat
   betaPromptShownThisSession = true;
+  saveDismissedBanner(BETA_PROMPT_ID); // offer only once — never auto re-prompt
   mainWin.webContents.send("show-beta-prompt");
 }
 
@@ -974,6 +1006,14 @@ ipcMain.on("beta-prompt-response", async (event,payload={})=>{
     });
     event.sender.send("beta-prompt-result",{ok:false,error:"Could not join the Beta Program right now. Please check your internet connection and try again."});
   }
+});
+
+// Manual entry point — the BBS menu item opens the same prompt without the
+// once-only gate (shown whenever the user clicks it, signed in or not).
+ipcMain.on("open-beta-prompt", ()=>{
+  let mainWin = getMainWindow();
+  if(!mainWin) return;
+  mainWin.webContents.send("show-beta-prompt");
 });
 // Danger function
 async function enforceAppUSage(){
@@ -1265,7 +1305,7 @@ async function setAppPresets(){
     let value = policy2[key] ?? policy[key] ?? policy3[key];
     if(typeof value === "undefined" || value===null) return;
     if(key !="placeOfJurisdiction" && (key in policy2 || key in policy || key in policy3))
-      process.presets[key] = Number.isInteger(value) ? value : (/^\d+$/.test(value) ? Number(value.match(/^\d+/)[0]) : value);
+      process.presets[key] = Number.isInteger(value) ? value : ((/^\d+$/.test(value) && typeof value==="string") ? Number(value.match(/^\d+/)[0]) : value);
     else
     if(key==="placeOfJurisdiction")
       process.presets[key] = placeOfJurisdiction(policy3);
@@ -4114,9 +4154,13 @@ function updateProgressbar(win, value, maxVal, text = "DB migration in progress,
     });
   }
 }
-// dbMigrator()
 // Migration is now handled by server schema updates and Sequelize sync
 async function dbMigrator(){// Work in progress, check the flow before testing
+  /**
+   * Make dbMigrator a backgound only task
+   */
+  
+  
   // Defining schema paths
   let appPath = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/") : __dirname;
   const replicaDynamicPath = path.resolve(appPath, "./model/dynamicSchemas_replica.json");
@@ -4531,6 +4575,7 @@ ipcMain.handle("get-file-monitor-queue",()=>{
 
 ipcMain.handle("file-monitor-remove-invoice",(e,filePath)=>{
   if(!fileMonitor) return { ok:false, error:"File monitor is not running." };
+  if(!filePath) return;
   try{
     if(typeof filePath!=="string" || !filePath.startsWith(path.resolve(getBillsDir())+path.sep))
       return { ok:false, error:"Invalid invoice file." };
@@ -4538,6 +4583,13 @@ ipcMain.handle("file-monitor-remove-invoice",(e,filePath)=>{
   }
   catch(err){
     return { ok:false, error:String(err) };
+  }
+});
+
+ipcMain.on("file-monitor-remove-invoice",(e,filePath)=>{
+  if(!fileMonitor || !filePath) return;
+  if(fileMonitor.status()){
+    fileMonitor.removeFromQueue(filePath);
   }
 });
 
@@ -4566,6 +4618,32 @@ ipcMain.handle("file-monitor-print-invoice", async (e,filePath)=>{
     return { ok:false, error:String(err && err.message || err) };
   fileMonitor.markAsPrinted(filePath);
   return { ok:true };
+});
+
+ipcMain.handle("file-monitor-print-all", async (e)=>{
+  if(!fileMonitor) return { ok:false, error:"File monitor is not running." };
+  const queue = fileMonitor.getQueue();
+  if(!queue.length) return { ok:true, printed:0, failed:0 };
+  const win = BrowserWindow.fromWebContents(e.sender) || getMainWindow();
+  if(!win || win.isDestroyed()) return { ok:false, error:"Main window unavailable." };
+  try{
+    const res = await fileMonitor.printNow(queue, win);
+    if(res.error) return { ok:false, error:res.error };
+    return { ok:true, printed:res.printed, failed:res.failed };
+  }
+  catch(err){
+    return { ok:false, error:String(err && err.message || err) };
+  }
+});
+
+ipcMain.handle("file-monitor-remove-all",()=>{
+  if(!fileMonitor) return { ok:false, error:"File monitor is not running." };
+  try{
+    return fileMonitor.removeAllFromQueue();
+  }
+  catch(err){
+    return { ok:false, error:String(err && err.message || err) };
+  }
 });
 
 ipcMain.on("log",(e,msg)=>{

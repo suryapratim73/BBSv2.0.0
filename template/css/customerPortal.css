@@ -545,3 +545,110 @@ option{
     font-weight: bold;
     margin: 0.5rem 0 0;
 }
+/* Shipping address manager (Shipping Addresses button) */
+#ship-info-modal{
+    display: block;
+    overflow: scroll;
+}
+.ship-info-form {
+    max-width: 100%;
+    gap: 0.6rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.ship-info-list-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.ship-info-list-head .main-ui-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+.ship-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.ship-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 8px;
+    padding: 0.45rem 0.7rem;
+}
+.ship-info-row-main {
+    min-width: 0;
+}
+.ship-info-row-name {
+    font-weight: bold;
+    margin: 0;
+    word-break: break-word;
+}
+.ship-info-row-sub {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    margin: 0.1rem 0 0;
+    word-break: break-word;
+}
+.ship-info-row-btns {
+    display: flex;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    align-items: center;
+}
+.ship-info-row-btns .main-ui-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+.ship-info-remove-btn {
+    background: transparent;
+    border: 1px solid #d9534f;
+    color: #d9534f;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+.ship-info-remove-btn[data-armed="1"] {
+    background: #d9534f;
+    color: #ffffff;
+}
+/* .cust-policy-section sets display:flex, which would beat the UA
+   [hidden] rule — these make the hidden attribute authoritative again */
+.ship-info-editor[hidden],
+.ship-info-empty[hidden] {
+    display: none;
+}
+.ship-info-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 1rem;
+}
+.ship-info-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    opacity: 0.85;
+}
+.ship-info-fields input {
+    background: transparent;
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 6px;
+    padding: 0.4rem;
+    color: var(--theme-text-color);
+    font: inherit;
+    outline: none;
+}
+.ship-info-fields input:focus {
+    border-color: var(--theme-text-color);
+}
+.ship-info-editor-btns {
+    margin-top: 0.25rem;
+}

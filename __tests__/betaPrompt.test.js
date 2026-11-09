@@ -1,7 +1,7 @@
 // Beta Program prompt — decision logic unit tests
-// The prompt must appear exactly once per launch for non-beta users, must
-// never appear for beta users, and must stay silent forever once the user
-// checks "Don't ask me again".
+// The prompt must appear at most once ever for non-beta users (the caller
+// persists the dismissal before showing), must never appear for beta users,
+// and only fires when the user is signed in to BBS Cloud.
 
 const { shouldShowBetaPrompt, BETA_PROMPT_ID } = require("../lib/betaPrompt");
 
@@ -9,12 +9,12 @@ describe("shouldShowBetaPrompt — show decisions", () => {
   const base = {
     isDev: false,
     hasDeviceId: true,
-    hasGst: true,
+    cloudSignedIn: true,
     dismissedForever: false,
     shownThisSession: false
   };
 
-  test("shows for a logged-in non-beta user", () => {
+  test("shows for a cloud-signed-in non-beta user", () => {
     expect(shouldShowBetaPrompt(base).show).toBe(true);
   });
 
@@ -42,10 +42,10 @@ describe("shouldShowBetaPrompt — show decisions", () => {
     });
   });
 
-  test("waits until a business (GST) is logged in", () => {
-    expect(shouldShowBetaPrompt({ ...base, hasGst: false })).toEqual({
+  test("waits until the user is signed in to BBS Cloud", () => {
+    expect(shouldShowBetaPrompt({ ...base, cloudSignedIn: false })).toEqual({
       show: false,
-      reason: "no-gst"
+      reason: "not-signed-in"
     });
   });
 

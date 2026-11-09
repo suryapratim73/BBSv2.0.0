@@ -355,6 +355,7 @@ async function helperFunc1({id,name,qty,sellUnit,rate,amt,cgst=0,sgst=0,igst=0,h
         pHistory = attempt(()=>{
             return JSON.parse(pHistory);
         },[]);
+        if(!Array.isArray(pHistory)) pHistory = [];
         if(pHistory.length>0){
             // Removing entries older than 6 months from pHistory
             let sixMonthsAgo = new Date();
@@ -797,20 +798,21 @@ async function save_exit(e,{billMeta,customer:customerObj,orderItems,orderId=""}
             }
             scheduler.addEvent(evObj);
         }
-        // Burst automation: the scheduler notices a run of bill saves and
-        // offers to print them (printable snapshot captured here while the
-        // full bill data is in scope).
-        scheduler.noteBillSaved({billMeta, customer:customerObj, orderItems}, billNo);
         // Notify main window to refresh (fallback for kiosk/null sender)
         var notifyWin = getMainWindow();
         if (notifyWin) notifyWin.webContents.send("update-content");
     })
     .catch(console.log);
-    if(billType!=="monthly")
-        return billPDF({billMeta,customer:customerObj,orderItems});
+    if(billType!=="monthly"){
+        // Burst automation: the scheduler notices a run of bill saves and
+        // offers to print them (printable snapshot captured here while the
+        // full bill data is in scope).
+        let path2pdf = billPDF({billMeta,customer:customerObj,orderItems});
+        scheduler.noteBillSaved({billMeta, customer:customerObj, orderItems}, billNo);
+        return path2pdf;
+    }
     closeFlag = true;
     ipcMain.emit("refresh-customer-list");
-    console.log({costomerObj:global.customerList.find(obj=>obj.id===custId)})
 }
 
 ipcMain.on("save-exit-sale-bill",save_exit);

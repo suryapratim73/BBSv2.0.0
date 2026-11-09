@@ -63,7 +63,7 @@ async function initPage(){
     // App status bar (zen mode, weather theme, kiosk, connectivity)
     initStatusBar();
     startUpdateTour();
-    ipcRenderer.send("booted")
+    ipcRenderer.send("booted");
 }
 initPage();
 

@@ -40,6 +40,7 @@ exports.printOnWindows = function printOnWindows(path2pdf,printer,copies,paperSi
 /** Fire-and-forget silent print for the scheduler — no dialogs, no retry loop.
  *  cb(err) is called once when the print process exits. */
 exports.printSilent = function printSilent(path2pdf,printer,copies,paperSize,cb){
+    console.log({path2pdf,printer,copies,paperSize});
     if(!path2pdf || !fs.existsSync(path2pdf))
         return typeof cb==="function" && cb(new Error(`PDF not found: ${path2pdf}`));
     if(!/\.pdf$/.test(path2pdf))

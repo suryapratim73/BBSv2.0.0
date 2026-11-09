@@ -22,6 +22,8 @@ let customerList = [],
     ledgerEntries = [],
     currentPage,rows = [],rows2 = [];
 
+let shipInfoWorking = [];// Shipping-address modal working copy (saved on commit)
+
 const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
     ];
@@ -500,6 +502,20 @@ page2BTNS.addEventListener("click",async function(e){
         modal.appendChild(form);
     }
     else
+    if(e.target.dataset.cmd==="ship-info"){
+        let custId = traverseParent(e.target,"btn-container").dataset.id;
+        let _cust = customerList.find(obj=>obj.id===custId);
+        if(!_cust) return;
+        removeAllElem("#ship-info-modal");
+        let modal = createModal("ship-info-modal",false);
+        let form = document.getElementById("ship-info-template").content.cloneNode(true).querySelector(".ship-info-form");
+        form.dataset.id = custId;
+        form.querySelector(".ship-info-name").textContent = _cust.name;
+        shipInfoWorking = (await ipcRenderer.invoke("get-ship-infos",custId)) ?? [];
+        shipInfoRenderList(form);
+        modal.appendChild(form);
+    }
+    else
     if(e.target.dataset.cmd==="new-bill")
         ipcRenderer.send("new-bill",selectedCustomer);
     else
@@ -773,6 +789,152 @@ async function saveCustomerPolicy(e){
     }
     else
         showToastNotification((res && res.error) ? res.error : "Could not save the policy.",["animation-common","move-left","red-toast-box"],document.body);
+}
+
+// ---------- shipping addresses (shipTo) manager ----------
+function shipInfoEsc(s){
+    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function shipInfoRenderList(form){
+    let list = form.querySelector(".ship-info-list");
+    while(list.firstChild) list.removeChild(list.firstChild);
+    form.querySelector(".ship-info-empty").hidden = shipInfoWorking.length > 0;
+    shipInfoWorking.forEach((info,index)=>{
+        let row = document.createElement("div");
+        row.className = "ship-info-row";
+        let sub = [info.shipAddr,info.shipPh,info.shipGST].filter(v=>v && String(v).trim()).map(shipInfoEsc).join(" · ");
+        row.innerHTML = `
+            <div class="ship-info-row-main">
+                <p class="ship-info-row-name">${shipInfoEsc(info.shipTo)}</p>
+                ${sub ? `<p class="ship-info-row-sub">${sub}</p>` : ""}
+            </div>
+            <div class="ship-info-row-btns">
+                <button type="button" class="main-ui-btn hover bottom" onclick="editShipInfoRow(event)" data-idx="${index}">Edit</button>
+                <button type="button" class="ship-info-remove-btn hover bottom" onclick="removeShipInfoRow(event)" data-idx="${index}">Remove</button>
+            </div>`;
+        list.appendChild(row);
+    });
+}
+
+function shipInfoEditorShow(form){
+    let editor = form.querySelector(".ship-info-editor");
+    editor.hidden = false;
+    editor.scrollIntoView({block:"nearest"});
+    ["shipTo","shipAddr","shipPh","shipGST"].forEach(k=>editor.querySelector(`input[name='${k}']`).value = "");
+    form.querySelector(".ship-info-editor-title").textContent = "Add shipping address";
+    delete editor.dataset.idx;
+}
+
+function addShipInfoRow(e){
+    let form = traverseParent(e.target,"ship-info-form");
+    shipInfoEditorShow(form);
+    form.querySelector(".ship-info-editor input[name='shipTo']").focus();
+}
+
+function editShipInfoRow(e){
+    let form = traverseParent(e.target,"ship-info-form");
+    let info = shipInfoWorking[Number(e.target.dataset.idx)];
+    if(!info) return;
+    shipInfoEditorShow(form);
+    let editor = form.querySelector(".ship-info-editor");
+    ["shipTo","shipAddr","shipPh","shipGST"].forEach(k=>editor.querySelector(`input[name='${k}']`).value = info[k] ?? "");
+    form.querySelector(".ship-info-editor-title").textContent = "Edit shipping address";
+    editor.dataset.idx = e.target.dataset.idx;
+}
+
+function saveShipInfoEntry(e){
+    let form = traverseParent(e.target,"ship-info-form");
+    let editor = form.querySelector(".ship-info-editor");
+    let customerName = form.querySelector(".ship-info-name").textContent.trim();
+    let entry = {};
+    ["shipTo","shipAddr","shipPh","shipGST"].forEach(k=>entry[k] = editor.querySelector(`input[name='${k}']`).value.trim());
+    if(!entry.shipTo){
+        showToastNotification("Ship-to name is required.",["animation-common","move-left","red-toast-box"],document.body);
+        return;
+    }
+    if(editor.dataset.idx !== undefined){
+        let prev = shipInfoWorking[Number(editor.dataset.idx)];
+        entry.name = (prev && prev.name) || customerName;
+        shipInfoWorking[Number(editor.dataset.idx)] = entry;
+    }
+    else{
+        // `name` mirrors what saleHandler stores on bill save (the customer's
+        // name) — the sale page's superkey/dedupe logic depends on it
+        entry.name = customerName;
+        shipInfoWorking.push(entry);
+    }
+    editor.hidden = true;
+    shipInfoRenderList(form);
+    shipInfoPersist(form,"Shipping address saved.");
+}
+
+function cancelShipInfoEdit(e){
+    let form = traverseParent(e.target,"ship-info-form");
+    let editor = form.querySelector(".ship-info-editor");
+    editor.hidden = true;
+    delete editor.dataset.idx;
+}
+
+function removeShipInfoRow(e){
+    let btn = e.target;
+    if(btn.dataset.armed === "1"){// two-step: first click arms, second removes
+        clearTimeout(Number(btn.dataset.tid));
+        shipInfoWorking.splice(Number(btn.dataset.idx),1);
+        let form = traverseParent(btn,"ship-info-form");
+        shipInfoRenderList(form);
+        shipInfoPersist(form,"Shipping address removed.");
+        return;
+    }
+    btn.dataset.armed = "1";
+    btn.textContent = "Sure?";
+    btn.dataset.tid = String(setTimeout(()=>{
+        btn.dataset.armed = "";
+        btn.textContent = "Remove";
+    },3000));
+}
+
+function shipInfoSyncRendererList(custId,infos){
+    // keep the portal's renderer customer list in sync (fresh shipInfos for
+    // any later use, e.g. reopening the modal in this session)
+    let c = customerList.find(obj=>obj.id===custId);
+    if(!c) return;
+    let mi = c.moreInfo;
+    if(typeof mi === "string"){
+        try{
+            let obj = JSON.parse(mi);
+            if(!obj || typeof obj !== "object" || Array.isArray(obj)) obj = {};
+            obj.shipInfos = infos;
+            c.moreInfo = JSON.stringify(obj);
+        }catch(_){}
+    }
+    else{
+        if(!mi || typeof mi !== "object" || Array.isArray(mi)) mi = {};
+        mi.shipInfos = infos;
+        c.moreInfo = mi;
+    }
+}
+
+// Auto-save: every add/edit/remove commits the working list immediately —
+// the modal has no Save/Cancel footer, so a failed write must roll the UI
+// back to whatever the DB actually holds.
+async function shipInfoPersist(form,successMsg){
+    let custId = form.dataset.id;
+    let res;
+    try{
+        res = await ipcRenderer.invoke("set-ship-infos",custId,shipInfoWorking);
+    }catch(err){
+        res = { ok:false, error:String((err && err.message) || err) };
+    }
+    if(res && res.ok){
+        shipInfoSyncRendererList(custId,res.shipInfos);
+        showToastNotification(successMsg,["animation-common","move-left","blue-toast-box"],document.body);
+    }
+    else{
+        showToastNotification((res && res.error) ? res.error : "Could not save shipping addresses.",["animation-common","move-left","red-toast-box"],document.body);
+        try{ shipInfoWorking = (await ipcRenderer.invoke("get-ship-infos",custId)) ?? []; }catch(_){}
+        shipInfoRenderList(form);
+    }
 }
 
 function updateLedger(e){

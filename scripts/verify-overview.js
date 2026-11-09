@@ -320,21 +320,37 @@ async function main() {
     check("customize: page re-rendered with new layout", !!relayout, JSON.stringify(relayout));
     await page.locator("#overview-div").screenshot({ path: path.join(SHOTS, "3-relayout.png") });
 
+    // regression: concurrent refreshes used to stack a second toolbar
+    const customizeButtons = await page.evaluate(() => document.querySelectorAll('[data-cmd="ov-customize"]').length);
+    check("customize: exactly one Customize button after re-render", customizeButtons === 1, `found=${customizeButtons}`);
+
     // ---- file-monitor widget (mounted by the customize round-trip) ----
     const fm = await page.evaluate(async () => {
       const w = document.querySelector('.ov-widget[data-widget="file-monitor"]');
       const queue = await ipcRenderer.invoke("get-file-monitor-queue");
       const rejected = await ipcRenderer.invoke("file-monitor-remove-invoice", "C:\\Windows\\notepad.exe");
+      const empty = !queue || queue.length === 0;
+      // bulk handlers are invoked only on an empty queue — a live queue would
+      // actually print / clear the user's invoices
+      const printAllEmpty = empty ? await ipcRenderer.invoke("file-monitor-print-all") : null;
+      const removeAllEmpty = empty ? await ipcRenderer.invoke("file-monitor-remove-all") : null;
       return {
         head: !!w.querySelector("h3"),
         rows: w.querySelectorAll(".ov-fm-row").length,
         emptyNote: w.querySelector(".ov-fm-empty")?.textContent || "",
         listRenders: (queue || []).length > 0 ? w.querySelectorAll(".ov-fm-row").length === queue.length : w.querySelector(".ov-fm-empty") !== null,
-        rejectOk: rejected && rejected.ok === false
+        rejectOk: rejected && rejected.ok === false,
+        hasPrintAll: !!w.querySelector("[data-cmd='fm-print-all']"),
+        hasRemoveAll: !!w.querySelector("[data-cmd='fm-remove-all']"),
+        printAllEmptyOk: printAllEmpty === null ? true : printAllEmpty.ok === true && printAllEmpty.printed === 0 && printAllEmpty.failed === 0,
+        removeAllEmptyOk: removeAllEmpty === null ? true : removeAllEmpty.ok === true && removeAllEmpty.removed === 0
       };
     });
     check("file-monitor: widget renders the queue", fm.head && fm.listRenders, `rows=${fm.rows} note="${fm.emptyNote}"`);
     check("file-monitor: outside-bills path rejected", fm.rejectOk === true);
+    check("file-monitor: print-all / remove-all buttons render", fm.hasPrintAll === true && fm.hasRemoveAll === true);
+    check("file-monitor: bulk handlers respond on empty queue", fm.printAllEmptyOk === true && fm.removeAllEmptyOk === true,
+        `printAll=${fm.printAllEmptyOk} removeAll=${fm.removeAllEmptyOk}`);
 
     // ---- all four cards (monthly/yearly mounted by the round-trip) ----
     const allCards = await page.evaluate(() => {

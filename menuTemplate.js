@@ -8,7 +8,7 @@ const { customerPortal } = require("./customerHandler");
 const { createGSTSummaryWindow, createBusinessStatPage } = require("./businessHandler");
 const { serviceRegistor } = require("./serviceHandler");
 const { employeePortal } = require("./peopleHandler");
-const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip } = require("./exTool");
+const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip, legalWindow } = require("./exTool");
 const { versionManager } = require("./versionManager");
 const { billDesignerWindow } = require("./billLayoutDesigner");
 const { logViewer } = require("./logHandler");
@@ -42,6 +42,14 @@ module.exports = mainWindow=>{
                         ipcMain.emit("check-for-update");
                     },
                     accelerator: "CommandOrControl+Shift+U"
+                },
+                {
+                    label: "Beta Program",
+                    click: ()=>ipcMain.emit("open-beta-prompt")
+                },
+                {
+                    label: "Legal",
+                    click: ()=>legalWindow(mainWindow)
                 },
                 {
                     label: "Help",

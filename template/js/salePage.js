@@ -1205,19 +1205,6 @@ function displaySection(show=true) {
             return pInfo?.discount ?? 0;
         },0));
         const discountedRate = Math.max(0, (lastSellPrice || standardPrice || 0) - itemDiscount);
-        /*
-        // (2026-11-02) Old behaviour — each rate row shown pre-discounted. Kept
-        // commented: replaced by the dedicated Discounted Rate row above.
-        if(itemDiscount > 0){
-            ["standardSellPrice","lastSellPrice","specialPrice"]
-            .forEach(key=>{
-                const el = document.querySelector(`#product-summary .blue[data-name="${key}"]`);
-                if(!el) return;
-                const rate = Number(el.textContent) || 0;
-                el.textContent = roundOffTo2DecimalPlace(Math.max(0, rate - itemDiscount));
-            });
-        }
-        */
         [...document.querySelectorAll("#product-summary .blue")]
         .forEach(h2=>{
             let key = h2.dataset.name;
