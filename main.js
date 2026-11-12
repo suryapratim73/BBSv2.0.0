@@ -210,7 +210,7 @@ function bootCommon(mainWindow){
   return mainWindow;
 }
 
-// Handle protocol URLs from external launches (e.g., updator.vbs using bbs://update-complete)
+// Handle protocol URLs from external launches (e.g., updator.ps1 / updator.sh using bbs://update-complete)
 function handleProtocolUrl(url) {
   console.log("========================================");
   console.log("🔗 Protocol URL Handler Triggered!");
@@ -2979,17 +2979,17 @@ async function updateCommon(showMsgFlag=true,relPath=`./BBS/${this.fileName}`){
   }
   else
   if(data.installMoment==="now" && process.platform==="win32"){
-    // Launch the windowless VBS helper via wscript.exe (GUI-only host, so no
-    // console window ever appears). It waits for this app to fully exit,
-    // runs the installer silently and relaunches the app from its installed
-    // location (process.execPath = %LOCALAPPDATA%\Programs\bbs\BBS.exe).
-    proc = spawn("wscript.exe",[
-      path.resolve(__dirname,"./updator.vbs"),
-      String(process.pid),
-      data.path2file,
-      process.execPath
-    ],{
+    // Launch the windowless PowerShell updater helper via cmd.exe (shell:true) -
+    // the same launch shape the 2.21.x updator.bat used successfully in
+    // production. VBScript is no longer available by default on Windows 11
+    // 24H2+, so updator.vbs silently failed there. The helper waits for this
+    // app's whole process tree to exit, runs the installer silently and
+    // relaunches the app from its installed location (process.execPath =
+    // %LOCALAPPDATA%\Programs\bbs\BBS.exe). Args are positional (same contract
+    // as the old vbs); -WindowStyle Hidden hides the shared console window.
+    proc = spawn(`powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "${path.resolve(__dirname,'./updator.ps1')}" "${process.pid}" "${data.path2file}" "${process.execPath}"`,{
       cwd:__dirname,
+      shell:true,
       detached:true,
       windowsHide:true,
       stdio:'ignore'
