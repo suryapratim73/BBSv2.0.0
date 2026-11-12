@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, hexTohsl, lightenHSL, hslComponents, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, startUpdateTour,appendToDL,getNGramIndex,showUpdatePrompt,showEulaPage, formatDateShort, formatTimeLeft } = require("../js/common");
+const { toggleDevTool,getAmtToWord, chooseFile , drawSpinner, retractHandler, removeAllElem, showToastNotification, closeToast, validateInput, validateInput2, errorFormatter, capitalize, applyTheme, hexTohsl, lightenHSL, hslComponents, appendToHost, createModal, createORexecuteProgressbar, applySpinner, traverseParent, startUpdateTour,appendToDL,getNGramIndex,showUpdatePrompt,showEulaPage, formatDateShort, formatTimeLeft, openErrorReport } = require("../js/common");
 const { closeModal } = require("../js/common");
 const uuid = require("uuid");
 
@@ -331,7 +331,11 @@ async function showForm(e,cmd,show,prevData={}){
             let dataURL = await ipcRenderer.invoke("generate-secret");
             if(dataURL){
                 document.querySelector("#qrcode-div>img").src = dataURL;
-                document.getElementById("done-btn").removeAttribute("disabled");
+                let form = document.getElementById("lock-screen");
+                form.dataset.twoFactorAction = "enable";
+                let btn = document.getElementById("enable-2-factor");
+                btn.setAttribute("disabled",true);
+                btn.textContent = "Scan the QR code and press Save";
             }
         }
         else
@@ -431,6 +435,20 @@ async function showForm(e,cmd,show,prevData={}){
                     document.getElementById(cmd+"-textarea").value += "," + dayArray[dayIndex];
             }
         }
+        else
+        if(cmd==="lock-screen" || cmd==="user-management"){// Merged settings pages (lock screen + session management + 2 factor authentication / add user + update user)
+            e.target.parentNode.classList.add("hide");
+            let fragment = document.getElementById(`${cmd}-template`).content.cloneNode(true);
+            document.getElementById(`${show}`).appendChild(fragment);
+            if(cmd==="lock-screen"){
+                document.getElementById("lock-screen").querySelector("input")?.focus();
+                await initLockScreenSettings();
+            }
+            else{
+                document.getElementById("user-management").querySelector("input")?.focus();
+                initUserManagementSettings();
+            }
+        }
         else{ // Settings with presets
             let form = document.getElementById(`${cmd}-template`).content.cloneNode(true).querySelector("form");
             e.target.parentNode.classList.add("hide");
@@ -447,42 +465,6 @@ async function showForm(e,cmd,show,prevData={}){
                     .setAttribute("selected",true);
                 form.discVal.value = presets.discVal;
             }
-            else
-            if(cmd==="session-management"){
-                try{
-                    let cookies = await ipcRenderer.invoke("check-session-info");
-                    if(cookies.length>0){
-                        // console.log(cookies[0].expirationDate-Date.now())
-                        let {session,sessionTime} = JSON.parse(cookies[0].value);
-                        if(session){
-                            let numHour = sessionTime/(60*60);
-                            document.getElementById("session-btn").click();
-                            [...document.getElementById("expiry").querySelectorAll("option")]
-                            .forEach(option=>{
-                                if(Number(option.value)===numHour)
-                                    option.setAttribute("selected","selected");
-                                else
-                                    option.removeAttribute("selected");
-                            });
-                        }
-                    }
-                }
-                catch(err){
-                    return alert(err);
-                }
-            }
-            else
-            if(cmd==="update-user" && loggedinUser.name!=="admin")
-                document.getElementById("role-div").classList.add("hide");
-            else
-            if(cmd==="update-user" && loggedinUser.name==="admin")
-                document.getElementById("role-div").classList.remove("hide");
-            if(cmd==="add-user" && !["admin","all"].includes(loggedinUser.role))
-                document.getElementById("add-user-role-div").classList.add("hide");
-            else
-            if(cmd==="add-user" && ["admin","all"].includes(loggedinUser.role))
-                document.getElementById("add-user-role-div").classList.remove("hide");
-            else
             if(cmd==="bill-template"){
                 compInfo = await ipcRenderer.invoke("get-company-info");
                 let { file,applyTemplate,applyEmblem=false,emblem="",applySeal,seal,captions=[ {first:"Original Buyer's Copy"}, {second:"Transporter's Copy"}, {third:'Book Copy'} ] } = compInfo.billTemplate;
@@ -598,30 +580,6 @@ async function showForm(e,cmd,show,prevData={}){
                 });
             }
             else
-            if(cmd==="lock-screen"){
-                let cookies = await ipcRenderer.invoke("check-session-info");
-                let userPolicy = await ipcRenderer.invoke("get-policy");
-                if(cookies.length>0){
-                    loggedinUser.usePasswd = JSON.parse(cookies[0].value).usePasswd;
-                    if("lockOnIdle" in userPolicy && userPolicy.lockOnIdle)
-                        form.idleTime.value = userPolicy.idleTime / 60;
-                    else
-                        form.idleTime.setAttribute("disabled",true);
-                    [
-                        {key:"usePasswd",obj:loggedinUser},
-                        {key: "lockOnIdle" in userPolicy ? "lockOnIdle" : "",obj:userPolicy}
-                    ].filter(({key})=>key!=="").forEach(({key,obj})=>{
-                        [...form?.[key]?.querySelectorAll("option")]
-                        .forEach(option=>{
-                            if(option.value===`${obj[key]}`)
-                                option.setAttribute("selected","selected");
-                            else
-                                option.removeAttribute("selected");
-                        });
-                    });
-                }
-            }
-            else
             if(cmd==="appearance-management"){
                 let appPolicy = await ipcRenderer.invoke("get-app-policy");
                 Object.keys(appPolicy)
@@ -668,9 +626,6 @@ async function showForm(e,cmd,show,prevData={}){
             if(cmd==="adv-invoice-format")
                 document.querySelector(".page1").classList.add("hide");
             else
-            if(cmd==="set-2-factor-auth")
-                enableOrDisableQR();
-            else
             if(cmd==="gst-setting"){
                 let policy = await ipcRenderer.invoke("get-app-policy");
                 if(!/^\d.-\d.$/.test(policy.financialYearStartDate))
@@ -701,7 +656,7 @@ async function showForm(e,cmd,show,prevData={}){
             else
             if(cmd==="general"){
                 let settings = await ipcRenderer.invoke("get-general-app-settings");
-                ({ useFuzzySearch, pin="", port="", includeCustomerSelector, productLayout, dbMode, generateReceipt,invoiceMinAge=5,invoiceMaxAge=3,reminderInterval=30,defaultPrintObj } = settings);
+                ({ useFuzzySearch, pin="", port="", includeCustomerSelector, productLayout, dbMode, generateReceipt,invoiceMinAge=5,invoiceMaxAge=3,reminderInterval=30,defaultPrintObj={} } = settings);
                 if(useFuzzySearch)
                     form.useFuzzySearch.setAttribute("checked",useFuzzySearch);
                 form.pin.value = pin;
@@ -724,10 +679,74 @@ async function showForm(e,cmd,show,prevData={}){
     else
     if(cmd==="back"){
         let selectedSettings = document.getElementById(show);
-        selectedSettings.querySelector("form").remove();
+        selectedSettings.querySelectorAll("form").forEach(form=>form.remove());
+        selectedSettings.querySelectorAll(".settings-page").forEach(page=>page.remove());
         selectedSettings.querySelector(".settings-div").classList.remove("hide");
     }
     spinner.remove(window);
+}
+
+// Presets for the merged Lock screen page (lock screen + session management + 2 factor authentication)
+async function initLockScreenSettings(){
+    let cookies,userPolicy;
+    try{
+        cookies = await ipcRenderer.invoke("check-session-info");
+        userPolicy = await ipcRenderer.invoke("get-policy");
+    }
+    catch(err){
+        return alert(err);
+    }
+    // Lock screen section
+    let form = document.getElementById("lock-screen");
+    form.dataset.twoFactorAction = "";
+    if(cookies.length>0){
+        loggedinUser.usePasswd = JSON.parse(cookies[0].value).usePasswd;
+        if("lockOnIdle" in userPolicy && userPolicy.lockOnIdle)
+            form.idleTime.value = userPolicy.idleTime / 60;
+        else
+            form.idleTime.setAttribute("disabled",true);
+        [
+            {key:"usePasswd",obj:loggedinUser},
+            {key: "lockOnIdle" in userPolicy ? "lockOnIdle" : "",obj:userPolicy}
+        ].filter(({key})=>key!=="").forEach(({key,obj})=>{
+            [...form?.[key]?.querySelectorAll("option")]
+            .forEach(option=>{
+                if(option.value===`${obj[key]}`)
+                    option.setAttribute("selected","selected");
+                else
+                    option.removeAttribute("selected");
+            });
+        });
+    }
+    // Session management section
+    if(cookies.length>0){
+        let {session,sessionTime} = JSON.parse(cookies[0].value);
+        if(session){
+            let numHour = sessionTime/(60*60);
+            document.getElementById("session-btn").click();
+            [...document.getElementById("expiry").querySelectorAll("option")]
+            .forEach(option=>{
+                if(Number(option.value)===numHour)
+                    option.setAttribute("selected","selected");
+                else
+                    option.removeAttribute("selected");
+            });
+        }
+    }
+    // 2 factor authentication section
+    enableOrDisableQR();
+}
+
+// Presets for the merged User management page (add user + update user)
+function initUserManagementSettings(){
+    if(loggedinUser.name!=="admin")
+        document.getElementById("role-div").classList.add("hide");
+    else
+        document.getElementById("role-div").classList.remove("hide");
+    if(!["admin","all"].includes(loggedinUser.role))
+        document.getElementById("add-user-role-div").classList.add("hide");
+    else
+        document.getElementById("add-user-role-div").classList.remove("hide");
 }
 
 function appendElem(e){
@@ -764,59 +783,66 @@ async function saveSettings(e){
     let data = Object.fromEntries(new FormData(e.target).entries());
     let form = e.target;
     let {dataset:{cmd,show}} = e.target;
-    if(cmd==="update-user"){
-        if(data.password!==data["re-password"]){
-            document.getElementById("re-password").focus();
-            return alert("Password entered doesn't match.");
-        }
-        try{
-            let option = document.getElementById("name-2").list.querySelector(`[value="${data.name}"]`);
-            if(option)
-                data.id = option.dataset.id;
-            await ipcRenderer.invoke("update-user",data);
-            showToastNotification("User password updated",["animation-common","move-left","blue-toast-box"],"main");
-        }
-        catch(err){
-            alert(errorFormatter(err));
-        }
-    }
-    else
-    if(cmd==="lock-screen"){
+    if(cmd==="lock-screen"){// merged page: lock screen + session management + 2 factor authentication
         try{
             data.usePasswd = JSON.parse(data.usePasswd);
             data.lockOnIdle = JSON.parse(data.lockOnIdle);
             data.idleTime = Number(data.idleTime) * 60;
             await ipcRenderer.invoke("update-wallpaper", data);
-            showToastNotification("Lock screen setting updated",["animation-common","move-left","blue-toast-box"],"main");
+            if(document.getElementById("session-btn").dataset.enable==="true")
+                await ipcRenderer.invoke("create-login-session",{expiry:data.expiry});
+            else
+                await ipcRenderer.invoke("remove-auth-session");
+            if(form.dataset.twoFactorAction==="enable")
+                await ipcRenderer.invoke("save-secret-for-user");
+            showToastNotification("Lock screen settings saved.",["animation-common","move-left","blue-toast-box"],"main");
         }
         catch(err){
             return alert(errorFormatter(err));
         }
     }
     else
-    if(cmd==="add-user"){
-        if(data.name.toLowerCase().trim()==="admin") return alert("Cannot use a system reserved name as username.")
-        if(data.passwd !== data["re-passwd"]){
-            document.getElementById("re-passwd").focus()
-            return alert("Password entered doesn't match.")
+    if(cmd==="user-management"){// merged page: add user + update user
+        let addName = String(data["add-name"]||"").trim();
+        let updateName = String(data["update-name"]||"").trim();
+        if(!addName && !updateName)
+            return alert("Fill the Add user or Update user section first.");
+        if(addName){
+            if(addName.toLowerCase()==="admin") return alert("Cannot use a system reserved name as username.")
+            if(data.passwd !== data["re-passwd"]){
+                document.getElementById("re-passwd").focus()
+                return alert("Password entered doesn't match.")
+            }
+            await ipcRenderer.invoke("add-user",{name:addName,passwd:data.passwd,role:data["add-role"]});
         }
-        await ipcRenderer.invoke("add-user", data);
-        showToastNotification("New user added successfully.",["animation-common","move-left","blue-toast-box"],"main");
-    }
-    else
-    if(cmd==="set-2-factor-auth"){
-        await ipcRenderer.invoke("save-secret-for-user");
-        showToastNotification("2-Factor Authentication enabled.",["animation-common","move-left","blue-toast-box"],"main");
-    }
-    else
-    if(cmd==="session-management"){// for repeated logins.
-        if(e.target.querySelector("button").dataset.enable==="true")
-            await ipcRenderer.invoke("create-login-session",data);
-        else{
-            console.log("removing session")
-            await ipcRenderer.invoke("remove-auth-session");
+        if(updateName){
+            if(data["new-password"] !== data["re-password"]){
+                document.getElementById("re-password").focus();
+                return alert("Password entered doesn't match.");
+            }
+            let option = document.getElementById("name-2").list.querySelector(`[value="${updateName}"]`);
+            if(!option)
+                return alert("Select a user from the suggestion list.");
+            try{
+                await ipcRenderer.invoke("update-user",{
+                    name:updateName,
+                    "old-password":data["old-password"],
+                    password:data["new-password"],
+                    role:data["update-role"],
+                    id:option.dataset.id
+                });
+            }
+            catch(err){
+                return alert(errorFormatter(err));
+            }
         }
-        showToastNotification("Session settings updated.",["animation-common","move-left","blue-toast-box"],"main");
+        if(addName && updateName)
+            showToastNotification("User added and updated.",["animation-common","move-left","blue-toast-box"],"main");
+        else
+        if(addName)
+            showToastNotification("New user added successfully.",["animation-common","move-left","blue-toast-box"],"main");
+        else
+            showToastNotification("User password updated.",["animation-common","move-left","blue-toast-box"],"main");
     }
     else
     if(cmd==="select-bill-template"){
@@ -1253,6 +1279,8 @@ ipcRenderer.on("notification",(e,notifyJobs,showToast=false)=>{
             else
             if(job.type==="Error"){
                 description = "An Error occured performing last operation. Contact developer to show your error."+job.error;
+                // Report button opens the Feedback page pre-filled (see notificationAction "report-error")
+                appendToHost("#report-error-btn-template",notificationDiv.querySelector(".btn-container"),"BUTTON");
                 showToastNotification("Error occoured, check notification",["animation-common","move-left","red-toast-box"]);
             }
             else
@@ -1372,6 +1400,18 @@ function notificationAction(e){
         noticeGrp.classList.add("vanish");
         noticeGrp.remove();
         ipcRenderer.send("start-update",e.target.dataset.version);
+    }
+    else
+    if(cmd==="report-error"){
+        let notification = traverseParent(e.target,"notification");
+        let evObj = JSON.parse(notification.dataset.obj);
+        openErrorReport(String(evObj.error || evObj.label || "Unknown error"),{
+            notification:{
+                label: evObj.label,
+                tag: evObj.tag,
+                time: evObj.time
+            }
+        });
     }
 }
 

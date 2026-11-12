@@ -119,6 +119,10 @@ ipcRenderer.on("use-lock", () => {
 
 
 function initPasswdRecovery(e){
+  // Check for available options
+  // 1. Check if credentials are default credentials id==admin and password==admin
+  // -  then display default credentials
+  // 2.Check for 2-step verification - if 
   document.querySelector("form").remove();
   document.body.appendChild(document.getElementById("otp-input-template").content.cloneNode(true));
   // Send request to BBS backend for OTP

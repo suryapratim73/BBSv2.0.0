@@ -938,6 +938,32 @@ select,option{
 #settings-container form button{
     padding: 0.5rem;
 }
+/* Merged settings pages (Lock screen, User management) */
+#settings-container .settings-page{
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 95%;
+    overflow: auto;
+    padding: 0.5rem;
+}
+#settings-container .settings-page section{
+    border: 1px solid var(--theme-shadow-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: var(--theme-secondary);
+}
+#settings-container .settings-page section>h3{
+    border-bottom: 1px solid gray;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+#settings-container .settings-page form{
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    background: none;
+}
 #d2-txts,#template-selector{
     display: flex;
     justify-content: space-between;
@@ -1016,31 +1042,15 @@ select,option{
     color: var(--theme-text-color);
     display: block;
 }
-form#set-2-factor-auth-form{
-    flex-direction: row;
-}
-form#set-2-factor-auth-form>div{
-    margin: 0 0.5rem;
-    flex: 1;
-}
-form#set-2-factor-auth-form>div:first-child{
-    border-right: 1px solid black;
-}
-form#set-2-factor-auth-form>div:last-child{
-    padding: 0.5rem;
-}
-form#set-2-factor-auth-form>div>div{
-    margin: 1rem 0;
-}
-form#set-2-factor-auth-form button{
-    margin: 0.25rem 0;
-}
-#qrcode-div{
+/* 2 factor authentication section of the merged lock screen page */
+#settings-container #qrcode-div{
     width: 100%;
-    height: 100%;
+    height: auto;
+    margin-top: 0.5rem;
 }
-#qrcode-div>img{
-    width: 100%;
+#settings-container #qrcode-div>img{
+    width: 300px;
+    max-width: 100%;
     height: auto;
 }
 #quick-host{

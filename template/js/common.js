@@ -360,14 +360,50 @@ function toastNotification(msg,customClasses,...elems){
     if(elems.length>0)
         elems.forEach(elem=>div.appendChild(elem));
     div.className = "toast-div";
+    let isErrorToast = Array.isArray(customClasses) && customClasses.includes("red-toast-box");
     if(customClasses){
         if(typeof customClasses==="object")
             customClasses.forEach(className=>div.classList.add(className));
         else
-            div.className = "toast-div " + customClasses; 
+            div.className = "toast-div " + customClasses;
     }
+    // Report button was moved to the notification panel's error entries
+    // (mainPage.js Error branch) per user request — see openErrorReport below.
+    // if(isErrorToast){
+    //     let report = document.createElement("button");
+    //     report.type = "button";
+    //     report.className = "report-error-btn";
+    //     report.textContent = "Report";
+    //     report.title = "Send an error report to BBS support";
+    //     report.addEventListener("click",()=>openErrorReport(msg));
+    //     div.insertBefore(report,div.lastElementChild);
+    // }
     return div;
 }
+
+/** Open the Feedback page pre-filled as an error report. Used by the
+ *  notification panel's error entries (mainPage.js). `location`/`document`
+ *  are guarded so the shared module stays main-process safe. */
+function openErrorReport(msg,extraMetadata){
+    if(!ipcRenderer) return;
+    let metadata = {
+        page: typeof location!=="undefined" ? location.href : "",
+        windowTitle: typeof document!=="undefined" ? document.title : "",
+        time: new Date().toISOString()
+    };
+    try{// top frames of the caller — shows which function/handler raised the report
+        metadata.callerStack = new Error().stack.split("\n").slice(2,6).join("\n");
+    }catch(_){}
+    if(extraMetadata && typeof extraMetadata==="object" && !Array.isArray(extraMetadata))
+        Object.assign(metadata,extraMetadata);
+    ipcRenderer.send("open-feedback-window",{
+        mail_type:"error",
+        subject:`Error report — ${metadata.windowTitle}`,
+        message:String(msg),
+        metadata
+    });
+}
+exports.openErrorReport = openErrorReport;
 
 exports.showToastNotification = function(msg,className,container,adjX=8,adjRight){
     let toast = toastNotification(msg,className);

@@ -490,3 +490,14 @@ exports.logViewer = (refWindow) => {
         });
     }
 }
+
+// Reused by lib/feedbackMail.js (opt-in log snippet for error reports) —
+// decrypts one .enc file with a KEK, returns "" on any failure.
+exports.decryptLogFile = decryptLogFile;
+
+// Encrypted-log directory: PROD → <appData>/BBS/logs/upload, DEV → ./logs/upload.
+// Same base as the get-logs handler above.
+exports.getEncLogDir = () => {
+    const baseLogDir = process.env.APP_ENV==="PROD" ? path.resolve(app.getPath("appData"),"./BBS/logs/") : path.resolve(__dirname,"./logs/");
+    return path.resolve(baseLogDir, "upload");
+}

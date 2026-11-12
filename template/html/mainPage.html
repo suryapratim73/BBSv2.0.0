@@ -146,12 +146,9 @@
                         <h2>App Settings</h2>
                         <div class="settings-div">
                             <p class="bill purchase" data-cmd="general" data-show="app-settings" data-msg="Define settings like default app values, ">General App Setting</p>
-                            <p data-cmd="set-2-factor-auth" data-show="app-settings" data-msg="Unlock using password and any authenticator app.">Set 2 factor authentication</p>
                             <!-- <p class="bill purchase hide" data-show="app-settings" data-cmd="enable-disable-sms-notification" data-msg="SMS notification helps you to notify customer about their due payment but will cost you some money per month based on your usage.">SMS Notification</p> -->
-                            <p class="bill purchase" data-show="app-settings" data-cmd="lock-screen" data-msg="Change lock screen background.">Lock screen</p>
-                            <p class="bill purchase" data-show="app-settings" data-cmd="add-user" data-msg="Add users of this software and assign role to them.">Add user</p>
-                            <p class="bill purchase" data-show="app-settings" data-cmd="update-user" data-msg="Update user privilege and password.">Update user</p>
-                            <p data-cmd="session-management" data-show="app-settings" data-msg="Configure lock behaviour and session persistence.">Session management</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="lock-screen" data-msg="Configure lock screen, 2 factor authentication and session management.">Lock screen</p>
+                            <p class="bill purchase" data-show="app-settings" data-cmd="user-management" data-msg="Add users and update user password and role.">User management</p>
                             <p data-cmd="appearance-management" data-show="app-settings" data-msg="Configure app appearance and theming of BBS..">Appearance management</p>
                             <!-- <p data-cmd="network-management" data-show="app-settings" data-msg="Configure nodes in your network.">Network management</p> -->
                             <p class="bill purchase" data-cmd="backup-manager" data-show="app-settings" data-msg="Local or cloud based backup settings.">Backup manager</p>
@@ -178,136 +175,165 @@
             </main>
         </div>
     </template>
-    <template id="set-2-factor-auth-template">
-        <form onsubmit="saveSettings(event)" id="set-2-factor-auth-form" data-cmd="set-2-factor-auth" data-show="app-settings">
-            <div>
-                <div>
+    <template id="lock-screen-template">
+        <div class="settings-page">
+            <form onsubmit="saveSettings(event)" onchange="changeHandler(event)" id="lock-screen" data-cmd="lock-screen" data-show="app-settings">
+                <section>
+                    <h3>Lock screen</h3>
+                    <div>
+                        <div><label for="file-path">Choose a image file</label></div>
+                        <div>
+                            <input type="text" name="filePath" id="file-path" tabindex="0">
+                            <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Select lock screen image" tabindex="0">Choose</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div><label for="usePasswd">Use password</label></div>
+                        <div>
+                            <select name="usePasswd" id="usePasswd" tabindex="0">
+                                <option value="true">Yes</option>
+                                <option value="false" selected>No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <div><label for="lockOnIdle">Lock on idle</label></div>
+                        <div>
+                            <select name="lockOnIdle" id="lockOnIdle" data-target="idleTime" tabindex="0">
+                                <option value="true">Yes</option>
+                                <option value="false" selected>No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <div><label for="idleTime">Idle trigger time</label></div>
+                        <div>
+                            <input type="text" name="idleTime" id="idleTime" placeholder="Time in minutes" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h3>Session management</h3>
+                    <div>
+                        <div>
+                            <label>App session</label>
+                            <button class="main-ui-btn hover bottom" type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference" data-msg="Toggle session management" tabindex="0">Enable</button>
+                        </div>
+                    </div>
+                    <div class="hide" id="session-management-div">
+                        <div>
+                            <div>
+                                <label for="expiry">Set session expiry</label>
+                            </div>
+                            <div>
+                                <select name="expiry" id="expiry" tabindex="0">
+                                    <option value="1" selected>1 Hour</option>
+                                    <option value="3">3 Hours</option>
+                                    <option value="5">5 Hours</option>
+                                    <option value="8">8 Hours</option>
+                                    <option value="24">1 Day</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h3>2 factor authentication</h3>
                     <div>
                         <button class="main-ui-btn hover bottom" type="button" data-cmd="enable-2-factor" id="enable-2-factor" disabled data-msg="Enable two-factor authentication for added security" tabindex="0">Enable 2-Factor Authentication</button>
-                    </div>
-                </div>
-                <div>
-                    <div>
-                        <button type="submit" class="main-ui-btn hover bottom" id="done-btn" disabled data-msg="Save 2FA settings" tabindex="0">Done</button>
-                        <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                         <button type="button" id="disable-2-factor" disabled data-cmd="disable-2-factor" data-show="app-settings" data-msg="Disable two-factor authentication" class="hover bottom" tabindex="0">Disable 2-Factor Authentication</button>
                     </div>
-                </div>
-            </div>
-            <div>
-                <div id="qrcode-div">
-                    <img>
-                </div>
-            </div>
-        </form>
-    </template>
-    <template id="lock-screen-template">
-        <form onsubmit="saveSettings(event)" onchange="changeHandler(event)" id="lock-screen" data-cmd="lock-screen" data-show="app-settings">
-            <div>
-                <div><label for="file-path">Choose a image file</label></div>
+                    <div id="qrcode-div">
+                        <img>
+                    </div>
+                </section>
                 <div>
-                    <input type="text" name="filePath" id="file-path" tabindex="0">
-                    <button type="button" class="main-ui-btn hover right" onclick="chooseFile(event)" data-msg="Select lock screen image" tabindex="0">Choose</button>
-                </div>
-            </div>
-            <div>
-                <div><label for="usePasswd">Use password</label></div>
-                <div>
-                    <select name="usePasswd" id="usePasswd" tabindex="0">
-                        <option value="true">Yes</option>
-                        <option value="false" selected>No</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <div><label for="lockOnIdle">Lock on idle</label></div>
-                <div>
-                    <select name="lockOnIdle" id="lockOnIdle" data-target="idleTime" tabindex="0">
-                        <option value="true">Yes</option>
-                        <option value="false" selected>No</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <div><label for="idleTime">Idle trigger time</label></div>
-                <div>
-                    <input type="text" name="idleTime" id="idleTime" placeholder="Time in minutes" data-type="Number" data-subtype="price" onkeypress="validateInput2(event)" tabindex="0">
-                </div>
-            </div>
-            <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save lock screen settings" tabindex="0">Save</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
-            </div>
-        </form>
-    </template>
-    <template id="add-user-template">
-        <form onsubmit="saveSettings(event)" id="add-user" data-cmd="add-user" data-show="app-settings">
-            <div>
-                <div><label for="name">Username</label></div>
-                <div><input type="text" name="name" id="name" required tabindex="0"></div>
-            </div>
-            <div>
-                <div><label for="passwd">Password</label></div>
-                <div>
-                    <input type="password" name="passwd" id="password" required tabindex="0">
-                    <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
-                </div>
-            </div>
-            <div>
-                <div><label for="re-passwd">Confirm password</label></div>
-                <div>
-                    <input type="password" name="re-passwd" id="re-passwd" required tabindex="0">
-                    <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
-                </div>
-            </div>
-            <div id="add-user-role-div">
-                <div><label for="role"></label></div>
-                <div>
-                    <select name="role" id="role" tabindex="0">
-                        <option value="all" selected>All</option>
-                        <option value="bill">Billing</option>
-                        <option value="purchase">Purchase</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <div>
-                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Register new user" tabindex="0">Register</button>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save lock screen settings" tabindex="0">Save</button>
                     <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </template>
-    <template id="session-management-template">
-        <form onsubmit="saveSettings(event)" id="session-management" data-cmd="session-management" data-show="app-settings">
-            <div>
-                <div>
-                    <label>App session</label>
-                    <button class="main-ui-btn hover bottom" type="button" id="session-btn" data-enable="false" data-cmd="toggle-session-preference" data-msg="Toggle session management" tabindex="0">Enable</button>
-                </div>
-            </div>
-            <div class="hide" id="session-management-div">
-                <div>
+    <template id="user-management-template">
+        <div class="settings-page">
+            <form onsubmit="saveSettings(event)" id="user-management" data-cmd="user-management" data-show="app-settings">
+                <section>
+                    <h3>Add user</h3>
                     <div>
-                        <label for="expiry">Set session expiry</label>
+                        <div><label for="name">Username</label></div>
+                        <div><input type="text" name="add-name" id="name" tabindex="0"></div>
                     </div>
                     <div>
-                        <select name="expiry" id="expiry" tabindex="0">
-                            <option value="1" selected>1 Hour</option>
-                            <option value="3">3 Hours</option>
-                            <option value="5">5 Hours</option>
-                            <option value="8">8 Hours</option>
-                            <option value="24">1 Day</option>
-                        </select>
+                        <div><label for="passwd">Password</label></div>
+                        <div>
+                            <input type="password" name="passwd" id="password" tabindex="0">
+                            <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
+                        </div>
                     </div>
+                    <div>
+                        <div><label for="re-passwd">Confirm password</label></div>
+                        <div>
+                            <input type="password" name="re-passwd" id="re-passwd" tabindex="0">
+                            <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
+                        </div>
+                    </div>
+                    <div id="add-user-role-div">
+                        <div><label for="role"></label></div>
+                        <div>
+                            <select name="add-role" id="role" tabindex="0">
+                                <option value="all" selected>All</option>
+                                <option value="bill">Billing</option>
+                                <option value="purchase">Purchase</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h3>Update user</h3>
+                    <div>
+                        <div><label for="name-2">Select user</label></div>
+                        <div><input type="text" id="name-2" name="update-name" list="user-list" tabindex="0"></div>
+                    </div>
+                    <div>
+                        <div><label for="old-password">Enter existing password</label></div>
+                        <div>
+                            <input type="password" name="old-password" id="old-password" tabindex="0">
+                            <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility" class="hover right">Show</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div><label for="new-password">Enter new password</label></div>
+                        <div>
+                            <input type="password" name="new-password" id="new-password" tabindex="0">
+                            <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div><label for="re-password">Re-enter password</label></div>
+                        <div>
+                            <input type="password" name="re-password" id="re-password" tabindex="0">
+                            <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
+                        </div>
+                    </div>
+                    <div id="role-div">
+                        <div><label for="new-role">Role</label></div>
+                        <div>
+                            <select name="update-role" id="new-role" tabindex="0">
+                                <option value="all" selected>All</option>
+                                <option value="bill">Billing</option>
+                                <option value="purchase">Purchase</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+                <div>
+                    <button class="main-ui-btn hover bottom" type="submit" data-msg="Save user changes" tabindex="0">Save</button>
+                    <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
                 </div>
-            </div>
-            <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save session settings" tabindex="0">Done</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </template>
+    <!-- session-management form moved into lock-screen-template above -->
     <template id="appearance-management-template">
         <form onsubmit="saveSettings(event)" id="appearance-management" class="page1" data-cmd="appearance-management" data-show="app-settings">
             <div>
@@ -429,49 +455,7 @@
             </div>
         </form>
     </template>
-    <template id="update-user-template">
-        <form onsubmit="saveSettings(event)" id="update-user" data-cmd="update-user" data-show="app-settings">
-            <div>
-                <div><label for="name">Select user</label></div>
-                <div><input type="text" id="name-2" name="name" list="user-list" tabindex="0"></div>
-            </div>
-            <div>
-                <div><label for="old-password">Enter existing password</label></div>
-                <div>
-                    <input type="password" name="old-password" id="old-password" tabindex="0">
-                    <button data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility" class="hover right">Show</button>
-                </div>
-            </div>
-            <div>
-                <div><label for="password">Enter new password</label></div>
-                <div>
-                    <input type="password" name="password" id="password" tabindex="0">
-                    <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
-                </div>
-            </div>
-            <div>
-                <div><label for="re-password">Re-enter password</label></div>
-                <div>
-                    <input type="password" name="re-password" id="re-password" tabindex="0">
-                    <button class="main-ui-btn hover right" data-cmd="toggle-visibility" tabindex="-1" type="button" data-show="false" data-msg="Toggle password visibility">Show</button>
-                </div>
-            </div>
-            <div id="role-div">
-                <div><label for="role">Role</label></div>
-                <div>
-                    <select name="role" id="role" tabindex="0">
-                        <option value="all" selected>All</option>
-                        <option value="bill">Billing</option>
-                        <option value="purchase">Purchase</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <button class="main-ui-btn hover bottom" type="submit" data-msg="Save user changes" tabindex="0">Save</button>
-                <button type="button" data-cmd="back" data-show="app-settings" data-msg="Cancel and go back" class="hover bottom" tabindex="0">Cancel</button>
-            </div>
-        </form>
-    </template>
+    <!-- update-user form moved into user-management-template above -->
     <template id="backup-manager-template">
         <form onsubmit="saveSettings(event)" id="backup-manager" data-cmd="backup-manager" data-show="app-settings">
             <p>Select items for backup</p>
@@ -1041,6 +1025,9 @@
     </template>
     <template id="add-payment-btn-template">
         <button type="button" data-cmd="add-payment" data-msg="Add a new payment entry" class="hover bottom" tabindex="0">Add Payment</button>
+    </template>
+    <template id="report-error-btn-template">
+        <button type="button" data-cmd="report-error" data-msg="Report this error to BBS support" class="hover bottom" tabindex="0">Report</button>
     </template>
     <!-- Company profile -->
     <template id="company-profile-template">

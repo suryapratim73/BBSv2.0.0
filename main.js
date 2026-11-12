@@ -103,12 +103,14 @@ const { registerOverviewRecipeIPC } = require("./lib/overviewRecipe");
 const { registerCustomerPolicyIPC } = require("./lib/customerPolicy");
 const { registerShipInfoIPC } = require("./lib/shipInfoManager");
 const { startReminderEngine, registerCustomerReminderIPC, flushPendingReminders } = require("./lib/customerReminders");
+const { registerFeedbackIPC } = require("./lib/feedbackMail");
 registerCloudIPC();
 registerEulaIPC();
 registerOverviewRecipeIPC();
 registerCustomerPolicyIPC();
 registerShipInfoIPC();
 registerCustomerReminderIPC();
+registerFeedbackIPC();
 let {
   attendances,
   people,

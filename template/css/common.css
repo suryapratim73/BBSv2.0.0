@@ -388,6 +388,21 @@ button.selected{
     border: none !important;
     outline: inherit;
 }
+/* Report button moved to the notification panel's error entries
+   (mainPage.js Error branch) per user request — toast button removed. */
+/*
+.toast-div button.report-error-btn{
+    border-radius: 8px !important;
+    border: 1px solid currentColor !important;
+    padding: 0.05rem 0.6rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: none !important;
+}
+.toast-div button.report-error-btn:hover{
+    background: rgba(255,0,0,0.15);
+}
+*/
 .toast-div p{
     color: inherit;
     text-shadow: 1px 1px white;

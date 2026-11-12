@@ -94,13 +94,26 @@ The left sidebar provides quick access to the main sections:
 
 The application menu at the top provides access to ALL features, organized by category:
 
-- **BBS Menu** — About, Check for Updates, Lock, Logout, Version Manager
+- **BBS Menu** — About, Check for Updates, Send Feedback, Lock, Logout, Version Manager
 - **Sale Menu** — All sales-related tools
 - **Purchase Menu** — All purchase-related tools
 - **People Menu** — Employee and freight management
 - **Tools Menu** — Bill designer, quick sale, product info, log viewer
 - **Window Menu** — Minimize, zoom, close, developer tools
 - **Help Menu** — Links, report bug, changelog
+
+### Send Feedback & Error Reporting
+
+Use **BBS → Send Feedback** to send feedback, request a feature, or report a problem straight from the app:
+
+- **Type** — Feedback, Feature request, or Error report.
+- **Subject & Message** — Describe the issue or idea.
+- **Attachment** — Optionally attach ONE image (max 5 MB) as proof.
+- **Include recent log lines** — OFF by default. Logs may contain private business data (customer names, phone numbers, sale amounts), so they are sent only when you tick this box.
+
+Error entries in the notification panel (Overview) show a **Report** button. Clicking it opens the same form pre-filled as an error report — the error message, the page where it happened, and app details (version, platform) are filled in automatically. Review it, optionally add an image or logs, and press **Send**.
+
+Your report is delivered to the BBS team as a feedback mail with your device identity, so support can follow up.
 
 ### Overview Dashboard
 
@@ -376,16 +389,14 @@ Access settings from the sidebar **Settings** button or the top menu. Settings a
 - **Background Image** — set a custom background
 - **Weather Theme** — enable weather-reactive colors and effects
 
-### Security
-- **Lock on Idle** — auto-lock after inactivity
-- **Idle Time** — minutes before auto-lock triggers
-- **User Management** — add, edit, or remove users
-- **Session Management** — view and terminate active sessions
+### Lock Screen
+- **Lock screen** — custom wallpaper, password-protected unlock, lock-on-idle with idle time
+- **Session Management** — enable session persistence and set session expiry
+- **2 Factor Authentication** — scan the QR code with Google Authenticator or a similar app and save to enable
 
-### Two-Factor Authentication
-- Enable/disable 2FA per user
-- Scan QR code with Google Authenticator or similar app
-- Enter 6-digit code to verify setup
+### User Management
+- **Add User** — create a user and assign a role
+- **Update User** — change a user's password or role (role changes require the admin password)
 
 ### Data & Backup
 - **Backup Database** — create a ZIP backup of your entire database
@@ -530,7 +541,7 @@ The BBS team can send announcements (festival wishes, promotion offers, maintena
 
 ### Lock screen stuck
 - If 2FA is enabled and you lost access to your authenticator app, contact your administrator
-- Admin can disable 2FA for any user from Settings → Users
+- Admin can disable 2FA for any user from Settings → User Management
 
 ### Weather theme not working
 - Ensure **Settings → Appearance → Weather Theme** is enabled

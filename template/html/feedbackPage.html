@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback</title>
+    <link rel="stylesheet" href="../../images/fontawesome-free-6.1.1-web/css/all.min.css">
+    <link rel="stylesheet" href="../css/feedbackPage.css">
+    <script src="../js/feedbackPage.js" defer></script>
+</head>
+<body>
+    <header class="fb-top">
+        <i class="fa-solid fa-comment-dots"></i>
+        <h1 id="fb-title">Feedback</h1>
+        <p id="fb-tagline">Tell us what you think, request a feature, or report a problem.</p>
+    </header>
+    <form id="feedback-form">
+        <div class="fb-row">
+            <label for="fb-type">Type</label>
+            <select name="mail_type" id="fb-type" tabindex="0">
+                <option value="feedback" selected>Feedback</option>
+                <option value="request">Feature request</option>
+                <option value="error">Error report</option>
+            </select>
+        </div>
+        <div class="fb-row">
+            <label for="fb-subject">Subject <span class="fb-optional">(optional)</span></label>
+            <input type="text" name="subject" id="fb-subject" maxlength="255" tabindex="0">
+        </div>
+        <div class="fb-row">
+            <label for="fb-message">Message</label>
+            <textarea name="message" id="fb-message" rows="8" required tabindex="0"></textarea>
+        </div>
+        <div class="fb-row" id="fb-attachment-row">
+            <label>Attachment <span class="fb-optional">(optional, one image, max 5 MB)</span></label>
+            <input type="file" id="fb-attachment-file" accept="image/*" hidden>
+            <div class="fb-attach-controls">
+                <button type="button" class="fb-btn" id="fb-attach-btn" tabindex="0"><i class="fa-solid fa-paperclip"></i> Attach image</button>
+                <span id="fb-attachment-info" class="fb-optional"></span>
+            </div>
+            <div id="fb-attachment-preview" class="hide">
+                <img id="fb-attachment-img" alt="Attachment preview">
+                <button type="button" class="fb-btn fb-btn-danger" id="fb-remove-attachment" tabindex="0">Remove</button>
+            </div>
+        </div>
+        <div class="fb-row" id="fb-logs-row">
+            <label class="fb-check-label" for="fb-include-logs">
+                <input type="checkbox" id="fb-include-logs" tabindex="0">
+                Include recent log lines in this report
+            </label>
+            <p class="fb-privacy"><i class="fa-solid fa-shield-halved"></i>
+                <strong>Privacy:</strong> logs may contain private business data
+                (customer names, phone numbers, sale amounts). They are only
+                included when you tick this box.
+            </p>
+            <p id="fb-logs-status" class="fb-optional"></p>
+        </div>
+        <details id="fb-metadata-details" class="hide">
+            <summary>What will be sent</summary>
+            <p class="fb-optional">App version, platform and this context are added automatically:</p>
+            <pre id="fb-metadata-view"></pre>
+        </details>
+        <div class="fb-actions">
+            <button type="submit" class="fb-btn fb-btn-primary" id="fb-send" tabindex="0"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            <button type="button" class="fb-btn" id="fb-cancel" tabindex="0">Cancel</button>
+        </div>
+        <p id="fb-status" class="fb-status hide" role="status"></p>
+    </form>
+</body>
+</html>

@@ -12,6 +12,7 @@ const { genRoadChallan, genVoucher, genPayReceipt, genRequirementSlip, legalWind
 const { versionManager } = require("./versionManager");
 const { billDesignerWindow } = require("./billLayoutDesigner");
 const { logViewer } = require("./logHandler");
+const { feedbackWindow } = require("./lib/feedbackMail");
 const { openCatalogueCreator } = require("./catalogueHandler");
 
 function appStateComplianceEnforcement(funcName,...params){
@@ -46,6 +47,10 @@ module.exports = mainWindow=>{
                 {
                     label: "Beta Program",
                     click: ()=>ipcMain.emit("open-beta-prompt")
+                },
+                {
+                    label: "Send Feedback",
+                    click: ()=>feedbackWindow(mainWindow)
                 },
                 {
                     label: "Legal",
