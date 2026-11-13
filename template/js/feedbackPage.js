@@ -11,6 +11,8 @@
  * business data.
  */
 const { ipcRenderer } = require("electron");
+const uuid = require("uuid");
+const { toggleDevTool } = require("../js/common");
 
 const MAX_ATTACHMENT_MB = 5;
 const typeSelect = document.getElementById("fb-type");
@@ -20,8 +22,6 @@ const attachBtn = document.getElementById("fb-attach-btn");
 const attachFile = document.getElementById("fb-attachment-file");
 const attachInfo = document.getElementById("fb-attachment-info");
 const attachPreview = document.getElementById("fb-attachment-preview");
-const attachImg = document.getElementById("fb-attachment-img");
-const removeAttachBtn = document.getElementById("fb-remove-attachment");
 const includeLogs = document.getElementById("fb-include-logs");
 const logsStatus = document.getElementById("fb-logs-status");
 const metadataDetails = document.getElementById("fb-metadata-details");
@@ -29,10 +29,12 @@ const metadataView = document.getElementById("fb-metadata-view");
 const sendBtn = document.getElementById("fb-send");
 const statusLine = document.getElementById("fb-status");
 
-let currentAttachment = null; // { url, type }
+let currentAttachment = []; // [{ url, type },...]
 let logSnippet = null;        // only ever set after the user ticks the checkbox
 let prefillMetadata = null;   // context captured at the error toast
 let sending = false;
+
+toggleDevTool(document);
 
 function setStatus(text, kind = "err") {
     statusLine.textContent = text;
@@ -76,34 +78,72 @@ ipcRenderer.on("feedback-prefill", (event, prefill) => applyPrefill(prefill));
 attachBtn.addEventListener("click", () => attachFile.click());
 
 attachFile.addEventListener("change", () => {
-    const file = attachFile.files && attachFile.files[0];
-    attachFile.value = ""; // allow re-picking the same file later
-    if (!file) return;
-    if (!/^image\//.test(file.type))
-        return setStatus("Only image files can be attached.");
-    if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024)
-        return setStatus(`Attachment too large — max ${MAX_ATTACHMENT_MB} MB.`);
-    clearStatus();
-    const reader = new FileReader();
-    reader.onload = () => {
-        currentAttachment = {
-            url: String(reader.result),
-            type: file.type.split("/")[1] || "png"
+    const files = attachFile.files ;
+    let aggregatedSize = 0;
+    for(const file of files){
+        const id = uuid.v4();
+        if (!file) return;
+        if (!/^image\//.test(file.type))
+            return setStatus("Only image files can be attached.");
+        if (aggregatedSize+file.size > MAX_ATTACHMENT_MB * 1024 * 1024)
+            return setStatus(`Attachment too large — max ${MAX_ATTACHMENT_MB} MB.`);
+        clearStatus();
+        const reader = new FileReader();
+        reader.onload = () => {
+            currentAttachment.push({
+                url: String(reader.result),
+                type: file.type.split("/")[1] || "png"
+            });
+            let imgContainer = document.createElement("div");
+            imgContainer.classList.add("fb-attachment-img-container");
+            let attachImg = document.createElement("img");
+            let i = document.createElement("i");
+            i.dataset.msg = "Remove image";
+            i.className = "fa-solid fa-minus hover top hide delete-sym";
+            attachImg.classList.add("fb-attachment-img");
+            let timer;
+            attachImg.addEventListener("mouseenter",()=>{
+                timer && clearTimeout(timer);
+                i.classList.remove("hide");
+            });
+            imgContainer.addEventListener("mouseenter",()=>{
+                timer && clearTimeout(timer);
+                i.classList.remove("hide");
+            });
+            imgContainer.addEventListener("mouseout",(e)=>{
+                timer = setTimeout(()=>{
+                    i.classList.add("hide")
+                },500);
+            });
+            i.addEventListener("mouseenter",()=>{
+                timer && clearTimeout(timer)
+            });
+            imgContainer.appendChild(attachImg);
+            imgContainer.appendChild(i);
+            attachImg.src = String(reader.result);
+            imgContainer.id = id;
+            i.dataset.imgId = id;
+            attachPreview.appendChild(imgContainer);
+            attachPreview.classList.remove("hide");
+            const sizeMB = parseFloat((file.size / (1024 * 1024)).toFixed(2));
+            aggregatedSize+=sizeMB;
+            attachInfo.textContent = `$(${aggregatedSize} MB) — attached`;
         };
-        attachImg.src = currentAttachment.url;
-        attachPreview.classList.remove("hide");
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        attachInfo.textContent = `${file.name} (${sizeMB} MB) — attached`;
-    };
-    reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+    }
 });
 
-removeAttachBtn.addEventListener("click", () => {
-    currentAttachment = null;
-    attachImg.removeAttribute("src");
-    attachPreview.classList.add("hide");
-    attachInfo.textContent = "";
-});
+function removeImg(e){
+    let target = e.target;
+    if(target.nodeName == "I"){
+        document.getElementById(target.dataset.imgId).remove();
+    }
+    if(attachPreview.children.length===0){
+            currentAttachment = [];
+            attachPreview.classList.add("hide");
+            attachInfo.textContent = "";
+    }
+}
 
 // ---- opt-in log snippet (privacy: only on explicit user action) ------------
 

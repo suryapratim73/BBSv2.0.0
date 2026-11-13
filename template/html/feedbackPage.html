@@ -34,15 +34,12 @@
         </div>
         <div class="fb-row" id="fb-attachment-row">
             <label>Attachment <span class="fb-optional">(optional, one image, max 5 MB)</span></label>
-            <input type="file" id="fb-attachment-file" accept="image/*" hidden>
+            <input type="file" multiple id="fb-attachment-file" accept="image/*" hidden>
             <div class="fb-attach-controls">
                 <button type="button" class="fb-btn" id="fb-attach-btn" tabindex="0"><i class="fa-solid fa-paperclip"></i> Attach image</button>
                 <span id="fb-attachment-info" class="fb-optional"></span>
             </div>
-            <div id="fb-attachment-preview" class="hide">
-                <img id="fb-attachment-img" alt="Attachment preview">
-                <button type="button" class="fb-btn fb-btn-danger" id="fb-remove-attachment" tabindex="0">Remove</button>
-            </div>
+            <div id="fb-attachment-preview" onclick="removeImg(event)" class="hide"></div>
         </div>
         <div class="fb-row" id="fb-logs-row">
             <label class="fb-check-label" for="fb-include-logs">

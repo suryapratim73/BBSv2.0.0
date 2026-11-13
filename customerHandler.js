@@ -193,7 +193,6 @@ ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
     let { customerId,delivery,tax,billAmt } = saleObj;
     let billItemModel = await getBillModel(customerId,billNo,billDate,billItemSchema)
     let orderItems = (await billItemModel.findAll()).map(({dataValues})=>dataValues);
-    debugger
     let _orderItems = [...orderItems];
     orderItems.forEach(itemObj=>{
         let _isGrouped = _orderItems.filter(obj=>obj.id===itemObj.grpId)
@@ -227,8 +226,8 @@ ipcMain.on("print",async(e,name,billDate,billNo,entryNo)=>{
         }
     });
     ipcMain.once("print-obj",(async function(e,printObj){
-        let billDate = openFormatForDate(new Date(saleObj.billDate))
-        let billItemTable = await getBillModel(saleObj.customerId,saleObj.billNo,billDate,billItemSchema);
+        let billDate = openFormatForDate(new Date(saleObj.billDate));
+        let billItemTable = await getBillModel(saleObj.customerId,saleObj.billNo,billDate,billItemSchema,sequelize,saleObj.billItemTable);
         let itemList = (await billItemTable.findAll()).map(({dataValues})=>dataValues);
         let netQty = itemList.reduce((acc,{quantity,unit})=>{
             if(unit==="Kg")

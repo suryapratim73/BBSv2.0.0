@@ -367,9 +367,9 @@ async function getLedgerModel(id,ledgerSchema,_sequelize){
 
 exports.getLedgerModel = getLedgerModel;
 
-exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema,_sequelize){
+exports.getBillModel = async function getBillModel(id,billNo,billDate,billSchema,_sequelize,itemTableName){
     const { sequelize } = require("./model/dbConfig");
-    let itemListTable = `${id}_${billNo}_${billDate}`;
+    let itemListTable = itemTableName || `${id}_${billNo}_${billDate}`;
     let inst = sequelize;
     if(_sequelize)
         inst = _sequelize;

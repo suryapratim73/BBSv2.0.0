@@ -1,23 +1,13 @@
 {
-    "version":"2.23.1",
+    "version":"2.23.2",
     "highlights":[
-        "[2.23.1] Fix: Kiosk Mode bug fixed",
-        "[2.23.1] Fix: OrderManager bug fixed",
-        "[2.23.1] Improve: Now app wil detect paused download and offer resume",
-        "[2.23.1] Improve: Manage ship-to addresses from the Customer Portal (Ctrl+Shift+Y)"
-
+        "[2.23.2] Fix: New updator script introduced for seemless update installation",
+        "[2.23.2] Fix: Re-print bug in customer portal fixed",
+        "[2.23.2] New: Feedback mechanism introduced"
     ],
     "fullchange":[
-        "[2.23.1] Improve: Device identity (deviceId) is now frozen per machine + GST and persisted with the serials and encryption secret in config/secret.json — it can no longer change on re-registration",
-        "[2.23.1] Fix: GST edits no longer make older encrypted logs unreadable — log decryption now retries keys derived from previous GST numbers kept in the identity store",
-        "[2.23.1] Fix: Cloud Connect now uses the same hardware-bound deviceId as app registration (one id per machine) instead of a per-install random id",
-        "[2.23.1] Improve: The encryption secret now falls back to the identity store if the OS keychain loses it, so log history stays decryptable",
-        "[2.23.1] Improve: Hardware serial detection hardened (timeouts, fallback sources) and themed announcement/help re-fetch after registration so slow machines no longer miss them",
-        "[2.23.1] Fix: TypeError issue in setAppPresets fixed",
-        "[2.23.1] Improve: New Shipping Addresses button in the Customer Portal (Ctrl+Shift+Y) — add, edit or remove a customer's saved ship-to addresses; every change saves automatically and the sale page dropdown updates right away",
-        "[2.23.1] Improve: Scheduler upcoming jobs are now collapsible cards, just like the notification groups",
-        "[2.23.1] Improve: Legal page — App EULA and API Terms of Service permanently available from BBS → Legal",
-        "[2.23.1] Fix: Beta Program prompt now appears once on Cloud sign-in and can be reopened anytime from BBS → Beta Program",
-        "[2.23.1] Fix: Legal page selected tab text could be unreadable in some themes — now uses the theme's secondary color"
+        "[2.23.2] Fix: New updator script introduced for seemless update installation",
+        "[2.23.2] Fix: Re-print bug in customer portal fixed",
+        "[2.23.2] New: Feedback mechanism introduced"
     ]
 }
